@@ -1,0 +1,162 @@
+<html>
+    <head>
+        <title>Software</title>
+        <link href="../stylesheet.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <br><br><br>
+        <IMG SRC="software_banner.gif" WIDTH="170" HEIGHT="49"><BR><BR>
+
+        <p><hr><p>
+
+        <h2>ROM Library and Bootstrap Code</h2>
+
+        <p>The memory board had an EPROM that mapped to the first
+        16k of memory.  In it we stored the code used to initialize
+        the system and some routines that would be useful to programs,
+        such as writing to the display, getting a line of input
+        from the keyboard, converting decimal to hex, and copying
+        strings around.</p>
+
+        <p>Before we got the serial port working, our programs had
+        to be burned on the EPROM as well, since we had no other way
+        to get data into the system.  The main routine was simply appended
+        to the library code.</p>
+
+        <p>Here are a few of the files we used regularly:</p>
+
+        <table>
+            <tr valign="top">
+                <th>HTML</th>
+                <th width="10px"></th>
+                <th>Raw</th>
+                <th width="10px"></th>
+                <th width="300px">Description</th>
+            </tr>
+            <tr valign="top">
+                <td><a href="Software/rom.asm.html">rom.asm</a></td>
+                <td width="10px"></td>
+                <td><a href="Software/rom.asm">rom.asm</a></td>
+                <td width="10px"></td>
+                <td width="300px">The main routine that we assembled.  This
+                    #includes the other library files, contains some test
+                    scaffolding, has some interrupt-handling routines, and
+                    converts keyboard codes into ASCII.  The include
+                    of "image.asm" was for displaying precompiled images
+                    on the monitor that was eventually added using the
+                    video board.</td>
+            </tr>
+            <tr valign="top">
+                <td><a href="Software/library.asm.html">library.asm</a></td>
+                <td width="10px"></td>
+                <td><a href="Software/library.asm">library.asm</a></td>
+                <td width="10px"></td>
+                <td width="300px">Contains the bootstrapping code and some
+                    library functions, including a routine to print to
+                    the display.</td>
+            </tr>
+            <tr valign="top">
+                <td><a href="Software/stdio.asm.html">stdio.asm</a></td>
+                <td width="10px"></td>
+                <td><a href="Software/stdio.asm">stdio.asm</a></td>
+                <td width="10px"></td>
+                <td width="300px">Contains a gets() function to get a line of
+                    input from the keyboard.  Was eventually going to have
+                    more routines from C's "stdio.h" header.</td>
+            </tr>
+            <tr valign="top">
+                <td><a href="Software/string.asm.html">string.asm</a></td>
+                <td width="10px"></td>
+                <td><a href="Software/string.asm">string.asm</a></td>
+                <td width="10px"></td>
+                <td width="300px">Contains a strcpy() function to copy a string.
+                    Was eventually going to have
+                    more routines from C's "string.h" header.</td>
+            </tr>
+            <tr valign="top">
+                <td><a href="Software/printf.asm.html">printf.asm</a></td>
+                <td width="10px"></td>
+                <td><a href="Software/printf.asm">printf.asm</a></td>
+                <td width="10px"></td>
+                <td width="300px">A C-like printf() routine that handles %d,
+                    %x, and %s.</td>
+            </tr>
+        </table>
+
+        <br>
+        <br>
+
+        <h2>PIC Code in I/O Board</h2>
+
+        <p>The I/O board had a PIC chip to do most of the I/O work.
+        The PIC chip had an EPROM built-in, which we programmed
+        to communicate with the Z-80 CPU.</p>
+
+        <p>Here's the <a href="Software/queue.src.html">HTML</a>
+        and <a href="Software/queue.src">raw</a> versions of the
+        source code.  Basically it's responsible for the following
+        things:</p>
+        
+        <ul>
+            <li>Accepting a byte over the serial port and interrupting
+            the CPU with it.
+            <li>Accepting a byte from the keyboard and interrupting the
+            CPU with it (raw byte -- no ASCII translation).
+            <li>Interrupting the CPU ten times per second.  (We never
+            ended up using this feature.)
+        </ul>
+
+        <p>We developed a simple protocol so that we didn't have to use
+        several interrupt channels.  Only a single IRQ channel was
+        used on the 8259 and the CPU asked the PIC what kind of data
+        was available.</p>
+
+        <br>
+
+        <h2>C Compiler</h2>
+
+        <p>Lawrence wrote a very simple C compiler, which compiled to
+        assembly language.  (If you look at "rom.asm" above, you
+        can see an include of "zcc_out.asm".)  It wasn't used for
+        anything but small tests.  It didn't support structures or
+        floating point, but it did support pointers.  You can
+        download the <a href="Software/zcc.tar.gz">source code</a>.</p>
+
+        <br>
+
+        <h2>Operating System</h2>
+
+        <p>We wrote a very simple multi-tasking operating system,
+        but it was never even tested on the machine.  It worked
+        under Linux when interrupts were simulated with alarm
+        signals.  The C compiler never got far enough along to
+        compile it.  You can download the
+        <a href="Software/blan9.tar.gz">source code</a>.  It was
+        called "BLan9" as a pun on
+        <a href="http://www.cs.bell-labs.com/plan9dist/">Plan 9</a>,
+        the operating system from Bell Labs, and the "BL" stands
+        for "Brad and Lawrence".</p>
+
+        <br>
+
+        <h2>Logic Analyzer</h2>
+
+        <p>The problems we had with the CPU board drove us to build a
+        simple logic analyzer that worked through the parallel port
+        of our laptop.  This logic analyzer software recorded the
+        values of four pins at up to 70 kHz.  The result could
+        displayed, scrolled, and zoomed in an X Window window.  After
+        fighting with the CPU board for months, we found the problem
+        in hours with this program -- it was obvious by comparing
+        various signals that the 8259 wasn't latching the interrupt
+        pins like we thought it did.  There's nothing like good debugging
+        tools.  You can download the
+        <a href="Software/anal.tar.gz">source code</a>.</p>
+
+        <br>
+        <br>
+        <br>
+
+    </body>
+</html>
+

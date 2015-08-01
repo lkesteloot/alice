@@ -1,0 +1,115 @@
+<html>
+<head>
+<title>C:\Documents and Settings\kestelootl\My Documents\Alice\alice.noimages.tar\alice\alice2\Software\stdio.asm.html</title>
+<meta name="Generator" content="Vim/6.0">
+</head>
+<body bgcolor="#ffdab9" text="#000000">
+<pre>
+
+<font color="#406090">;</font>
+<font color="#406090">; GETS - Inputs a string into the</font>
+<font color="#406090">;   buffer pointed to by HL.  String is</font>
+<font color="#406090">;   NULL-terminated.</font>
+<font color="#406090">;</font>
+<font color="#406090">; No registers are modified.</font>
+<font color="#406090">;</font>
+
+GETS
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">AF</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">HL</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">BC</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">DE</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">IX</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">IY</font>
+
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">HL</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">IX</font>       <font color="#406090">; IX = end of buffer</font>
+        <font color="#804040"><b>LD</b></font>      (<font color="#008080">IX</font>), <font color="#c00058">0</font>
+
+GETS_LOOP <font color="#406090">; wait for key</font>
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, (NUMKEY)
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">0</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">NZ</font>, GOT_KEY
+
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, (SHOULD_RUN)
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">0</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">Z</font>, GETS_LOOP
+
+        <font color="#406090">; comment this in for the next burn-in</font>
+        <font color="#406090">; LD    A, 0</font>
+        <font color="#406090">; LD    (SHOULD_RUN), A</font>
+
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">HL</font>, (CURRENT_ADDR)
+        <font color="#804040"><b>JP</b></font>      (<font color="#008080">HL</font>)
+
+GOT_KEY
+        <font color="#804040"><b>DI</b></font>
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, (NUMKEY)     <font color="#406090">; in case it changed before DI</font>
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">IY</font>, KEYBUF
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">B</font>, <font color="#008080">A</font>
+
+GETS_COPY
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, (<font color="#008080">IY</font>)
+
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">8</font>  <font color="#406090">; backspace</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">Z</font>, BACKSPACE
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">127</font>  <font color="#406090">; delete</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">NZ</font>, NOT_BACKSPACE
+
+BACKSPACE
+        <font color="#406090">; do not backspace past beginning of buffer</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">IX</font>      <font color="#406090">; move IX into DE</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">DE</font>
+        SCF             <font color="#406090">; carry = 1</font>
+        CCF             <font color="#406090">; carry = 0</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">HL</font>      <font color="#406090">; save HL</font>
+        SBC     <font color="#008080">HL</font>, <font color="#008080">DE</font>  <font color="#406090">; HL -= DE</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">HL</font>      <font color="#406090">; restore HL</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">Z</font>, NEXT_KEY <font color="#406090">; do not backspace if IX == HL</font>
+
+        <font color="#804040"><b>DEC</b></font>     <font color="#008080">IX</font>
+        <font color="#804040"><b>JP</b></font>      NEXT_KEY
+
+NOT_BACKSPACE
+        <font color="#804040"><b>LD</b></font>      (<font color="#008080">IX</font>), <font color="#008080">A</font>
+        <font color="#804040"><b>INC</b></font>     <font color="#008080">IX</font>
+
+NEXT_KEY
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">10</font> <font color="#406090">; return (keyboard)</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">Z</font>, GETS_DONE
+
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">13</font> <font color="#406090">; return (maybe serial)</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">Z</font>, GETS_DONE
+
+        <font color="#804040"><b>INC</b></font>     <font color="#008080">IY</font>
+
+        <font color="#804040"><b>DJNZ</b></font>    GETS_COPY
+
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, <font color="#c00058">0</font>
+        <font color="#804040"><b>LD</b></font>      (NUMKEY), <font color="#008080">A</font>
+        <font color="#804040"><b>EI</b></font>
+
+        <font color="#804040"><b>LD</b></font>      (<font color="#008080">IX</font>), <font color="#c00058">0</font>
+        <font color="#804040"><b>CALL</b></font>    LCDPRINT
+
+        <font color="#804040"><b>JP</b></font>      GETS_LOOP
+
+GETS_DONE
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, <font color="#c00058">0</font>
+        <font color="#804040"><b>LD</b></font>      (NUMKEY), <font color="#008080">A</font>
+        <font color="#804040"><b>EI</b></font>
+
+        <font color="#804040"><b>LD</b></font>      (<font color="#008080">IX</font>), <font color="#c00058">0</font>
+
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">IY</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">IX</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">DE</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">BC</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">HL</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">AF</font>
+        <font color="#804040"><b>RET</b></font>
+
+<font color="#406090">;----------------------------------------</font>
+</pre>
+</body>
+</html>

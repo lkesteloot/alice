@@ -1,0 +1,93 @@
+
+
+Style
+------------
+no frames, java, javascript
+possible menu or navigator bar on left side?
+    (no - navigator bars on left side are considered a waste of
+    space.  see alertbox.com for lots of good web layout advice)
+try to fit no more per page than 30 second download at 28.8K
+    Sounds good.
+
+Should we use first or third person?  If we use first, then
+we need to have an author to each page, which may make it
+difficult for shared pages.  Maybe it's easier to always use
+third-person.
+
+
+Possible design of the Alice website
+------------------------------------
+Top-level
+    Brief description of the whole Alice project.
+    Link to MacBSD
+    Link to Alice-I
+    Link to Alice-II
+    Link to members (brad, lk, allen, mike, ccaputo, etc.)
+Alice-I
+    History and Goal
+    Design overview
+	Tools and Process
+	Main Board
+	Output Board
+	What I learned
+Alice-II
+    History and Goal
+    Design and process (chronology)
+	Tools
+	    soldering iron, oscilloscope, multitester
+	    EPROM programmer, PIC programmer
+	Overview of whole process of making a board
+	    design, prototype, xgif, print, iron on, etch,
+	    tin, drill, populate, solder, test
+	Frame and bus
+	    layout of bus
+	Power supply
+	Clock board
+	    555 daughter board
+	Debug board
+	Memory board
+	CPU board
+	I/O board (including LCD box)
+	Video board
+	    timer daughter board
+	Misc hardware
+	    logic probe
+	    clock counter 
+	    parallel port logic analyzer + software
+	Software (ROM, I/O microcontroller, compiler)
+	Lessons learned, misc thoughts
+	    What it meant to us as
+		friends
+		engineers
+	    Keeping a design notebook
+	    The importance of environment 
+		food, music, heat, light
+
+What we need:
+-------------
+
+Power supply page:
+    Picture of board inside power supply
+    Picture of schematic of power supply, if we have it
+    Verify 7505 specs, all specs
+
+Notes:
+------
+    How to make the banner:
+        gimp
+        Xtns->Script-Fu->Logos->Basic I
+            Text String = "The Alice Project"
+            Size = 70
+            Font = "Charter"
+            Background Color = white
+            Text Color = black
+        Right-click->Layers->Merge Visible Layers (Ctrl-M)
+            Choose "Expanded as necessary"
+        Right-click->Image->Mode->Grayscale (Alt-G)
+        Right-click->File->Save->"banner.gif", take default for all questions
+            Choose "Crop" (if asked)
+            Check "Interlace"
+            Choose OK for "Saving as opaque"
+        Right-click->Image->Transforms->Zealous Crop
+        Save again
+    For smaller banners, use size 40
