@@ -1,35 +1,40 @@
+<!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Debug Board</title>
-        <link href="../stylesheet.css" rel="stylesheet" type="text/css">
+        <link href='http://fonts.googleapis.com/css?family=Sorts+Mill+Goudy:400,400italic' rel='stylesheet' type='text/css'>
+        <link href="../base.css" rel="stylesheet" type="text/css">
     </head>
     <body>
-        <IMG SRC="debug_board_banner.gif" WIDTH="246" HEIGHT="49"><BR><BR>
+        <div class="content">
+            <h1>Debug Board</h1>
 
-        <BR>
+            <p>The debug board displays the state of the
+            bus.  This includes two 7-segment LED digits for the data
+            pins, four digits for the address pins, and ten individual
+            LEDs: four IRQs (interrupt request pins), memory read, memory
+            write, I/O read, I/O write, reset, and NMI (non-maskable interrupt).</p>
 
-        <p><hr><p>
+            <img src="../pics/0016.jpg">
 
-        <A HREF="../pics/0016.html"><IMG
-            SRC="../thumbnails/0016.jpg" align=LEFT WIDTH="192"
-            HEIGHT="171"> </A>The debug board displays the state of the
-        bus.  This includes two 7-segment LED digits for the data
-        pins, four digits for the address pins, and ten individual
-        LEDs: four IRQs (interrupt request pins), memory read, memory
-        write, I/O read, I/O write, reset, and NMI (non-maskable interrupt).<P>
+            <p>The design
+            of the debug board is fairly straightforward.
+            The individual LEDs are hooked up to the bus through
+            inverters (since these lines are active-low) and through
+            resistor packs.  The data and address pins go through
+            4-bit-to-7-segment-LED chips (4495s).</p>
 
-        <A HREF="../pics/0018.html"><IMG
-            SRC="../thumbnails/0018.jpg" align=RIGHT WIDTH="192"
-            HEIGHT="164"> </A>The design
-        of the debug board is fairly straightforward.
-        The individual LEDs are hooked up to the bus through
-        inverters (since these lines are active-low) and through
-        resistor packs.  The data and address pins go through
-        4-bit-to-7-segment-LED chips (4495s).<P>
+            <img src="../pics/0018.jpg">
 
-        We used the debug board extensively when building the memory
-        and CPU boards.  We didn't use it after that because we couldn't
-        run the I/O board any slower than full speed and that prevented
-        us from doing single-stepping of the Z-80 code.<P>
+            <p>We used the debug board extensively when building the memory
+            and CPU boards.  We didn't use it after that because we couldn't
+            run the I/O board any slower than full speed and that prevented
+            us from doing single-stepping of the Z-80 code.</p>
+
+            <p><a href="./">&laquo; Back</a></p>
+        </div>
     </body>
 </html>

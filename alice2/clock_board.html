@@ -1,61 +1,65 @@
+<!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Clock Board</title>
-        <link href="../stylesheet.css" rel="stylesheet" type="text/css">
+        <link href='http://fonts.googleapis.com/css?family=Sorts+Mill+Goudy:400,400italic' rel='stylesheet' type='text/css'>
+        <link href="../base.css" rel="stylesheet" type="text/css">
     </head>
     <body>
-        <IMG SRC="clock_board_banner.gif" WIDTH="231" HEIGHT="41"><BR><BR>
+        <div class="content">
+            <h1>Clock Board</h1>
 
-        <BR>
+            <p>The clock board's responsibility is to put a clock signal
+            on the clock pin of the bus.  We wanted control over the
+            clock speed, so we had switches to put the board into one
+            of three states: single-step, variable, and full-speed.</p>
 
-        <p><hr><p>
+            <img src="../pics/0029.jpg">
 
-        <A HREF="../pics/0029.html"><IMG
-            SRC="../thumbnails/0029.jpg" align=LEFT WIDTH="192"
-            HEIGHT="127"> </A>
-	The clock board's responsibility is to put a clock signal
-        on the clock pin of the bus.  We wanted control over the
-        clock speed, so we had switches to put the board into one
-        of three states: single-step, variable, and full-speed.<P>
+            <p>In single-step mode, a push button toggled the clock
+            signal manually.  This was useful to debug the memory and
+            CPU boards later.</p>
 
-        In single-step mode, a push button toggled the clock
-        signal manually.  This was useful to debug the memory and
-        CPU boards later.<P>
+            <p>In variable mode, a potentiometer let us go from about
+            0.1 Hz to 1 kHz.  This was useful if the section we wanted
+            to single-step was far into the program&mdash;we'd run the
+            program in this mode until the program got close to the
+            problem section, then go into single-step mode.</p>
 
-        In variable mode, a potentiometer let us go from about
-        0.1 Hz to 1 kHz.  This was useful if the section we wanted
-        to single-step was far into the program -- we'd run the
-        program in this mode until the program got close to the
-        problem section, then go into single-step mode.<P>
+            <img src="../pics/0032.jpg">
 
-        <A HREF="../pics/0032.html"><IMG
-            SRC="../thumbnails/0032.jpg" align=RIGHT WIDTH="192"
-            HEIGHT="120"> </A>Full-speed mode was 1 MHz using an
-        oscillator.<P>
+            <p>Full-speed mode was 1 MHz using an
+            oscillator.</p>
 
-        Three LEDs were useful in the above three modes.  The
-        first LED showed the actual clock.  The second showed the
-        clock divided by 1024, and the third divided by a
-        million.<P>
+            <p>Three LEDs were useful in the above three modes.  The
+            first LED showed the actual clock.  The second showed the
+            clock divided by 1024, and the third divided by a
+            million.</p>
 
-        The card also has a reset button, which just grounds the
-        active-low reset pin of the bus.<P>
+            <p>The card also has a reset button, which just grounds the
+            active-low reset pin of the bus.</p>
 
-        The clock board basically worked except for the
-        variable mode.  We had taken the design from a magazine
-        that used an RC (resistor-capacitor) circuit.  This proved
-        to be unreliable, so we later replaced this with a
-        daughterboard that used a 555 timer chip.  The notebook
-        page below shows the design with the RC circuit -- we can't
-        find the page with the design of the daugherboard.<P>
+            <p>The clock board basically worked except for the
+            variable mode.  We had taken the design from a magazine
+            that used an RC (resistor-capacitor) circuit.  This proved
+            to be unreliable, so we later replaced this with a
+            daughterboard that used a 555 timer chip.  The notebook
+            page below shows the design with the RC circuit&mdash;we can't
+            find the page with the design of the daugherboard.</p>
 
-        <A HREF="../pics/0098.html"><IMG
-            SRC="../thumbnails/0098.jpg" align=LEFT WIDTH="192"
-            HEIGHT="170"> </A>When we later developed the CPU and
-        memory boards, we ran
-        into all sorts of problems that we were able to debug easily
-        using the single-step mode and the debug board.  It's extremely
-        important to develop good debugging tools early in any
-        project.<P>
+            <img src="../pics/0098.jpg">
+
+            <p>When we later developed the CPU and
+            memory boards, we ran
+            into all sorts of problems that we were able to debug easily
+            using the single-step mode and the debug board.  It's extremely
+            important to develop good debugging tools early in any
+            project.</p>
+
+            <p><a href="./">&laquo; Back</a></p>
+        </div>
     </body>
 </html>

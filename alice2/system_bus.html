@@ -1,121 +1,125 @@
+<!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>System Bus</title>
-        <link href="../stylesheet.css" rel="stylesheet" type="text/css">
+        <link href='http://fonts.googleapis.com/css?family=Sorts+Mill+Goudy:400,400italic' rel='stylesheet' type='text/css'>
+        <link href="../base.css" rel="stylesheet" type="text/css">
     </head>
     <body>
-        <IMG SRC="system_bus_banner.gif" WIDTH="209" HEIGHT="47"><BR><BR>
+        <div class="content">
+            <h1>System Bus</h1>
 
-        <BR>
+            <p>We wanted a bus scheme that would use commodity parts, that
+            would have at least 50 pins, that plugged in and out easily,
+            and that wouldn't flake out if abused.  We chose to have two
+            25-wire ribbon cables running along the backplane, with
+            DB-25s clamped on roughly where the slots were in the
+            cage.  The connectors were attached with long screws and plastic
+            spacers.  We left some play in the attachment so that the
+            boards could connect more easily.</p>
 
-        <p><hr><p>
+            <p>This turned out to be a really good idea&mdash;it was simple
+            and for the most part worked well for us.  Unfortunately a
+            few of the DB-25s were attached improperly, causing short
+            circuits or open circuits, so we didn't use those slots.  We
+            probably should have redone the whole cable properly,
+            because later we wished we had all the slots we could use,
+            but at the time we just wanted to get on with the
+            project.</p>
 
-        We wanted a bus scheme that would use commodity parts, that
-        would have at least 50 pins, that plugged in and out easily,
-        and that wouldn't flake out if abused.  We chose to have two
-        25-wire ribbon cables running along the backplane, with
-        DB-25s clamped on roughly where the slots were in the
-        cage.  The connectors were attached with long screws and plastic
-        spacers.  We left some play in the attachment so that the
-        boards could connect more easily.<P>
+            <img src="../pics/0084.jpg">
 
-        This turned out to be a really good idea -- it was simple
-        and for the most part worked well for us.  Unfortunately a
-        few of the DB-25s were attached improperly, causing short
-        circuits or open circuits, so we didn't use those slots.  We
-        probably should have redone the whole cable properly,
-        because later we wished we had all the slots we could use,
-        but at the time we just wanted to get on with the
-        project.<P>
+            <p>The cage had eight slots, so we put a pair
+            of DB-25s for each one.  (In this picture one pair is hidden
+            by the support bar.)  The top cable extended to the left and
+            had an additional DB-25 plugging into the power supply.  We
+            later found out that one of the pins on the bus should have
+            been grounded but wasn't, so we hacked a DB-25 to plug into
+            the left-most slot.  (It's slightly out of focus in the
+            picture, but it's just a pull-up resistor.)</p>
 
-        <A HREF="../pics/0084.html"><IMG
-            SRC="../thumbnails/0084.jpg" align=LEFT WIDTH="192"
-            HEIGHT="169"> </A>The cage had eight slots, so we put a pair
-        of DB-25s for each one.  (In this picture one pair is hidden
-        by the support bar.)  The top cable extended to the left and
-        had an additional DB-25 plugging into the power supply.  We
-        later found out that one of the pins on the bus should have
-        been grounded but wasn't, so we hacked a DB-25 to plug into
-        the left-most slot.  (It's slightly out of focus in the
-        picture, but it's just a pull-up resistor.)<P>
+            <img src="../pics/0009.jpg">
 
-        <A HREF="../pics/0009.html"><IMG
-            SRC="../thumbnails/0009.jpg" align=RIGHT WIDTH="183" HEIGHT="192"></A>
-        The bus itself was made of a top and a bottom part.  The top bus
-        consisted of the power and control pins, while the bottom bus was used
-        for address and data.  We created often-referred-to reference cards on
-        poster paper which we kept on the wall of the garage.<P>
+            <p>The bus itself was made of a top and a bottom part.  The top bus
+            consisted of the power and control pins, while the bottom bus was used
+            for address and data.  We created often-referred-to reference cards on
+            poster paper which we kept on the wall of the garage.</p>
 
-        <H3>Top Bus</H3><P>
+            <h2>Top Bus</h2>
 
-        <DL>
-            <DT>Pin 1 - Gnd
-            <DD>Ground wire.  We later added pin 18 for the same purpose
-            to make sure we could carry all the current.
-            <DT>Pin 2 - Clk 
-            <DD>Clock signal, generated by the clock board.
-            <DT>Pin 3 - +5V power
-            <DD>This pin was used to power the whole computer, and we
-            later added pin 19 to supplement it.
-            <DT>Pin 4 - -5V power
-            <DT>Pin 5 - +12V power
-            <DT>Pin 6 - -12V power
-            <DD>Not hooked up or used.
-            <DT>Pin 7 - /IRQ0
-            <DT>Pin 8 - /IRQ1
-            <DT>Pin 9 - /IRQ2
-            <DT>Pin 10 - /IRQ3
-            <DD>These four pins were active-low interrupt request
-            signals.  They were plugged into the CPU board's 8259 interrupt
-            controller.
-            <DT>Pin 11 - /NMI
-            <DD>The active-low non-maskable interrupt line wasn't used,
-            although I think it was plugged into the CPU.  A
-            non-maskable interrupt cannot be turned off in software.
-            It's usually used for emergencies, such as a warning that
-            power is about to go out.
-            <DT>Pin 12 - /MR
-            <DT>Pin 13 - /MW
-            <DT>Pin 14 - /IOR
-            <DT>Pin 15 - /IOW
-            <DD>Active-low memory read/write and I/O read/write.  The
-            CPU asserts these pins when it wants to access memory or an
-            I/O port.  The CPU's four pins are actually memory request,
-            I/O request, read, and write, and we converted those to our
-            four because we figured that it would be easier to decode on
-            boards.  That turned out to be a bad idea -- see pin 20 for
-            the explanation.
-            <DT>Pin 16 - /RESET
-            <DD>Active-low reset.  There was a reset button both on the
-            clock board and on the LCD box.
-            <DT>Pin 17 - /WAIT
-            <DD>Active-low wait line.  The wait line is activated by
-            memory to tell the CPU to wait a couple cycles.  I don't
-            think we ever hooked it up to anything.
-            <DT>Pin 18 - Gnd
-            <DT>Pin 19 - +5V power
-            <DD>We added these to make sure the boards had enough power.
-            <DT>Pin 20 - /MREQ
-            <DD>It turns out that the CPU's memory request pin and the
-            read/write pins aren't asserted at the same time.  /MREQ
-            gets asserted first, the address pins are set, there's a
-            short delay, then /RD or /WR is asserted.  The short delay
-            lets the address pins settle before a read or write is
-            executed.  With our original system, /MREQ and /RD or /WR
-            were ANDed together on the CPU board, so the memory board
-            had no chance of letting the address pins settle, leading to
-            bad reads and writes.  We had to add /MREQ to solve this
-            problem.
-            <DT>Pin 24 - Kbd
-            <DT>Pin 25 - Kbd
-            <DD>The LCD box (into which the keyboard was plugged)
-            used these two lines to send keystroke events to the I/O board.
-        </DL>
+            <dl>
+                <dt>Pin 1 - Gnd
+                <dd>Ground wire.  We later added pin 18 for the same purpose
+                to make sure we could carry all the current.
+                <dt>Pin 2 - Clk 
+                <dd>Clock signal, generated by the clock board.
+                <dt>Pin 3 - +5V power
+                <dd>This pin was used to power the whole computer, and we
+                later added pin 19 to supplement it.
+                <dt>Pin 4 - -5V power
+                <dt>Pin 5 - +12V power
+                <dt>Pin 6 - -12V power
+                <dd>Not hooked up or used.
+                <dt>Pin 7 - /IRQ0
+                <dt>Pin 8 - /IRQ1
+                <dt>Pin 9 - /IRQ2
+                <dt>Pin 10 - /IRQ3
+                <dd>These four pins were active-low interrupt request
+                signals.  They were plugged into the CPU board's 8259 interrupt
+                controller.
+                <dt>Pin 11 - /NMI
+                <dd>The active-low non-maskable interrupt line wasn't used,
+                although I think it was plugged into the CPU.  A
+                non-maskable interrupt cannot be turned off in software.
+                It's usually used for emergencies, such as a warning that
+                power is about to go out.
+                <dt>Pin 12 - /MR
+                <dt>Pin 13 - /MW
+                <dt>Pin 14 - /IOR
+                <dt>Pin 15 - /IOW
+                <dd>Active-low memory read/write and I/O read/write.  The
+                CPU asserts these pins when it wants to access memory or an
+                I/O port.  The CPU's four pins are actually memory request,
+                I/O request, read, and write, and we converted those to our
+                four because we figured that it would be easier to decode on
+                boards.  That turned out to be a bad idea&mdash;see pin 20 for
+                the explanation.
+                <dt>Pin 16 - /RESET
+                <dd>Active-low reset.  There was a reset button both on the
+                clock board and on the LCD box.
+                <dt>Pin 17 - /WAIT
+                <dd>Active-low wait line.  The wait line is activated by
+                memory to tell the CPU to wait a couple cycles.  I don't
+                think we ever hooked it up to anything.
+                <dt>Pin 18 - Gnd
+                <dt>Pin 19 - +5V power
+                <dd>We added these to make sure the boards had enough power.
+                <dt>Pin 20 - /MREQ
+                <dd>It turns out that the CPU's memory request pin and the
+                read/write pins aren't asserted at the same time.  /MREQ
+                gets asserted first, the address pins are set, there's a
+                short delay, then /RD or /WR is asserted.  The short delay
+                lets the address pins settle before a read or write is
+                executed.  With our original system, /MREQ and /RD or /WR
+                were ANDed together on the CPU board, so the memory board
+                had no chance of letting the address pins settle, leading to
+                bad reads and writes.  We had to add /MREQ to solve this
+                problem.
+                <dt>Pin 24 - Kbd
+                <dt>Pin 25 - Kbd
+                <dd>The LCD box (into which the keyboard was plugged)
+                used these two lines to send keystroke events to the I/O board.
+            </dl>
 
-        <H3>Bottom Bus</H3><P>
+            <h2>Bottom Bus</h2>
 
-        Pins 1 through 16 held A0 through A15, and pins 18 through
-        25 held D0 through D7.
+            <p>Pins 1 through 16 held A0 through A15, and pins 18 through
+            25 held D0 through D7.</p>
 
+            <p><a href="./">&laquo; Back</a></p>
+        </div>
     </body>
 </html>
