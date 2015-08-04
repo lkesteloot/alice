@@ -144,6 +144,10 @@ a.home-link {
         margin-top: 1em;
     }
 
+    ul.pseudomenu {
+        margin-left: 0;
+    }
+
     .content > img {
         max-width: 100%;
     }
