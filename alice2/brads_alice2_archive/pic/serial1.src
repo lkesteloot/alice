@@ -1,0 +1,230 @@
+;
+; Brad and Lawrence's PIC Alice II serial test program.
+; Accepts a byte on B1, serially clocked in on rising edges of
+; B0 (1 start bit, two stop bits), writes that byte on PORTD,
+; then interrupts the CPU by setting A0 low.
+; On PSP RD interrupt, clears the interrupt by setting A0 high.
+; Enables serial receive and transmits incoming serial on PORTD,
+; then interrupts the CPU by setting A0 low.
+;
+; May 10th, 1997
+;
+	maclib 'p65.inc'
+
+        device  pic16c65,xt_osc,wdt_off,pwrt_off,protect_off
+
+w_temp  equ     020h
+status_temp equ 021h
+
+initstopcnt        equ     2    ; # of stop bits per byte (+ 1)
+stopcnt            equ     022h ; storage for stop bits left
+initdatabits       equ     10   ; start bits + data bits (+ 1)
+databits           equ     023h ; storage for kbd data shifts left
+                                ; (1st bit shifted in gets pushed off end)
+kbdbyte            equ     024h ; storage for keyboard byte
+baudrate           equ     081h ; 2400 baud at 20 MHz, BRGH=0, 129 decimal
+
+reset
+        org     0               ; on reset
+        goto    start
+
+intsvc
+        org     4               ; on interrupt
+        goto    interrupt
+
+start
+        bcf     rp0             ; bank 0
+
+	    ; Alice II bus interface
+        bsf     porta,0         ; don't interrupt CPU on IRQ 0
+        bcf     pspif           ; clear PSP interrupt flag
+
+	    ; Debugging
+        bcf     porta,1         ; clear debugging output pin
+        bcf     porta,2         ; clear debugging output pin
+
+	    ; Serial interface
+        bcf     portc,6         ; clear USART transmit pin
+        bcf     portc,7         ; clear USART receive pin
+	bcf	rcif		; clear USART receive interrupt flag
+
+	    ; keyboard interface 
+        movlw   initstopcnt
+        movwf   stopcnt         ; set up # of stop bits in kbd data
+        movlw   initdatabits
+        movwf   databits        ; set up # of actual shifts to make
+
+        bsf     rp0             ; bank 1
+	
+	    ; Alice II bus interface
+        bcf     trisa,0         ; bit 0 port A is output
+
+	    ; Debugging
+        bcf     trisa,1         ; bit 1 port A is output
+        bcf     trisa,2         ; bit 2 port A is output
+        bsf     trisa,3         ; bit 3 port A is input
+
+	    ; Alice II bus interface
+        bsf     trise0          ; /RD is input
+        bsf     trise1          ; /WR is input
+        bsf     trise2          ; /CS is input
+
+	    ; Serial interface
+        ; don't need to set trisc, default is 0xff (input)
+	; Brad's not so sure
+        bcf     trisc, 6        ; transmit is output
+        bsf     trisc, 7        ; receive is input
+
+	    ; Keyboard interface
+        ; don't need to set trisb, default is 0xff (input)
+        bsf     intedg          ; RB0/INT triggers on low-to-high
+
+	    ; Alice II bus interface
+        bsf     pspie           ; enable PSP interrupts
+        bsf     pspmode         ; enable PSP mode
+
+	bsf	rp0		; bank 1
+
+	    ; Serial interface
+	movlw	baudrate	; default baud rate
+	movwf	spbrg		; set baud rate generator 
+	bcf	sync		; asynchronous serial
+	bsf	txen		; enable USART transmitter
+	bcf	rp0		; bank 0
+	bsf	spen		; enable USART receiver
+	bsf	rp0		; bank 1
+	bsf	rcie		; enable USART receive interrupt
+	bcf	rp0		; bank 0
+	bsf	cren		; enable USART receive next byte
+
+	    ; Serial and Alice II bus interface
+	bsf	rp0		; bank 1
+        bsf     peie            ; enable peripheral interrupts
+
+	    ; Keyboard interface
+        bcf     intf            ; clear RB0/INT interrupt flag
+        bsf     inte            ; enable RB0/INT interrupt
+
+        bsf     gie             ; enable all interrupts
+
+        bcf     rp0             ; bank 0
+                                                            
+loop
+        btfss   ferr        	; test ferr
+        goto    notferr         ; ferr not set
+	bsf	porta, 1	; transfer value to A1
+        goto 	checkoerr               
+
+notferr
+	bcf	porta, 1	; transfer value to A1
+
+checkoerr
+        btfss   oerr        	; test oerr
+        goto    notoerr         ; oerr not set
+	bsf	porta, 2	; transfer value to A2
+        goto 	checkinput
+
+notoerr
+	bcf	porta, 2	; transfer value to A2
+
+checkinput
+        btfss   porta,3        	; test input
+        goto    loop            ; input not set
+	movlw	'A'
+	movwf	txreg		; send debugging
+	bcf	cren
+	bsf	cren		; hopefully reset
+        goto 	loop            ; infinite loop
+
+interrupt
+        ; save W and STATUS
+        movwf   w_temp          ; save W
+        swapf   status, w       ; save status in W
+        bcf     rp0             ; bank 0
+        movwf   status_temp     ; save status
+
+	;movlw	002h
+	;xorwf	porta		; toggle port a, bit 1, for debugging.
+
+        btfss   pspif           ; test PSP interrupt flag
+        goto    notpsp          ; not PSP
+        bsf     rp0             ; bank 1
+        btfss   ibf             ; did we get a write?
+        goto    gotread         ; nope, jump to read
+        ; we got a write
+        ; don't do anything here.  Someday write to keyboard.
+        ; panic if you see bit 3 go up!
+        goto    endpspinterrupt ; return
+
+gotread
+        bcf     rp0             ; bank 0
+        bsf     porta,0         ; don't assert interrupt on IRQ 0
+        goto    endpspinterrupt
+
+notpsp                          ; either RB0/INT or RC/USART
+	btfss	intf		; skip next if is definitely INT interrupt
+	goto	serialin	; it's a byte from the parallel port
+
+        decfsz  databits, 1     ; skip next if done with data bits
+        goto    gotbit          ; have a good bit on port B
+        decfsz  stopcnt, 1      ; skip next if done with keyboard cycle
+        goto    morestops       ; not done yet, have stop bits
+
+gotkbdbyte
+        movf    kbdbyte, w      ; get kbd byte
+        movwf   portd           ; write data to CPU
+        bcf     porta, 0        ; turn on interrupt to CPU
+
+	; movlw	'B'
+	; movwf	txreg		; Inform us
+
+        movlw   initstopcnt
+        movwf   stopcnt         ; set up # of stop bits in
+        movlw   initdatabits
+        movwf   databits        ; set up # of actual shifts
+
+        goto    endintinterrupt ; done with sending byte
+
+morestops                       ; only stop bits left
+        clrf    databits
+        incf    databits        ; set remaining databits to 1
+				; next loop through dec's databits, it's 0,
+				; skips to decfsz stopcnt
+        goto    endintinterrupt ; finish with rb0/int interrupt
+
+gotbit                          ; shift in a bit from keyboard
+        bsf     c               ; set carry
+        btfss   portb, 1        ; if kbd data bit is set, skip next
+        bcf     c               ; clear carry
+        rrf     kbdbyte, 1      ; rotate data bit into MSB of kbdbyte
+        ; fall through to endintinterrupt
+
+endintinterrupt
+        bcf     rp0             ; bank 0
+        bcf     intf            ; clear RB0/INT interrupt flag
+        goto    finishinterrupt ; pop processor context
+
+endpspinterrupt
+        bcf     rp0             ; bank 0
+        bcf     pspif           ; clear PSP interrupt flag
+        goto    finishinterrupt
+
+serialin
+        bcf     rp0             ; bank 0
+	movf	rcreg, w	; get USART in
+	movwf	portd		; send it to CPU
+	bcf	porta, 0	; turn on interrupt to CPU
+	; fall through into endserinterrupt
+
+endserinterrupt
+        bcf     rcif            ; clear USART receive interrupt
+        ; fall through to finishinterrupt
+
+finishinterrupt
+        ; restore W and STATUS
+        swapf   status_temp, w  ; put old status in W
+        movwf   status          ; put into status
+        swapf   w_temp, 1       ; swap w_temp in place
+        swapf   w_temp, w       ; put old W into W
+
+        retfie
