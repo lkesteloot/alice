@@ -1,0 +1,530 @@
+   00ff                 BANKREG	EQU	0ffH
+                        
+                        
+                        ;
+                        ; Commonly used assembly routines
+                        ;
+                        
+                        ; 8259 Constants
+   0000                 I8259A	EQU	000H		; 8259 port 1
+   0001                 I8259B	EQU	001H		; 8259 port 2
+                        
+                        ;
+                        ; LCD Constants
+                        ;
+   0002                 LCDINST	EQU	002H		; LCD instruction I/O port
+   0003                 LCDDATA	EQU	003H		; LCD data I/O port
+   0001                 LCLEAR	EQU	001H		; LCD clear instruction
+   0038                 LRESET	EQU	038H		; LCD reset to normal instruction
+   0080                 LHALF1	EQU	080H		; LCD move cursor to char 1
+   00c0                 LHALF2	EQU	0c0H		; LCD move cursor to char 9
+   000a                 PAUSE	EQU	0aH		; a UNIX newline
+   0000                 STACKTOP	EQU	00000H	; top of stack (wraps to 0ffff)
+                        
+                        ; PIC Constants
+   0004                 PIC	EQU	004H		; PIC I/O port
+                        
+                        ;
+                        ; Set up useful stuff, jump to main program
+                        ;
+   0000   31 00 00      	LD	SP, STACKTOP
+   0003   cd 4c 00      	CALL	LCDINIT
+   0006   c3 14 01      	JP 	MAIN		; get past library routines
+                        
+                        ;
+                        ; Catch reset if it happens and try to print it on the LCD
+                        ;
+                        
+   0038                 	ORG	0038H		; Catch a reset
+   0038   21 3f 00      	LD	HL, GOTRESETSTR
+   003b   cd 89 00      	CALL	LCDPRINT
+   003e   76            	HALT
+                        
+   003f   47 6f 74 20   GOTRESETSTR	DB	"Got RST 38H", PAUSE, 0
+   0043   52 53 54 20   
+   0047   33 38 48 0a   
+   004b   00            
+                        
+                        
+                        ;
+                        ; LCD Init routine
+                        ; In: nothing
+                        ;
+   004c                 LCDINIT
+                        
+                        
+   004c   c5            	PUSH	BC
+   004d   e5            	PUSH	HL
+                        
+   004e   21 6b 00      	LD	HL, LISTRING
+   0051   06 0a         	LD	B, LISTRLEN
+                        
+   0053   c3 58 00      	JP	OUTBLOOP
+                        
+                        ;
+                        ; LCD string bytes output routine
+                        ; In:
+                        ;     B    - length divided by two, (e.g. # of bytes to output, not
+                        ; 	    including the I/O addresses)
+                        ;     HL   - address of bytes
+                        ;
+   0056                 OUTBYTES
+   0056   c5            	PUSH	BC
+   0057   e5            	PUSH	HL
+                        
+   0058                 OUTBLOOP
+   0058   4e            	LD	C, (HL)
+   0059   23            	INC	HL
+   005a   ed a3         	OUTI
+   005c   20 fa         	JR	NZ, OUTBLOOP
+                        
+                        	; Probably need a delay here at 1 MHz.
+                        	; Are we supposed to check busy bit and wait until not busy?
+                        
+   005e   e1            	POP	HL
+   005f   c1            	POP	BC
+                        
+   0060   c9            	RET
+                        
+                        ;
+                        ; Clear LCD display
+                        ; In: nothing
+                        ;
+   0061                 LCDCLR
+   0061   c5            	PUSH	BC
+   0062   e5            	PUSH	HL
+                        
+   0063   21 7f 00      	LD	HL, LCSTRING
+   0066   06 05         	LD	B, LCSTRLEN	; falls through into byte output loop
+   0068   c3 58 00      	JP	OUTBLOOP
+                        
+                        ;
+                        ; LCD Initialization string
+                        ;
+   000a                 LISTRLEN	EQU	10
+   006b                 LISTRING
+   006b   02 38         	DB	LCDINST, LRESET
+   006d   02 38         	DB	LCDINST, LRESET
+   006f   02 06         	DB	LCDINST, 006H
+   0071   02 0e         	DB	LCDINST, 00eH
+   0073   02 01         	DB	LCDINST, LCLEAR
+   0075   02 80         	DB	LCDINST, LHALF1
+   0077   02 80         	DB	LCDINST, LHALF1
+   0079   02 80         	DB	LCDINST, LHALF1
+   007b   02 80         	DB	LCDINST, LHALF1
+   007d   02 80         	DB	LCDINST, LHALF1
+                        
+   0005                 LCSTRLEN	EQU	5
+   007f                 LCSTRING
+   007f   02 01         	DB	LCDINST, LCLEAR
+   0081   02 80         	DB	LCDINST, LHALF1
+   0083   02 80         	DB	LCDINST, LHALF1
+   0085   02 80         	DB	LCDINST, LHALF1
+   0087   02 80         	DB	LCDINST, LHALF1
+                        
+                        ;
+                        ; LCD String output routine
+                        ; In:
+                        ;     HL   - Address of null-terminated string
+                        ;
+   0089                 LCDPRINT
+                        
+                        
+   0089   f5            	PUSH	AF
+   008a   c5            	PUSH	BC
+   008b   d5            	PUSH	DE
+   008c   e5            	PUSH	HL
+                        
+   008d   3e 01         	LD	A, LCLEAR
+   008f   d3 02         	OUT	(LCDINST), A		; do a clear
+                        
+                        
+                        
+   0091   0e 03         	LD	C, LCDDATA
+   0093   16 19         	LD	D, 25		; when 1->0, switch to 2nd display
+                        
+   0095                 LCDPLOOP
+   0095   15            	DEC	D
+   0096   c2 9d 00      	JP	NZ, LCDNOSWITCH
+                        
+   0099   3e c0         	LD	A, LHALF2	; set LCD to address 0xc0
+   009b   d3 02         	OUT	(LCDINST), A
+                        
+                        
+                        
+   009d                 LCDNOSWITCH
+                        
+   009d   7e            	LD	A, (HL)
+   009e   fe 00         	CP	0
+   00a0   ca bb 00      	JP	Z, LCDPDONE
+                        
+   00a3   fe 0a         	CP	PAUSE
+   00a5   c2 b5 00      	JP	NZ, LCDPDOIT
+                        
+                        ;	LD	A, 0dh		; return
+                        ;	OUT	(PIC), A
+                        
+                        
+                        
+   00a8   3e 01         	LD	A, LCLEAR
+   00aa   d3 02         	OUT	(LCDINST), A	; do a clear
+                        
+                        ;	LD	A, 0ah		; linefeed
+                        ;	OUT	(PIC), A
+                        
+                        
+                        
+   00ac   3e 80         	LD	A, LHALF1
+   00ae   d3 02         	OUT	(LCDINST), A	; go to address 0x80
+                        
+                        
+                        
+   00b0   16 09         	LD	D, 9		; reset half counter
+   00b2   c3 b7 00      	JP	LCDPNEXT	; continue with next character
+                        
+   00b5                 LCDPDOIT
+   00b5   d3 03         	OUT	(LCDDATA), A	; output that guy
+                        ;	OUT	(PIC), A
+                        
+                        
+                        
+   00b7                 LCDPNEXT
+   00b7   23            	INC	HL		; next char
+   00b8   c3 95 00      	JP	LCDPLOOP
+                        
+   00bb                 LCDPDONE
+                        
+   00bb   e1            	POP	HL
+   00bc   d1            	POP	DE
+   00bd   c1            	POP	BC
+   00be   f1            	POP	AF
+                        
+   00bf   c9            	RET
+                        
+                        
+                        ;
+                        ; Wait for seconds routine
+                        ; In:	
+                        ;     A    - number of seconds to wait
+                        ;
+   00c0                 WAITSECS
+   00c0   f5            	PUSH	AF
+   00c1   c5            	PUSH	BC
+   00c2   07            	RLCA		; multiply A by 2
+                        
+   00c3                 LCDP1SLP1
+   00c3   0e 00         	LD	C, 0		; 256 * 256 cycles
+   00c5                 LCDP1SLP2
+   00c5   06 00         	LD	B, 0		; 256 cycles
+   00c7                 LCDP1SLP3
+   00c7   10 fe         	DJNZ	LCDP1SLP3
+                        
+   00c9   0d            	DEC	C
+   00ca   c2 c5 00      	JP	NZ, LCDP1SLP2
+                        
+   00cd   3d            	DEC	A
+   00ce   c2 c3 00      	JP	NZ, LCDP1SLP1
+                        
+   00d1   c1            	POP	BC
+   00d2   f1            	POP	AF
+                        
+   00d3   c9            	RET
+                        
+                        
+                        ;
+                        ; put the hex string representation of A into the location at IX
+                        ; IX becomes IX + 2
+                        ;
+   00d4                 PHEXBYTE
+   00d4   f5            	PUSH	AF
+   00d5   c5            	PUSH	BC
+                        
+   00d6   47            	LD	B, A
+   00d7   e6 f0         	AND	0f0H
+   00d9   cb 3f         	SRL	A
+   00db   cb 3f         	SRL	A
+   00dd   cb 3f         	SRL	A
+   00df   cb 3f         	SRL	A
+   00e1   fe 0a         	CP	0aH
+   00e3   da eb 00      	JP	C, DIG1LESS
+   00e6   c6 57         	ADD	A, "a" - 10
+   00e8   c3 ed 00      	JP	DIG1DONE
+   00eb                 DIG1LESS
+   00eb   c6 30         	ADD	A, "0"
+   00ed                 DIG1DONE
+                        
+   00ed   dd 77 00      	LD	(IX), A
+   00f0   dd 23         	INC	IX
+   00f2   78            	LD	A, B
+   00f3   e6 0f         	AND	0fH
+   00f5   fe 0a         	CP	0aH
+   00f7   da ff 00      	JP	C, DIG2LESS
+   00fa   c6 57         	ADD	A, "a" - 10
+   00fc   c3 01 01      	JP	DIG2DONE
+   00ff                 DIG2LESS
+   00ff   c6 30         	ADD	A, "0"
+   0101                 DIG2DONE
+   0101   dd 77 00      	LD	(IX), A
+   0104   dd 23         	INC	IX
+                        
+   0106   c1            	POP	BC
+   0107   f1            	POP	AF
+   0108   c9            	RET
+                        
+                        ;
+                        ; put the hex string representation of HL into the location at IX
+                        ; IX becomes IX + 4
+                        ;
+   0109                 PHEXWORD
+                        
+   0109   f5            	PUSH	AF
+   010a   7c            	LD	A, H
+   010b   cd d4 00      	CALL	PHEXBYTE
+   010e   7d            	LD	A, L
+   010f   cd d4 00      	CALL	PHEXBYTE
+   0112   f1            	POP	AF
+   0113   c9            	RET
+                        
+                        
+                        ;
+                        ; Memory test program
+                        ;
+   0114                 MAIN
+   0114   21 f6 01      	LD	HL, HELLOSTR
+   0117   cd 89 00      	CALL 	LCDPRINT
+                        
+                        
+                        
+                        	; write 0 to 0x4000
+                        	; write 0xCAFE to 0x4000
+                        	; must not read back 0xCAFE
+   011a   01 00 00      	LD	BC, 0H
+   011d   ed 43 00 40   	LD	(4000H), BC
+   0121   01 fe ca      	LD	BC, 0cafeH
+   0124   ed 43 00 40   	LD	(4000H), BC
+   0128   2a 00 40      	LD	HL, (4000H)
+   012b   37            	SCF			; Set carry
+   012c   3f            	CCF			; Complement carry
+   012d   ed 42         	SBC	HL, BC
+   012f   c2 39 01      	JP	NZ, OKAY1
+                        
+   0132   21 44 02      	LD	HL, BADMMIO
+   0135   cd 89 00      	CALL	LCDPRINT
+   0138   76            	HALT
+                        
+   0139                 OKAY1
+   0139   21 54 02      	LD	HL, GOODMMIO
+   013c   cd 89 00      	CALL	LCDPRINT
+                        
+                        	; write 0 to 0x8000
+                        	; write 0xCAFE to 0x8000
+                        	; must read back 0xCAFE
+   013f   01 00 00      	LD	BC, 0H
+   0142   ed 43 00 80   	LD	(8000H), BC
+   0146   01 fe ca      	LD	BC, 0cafeH
+   0149   ed 43 00 80   	LD	(8000H), BC
+   014d   2a 00 80      	LD	HL, (8000H)
+   0150   37            	SCF			; Set carry
+   0151   3f            	CCF			; Complement carry
+   0152   ed 42         	SBC	HL, BC
+   0154   ca 5e 01      	JP	Z, OKAY2
+                        
+   0157   21 5d 02      	LD	HL, BADMEMLO
+   015a   cd 89 00      	CALL	LCDPRINT
+   015d   76            	HALT
+                        
+   015e                 OKAY2
+   015e   21 6f 02      	LD	HL, GOODMEMLO
+   0161   cd 89 00      	CALL	LCDPRINT
+                        
+                        	; for all banks
+                        	;    write 0xBE<bank#> to 0xC000
+   0164   16 be         	LD	D, 0beh
+   0166   1e 00         	LD	E, 0
+   0168   0e ff         	LD	C, BANKREG
+                        
+   016a                 BKLOOP1
+   016a   7b            	LD	A, E
+   016b   fe 10         	CP	16
+   016d   ca 98 01      	JP	Z, CHECKBANKS
+                        
+   0170   21 aa 02      	LD	HL, WRTBANK
+   0173   cd d4 00      	CALL	PHEXBYTE
+                        
+   0176   ed 59         	OUT	(C), E		; set memory bank register
+                        
+   0178   fd 21 00 c0   	LD	IY, 0c000H
+   017c   06 10         	LD	B, 16		; I think 16 might be enough.
+                        
+   017e                 BKLOOP1a
+   017e   21 ad 02      	LD	HL, WRTVAL
+   0181   cd 09 01      	CALL	PHEXWORD
+   0184   21 a2 02      	LD	HL, WRITING
+   0187   cd 89 00      	CALL	LCDPRINT
+   018a   fd 72 00      	LD	(IY+0), D
+   018d   fd 73 01      	LD	(IY+1), E
+                        
+   0190   fd 23         	INC	IY
+   0192   10 ea         	DJNZ	BKLOOP1a
+                        
+   0194   1c            	INC	E
+   0195   c3 6a 01      	JP	BKLOOP1
+                        
+   0198                 CHECKBANKS
+   0198   21 90 02      	LD	HL, CHECKING
+   019b   cd 89 00      	CALL	LCDPRINT
+                        
+                        	; for all banks
+                        	;    must read 0xBE<bank#>
+                        
+   019e   16 be         	LD	D, 0beh
+   01a0   1e 00         	LD	E, 0
+   01a2   0e ff         	LD	C, BANKREG
+                        
+   01a4                 BKLOOP2
+   01a4   7b            	LD	A, E
+   01a5   fe 10         	CP	16
+   01a7   ca ef 01      	JP	Z, ALLCOOL
+                        
+   01aa   21 b9 02      	LD	HL, RDBANK
+   01ad   cd d4 00      	CALL	PHEXBYTE
+                        
+   01b0   ed 59         	OUT	(C), E		; set memory bank register
+                        
+   01b2   fd 21 00 c0   	LD	IY, 0c000H
+   01b6   06 10         	LD	B, 16		; I think 16 might be enough.
+                        
+   01b8                 BKLOOP2a
+   01b8   21 bc 02      	LD	HL, RDVAL
+   01bb   cd 09 01      	CALL	PHEXWORD
+   01be   21 b2 02      	LD	HL, READING
+   01c1   cd 89 00      	CALL	LCDPRINT
+   01c4   fd 66 00      	LD	H, (IY+0)
+   01c7   fd 6e 01      	LD	L, (IY+1)
+                        
+   01ca   37            	SCF			; Set carry
+   01cb   3f            	CCF			; Complement carry
+   01cc   ed 52         	SBC	HL, DE
+   01ce   c2 d9 01      	JP	NZ, BADBANK
+                        
+   01d1   fd 23         	INC	IY
+   01d3   10 e3         	DJNZ	BKLOOP2a
+                        
+   01d5   1c            	INC	E
+   01d6   c3 a4 01      	JP	BKLOOP2
+                        
+   01d9                 BADBANK
+                        	; A already contains the bank number
+                        	; HL already contains the bogus value 
+                        
+   01d9   dd 21 c1 02   	LD	IX, BANKBAD
+   01dd   cd d4 00      	CALL	PHEXBYTE
+                        
+   01e0   dd 21 cb 02   	LD	IX, BANKVAL
+   01e4   cd 09 01      	CALL	PHEXWORD
+                        
+   01e7   dd 21 cb 02   	LD	IX, BANKVAL
+   01eb   cd 89 00      	CALL	LCDPRINT
+                        
+   01ee   76            	HALT
+                        
+   01ef                 ALLCOOL
+   01ef   21 d0 02      	LD	HL, ALLGOOD
+   01f2   cd 89 00      	CALL	LCDPRINT
+                        
+   01f5   76            	HALT
+                        	
+                        
+   01f6   41 6c 69 63   HELLOSTR	DB	"Alice 2 is alive", 10
+   01fa   65 20 32 20   
+   01fe   69 73 20 61   
+   0202   6c 69 76 65   
+   0206   0a            
+   0207   41 4c 49 56   		DB	"ALIVE!!!", 10
+   020b   45 21 21 21   
+   020f   0a            
+   0210   4d 79 20 65   		DB	"My eye!", 10
+   0214   79 65 21 0a   
+   0218   70 73 74 20   		DB	"pst pst pst pst", 10
+   021c   70 73 74 20   
+   0220   70 73 74 20   
+   0224   70 73 74 0a   
+   0228   4d 65 6d 6f   		DB	"Memory test.", 10
+   022c   72 79 20 74   
+   0230   65 73 74 2e   
+   0234   0a            
+   0235   52 4f 4d 20   		DB	"ROM is working", 0
+   0239   69 73 20 77   
+   023d   6f 72 6b 69   
+   0241   6e 67 00      
+                        
+   0244   4d 4d 49 4f   BADMMIO		DB	"MMIO kept CAFE!", 0
+   0248   20 6b 65 70   
+   024c   74 20 43 41   
+   0250   46 45 21 00   
+   0254   4d 4d 49 4f   GOODMMIO	DB	"MMIO OK", 10, 0
+   0258   20 4f 4b 0a   
+   025c   00            
+                        
+   025d   30 78 38 30   BADMEMLO	DB	"0x8000 lost CAFE!", 0
+   0261   30 30 20 6c   
+   0265   6f 73 74 20   
+   0269   43 41 46 45   
+   026d   21 00         
+   026f   66 69 78 65   GOODMEMLO	DB	"fixed mem okay", 10
+   0273   64 20 6d 65   
+   0277   6d 20 6f 6b   
+   027b   61 79 0a      
+   027e   57 72 69 74   		DB	"Writing banks...", 10, 0
+   0282   69 6e 67 20   
+   0286   62 61 6e 6b   
+   028a   73 2e 2e 2e   
+   028e   0a 00         
+                        
+   0290   52 65 61 64   CHECKING	DB	"Reading banks...", 10, 0
+   0294   69 6e 67 20   
+   0298   62 61 6e 6b   
+   029c   73 2e 2e 2e   
+   02a0   0a 00         
+                        
+   02a2   77 72 69 74   WRITING		DB	"writing "
+   02a6   69 6e 67 20   
+   02aa   6e 6e 3a      WRTBANK		DB	"nn:"
+   02ad   6e 6e 6e 6e   WRTVAL		DB	"nnnn", 0
+   02b1   00            
+   02b2   72 65 61 64   READING		DB	"reading"
+   02b6   69 6e 67      
+   02b9   6e 6e 3a      RDBANK		DB	"nn:"
+   02bc   6e 6e 6e 6e   RDVAL		DB	"nnnn", 0
+   02c0   00            
+                        
+   02c1   6e 6e 20 66   BANKBAD		DB	"nn failed:"
+   02c5   61 69 6c 65   
+   02c9   64 3a         
+   02cb   6e 6e 6e 6e   BANKVAL		DB	"nnnn", 0
+   02cf   00            
+                        
+   02d0   4d 65 6d 6f   ALLGOOD		DB	"Memory Okay.", 10, 0
+   02d4   72 79 20 4f   
+   02d8   6b 61 79 2e   
+   02dc   0a 00         
+                        
+                        
+   02de                 	END
+01ef  ALLCOOL       02d0  ALLGOOD       01d9  BADBANK       025d  BADMEMLO  
+0244  BADMMIO       02c1  BANKBAD       00ff  BANKREG       02cb  BANKVAL   
+016a  BKLOOP1       017e  BKLOOP1a      01a4  BKLOOP2       01b8  BKLOOP2a  
+0198  CHECKBANKS    0290  CHECKING      00ed  DIG1DONE      00eb  DIG1LESS  
+0101  DIG2DONE      00ff  DIG2LESS      026f  GOODMEMLO     0254  GOODMMIO  
+003f  GOTRESETSTR    01f6  HELLOSTR      0000  I8259A        0001  I8259B    
+0061  LCDCLR        0003  LCDDATA       004c  LCDINIT       0002  LCDINST   
+009d  LCDNOSWITCH    00c3  LCDP1SLP1     00c5  LCDP1SLP2     00c7  LCDP1SLP3 
+00b5  LCDPDOIT      00bb  LCDPDONE      0095  LCDPLOOP      00b7  LCDPNEXT  
+0089  LCDPRINT      0001  LCLEAR        007f  LCSTRING      0005  LCSTRLEN  
+0080  LHALF1        00c0  LHALF2        006b  LISTRING      000a  LISTRLEN  
+0038  LRESET        0114  MAIN          0139  OKAY1         015e  OKAY2     
+0058  OUTBLOOP      0056  OUTBYTES      000a  PAUSE         00d4  PHEXBYTE  
+0109  PHEXWORD      0004  PIC           02b9  RDBANK        02bc  RDVAL     
+02b2  READING       0000  STACKTOP      00c0  WAITSECS      02a2  WRITING   
+02aa  WRTBANK       02ad  WRTVAL        
+

@@ -1,0 +1,30 @@
+New Memory Board Design
+------------------------
+8 bit data, 16 bit address
+16Kx8 EPROM mapped at 0x0000
+16Kx8 RAM mapped at 0x8000
+16K of memory mapped I/O from 0x4000 to 0x7fff
+16K of memory mapped I/O from 0xC000 to 0xffff
+:q
+
+
+
+Old Memory Board Design
+--------------------------
+8 bit data, 16 bit address
+256Kx8 RAM
+    16K addressed at 0x8000 (bank 15)
+    provide bank switching through 0xC000?
+        16 16K banks! (need 4 bits of bank address)
+	latch enable for setting bank number -> address pins
+	translation of 0xC000-0xFFFF into banked address
+	no reading bank num!  Will have to just keep bank num in memory, but
+	  do know in advance that bank register cleared on reset
+	    Lawrence wants me to remove reset from latch.  Is that a good
+	      idea?  We can always set it to 0 on startup, but can the latch
+	      get in a broken state without a reset?
+16Kx8 EPROM mapped at 0x0000
+16K of memory mapped I/O (video, sound, ...) from 0x4000 to 0x7fff
+    don't respond to addresses in this space
+
+

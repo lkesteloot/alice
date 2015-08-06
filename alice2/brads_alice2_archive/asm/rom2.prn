@@ -1,0 +1,131 @@
+   0002                 LCDINST	EQU	002H		; LCD instruction I/O address
+   0003                 LCDDATA	EQU	003H		; LCD data I/O address
+   0001                 LCLEAR	EQU	001H		; LCD clear instruction
+   0038                 LRESET	EQU	038H		; LCD reset to normal instruction
+   0080                 LHALF1	EQU	080H		; LCD move cursor to char 1
+   00c0                 LHALF2	EQU	0c0H		; LCD move cursor to char 9
+                        
+                        ;
+                        ; Main program
+                        ;
+   0000                 START
+   0000   dd 21 07 00   	LD	IX, LOOP
+   0004   c3 16 00      	JP	LCDINIT
+   0007                 LOOP
+   0007   21 3f 00      	LD	HL, STRING
+   000a   06 3b         	LD	B, STRLEN
+   000c   dd 21 13 00   	LD	IX, RET1
+   0010   c3 1b 00      	JP 	LOUTLOOP
+   0013                 RET1
+   0013   c3 07 00      	JP	LOOP
+                        
+                        ;
+                        ; LCD Init routine
+                        ;
+   0016                 LCDINIT
+   0016   21 23 00      	LD	HL, LISTRING
+   0019   06 0e         	LD	B, LISTRLEN	; falls through into string output
+                        
+                        ;
+                        ; LCD string bytes output routine
+                        ;
+   001b                 LOUTLOOP
+   001b   4e            	LD	C, (HL)
+   001c   23            	INC	HL
+   001d   ed a3         	OUTI
+   001f   20 fa         	JR	NZ, LOUTLOOP
+                        
+   0021   dd e9         	JP	(IX)
+                        
+                        ;
+                        ; LCD Initialization string
+                        ;
+   000e                 LISTRLEN	EQU	14
+   0023                 LISTRING
+   0023   02 38         	DB	LCDINST, LRESET
+   0025   02 38         	DB	LCDINST, LRESET
+   0027   02 06         	DB	LCDINST, 006H
+   0029   02 0e         	DB	LCDINST, 00eH
+   002b   02 01         	DB	LCDINST, LCLEAR
+   002d   02 80         	DB	LCDINST, LHALF1
+   002f   02 80         	DB	LCDINST, LHALF1
+   0031   02 80         	DB	LCDINST, LHALF1
+   0033   02 80         	DB	LCDINST, LHALF1
+   0035   02 80         	DB	LCDINST, LHALF1
+   0037   02 80         	DB	LCDINST, LHALF1
+   0039   02 80         	DB	LCDINST, LHALF1
+   003b   02 80         	DB	LCDINST, LHALF1
+   003d   02 80         	DB	LCDINST, LHALF1
+                        
+                        ;
+                        ; Our string
+                        ;
+   003b                 STRLEN		EQU	59
+   003f                 STRING
+   003f   03 41         	DB	LCDDATA, "A"
+   0041   03 6c         	DB	LCDDATA, "l"
+   0043   03 69         	DB	LCDDATA, "i"
+   0045   03 63         	DB	LCDDATA, "c"
+   0047   03 65         	DB	LCDDATA, "e"
+   0049   03 20         	DB	LCDDATA, " "
+   004b   03 32         	DB	LCDDATA, "2"
+   004d   03 20         	DB	LCDDATA, " "
+   004f   02 c0         	DB	LCDINST, LHALF2
+   0051   03 69         	DB	LCDDATA, "i"
+   0053   03 73         	DB	LCDDATA, "s"
+   0055   03 20         	DB	LCDDATA, " "
+   0057   03 61         	DB	LCDDATA, "a"
+   0059   03 6c         	DB	LCDDATA, "l"
+   005b   03 69         	DB	LCDDATA, "i"
+   005d   03 76         	DB	LCDDATA, "v"
+   005f   03 65         	DB	LCDDATA, "e"
+   0061   02 80         	DB	LCDINST, LHALF1
+   0063   02 80         	DB	LCDINST, LHALF1
+   0065   02 80         	DB	LCDINST, LHALF1
+   0067   02 80         	DB	LCDINST, LHALF1
+   0069   02 80         	DB	LCDINST, LHALF1
+   006b   02 01         	DB	LCDINST, LCLEAR
+   006d   03 42         	DB	LCDDATA, "B"
+   006f   03 72         	DB	LCDDATA, "r"
+   0071   03 61         	DB	LCDDATA, "a"
+   0073   03 64         	DB	LCDDATA, "d"
+   0075   03 20         	DB	LCDDATA, " "
+   0077   03 26         	DB	LCDDATA, 26H
+   0079   03 20         	DB	LCDDATA, " "
+   007b   03 4c         	DB	LCDDATA, "L"
+   007d   02 c0         	DB	LCDINST, LHALF2
+   007f   03 61         	DB	LCDDATA, "a"
+   0081   03 77         	DB	LCDDATA, "w"
+   0083   03 72         	DB	LCDDATA, "r"
+   0085   03 65         	DB	LCDDATA, "e"
+   0087   03 6e         	DB	LCDDATA, "n"
+   0089   03 63         	DB	LCDDATA, "c"
+   008b   03 65         	DB	LCDDATA, "e"
+   008d   03 20         	DB	LCDDATA, " "
+   008f   02 80         	DB	LCDINST, LHALF1
+   0091   02 80         	DB	LCDINST, LHALF1
+   0093   02 01         	DB	LCDINST, LCLEAR
+   0095   03 20         	DB	LCDDATA, " "
+   0097   03 61         	DB	LCDDATA, "a"
+   0099   03 72         	DB	LCDDATA, "r"
+   009b   03 65         	DB	LCDDATA, "e"
+   009d   03 20         	DB	LCDDATA, " "
+   009f   03 63         	DB	LCDDATA, "c"
+   00a1   03 6f         	DB	LCDDATA, "o"
+   00a3   03 6f         	DB	LCDDATA, "o"
+   00a5   02 c0         	DB	LCDINST, LHALF2
+   00a7   03 6c         	DB	LCDDATA, "l"
+   00a9   03 2e         	DB	LCDDATA, "."
+   00ab   02 80         	DB	LCDINST, LHALF1
+   00ad   02 80         	DB	LCDINST, LHALF1
+   00af   02 80         	DB	LCDINST, LHALF1
+   00b1   02 80         	DB	LCDINST, LHALF1
+   00b3   02 80         	DB	LCDINST, LHALF1
+                        
+                        
+   00b5                 	END
+0003  LCDDATA       0016  LCDINIT       0002  LCDINST       0001  LCLEAR    
+0080  LHALF1        00c0  LHALF2        0023  LISTRING      000e  LISTRLEN  
+0007  LOOP          001b  LOUTLOOP      0038  LRESET        0013  RET1      
+0000  START         003f  STRING        003b  STRLEN        
+

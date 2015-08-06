@@ -1,0 +1,24 @@
+Pin 18 on the lower bus is disconnected between slot 1 and slot 2 (the
+second and third slots from the left).  That means slots 0 and 1 are
+disconnected from the rest of the bus.  This is mostly okay, since the
+clock board doesn't use pin 18 (which is address line 9), and slot 0 is
+pretty much unusable by any board with moderate width, so with clock in
+slot 1 everything is okay.
+
+Evidence (the debug board doesn't show MR change when in slot 7)
+suggests that pin 19 (/MR) is disconnected between slot 6 and 7 (the
+second and first slots from the right).  Not that we care about seeing
+/MR if everything is working, but neither the CPU nor memory card can
+be put in slot 7.
+
+CPU board
+----------
+It seems that the CPU lowers /MREQ just prior to a read cycle for no
+reason; probably just the way the internals work; subsequently MREQ
+turns off and then the CPU lowers /MREQ and /RD.  Unfortunately,
+our version 1 circuit converts (/MREQ * NOT(/WR) * NOT(/RD)) as /MW.
+I think we can get around this by logical-ANDing the existing
+OR(MREQ, IORQ) signal with a new OR(RD,WR).  This would nicely use
+up the remaining unused OR and AND on the version 1 board.
+
+

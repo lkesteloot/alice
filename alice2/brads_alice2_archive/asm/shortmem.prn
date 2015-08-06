@@ -1,0 +1,92 @@
+   00ff                 BANKREG	EQU	0ffH
+                        
+                        ;
+                        ; Main program
+                        ;
+   0000                 MAIN
+                        
+                        	; write 0 to 0x4000
+                        	; write 0xCAFE to 0x4000
+                        	; must not read back 0xCAFE
+   0000   01 00 00      	LD	BC, 0H
+   0003   ed 43 00 40   	LD	(4000H), BC
+   0007   01 fe ca      	LD	BC, 0cafeH
+   000a   ed 43 00 40   	LD	(4000H), BC
+   000e   2a 00 40      	LD	HL, (4000H)
+   0011   ed 42         	SBC	HL, BC
+   0013   c2 17 00      	JP	NZ, OKAY1
+                        
+   0016   76            	HALT
+                        
+   0017                 OKAY1
+                        
+                        	; write 0 to 0x8000
+                        	; write 0xCAFE to 0x8000
+                        	; must read back 0xCAFE
+   0017   01 00 00      	LD	BC, 0H
+   001a   ed 43 00 80   	LD	(8000H), BC
+   001e   01 fe ca      	LD	BC, 0cafeH
+   0021   ed 43 00 80   	LD	(8000H), BC
+   0025   2a 00 80      	LD	HL, (8000H)
+   0028   ed 42         	SBC	HL, BC
+   002a   ca 2e 00      	JP	Z, OKAY2
+                        
+   002d   76            	HALT
+                        
+   002e                 OKAY2
+                        
+                        	; for all banks
+                        	;    write 0xBE<bank#> to 0xC000
+   002e   16 be         	LD	D, 0beh
+   0030   1e 00         	LD	E, 0
+   0032   0e ff         	LD	C, BANKREG
+                        
+   0034                 BKLOOP1
+   0034   7b            	LD	A, E
+   0035   fe 10         	CP	16
+   0037   ca 44 00      	JP	Z, CHECKBANKS
+                        
+   003a   ed 59         	OUT	(C), E
+                        
+   003c   ed 53 00 c0   	LD	(0c000H), DE
+                        
+   0040   1c            	INC	E
+   0041   c3 34 00      	JP	BKLOOP1
+                        
+   0044                 CHECKBANKS
+                        
+                        	; for all banks
+                        	;    must read 0xBE<bank#>
+                        
+   0044   16 be         	LD	D, 0beh
+   0046   1e 00         	LD	E, 0
+   0048   0e ff         	LD	C, BANKREG
+                        
+   004a                 BKLOOP2
+   004a   7b            	LD	A, E
+   004b   fe 10         	CP	16
+   004d   ca 61 00      	JP	Z, ALLCOOL
+                        
+   0050   ed 59         	OUT	(C), E
+                        
+   0052   2a 00 c0      	LD	HL, (0c000H)
+                        
+   0055   37            	SCF			; Set carry
+   0056   3f            	CCF			; Complement carry
+   0057   ed 52         	SBC	HL, DE
+   0059   c2 60 00      	JP	NZ, BADBANK
+                        
+   005c   1c            	INC	E
+   005d   c3 4a 00      	JP	BKLOOP2
+                        
+   0060                 BADBANK
+   0060   76            	HALT
+                        
+   0061                 ALLCOOL
+   0061   76            	HALT
+                        	
+   0062                 	END
+0061  ALLCOOL       0060  BADBANK       00ff  BANKREG       0034  BKLOOP1   
+004a  BKLOOP2       0044  CHECKBANKS    0000  MAIN          0017  OKAY1     
+002e  OKAY2         
+
