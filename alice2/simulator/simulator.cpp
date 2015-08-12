@@ -11,6 +11,9 @@
 
 const bool debug = false;
 
+bool Z80_INTERRUPT_FETCH = false;
+unsigned short Z80_INTERRUPT_FETCH_DATA;
+
 std::vector<board_base*> boards;
 
 // 14 offset from left, 9 offset from right
@@ -48,9 +51,13 @@ void draw_glyph(rfbScreenInfoPtr server, int rfb_width, int rfb_height,
     unsigned char    *glyph;
 
     glyph = fontbits + fontheight * c;
-    for(gx = 0; gx < fontwidth; gx++)
-        for(gy = 0; gy < fontheight; gy++) {
-            int v = (glyph[gy + gx / 8] & (1 << (7 - (gx % 8)))) ? 255 : 0;
+    for(gx = 0; gx < fontwidth + 1; gx++)
+        for(gy = 0; gy < fontheight + 1; gy++) {
+            int v;
+            if(gx < fontwidth && gy < fontheight && (glyph[gy + gx / 8] & (1 << (7 - (gx % 8)))))
+                v = 32;
+            else
+                v = 224;
             for(int j = 0; j < font_scale; j++)
                 for(int i = 0; i < font_scale; i++) {
                 int col = x + i + gx * font_scale;
@@ -74,22 +81,94 @@ void set_video_pixel_in_rfb(char *rfb_bytes, int rfb_width, int rfb_height, int 
         }
 }
 
+bool quit = false;
+
+struct IOboard : board_base
+{
+    const int PIC_port = 0x04;
+    const int CMD_SER = 0x01;
+    const int CMD_KBD = 0x02;
+    const int CMD_TIM = 0x03;
+    std::vector<unsigned char> queue;
+
+    enum { NONE, PENDING, SIGNALED } interrupt_status;
+
+    IOboard() :
+        interrupt_status(NONE)
+    { }
+
+    virtual bool io_read(int addr, unsigned char &data)
+    {
+        if(addr == PIC_port) {
+            bool handled = false;
+            printf("request to read from IO\n");
+            if(queue.size() > 0) {
+                data = queue[0];
+                printf("read 0x%02X from queue\n", data);
+                queue.erase(queue.begin());
+                handled = true;
+            }
+            if(queue.size() > 0)
+                interrupt_status = PENDING;
+            else {
+                printf("cleared interrupt\n");
+                interrupt_status = NONE;
+            }
+            return handled;
+        }
+        return false;
+    }
+
+    virtual bool board_get_interrupt(int& irq)
+    {
+        if(interrupt_status == PENDING) {
+            printf("signal irq 0\n");
+            irq = 0;
+            interrupt_status = SIGNALED;
+            return true;
+        }
+        return false;
+    }
+
+    void enqueue_AT_keycode(unsigned char key)
+    {
+        queue.push_back(CMD_KBD);
+        queue.push_back(key);
+        if(interrupt_status == NONE)
+            interrupt_status = PENDING;
+    }
+};
+
+IOboard *IO_board_instance;
+
 static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     if(down) {
-        if(key==XK_Escape)
+        if(key==XK_Escape) {
             rfbCloseClient(cl);
-        else if(key==XK_F12)
+            quit = true;
+        } else if(key==XK_F12) {
             /* close down server, disconnecting clients */
             rfbShutdownServer(cl->screen,TRUE);
-        else if(key==XK_F11)
+            quit = true;
+        } else if(key==XK_F11) {
             /* close down server, but wait for all clients to disconnect */
             rfbShutdownServer(cl->screen,FALSE);
-        else if(key>=' ' && key<0x100) {
+            quit = true;
+        } else if(key>=' ' && key<0x100) {
             printf("key %02x : %c\n", key, key);
+            if(key == 'a') {
+                IO_board_instance->enqueue_AT_keycode(28);
+            }
+        }
+    } else {
+        if(key == 'a') {
+            IO_board_instance->enqueue_AT_keycode(0xf0);
+            IO_board_instance->enqueue_AT_keycode(28);
         }
     }
 }
+
 
 struct ROMboard : board_base
 {
@@ -140,34 +219,42 @@ struct RAMboard : board_base
     }
 };
 
+const int LCLEAR = 0x01; // LCD clear instruction
+const int LRESET = 0x38; // LCD reset to normal instruction
+const int LHALF1 = 0x80; // LCD move cursor to char 1
+const int LHALF2 = 0xc0; // LCD move cursor to char 9
+
 struct LCDboard : board_base
 {
     const int LCDINST = 0x2; //  LCD instruction I/O port
     const int LCDDATA = 0x3; // LCD data I/O port
-    const int LCLEAR = 0x01; // LCD clear instruction
-    const int LRESET = 0x38; // LCD reset to normal instruction
-    const int LHALF1 = 0x80; // LCD move cursor to char 1
-    const int LHALF2 = 0xc0; // LCD move cursor to char 9
 
     int lcd[lcd_rows * lcd_columns];
     int cursor;
-    rfbScreenInfoPtr server;
+    rfbScreenInfoPtr rfb_server;
+
     LCDboard(rfbScreenInfoPtr server_) :
-        server(server_)
+        rfb_server(server_)
     {
         cursor = 0;
         memset(lcd, ' ', sizeof(lcd));
+        for(int i = 0; i < lcd_rows * lcd_columns; i++)
+            draw_lcd_character(i);
     }
+
     virtual bool io_write(int addr, unsigned char data)
     {
         if(addr == LCDINST) {
             if(debug) printf("LCD instruction byte: 0x%02X\n", data);
             switch(data) {
                 case LCLEAR:
-                    cursor = 0;
-                    memset(lcd, ' ', sizeof(lcd));
-                    break;
+                    // cursor = 0;
+                    // memset(lcd, ' ', sizeof(lcd));
+                    // for(int i = 0; i < lcd_rows * lcd_columns; i++)
+                        // draw_lcd_character(i);
+                    // break;
                 case LRESET:
+                    cursor = 0;
                     break;
                 case LHALF1:
                     cursor = 0;
@@ -183,16 +270,26 @@ struct LCDboard : board_base
                 printf("LCD data byte: 0x%02X (%c)\n", data, data);
             else {
                 // printf("%c", data);
-                if(cursor < lcd_columns * lcd_rows) {
-                    int y = cursor / lcd_columns;
-                    int x = cursor - y * lcd_columns;
-                }
+                lcd[cursor] = data;
+                if(cursor < lcd_columns * lcd_rows)
+                    draw_lcd_character(cursor);
                 cursor ++;
                 fflush(stdout);
             }
             return true;
         }
         return false;
+    }
+
+    void draw_lcd_character(int which)
+    {
+        int y = which / lcd_columns;
+        int x = which - y * lcd_columns;
+        int c = lcd[which];
+        draw_glyph(rfb_server, rfb_width, rfb_height,
+            (rfb_width - lcd_columns * (fontwidth + 1) * font_scale) / 2 + (fontwidth + 1) * font_scale * x,
+            rfb_height - 1 - (fontheight + 1) * font_scale * (lcd_rows - y),
+            c);
     }
 };
 
@@ -224,6 +321,7 @@ int main(int argc, char **argv)
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
     boards.push_back(new LCDboard(server));
+    boards.push_back(IO_board_instance = new IOboard());
 
     Z80_STATE state;
 
@@ -233,13 +331,25 @@ int main(int argc, char **argv)
     rfbProcessEvents(server, 1000);
 
     int prevcycles = 0, cycles;
-    while((cycles = Z80Emulate(&state, 10000)) > 0)
+    while(!quit && (cycles = Z80Emulate(&state, 10000)) > 0)
     {
-        if(prevcycles / 10000 != cycles / 10000) {
-            printf("emulated %d cycles\n", cycles - prevcycles);
-            prevcycles = cycles;
+        if(prevcycles / 10000 != (prevcycles + cycles) / 10000) {
+            if(debug)printf("emulated %d cycles\n", cycles);
+            prevcycles += cycles;
         }
         rfbProcessEvents(server, 1000);
+
+        for(auto it = boards.begin(); it != boards.end(); it++) {
+            int irq;
+            if((*it)->board_get_interrupt(irq)) {
+                printf("send interrupt %d\n", irq);
+                // Pretend to be 8259 configured for Alice:
+                Z80_INTERRUPT_FETCH = true;
+                Z80_INTERRUPT_FETCH_DATA = 0x3f00 + irq * 4;
+                Z80Interrupt(&state, 0xCD);
+                break;
+            }
+        }
     }
 
 #if 0

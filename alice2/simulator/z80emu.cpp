@@ -111,7 +111,16 @@ int Z80Interrupt (Z80_STATE *state, int data_on_bus)
                                  * should take 2 + 11 = 13 cycles.
                                  */
 
-                                return 2 + emulate(state, 4, data_on_bus);
+                                // grantham - but it isn't an RST; it's
+                                // a CALL.
+
+                                // Correct for PC
+                                // Otherwise we CALL and then return 2
+                                // instructions past the PC at interrupt
+                                // time
+                                state->pc -= 2;
+
+                                return 2 + emulate(state, 7, data_on_bus);
                                 
                         }
 

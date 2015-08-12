@@ -251,10 +251,15 @@ void Z80_FETCH_BYTE(ADDR address, DATA& x)
 template <typename ADDR, typename DATA>
 void Z80_FETCH_WORD(ADDR address, DATA &x)
 {
-    int l, h;
-    Z80_FETCH_BYTE(address, l);
-    Z80_FETCH_BYTE(address + 1, h);
-    x = l | (h << 8);
+    if(Z80_INTERRUPT_FETCH) {
+        x = Z80_INTERRUPT_FETCH_DATA;
+        Z80_INTERRUPT_FETCH = false;
+    } else {
+        int l, h;
+        Z80_FETCH_BYTE(address, l);
+        Z80_FETCH_BYTE(address + 1, h);
+        x = l | (h << 8);
+    }
 }
 
 template <typename ADDR, typename DATA>
@@ -298,8 +303,11 @@ void Z80_INPUT_BYTE(ADDR port, DATA& x)
     /* SystemCall(state); */
     /* last one wins. */
     unsigned char b = 0x00;
+    bool accepted = false;
     for(auto it = boards.begin(); it != boards.end(); it++)
-        (*it)->io_read(port & 0xff, b);
+        accepted |= (*it)->io_read(port & 0xff, b);
+    if(!accepted)
+        printf("IN %d was not handled!\n", port);
     x = b;
 }
 
@@ -310,8 +318,11 @@ void Z80_OUTPUT_BYTE(ADDR port, DATA x)
     /* state->status |= FLAG_STOP_EMULATION; */
     /* they all win. */
     unsigned char b = x;
+    bool accepted = false;
     for(auto it = boards.begin(); it != boards.end(); it++)
-        (*it)->io_write(port & 0xff, b);
+        accepted |= (*it)->io_write(port & 0xff, b);
+    if(!accepted)
+        printf("OUT %d, 0x%02X was not handled!\n", port, x);
 }
 
 /* See comments in z80emu.c for a description of each functions. */
