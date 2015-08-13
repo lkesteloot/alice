@@ -236,7 +236,7 @@ typedef struct {
  *                      register_table for 0xdd or 0xfd prefixes.
  */
 
-#include "simulator.h"
+#include "emulator.h"
 
 template <typename ADDR, typename DATA>
 void Z80_FETCH_BYTE(ADDR address, DATA& x)
