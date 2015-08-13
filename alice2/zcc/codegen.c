@@ -127,10 +127,11 @@ output_line(int line)
 	    fgets(buf, sizeof(buf), f);
 	}
 
-	while (isspace(buf[0])) {
-	    strcpy(buf, buf + 1);
+        char *s = buf;
+	while (isspace(*s)) {
+            s++;
 	}
-	fprintf(outf, "\t; (%s, %d) %s", filename, line, buf);
+	fprintf(outf, "\t; (%s, %d) %s", filename, line, s);
 
 	fclose(f);
     } else {
@@ -438,7 +439,6 @@ void output_node(NODE *node)
 	    output_node(node->arg[1]);
 	    if (node->numargs == 3) {
 		output_code("JP", "$%d", bottom);
-		output_label("$%d", out);
 		output_node(node->arg[3]);
 		output_label("$%d", bottom);
 	    } else {

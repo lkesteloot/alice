@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <malloc.h>
 #include <stdarg.h>
 
 #include "zcc.h"
@@ -1263,7 +1262,7 @@ int main(int argc, char *argv[])
 
     fclose(yyin);
 
-    sprintf(cmd, "/lib/cpp -nostdinc -Iinclude %s", filename);
+    sprintf(cmd, "/usr/bin/cpp -nostdinc -undef -P -Iinclude %s", filename);
     yyin = popen(cmd, "r");
 
     init_lex();

@@ -9,7 +9,7 @@
  */
 
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 #include "zcc.h"
 #include "y.tab.h"

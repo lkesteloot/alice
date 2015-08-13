@@ -2,7 +2,6 @@
 %{
 
 #include <string.h>
-#include <malloc.h>
 #include <unistd.h>
 #include <ctype.h>
 
@@ -12,6 +11,10 @@
 YYSTYPE yylval;
 static char *string_buf = NULL;
 static int string_buf_len = 0;
+
+// Forward declaration.
+static int input(void);
+static void yyunput(int c, char *buf_ptr);
 
 void init_lex(void)
 {
