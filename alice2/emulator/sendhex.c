@@ -1,6 +1,5 @@
-
-
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -98,14 +97,21 @@ main(int argc, char *argv[])
     int checksum;
     int i;
     int byte;
-
-    printf("Make sure /dev/mouse is at 19200 and gpm is dead.\n\n");
+    int do_jump = 0;
 
     write_count = 0;
 
-    if (argc != 3) {
-	printf("usage: sendhex device file.hex\n");
+    if (argc < 3) {
+	printf("usage: sendhex [-j] device file.hex\n");
+	printf("options:\n");
+	printf("\t-j\tJump to sent bytes when finished\n");
 	exit(EXIT_FAILURE);
+    }
+
+    if(strcmp(argv[1], "-j") == 0) {
+        do_jump++;
+        argc--;
+        argv++;
     }
 
     f = fopen(argv[2], "r");
@@ -194,10 +200,12 @@ main(int argc, char *argv[])
     fclose(f);
 
 #if ACTUALLY_SEND
-    send_byte(prn, PRN_CMD_RUN);
-    send_byte(prn, START_ADDR & 0xff);
-    send_byte(prn, (START_ADDR >> 8) & 0xff);
-    send_byte(prn, 0);
+    if(do_jump) {
+        send_byte(prn, PRN_CMD_RUN);
+        send_byte(prn, START_ADDR & 0xff);
+        send_byte(prn, (START_ADDR >> 8) & 0xff);
+        send_byte(prn, 0);
+    }
     close(prn);
 #endif
 
