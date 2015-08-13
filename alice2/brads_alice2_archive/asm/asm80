@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ a$1 = a ]
+then
+    echo Usage:
+    echo "    $0" inputfile
+    exit 1
+fi
+
+namebase=`echo $1 | sed 's/\..*$//'`
+# echo namebase is $namebase
+
+gcc -x c -E -P $1 > /tmp/asm.cpp
+shift
+~grantham/bin/az80 /tmp/asm.cpp -o $namebase.hex -l $namebase.prn
