@@ -221,8 +221,8 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    int pnm_offset_x = width / 2 - video_rows / 2;
-    int pnm_offset_y = height / 2 - video_columns / 2;
+    int pnm_offset_x = width / 2 - video_columns / 2;
+    int pnm_offset_y = height / 2 - video_rows / 2;
 
     video_buffer video;
     for(int j = 0; j < video_rows; j++)
