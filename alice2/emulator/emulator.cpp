@@ -31,7 +31,7 @@ const int video_board_height = 262;
 const int video_board_hsync_columns = 14;
 const int video_board_vsync_rows = 9;
 
-const int video_rfb_scale_x = 4;
+const int video_rfb_scale_x = 3;
 const int video_rfb_scale_y = 2;
 
 const int font_scale = 2;
