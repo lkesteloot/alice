@@ -138,6 +138,8 @@ static int get_esc_char(int c)
  * at the beginning of parsing and Lex hasn't initialized yet, so we
  * can't call input() or unput().  Instead we just call getc() and
  * ungetc().  I wish there were a better way to do this.
+ *
+ * http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html
  */
 
 void check_newfile(void)
