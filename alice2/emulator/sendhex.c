@@ -12,10 +12,10 @@
 #define SEND_DELAY 20000
 
 
-#define PRN_CMD_SEND	1
-#define PRN_CMD_RUN	2
+#define SER_CMD_SEND	1
+#define SER_CMD_RUN	2
 
-#define START_ADDR	RAM_START  /* Start at 16k */
+#define START_ADDR	0x8000  /* Start at 16k */
 
 int write_count;
 
@@ -89,7 +89,7 @@ int
 main(int argc, char *argv[])
 {
     FILE *f;
-    int prn;
+    int device_fd;
     char buf[256];
     char *s;
     int num_bytes;
@@ -104,12 +104,12 @@ main(int argc, char *argv[])
     if (argc < 3) {
 	printf("usage: sendhex [-j] device file.hex\n");
 	printf("options:\n");
-	printf("\t-j\tJump to sent bytes when finished\n");
+	printf("\t-j\tJump to 0x8000 when finished\n");
 	exit(EXIT_FAILURE);
     }
 
     if(strcmp(argv[1], "-j") == 0) {
-        do_jump++;
+        do_jump = 1;
         argc--;
         argv++;
     }
@@ -122,19 +122,19 @@ main(int argc, char *argv[])
 
 #if ACTUALLY_SEND
     if(argv[1][0] != '-')  {
-        prn = open(argv[1], O_CREAT | O_WRONLY, 0644 );
-        if (prn == -1) {
+        device_fd = open(argv[1], O_CREAT | O_WRONLY, 0644 );
+        if (device_fd == -1) {
             perror("open");
             exit(EXIT_FAILURE);
         }
     } else {
-        prn = 1;
+        device_fd = 1;
     }
     /*
-    ioctl(prn, LPRESET, 0);
-    ioctl(prn, LPCAREFUL, 0);
-    ioctl(prn, LPABORT, 1);
-    ioctl(prn, LPSETIRQ, 0);
+    ioctl(device_fd, LPRESET, 0);
+    ioctl(device_fd, LPCAREFUL, 0);
+    ioctl(device_fd, LPABORT, 1);
+    ioctl(device_fd, LPSETIRQ, 0);
     */
 #endif
 
@@ -172,10 +172,10 @@ main(int argc, char *argv[])
 #endif
 
 #if ACTUALLY_SEND
-	send_byte(prn, PRN_CMD_SEND);
-	send_byte(prn, address & 0xff);
-	send_byte(prn, (address >> 8) & 0xff);
-	send_byte(prn, num_bytes);
+	send_byte(device_fd, SER_CMD_SEND);
+	send_byte(device_fd, address & 0xff);
+	send_byte(device_fd, (address >> 8) & 0xff);
+	send_byte(device_fd, num_bytes);
 #endif
 
 	printf("Sending a packet of %d byte%s\n",
@@ -190,7 +190,7 @@ main(int argc, char *argv[])
 	    address++;
 
 #if ACTUALLY_SEND
-	    send_byte(prn, byte);
+	    send_byte(device_fd, byte);
 #endif
 	}
 
@@ -201,12 +201,12 @@ main(int argc, char *argv[])
 
 #if ACTUALLY_SEND
     if(do_jump) {
-        send_byte(prn, PRN_CMD_RUN);
-        send_byte(prn, START_ADDR & 0xff);
-        send_byte(prn, (START_ADDR >> 8) & 0xff);
-        send_byte(prn, 0);
+        send_byte(device_fd, SER_CMD_RUN);
+        send_byte(device_fd, START_ADDR & 0xff);
+        send_byte(device_fd, (START_ADDR >> 8) & 0xff);
+        send_byte(device_fd, 0);
     }
-    close(prn);
+    close(device_fd);
 #endif
 
     printf("Wrote %d bytes to %s.\n", write_count, argv[1]);
