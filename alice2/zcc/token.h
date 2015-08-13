@@ -1,0 +1,58 @@
+struct token_name {
+	int token;
+	char *name;
+};
+
+
+static struct token_name token_list[] = {
+	{ 258, "IDENT" },
+	{ 259, "NUMBER" },
+	{ 260, "RETURN" },
+	{ 261, "IF" },
+	{ 262, "FOR" },
+	{ 263, "WHILE" },
+	{ 264, "DO" },
+	{ 265, "ELSE" },
+	{ 266, "BREAK" },
+	{ 267, "CONTINUE" },
+	{ 268, "GOTO" },
+	{ 269, "DEFAULT" },
+	{ 270, "CASE" },
+	{ 271, "SWITCH" },
+	{ 272, "STATIC" },
+	{ 273, "EXTERN" },
+	{ 274, "VOLATILE" },
+	{ 275, "AUTO" },
+	{ 276, "REGISTER" },
+	{ 277, "INT" },
+	{ 278, "CHAR" },
+	{ 279, "SIGNED" },
+	{ 280, "UNSIGNED" },
+	{ 281, "UNARY" },
+	{ 282, "INCR" },
+	{ 283, "DECR" },
+	{ 284, "PLUS_ASSIGN" },
+	{ 285, "MINUS_ASSIGN" },
+	{ 286, "TIMES_ASSIGN" },
+	{ 287, "DIV_ASSIGN" },
+	{ 288, "MOD_ASSIGN" },
+	{ 289, "OR_ASSIGN" },
+	{ 290, "AND_ASSIGN" },
+	{ 291, "XOR_ASSIGN" },
+	{ 292, "SHIFT_LEFT_ASSIGN" },
+	{ 293, "SHIFT_RIGHT_ASSIGN" },
+	{ 294, "LOG_OR" },
+	{ 295, "LOG_AND" },
+	{ 296, "EQUALS" },
+	{ 297, "NOT_EQUALS" },
+	{ 298, "LESS_EQUALS" },
+	{ 299, "GREATER_EQUALS" },
+	{ 300, "SHIFT_LEFT" },
+	{ 301, "SHIFT_RIGHT" },
+	{ 302, "SIZEOF" },
+	{ 303, "DEREF" },
+	{ 304, "DEREF_PTR" },
+	{ 305, "CAST" },
+};
+
+static int token_list_len = sizeof(token_list) / sizeof(token_list[0]);
