@@ -222,13 +222,18 @@ struct IOboard : board_base
         }
         return false;
     }
+    
+    void enqueue(unsigned char b)
+    {
+        queue.push_back(b);
+        if(interrupt_status == NONE)
+            interrupt_status = PENDING;
+    }
 
     void enqueue_AT_keycode(unsigned char key)
     {
-        queue.push_back(CMD_KBD);
-        queue.push_back(key);
-        if(interrupt_status == NONE)
-            interrupt_status = PENDING;
+        enqueue(CMD_KBD);
+        enqueue(key);
     }
 
     virtual bool handle_rfb_key(rfbBool down, rfbKeySym key, rfbClientPtr cl)
@@ -302,7 +307,6 @@ struct IOboard : board_base
 	    perror("listen");
 	    exit(EXIT_FAILURE);
 	}
-        printf("seems like we got past listen() successfully\n");
     }
 
     int data_sock = -1;
@@ -314,7 +318,6 @@ struct IOboard : board_base
             FD_ZERO(&fds);
             FD_SET(data_sock, &fds);
 
-            printf("data sock\n");
             struct timeval timeout;
             timeout.tv_sec = 0;
             timeout.tv_usec = 1;
@@ -325,22 +328,19 @@ struct IOboard : board_base
 
             static unsigned char buffer[128];
             if(FD_ISSET(data_sock, &fds)) {
-                printf("data_sock is set\n");
                 ssize_t count;
                 count = recv(data_sock, buffer, sizeof(buffer), 0);
                 if(count < 0) {
                     perror("recv");
                     exit(EXIT_FAILURE);
-                }
-                if(count == 0) {
-                    printf("closing connection\n");
+                } else if(count == 0) {
                     close(data_sock);
                     data_sock = -1;
-                }
-                printf("received %zd bytes\n", count);
-                for(int i = 0; i < count; i++) {
-                    queue.push_back(CMD_SER);
-                    queue.push_back(buffer[i]);
+                } else {
+                    for(int i = 0; i < count; i++) {
+                        enqueue(CMD_SER);
+                        enqueue(buffer[i]);
+                    }
                 }
             }
         }
@@ -359,12 +359,9 @@ struct IOboard : board_base
             }
 
             if(FD_ISSET(listen_sock, &fds)) {
-                printf("listen_sock is set\n");
                 struct sockaddr_in them;
                 socklen_t addrlen = sizeof(them);
                 data_sock = accept(listen_sock, (struct sockaddr *)&them, &addrlen);
-                printf("Accept!\n");
-
                 if(data_sock < 0)
                 {
                     perror("accept");
