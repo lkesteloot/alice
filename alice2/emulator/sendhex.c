@@ -15,8 +15,6 @@
 #define SER_CMD_SEND	1
 #define SER_CMD_RUN	2
 
-#define START_ADDR	0x8000  /* Start at 16k */
-
 int write_count;
 
 int get_nybble(char *s)
@@ -98,20 +96,22 @@ main(int argc, char *argv[])
     int i;
     int byte;
     int do_jump = 0;
+    int jump_addr;
 
     write_count = 0;
 
     if (argc < 3) {
-	printf("usage: sendhex [-j] device file.hex\n");
+	printf("usage: sendhex [-j hexaddr] device file.hex\n");
 	printf("options:\n");
-	printf("\t-j\tJump to 0x8000 when finished\n");
+	printf("\t-j\tJump to hexaddr when finished\n");
 	exit(EXIT_FAILURE);
     }
 
     if(strcmp(argv[1], "-j") == 0) {
         do_jump = 1;
-        argc--;
-        argv++;
+        jump_addr = strtol(argv[2], NULL, 16);
+        argc -= 2;
+        argv += 2;
     }
 
     f = fopen(argv[2], "r");
@@ -202,8 +202,8 @@ main(int argc, char *argv[])
 #if ACTUALLY_SEND
     if(do_jump) {
         send_byte(device_fd, SER_CMD_RUN);
-        send_byte(device_fd, START_ADDR & 0xff);
-        send_byte(device_fd, (START_ADDR >> 8) & 0xff);
+        send_byte(device_fd, jump_addr & 0xff);
+        send_byte(device_fd, (jump_addr >> 8) & 0xff);
         send_byte(device_fd, 0);
     }
     close(device_fd);
