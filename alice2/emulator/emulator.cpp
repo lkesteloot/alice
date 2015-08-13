@@ -1,10 +1,3 @@
-/*
-serial port
-combine RAM and ROM boards
-give video board "safe region" (green) - draw rest as dark green
-image of video monitor around video board output
-image of LCD around LCD bytes
-*/
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
