@@ -1262,7 +1262,7 @@ int main(int argc, char *argv[])
 
     fclose(yyin);
 
-    sprintf(cmd, "/usr/bin/cpp -nostdinc -undef -P -Iinclude %s", filename);
+    sprintf(cmd, "/usr/bin/cpp -nostdinc -undef -Iinclude %s", filename);
     yyin = popen(cmd, "r");
 
     init_lex();

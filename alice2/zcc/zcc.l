@@ -156,6 +156,8 @@ void check_newfile(void)
 	    yylineno = yylineno * 10 + c - '0';
 	    c = getc(yyin);
 	}
+        // Back off one because we unput() the newline below.
+        yylineno--;
 	while (isspace(c)) {
 	    c = getc(yyin);
 	}
@@ -171,9 +173,8 @@ void check_newfile(void)
 	while (c != '\n') {
 	    c = getc(yyin);
 	}
-    } else {
-	ungetc(c, yyin);
     }
+    ungetc(c, yyin);
 }
 
 void check_newline(void)
@@ -192,6 +193,8 @@ void check_newline(void)
 	    yylineno = yylineno * 10 + c - '0';
 	    c = input();
 	}
+        // Back off one because we unput() the newline below.
+        yylineno--;
 	while (isspace(c)) {
 	    c = input();
 	}
@@ -207,9 +210,8 @@ void check_newline(void)
 	while (c != '\n') {
 	    c = input();
 	}
-    } else {
-	unput(c);
     }
+    unput(c);
 }
 
 %}
