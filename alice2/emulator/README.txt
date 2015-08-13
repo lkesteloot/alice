@@ -11,6 +11,7 @@ sent to the hardware as if they were received on the serial port
 on the PIC IO board.
 
 Building
+    Only tested for building on MacOSX with Apple G++ LLVM 6.0
     Install libvncviewer (e.g. "sudo port install libvncserver")
     Edit Makefile if you aren't using MacPorts
         * set libvncserver include and library directory
@@ -20,6 +21,7 @@ Running
     % emulator ROM.bin
     Start a VNC Client (I'm using Chicken of the VNC) and connect to localhost
     Type your name and press Return
+    Hit ESC to quit the Emulator.
 
 To send a HEX file to memory and run it:
     Make the HEX file so that 0x8000 is the first instruction
