@@ -9,6 +9,7 @@
 #include "y.tab.h"
 
 #define STACKTOP 0xC000
+#define LABEL_PREFIX "zcc$"
 
 typedef struct string {
     char label[16];
@@ -112,6 +113,7 @@ void
 output_line(int line)
 {
     extern char filename[];
+    extern char pathname[];
     FILE *f;
     char buf[1024];
     int i;
@@ -120,7 +122,7 @@ output_line(int line)
 	return;
     }
 
-    f = fopen(filename, "r");
+    f = fopen(pathname, "r");
     if (f != NULL) {
 	i = line;
 	while (i-- != 0) {
@@ -353,9 +355,9 @@ void output_node(NODE *node)
 	    output_code("CCF", "");
 	    output_code("SBC", "HL, DE");
 	    output_code("LD", "HL, 1");
-	    output_code("JP", "P, $%d", tmp1);
+	    output_code("JP", "P, " LABEL_PREFIX "%d", tmp1);
 	    output_code("LD", "HL, 0");
-	    output_label("$%d", tmp1);
+	    output_label(LABEL_PREFIX "%d", tmp1);
 	    break;
 	case EQUALS:
 	    tmp1 = get_new_label();
@@ -367,9 +369,9 @@ void output_node(NODE *node)
 	    output_code("CCF", "");
 	    output_code("SBC", "HL, DE");
 	    output_code("LD", "HL, 1");
-	    output_code("JP", "Z, $%d", tmp1);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", tmp1);
 	    output_code("LD", "HL, 0");
-	    output_label("$%d", tmp1);
+	    output_label(LABEL_PREFIX "%d", tmp1);
 	    break;
 	case NOT_EQUALS:
 	    tmp1 = get_new_label();
@@ -381,9 +383,9 @@ void output_node(NODE *node)
 	    output_code("CCF", "");
 	    output_code("SBC", "HL, DE");
 	    output_code("LD", "HL, 0");
-	    output_code("JP", "Z, $%d", tmp1);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", tmp1);
 	    output_code("LD", "HL, 1");
-	    output_label("$%d", tmp1);
+	    output_label(LABEL_PREFIX "%d", tmp1);
 	    break;
 	case '&':
 	    if (node->numargs == 1) {
@@ -435,14 +437,14 @@ void output_node(NODE *node)
 	    output_node(node->arg[0]);
 	    output_code("LD", "DE, 0");
 	    output_code("ADD", "HL, DE");
-	    output_code("JP", "Z, $%d", not);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", not);
 	    output_node(node->arg[1]);
 	    if (node->numargs == 3) {
-		output_code("JP", "$%d", bottom);
+		output_code("JP", LABEL_PREFIX "%d", bottom);
 		output_node(node->arg[3]);
-		output_label("$%d", bottom);
+		output_label(LABEL_PREFIX "%d", bottom);
 	    } else {
-		output_label("$%d", not);
+		output_label(LABEL_PREFIX "%d", not);
 	    }
 	    break;
 	case FOR:
@@ -451,42 +453,42 @@ void output_node(NODE *node)
 	    out = get_new_label();
 	    bottom = get_new_label();
 	    output_node(node->arg[0]);
-	    output_code("JP", "$%d", bottom);
-	    output_label("$%d", top);
+	    output_code("JP", LABEL_PREFIX "%d", bottom);
+	    output_label(LABEL_PREFIX "%d", top);
 	    output_node(node->arg[3]);
-	    output_label("$%d", cont);
+	    output_label(LABEL_PREFIX "%d", cont);
 	    output_node(node->arg[2]);
-	    output_label("$%d", bottom);
+	    output_label(LABEL_PREFIX "%d", bottom);
 	    output_node(node->arg[1]);
 	    output_code("LD", "DE, 0");
 	    output_code("ADD", "HL, DE");
-	    output_code("JP", "NZ, $%d", top);
-	    output_label("$%d", out);
+	    output_code("JP", "NZ, " LABEL_PREFIX "%d", top);
+	    output_label(LABEL_PREFIX "%d", out);
 	    break;
 	case WHILE:
 	    top = get_new_label();
 	    out = get_new_label();
-	    output_label("$%d", top);
+	    output_label(LABEL_PREFIX "%d", top);
 	    output_node(node->arg[0]);
 	    output_code("LD", "DE, 0");
 	    output_code("ADD", "HL, DE");
-	    output_code("JP", "Z, $%d", out);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", out);
 	    output_node(node->arg[1]);
-	    output_code("JP", "$%d", top);
-	    output_label("$%d", out);
+	    output_code("JP", LABEL_PREFIX "%d", top);
+	    output_label(LABEL_PREFIX "%d", out);
 	    break;
 	case DO:
 	    top = get_new_label();
 	    cont = get_new_label();
 	    out = get_new_label();
-	    output_label("$%d", top);
+	    output_label(LABEL_PREFIX "%d", top);
 	    output_node(node->arg[0]);
-	    output_label("$%d", cont);
+	    output_label(LABEL_PREFIX "%d", cont);
 	    output_node(node->arg[1]);
 	    output_code("LD", "DE, 0");
 	    output_code("ADD", "HL, DE");
-	    output_code("JP", "NZ, $%d", top);
-	    output_label("$%d", out);
+	    output_code("JP", "NZ, " LABEL_PREFIX "%d", top);
+	    output_label(LABEL_PREFIX "%d", out);
 	    break;
 	case ';':
 	    output_node(node->arg[0]);
@@ -563,7 +565,7 @@ char *register_string(char *str)
     STRING_CONST *string;
 
     string = malloc(sizeof(STRING_CONST));
-    sprintf(string->label, "$%d", get_new_label());
+    sprintf(string->label, LABEL_PREFIX "%d", get_new_label());
     string->value = strdup(str);
     string->next = string_head;
     string_head = string;

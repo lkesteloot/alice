@@ -18,7 +18,7 @@ int yylineno;
 extern FILE *yyin;
 int error_return;
 
-char filename[1024], outfilename[1024];
+char pathname[1024], filename[1024], outfilename[1024];
 
 int cur_class = -1;
 TYPE cur_type;
@@ -1223,6 +1223,29 @@ char *get_op_name(int op)
     return (char *)yytname[YYTRANSLATE(op)];
 }
 
+void get_include_path(char *exe_pathname, char *include_path)
+{
+    strcpy(include_path, exe_pathname);
+
+    char *c = strrchr(include_path, '/');
+    if (c == NULL) {
+        strcpy(include_path, ".");
+    } else {
+        *c = '\0';
+    }
+    strcat(include_path, "/include");
+}
+
+void get_filename(char *filename, char *pathname)
+{
+    char *ch = strrchr(pathname, '/');
+    if (ch == NULL) {
+        strcpy(filename, pathname);
+    } else {
+        strcpy(filename, ch + 1);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int c, len;
@@ -1252,21 +1275,27 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
     }
 
-    strcpy(filename, argv[optind]);
+    strcpy(pathname, argv[optind]);
+    get_filename(filename, pathname);
 
-    yyin = fopen(filename, "r");
+    yyin = fopen(pathname, "r");
     if (yyin == NULL) {
-	perror(filename);
+	perror(pathname);
 	exit(EXIT_FAILURE);
     }
 
     fclose(yyin);
 
-    sprintf(cmd, "/usr/bin/cpp -nostdinc -undef -Iinclude %s", filename);
+    // Find the absolute path of include directory.
+    char include_path[1024];
+    get_include_path(argv[0], include_path);
+        
+    sprintf(cmd, "/usr/bin/cpp -nostdinc -undef -I%s %s", include_path, pathname);
     yyin = popen(cmd, "r");
 
     init_lex();
 
+    // Make output filename. Same basename, ".s" extension in current directory.
     strcpy(outfilename, filename);
     len = strlen(outfilename);
     if (len > 2 && strcmp(outfilename + len - 2, ".c") == 0) {

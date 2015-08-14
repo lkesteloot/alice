@@ -100,6 +100,7 @@ int get_decl_size(DECL *decl);
 
 void yyerror(char *error, ...);
 void yywarning(char *warning, ...);
+extern char pathname[];  /* In zcc.y */
 extern char filename[];  /* In zcc.y */
 
 void simplify(NODE *node);
