@@ -19,13 +19,6 @@ unsigned short Z80_INTERRUPT_FETCH_DATA;
 std::vector<board_base*> boards;
 
 // 14 offset from left, 9 offset from right
-const int video_board_width = 176;
-const int video_board_height = 262;
-const int video_board_hsync_columns = 14;
-const int video_board_vsync_rows = 9;
-
-const int video_rfb_scale_x = 3;
-const int video_rfb_scale_y = 2;
 
 const int font_scale = 2;
 const int lcd_rows = 2;
@@ -404,6 +397,11 @@ struct ROMboard : board_base
 
 struct VIDEOboard : board_base
 {
+    int video_board_width = 176;
+    int video_board_height = 262;
+    int video_rfb_scale_x = 3;
+    int video_rfb_scale_y = 2;
+
     unsigned char fb_bytes[16384];
     int base_addr;
 
@@ -423,8 +421,12 @@ struct VIDEOboard : board_base
         rfb_offset_y = offset_y;
     }
 
-    VIDEOboard()
+    VIDEOboard(bool double_res)
     {
+        video_board_width = double_res ? 352 : 176;
+        video_board_height = 262;
+        video_rfb_scale_x = double_res ? 2 : 3;
+        video_rfb_scale_y = 2;
         base_addr = 0x4000;
         memset(fb_bytes, 0, sizeof(fb_bytes));
     }
@@ -620,20 +622,37 @@ static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 
 int main(int argc, char **argv)
 {
-    if(argc < 2) {
-        fprintf(stderr, "%s rom.bin\n", argv[0]);
+    bool video2 = false;
+
+    char *progname = argv[0];
+    argc -= 1;
+    argv += 1;
+
+    while((argc > 0) && (argv[0][0] == '-')) {
+	if(strcmp(argv[0], "-video2") == 0) {
+	    video2 = true;
+	    argc -= 1;
+	    argv += 1;
+	} else {
+	    fprintf(stderr, "unknown parameter \"%s\"\n", argv[0]);
+	    exit(EXIT_FAILURE);
+	}
+    }
+
+    if(argc < 1) {
+        fprintf(stderr, "%s rom.bin\n", progname);
         exit(EXIT_FAILURE);
     }
 
-    FILE *fp = fopen(argv[1], "rb");
+    FILE *fp = fopen(argv[0], "rb");
     if(fp == NULL) {
-        fprintf(stderr, "failed to open %s for reading\n", argv[1]);
+        fprintf(stderr, "failed to open %s for reading\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     unsigned char b[16384];
     size_t length = fread(b, 1, sizeof(b), fp);
     if(length < 16384) {
-        fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", argv[1], length);
+        fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", argv[0], length);
         exit(EXIT_FAILURE);
     }
     fclose(fp);
@@ -643,7 +662,7 @@ int main(int argc, char **argv)
     boards.push_back(new PIC8259board());
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
-    boards.push_back(new VIDEOboard());
+    boards.push_back(new VIDEOboard(video2));
     boards.push_back(new LCDboard());
     boards.push_back(new IOboard());
 
@@ -661,6 +680,8 @@ int main(int argc, char **argv)
         }
     }
 
+    int rfbargc = 0;
+    char **rgbargv = 0;
     rfbScreenInfoPtr server = rfbGetScreen(&argc,argv,need_width,need_height,8,3,4);
     unsigned char* rfb_bytes = new unsigned char[need_width*need_height*4];
     server->frameBuffer = (char *)rfb_bytes;
