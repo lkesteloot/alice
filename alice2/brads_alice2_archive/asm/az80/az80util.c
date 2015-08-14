@@ -467,7 +467,7 @@ unsigned typ;
     putc(':',hex);  putb(cnt);  putb(high(addr));
     putb(low(addr));  putb(typ);
     for (i = 0; i < cnt; ++i) putb(buf[i]);
-    putb(low(!(sum)));  putc('\n',hex);  /* was (-sum) HRJ*/
+    putb(low(-sum));  putc('\n',hex);  /* was (-sum) HRJ*/
 
     addr += cnt;  cnt = 0;
 
