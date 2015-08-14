@@ -620,17 +620,19 @@ static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
             break;
 }
 
+const int cycles_per_loop = 50000;
+
 int main(int argc, char **argv)
 {
-    bool video2 = false;
+    bool use_352_video_columns = false;
 
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
 
     while((argc > 0) && (argv[0][0] == '-')) {
-	if(strcmp(argv[0], "-video2") == 0) {
-	    video2 = true;
+	if(strcmp(argv[0], "-video352") == 0) {
+	    use_352_video_columns = true;
 	    argc -= 1;
 	    argv += 1;
 	} else {
@@ -662,7 +664,7 @@ int main(int argc, char **argv)
     boards.push_back(new PIC8259board());
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
-    boards.push_back(new VIDEOboard(video2));
+    boards.push_back(new VIDEOboard(use_352_video_columns));
     boards.push_back(new LCDboard());
     boards.push_back(new IOboard());
 
@@ -707,13 +709,10 @@ int main(int argc, char **argv)
     rfbInitServer(server);
     rfbProcessEvents(server, 1000);
 
-    int prevcycles = 0, cycles;
-    while(!quit && (cycles = Z80Emulate(&state, 10000)) > 0)
+    while(!quit)
     {
-        if(prevcycles / 10000 != (prevcycles + cycles) / 10000) {
-            if(debug)printf("emulated %d cycles\n", cycles);
-            prevcycles += cycles;
-        }
+        int cycles = Z80Emulate(&state, cycles_per_loop);
+
         rfbProcessEvents(server, 1000);
 
         for(auto b = boards.begin(); b != boards.end(); b++) {
@@ -722,10 +721,11 @@ int main(int argc, char **argv)
                 // Pretend to be 8259 configured for Alice2:
                 Z80_INTERRUPT_FETCH = true;
                 Z80_INTERRUPT_FETCH_DATA = 0x3f00 + irq * 4;
-                Z80Interrupt(&state, 0xCD);
+                cycles += Z80Interrupt(&state, 0xCD);
                 break;
             }
         }
+
         for(auto b = boards.begin(); b != boards.end(); b++) {
             (*b)->idle();
         }
