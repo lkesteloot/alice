@@ -725,9 +725,23 @@ int main(int argc, char **argv)
     rfbInitServer(server);
     rfbProcessEvents(server, 1000);
 
+    time_t time_then;
+    time_then = time(NULL);
+    unsigned long long total_cycles = 0;
+    unsigned long long cycles_then = 0;
     while(!quit)
     {
-        int cycles = Z80Emulate(&state, cycles_per_loop);
+        total_cycles += Z80Emulate(&state, cycles_per_loop);
+        time_t then;
+        then = time(NULL);
+
+        time_t time_now;
+        time_now = time(NULL);
+        if(time_now != time_then) {
+            if(debug) printf("%llu cycles-ish per second\n", total_cycles - cycles_then);
+            cycles_then = total_cycles;
+            time_then = time_now;
+        }
 
         rfbProcessEvents(server, 1000);
 
@@ -737,7 +751,7 @@ int main(int argc, char **argv)
                 // Pretend to be 8259 configured for Alice2:
                 Z80_INTERRUPT_FETCH = true;
                 Z80_INTERRUPT_FETCH_DATA = 0x3f00 + irq * 4;
-                cycles += Z80Interrupt(&state, 0xCD);
+                total_cycles += Z80Interrupt(&state, 0xCD);
                 break;
             }
         }
