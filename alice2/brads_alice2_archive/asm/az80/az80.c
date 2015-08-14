@@ -88,7 +88,7 @@ TOKEN arg, token;
 
 static int done, ifsp, off;
 
-void main(argc,argv)
+int main(argc,argv)
 int argc;
 char **argv;
 {
@@ -147,7 +147,7 @@ char **argv;
     if (errors) printf("%d Error(s)\n",errors);
     else printf("No Errors\n");
 
-    exit(errors);
+    return errors;
 }
 
 /*  Line assembly routine.  This routine gets the contents of the	*/
@@ -226,7 +226,7 @@ static void do_label()
 	    }
 	}
 	else {
-	    if (l = find_symbol(label)) {
+	    if ((l = find_symbol(label)) != 0) {
 		l -> attr = VAL;
 		if (l -> valu != pc) error('M');
 	    }
@@ -720,7 +720,7 @@ do_byte:		    unlex();
 			    }
 			}
 			else {
-			    if (l = find_symbol(label)) {
+			    if ((l = find_symbol(label)) != 0) {
 				l -> attr = VAL;
 				address = expr();
 				if (forwd) error('P');
@@ -787,7 +787,7 @@ do_byte:		    unlex();
 			    }
 			}
 			else {
-			    if (l = find_symbol(label)) {
+			    if ((l = find_symbol(label)) != 0) {
 				address = expr();
 				if (forwd) error('P');
 				else if (l -> attr & SOFT) {

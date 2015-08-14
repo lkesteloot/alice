@@ -282,7 +282,7 @@ TOKEN *lex(void)
     if (isalph(c = popc())) { /* first char is alpha not digit HRJ*/
 	    pushc(c);  pops(token.sval);
 	    /* printf("isalph %c, %s -",c,token.sval);  HRJ debug*/
-	    if (o = find_operator(token.sval)) {
+	    if ((o = find_operator(token.sval)) != 0) {
 	        token.attr = o -> attr;  token.valu = o -> valu;
 	    }
 		else {
@@ -296,7 +296,7 @@ TOKEN *lex(void)
 				/* printf("H$ %s\n",token.sval);  hrj */
 				token.sval[0] = '0';  b = 2; make_number(b);
 			}
-	    	else if (s = find_symbol(token.sval)) {
+	    	else if ((s = find_symbol(token.sval)) != 0) {
 				token.valu = s -> valu;
 				if (pass == 2 && s -> attr & FORWD) forwd = TRUE;
 	    	}
@@ -306,7 +306,7 @@ TOKEN *lex(void)
     else if (isnum(c)) { /*value begins with digit 0-9 HRJ*/
 		pushc(c);  pops(token.sval);
 	 	if ((token.sval[0] == '0') && (token.sval[1] == 'x')) { /* HRJ 0xnnnn as hex value */
-			/* printf("0x %s\n",token.sval);  /* hrj */
+			// printf("0x %s\n",token.sval);  /* hrj */
 			token.sval[1] = '0';  b = 16; make_number(b);
 		}
 		else { /* ... or check for last char for radix HRJ */
