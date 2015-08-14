@@ -173,6 +173,9 @@ struct IOboard : board_base
     const int CMD_KBD = 0x02;
     const int CMD_TIM = 0x03;
     std::vector<unsigned char> queue;
+    double last_timer_interrupt;
+    const double timer_frequency_hertz = 10;
+    const double timer_interval_seconds = 1.0 / timer_frequency_hertz;
 
     enum { NONE, PENDING, SIGNALED } interrupt_status;
 
@@ -262,6 +265,10 @@ struct IOboard : board_base
     const int server_port = 6606;
     void init(void)
     {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        last_timer_interrupt = tv.tv_sec + tv.tv_usec / 1000000.0;
+
         printf("listening on port 6606 for serial port emulation\n");
 
         listen_sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -299,6 +306,15 @@ struct IOboard : board_base
 
     void idle()
     {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        double current_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+
+        while((current_time - last_timer_interrupt) > timer_interval_seconds) {
+            enqueue(CMD_TIM);
+            last_timer_interrupt += timer_interval_seconds;
+        }
+
         if(data_sock > -1) {
             fd_set fds;
             FD_ZERO(&fds);
