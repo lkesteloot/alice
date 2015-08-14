@@ -15,6 +15,7 @@ static int string_buf_len = 0;
 // Forward declaration.
 static int input(void);
 static void yyunput(int c, char *buf_ptr);
+extern void get_filename(char *filename, char *pathname);
 
 void init_lex(void)
 {
@@ -166,12 +167,13 @@ void check_newfile(void)
 	if (c == '"') {
 	    c = getc(yyin);
 	}
-	s = filename;
+	s = pathname;
 	while (c != '"' && c != '\n') {
 	    *s++ = c;
 	    c = getc(yyin);
 	}
 	*s = '\0';
+        get_filename(filename, pathname);
 	while (c != '\n') {
 	    c = getc(yyin);
 	}
@@ -203,12 +205,13 @@ void check_newline(void)
 	if (c == '"') {
 	    c = input();
 	}
-	s = filename;
+	s = pathname;
 	while (c != '"' && c != '\n') {
 	    *s++ = c;
 	    c = input();
 	}
 	*s = '\0';
+        get_filename(filename, pathname);
 	while (c != '\n') {
 	    c = input();
 	}

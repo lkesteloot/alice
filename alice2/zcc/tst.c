@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if 1
+#if 0
 int main()
 {
     char *p;
@@ -29,9 +29,7 @@ int main()
 
     p = "This is\na long\tstring.  Dude.";
 }
-
 #else
-
 int
 main()
 {
@@ -46,7 +44,6 @@ main()
 	foo[2] = foo[2] * 2;
     }
 #endif
-
 #if 0
     int i;
 
@@ -63,7 +60,7 @@ main()
     char buffer[30];
 
     while (1) {
-	printf("What's your name, Drew?\n");
+	printf("What's your name?\n");
 	gets(buffer);
 	printf("Hey there %s\n", buffer);
     }
