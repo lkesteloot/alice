@@ -418,6 +418,13 @@ struct VIDEOboard : board_base
     int video_rfb_scale_x = 3;
     int video_rfb_scale_y = 2;
 
+    enum video_mode {
+        NORMAL,
+        DOUBLE,
+        HALFMAX,
+        MAX,
+    };
+
     unsigned char fb_bytes[16384];
     int base_addr;
 
@@ -437,12 +444,34 @@ struct VIDEOboard : board_base
         rfb_offset_y = offset_y;
     }
 
-    VIDEOboard(bool double_res)
+    VIDEOboard(video_mode mode)
     {
-        video_board_width = double_res ? 352 : 176;
         video_board_height = 262;
-        video_rfb_scale_x = double_res ? 2 : 3;
         video_rfb_scale_y = 2;
+
+        switch(mode) {
+            case NORMAL: {
+                video_board_width = 176;
+                video_rfb_scale_x = 3;
+                break;
+            };
+            case DOUBLE: {
+                video_board_width = 352;
+                video_rfb_scale_x = 2;
+                break;
+            };
+            case HALFMAX: {
+                video_board_width = 248;
+                video_rfb_scale_x = 2;
+                break;
+            };
+            case MAX: {
+                video_board_width = 496;
+                video_rfb_scale_x = 1;
+                break;
+            };
+        }
+
         base_addr = 0x4000;
         memset(fb_bytes, 0, sizeof(fb_bytes));
     }
@@ -640,17 +669,32 @@ const int cycles_per_loop = 50000;
 
 int main(int argc, char **argv)
 {
-    bool use_352_video_columns = false;
+    VIDEOboard::video_mode video = VIDEOboard::NORMAL;
 
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
 
     while((argc > 0) && (argv[0][0] == '-')) {
-	if(strcmp(argv[0], "-video352") == 0) {
-	    use_352_video_columns = true;
-	    argc -= 1;
-	    argv += 1;
+	if(strcmp(argv[0], "-video") == 0) {
+            if(argc < 2) {
+                fprintf(stderr, "-video requires a parameter; normal, double, halfmax, or max\n");
+                exit(EXIT_FAILURE);
+            }
+            if(strcmp(argv[1], "normal") == 0)
+                video = VIDEOboard::NORMAL;
+            else if(strcmp(argv[1], "double") == 0)
+                video = VIDEOboard::DOUBLE;
+            else if(strcmp(argv[1], "halfmax") == 0)
+                video = VIDEOboard::HALFMAX;
+            else if(strcmp(argv[1], "max") == 0)
+                video = VIDEOboard::MAX;
+            else {
+                fprintf(stderr, "-video parameter must be normal, double, halfmax, or max\n");
+                exit(EXIT_FAILURE);
+            }
+	    argc -= 2;
+	    argv += 2;
 	} else {
 	    fprintf(stderr, "unknown parameter \"%s\"\n", argv[0]);
 	    exit(EXIT_FAILURE);
@@ -680,7 +724,7 @@ int main(int argc, char **argv)
     boards.push_back(new PIC8259board());
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
-    boards.push_back(new VIDEOboard(use_352_video_columns));
+    boards.push_back(new VIDEOboard(video));
     boards.push_back(new LCDboard());
     boards.push_back(new IOboard());
 
