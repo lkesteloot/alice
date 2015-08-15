@@ -173,13 +173,11 @@ void pnmWrite(FILE *fp, int w, int h, float *pixels)
     }
 }
 
-const int video_columns = 176;
-const int video_rows = 262;
-const int video_row_bytes = video_columns / 8;
-const int video_byte_count = video_rows * video_row_bytes;
-typedef unsigned char video_buffer[video_byte_count];
+int video_columns = 176;
+int video_rows = 262;
+int video_row_bytes;
 
-void video_set_pixel(video_buffer buffer, int x, int y, bool c)
+void video_set_pixel(unsigned char* buffer, int x, int y, bool c)
 {
     if(x < 0 || x >= video_columns)
         return;
@@ -208,8 +206,13 @@ bool pnm_get_pixel(int width, int height, float *pixels, int x, int y, float& r,
 
 int main(int argc, char **argv)
 {
-    if(argc != 1) {
-        fprintf(stderr, "%s < image.pnm > output.hex\n", argv[0]);
+    if(argc < 2 || (strcmp(argv[1], "-h") == 0)) {
+        fprintf(stderr, "%s [rowbytes] < image.pnm > output.hex\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    video_columns = atoi(argv[1]) * 8;
+    if(video_columns == 0) {
+        fprintf(stderr, "%s [rowbytes] < image.pnm > output.hex\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -224,7 +227,11 @@ int main(int argc, char **argv)
     int pnm_offset_x = width / 2 - video_columns / 2;
     int pnm_offset_y = height / 2 - video_rows / 2;
 
-    video_buffer video;
+    video_row_bytes = video_columns / 8;
+    int video_byte_count = video_row_bytes * video_rows;
+
+    unsigned char *video = new unsigned char [video_row_bytes * video_rows];
+
     for(int j = 0; j < video_rows; j++)
         for(int i = 0; i < video_columns; i++) {
             float r, g, b;
