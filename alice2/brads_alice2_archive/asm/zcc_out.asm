@@ -20,8 +20,9 @@ _main
 zcc$3
 	; (tst.c, 62) while (1) {
 	LD	HL, 1
+	OR	A
 	LD	DE, 0
-	ADD	HL, DE
+	SBC	HL, DE
 	JP	Z, zcc$4
 	; (tst.c, 63) printf("What's your name?\n");
 	LD	HL, zcc$1

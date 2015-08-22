@@ -470,8 +470,9 @@ void output_node(NODE *node)
 	    out = get_new_label();
 	    output_label(LABEL_PREFIX "%d", top);
 	    output_node(node->arg[0]);
+	    output_code("OR", "A"); // Reset carry.
 	    output_code("LD", "DE, 0");
-	    output_code("ADD", "HL, DE");
+	    output_code("SBC", "HL, DE"); // HL -= DE - carry. NOP except sets Z.
 	    output_code("JP", "Z, " LABEL_PREFIX "%d", out);
 	    output_node(node->arg[1]);
 	    output_code("JP", LABEL_PREFIX "%d", top);

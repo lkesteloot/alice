@@ -10,6 +10,7 @@
 
 #include "z80emu.h"
 #include "8x16.h"
+#include "readhex.h"
 
 const bool debug = false;
 
@@ -702,22 +703,38 @@ int main(int argc, char **argv)
     }
 
     if(argc < 1) {
-        fprintf(stderr, "%s rom.bin\n", progname);
+        fprintf(stderr, "%s rom.bin or rom.hex\n", progname);
         exit(EXIT_FAILURE);
     }
 
-    FILE *fp = fopen(argv[0], "rb");
-    if(fp == NULL) {
-        fprintf(stderr, "failed to open %s for reading\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
+    char *filename = argv[0];
     unsigned char b[16384];
-    size_t length = fread(b, 1, sizeof(b), fp);
-    if(length < 16384) {
-        fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", argv[0], length);
-        exit(EXIT_FAILURE);
+    if (strlen(filename) >= 4 && strcmp(filename + strlen(filename) - 4, ".hex") == 0) {
+        FILE *fp = fopen(filename, "ra");
+        if(fp == NULL) {
+            fprintf(stderr, "failed to open %s for reading\n", filename);
+            exit(EXIT_FAILURE);
+        }
+        memset(b, '\0', sizeof(b));
+        int success = read_hex(fp, b, sizeof(b));
+        if (!success) {
+            fprintf(stderr, "error reading hex file %s\n", filename);
+            exit(EXIT_FAILURE);
+        }
+        fclose(fp);
+    } else {
+        FILE *fp = fopen(filename, "rb");
+        if(fp == NULL) {
+            fprintf(stderr, "failed to open %s for reading\n", filename);
+            exit(EXIT_FAILURE);
+        }
+        size_t length = fread(b, 1, sizeof(b), fp);
+        if(length < 16384) {
+            fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", filename, length);
+            exit(EXIT_FAILURE);
+        }
+        fclose(fp);
     }
-    fclose(fp);
 
     populate_keycode_map();
 

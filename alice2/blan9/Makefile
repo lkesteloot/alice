@@ -1,42 +1,28 @@
 
+.PHONY: all
 
-OBJECTS = kern.o proc.o main.o locore.o mem.o
-CFLAGS = -Wall -g
-LDFLAGS = -g
+# C_FILES = $(wildcard *.c)
+# ASM_FILES = locore.s
+C_FILES = tst.c
 
-all:	blan9
+ALL_ASM_FILES = $(C_FILES:.c=.s) $(ASM_FILES)
+SINGLE_ASM_FILE = zcc_out.s
+CC = ../zcc/zcc
+AS = ../brads_alice2_archive/asm/az80/az80
 
-blan9:	$(OBJECTS)
-	cc $(LDFLAGS) $(OBJECTS) -o blan9
+all:	$(SINGLE_ASM_FILE)
 
-locore.o: locore.s
-	as locore.s -o locore.o
+#zcc_out.hex: $(SINGLE_ASM_FILE)
+#	$(AS) $< -o $(basename $<).hex -l $(basename $<).prn
 
-depend:
-	makedepend $(OBJECTS:.o=.c)
+$(SINGLE_ASM_FILE): $(ALL_ASM_FILES)
+	cat $(ALL_ASM_FILES) > $@
 
-# DO NOT DELETE
+%.s: %.c $(CC)
+	$(CC) $<
 
-kern.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h
-kern.o: /usr/include/unistd.h /usr/include/features.h
-kern.o: /usr/include/sys/cdefs.h /usr/include/posix_opt.h
-kern.o: /usr/include/gnu/types.h
-kern.o: /usr/src/gcc-2.5.8/lib/gcc-lib/i486-linux/2.5.8/include/stddef.h
-kern.o: /usr/include/confname.h /usr/include/sys/types.h
-kern.o: /usr/include/linux/types.h /usr/include/asm/types.h kern.h proc.h
-kern.o: locore.h
-proc.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h
-proc.o: /usr/include/malloc.h /usr/include/features.h
-proc.o: /usr/include/sys/cdefs.h
-proc.o: /usr/src/gcc-2.5.8/lib/gcc-lib/i486-linux/2.5.8/include/stddef.h
-proc.o: proc.h
-main.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h
-main.o: /usr/include/unistd.h /usr/include/features.h
-main.o: /usr/include/sys/cdefs.h /usr/include/posix_opt.h
-main.o: /usr/include/gnu/types.h
-main.o: /usr/src/gcc-2.5.8/lib/gcc-lib/i486-linux/2.5.8/include/stddef.h
-main.o: /usr/include/confname.h /usr/include/sys/types.h
-main.o: /usr/include/linux/types.h /usr/include/asm/types.h
-main.o: /usr/include/signal.h /usr/include/linux/signal.h kern.h proc.h
-mem.o: /usr/include/malloc.h /usr/include/features.h /usr/include/sys/cdefs.h
-mem.o: /usr/src/gcc-2.5.8/lib/gcc-lib/i486-linux/2.5.8/include/stddef.h mem.h
+# Include dependencies. Update manually.
+kern.o: kern.h proc.h locore.h
+proc.o: proc.h mem.h
+main.o: kern.h proc.h mem.h
+mem.o: mem.h

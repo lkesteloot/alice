@@ -1,4 +1,7 @@
+                        ; Defined if we are running slow:
                         
+                        
+                        ; Defined to turn off printing:
                         
                         
                         ; library.asm must be first!
@@ -503,7 +506,7 @@
                         ;
                         
    01cb                 MAIN
-   01cb   21 b1 03       LD HL, INTROSTR
+   01cb   21 b4 03       LD HL, INTROSTR
    01ce   cd 89 00       CALL LCDPRINT
                         
                         ;
@@ -556,32 +559,34 @@
                         ; Go, go, go!
                         ;
                         
-   01fc                 PRINTAGAIN
-   01fc   21 c0 03       LD HL, PLEASESTR
-   01ff   cd 89 00       CALL LCDPRINT
+   01fc   c3 00 30              JP ZCCOUT
                         
-   0202   21 00 c0       LD HL, INPUT_BUF
-   0205   cd 38 01       CALL GETS
+   01ff                 PRINTAGAIN
+   01ff   21 c3 03       LD HL, PLEASESTR
+   0202   cd 89 00       CALL LCDPRINT
                         
-   0208   21 cc 03       LD HL, HELLOSTR
-   020b   dd 21 40 c0    LD IX, OUTPUT_BUF
-   020f   cd b8 01       CALL STRCPY
+   0205   21 00 c0       LD HL, INPUT_BUF
+   0208   cd 38 01       CALL GETS
                         
-   0212   21 00 c0       LD HL, INPUT_BUF
-   0215   cd b8 01       CALL STRCPY
+   020b   21 cf 03       LD HL, HELLOSTR
+   020e   dd 21 40 c0    LD IX, OUTPUT_BUF
+   0212   cd b8 01       CALL STRCPY
                         
-   0218   dd 36 00 0a    LD (IX), PAUSE
-   021c   dd 23          INC IX
-   021e   dd 36 00 00    LD (IX), 0
+   0215   21 00 c0       LD HL, INPUT_BUF
+   0218   cd b8 01       CALL STRCPY
                         
-   0222   21 40 c0       LD HL, OUTPUT_BUF
-   0225   cd 89 00       CALL LCDPRINT
+   021b   dd 36 00 0a    LD (IX), PAUSE
+   021f   dd 23          INC IX
+   0221   dd 36 00 00    LD (IX), 0
                         
-   0228   c3 fc 01       JP PRINTAGAIN
+   0225   21 40 c0       LD HL, OUTPUT_BUF
+   0228   cd 89 00       CALL LCDPRINT
+                        
+   022b   c3 ff 01       JP PRINTAGAIN
                         
                         ;----------------------------------------
                         
-   022b                 ISR0 ; PIC interrupt
+   022e                 ISR0 ; PIC interrupt
                         
                          ;
                          ; The PIC sends a command byte followed by an
@@ -600,64 +605,64 @@
                          ; equal to PIC_NON_CMD if we are waiting for a command.
                          ;
                         
-   022b   f5             PUSH AF
+   022e   f5             PUSH AF
                         
-   022c   db 04          IN A, (PIC)
-   022e   32 03 80       LD (PICBYTE), A
+   022f   db 04          IN A, (PIC)
+   0231   32 03 80       LD (PICBYTE), A
                         
                         ; START TEST
                         ; END TEST
                         
-   0231   3a 00 80       LD A, (PIC_COMMAND)
-   0234   fe 00          CP PIC_NON_CMD ; Cmd not read yet
-   0236   ca 46 02       JP Z, ISR0_IS_COMMAND
+   0234   3a 00 80       LD A, (PIC_COMMAND)
+   0237   fe 00          CP PIC_NON_CMD ; Cmd not read yet
+   0239   ca 49 02       JP Z, ISR0_IS_COMMAND
                         
-   0239   fe 01          CP PIC_SER_CMD
-   023b   ca 57 02       JP Z, ISR0_IS_SERIAL
+   023c   fe 01          CP PIC_SER_CMD
+   023e   ca 5a 02       JP Z, ISR0_IS_SERIAL
                         
-   023e   fe 02          CP PIC_KBD_CMD
-   0240   ca 5d 02       JP Z, ISR0_IS_KEYBOARD
+   0241   fe 02          CP PIC_KBD_CMD
+   0243   ca 60 02       JP Z, ISR0_IS_KEYBOARD
                         
-   0243   c3 63 02       JP ISR0_RESET ; Whoa, bad byte
+   0246   c3 66 02       JP ISR0_RESET ; Whoa, bad byte
                         
-   0246                 ISR0_IS_COMMAND
-   0246   3a 03 80       LD A, (PICBYTE)
-   0249   fe 03          CP PIC_TIM_CMD ; special case for timer cause no data
-   024b   ca 54 02       JP Z, ISR0_IS_TIMER
+   0249                 ISR0_IS_COMMAND
+   0249   3a 03 80       LD A, (PICBYTE)
+   024c   fe 03          CP PIC_TIM_CMD ; special case for timer cause no data
+   024e   ca 57 02       JP Z, ISR0_IS_TIMER
                         
-   024e   32 00 80       LD (PIC_COMMAND), A
-   0251   c3 68 02       JP ISR0_END
+   0251   32 00 80       LD (PIC_COMMAND), A
+   0254   c3 6b 02       JP ISR0_END
                         
-   0254                 ISR0_IS_TIMER
+   0257                 ISR0_IS_TIMER
                          ; do something
-   0254   c3 63 02       JP ISR0_RESET
+   0257   c3 66 02       JP ISR0_RESET
                         
-   0257                 ISR0_IS_SERIAL
-   0257   cd 6f 02       CALL HANDLE_SERIAL
-   025a   c3 63 02       JP ISR0_RESET
+   025a                 ISR0_IS_SERIAL
+   025a   cd 72 02       CALL HANDLE_SERIAL
+   025d   c3 66 02       JP ISR0_RESET
                         
-   025d                 ISR0_IS_KEYBOARD
-   025d   cd e4 02       CALL HANDLE_KEYBOARD
-   0260   c3 63 02       JP ISR0_RESET
+   0260                 ISR0_IS_KEYBOARD
+   0260   cd e7 02       CALL HANDLE_KEYBOARD
+   0263   c3 66 02       JP ISR0_RESET
                         
-   0263                 ISR0_RESET
-   0263   3e 00          LD A, PIC_NON_CMD
-   0265   32 00 80       LD (PIC_COMMAND), A
+   0266                 ISR0_RESET
+   0266   3e 00          LD A, PIC_NON_CMD
+   0268   32 00 80       LD (PIC_COMMAND), A
                          ; FALLTHROUGH
                         
-   0268                 ISR0_END
-   0268   3e 20          LD A, 020H ; End of Interrupt
-   026a   d3 00          OUT (I8259A), A
+   026b                 ISR0_END
+   026b   3e 20          LD A, 020H ; End of Interrupt
+   026d   d3 00          OUT (I8259A), A
                         
-   026c   f1             POP AF
-   026d   fb             EI
-   026e   c9             RET
+   026f   f1             POP AF
+   0270   fb             EI
+   0271   c9             RET
                         
                         ;------------------
                         
-   026f                 HANDLE_SERIAL ; trashes A
-   026f   e5             PUSH HL
-   0270   c5             PUSH BC
+   0272                 HANDLE_SERIAL ; trashes A
+   0272   e5             PUSH HL
+   0273   c5             PUSH BC
                         
                          ; we get downloaded programs through serial. handle
                          ; that first. we get one command byte, then two
@@ -668,533 +673,500 @@
                          ; set to 1, which causes the input routine to jump
                          ; to the address in CURRENT_ADDR.
                         
-   0271   3a 0c 80       LD A, (CURRENT_PTR)
-   0274   fe 03          CP 3
-   0276   c2 89 02       JP NZ, GET_CMD_HEADER
+   0274   3a 0c 80       LD A, (CURRENT_PTR)
+   0277   fe 03          CP 3
+   0279   c2 8c 02       JP NZ, GET_CMD_HEADER
                         
                          ; just got last byte of header
-   0279   3a 08 80       LD A, (CURRENT_CMD)
-   027c   fe 02          CP CMD_RUN
-   027e   c2 89 02       JP NZ, GET_CMD_HEADER
+   027c   3a 08 80       LD A, (CURRENT_CMD)
+   027f   fe 02          CP CMD_RUN
+   0281   c2 8c 02       JP NZ, GET_CMD_HEADER
                         
                          ; ignore length and run
-   0281   3e 01          LD A, 1
-   0283   32 0d 80       LD (SHOULD_RUN), A
-   0286   c3 e1 02       JP END_HANDLE_SERIAL
+   0284   3e 01          LD A, 1
+   0286   32 0d 80       LD (SHOULD_RUN), A
+   0289   c3 e4 02       JP END_HANDLE_SERIAL
                         
-   0289                 GET_CMD_HEADER
-   0289   3a 0c 80       LD A, (CURRENT_PTR)
-   028c   fe 04          CP 4
-   028e   ca b4 02       JP Z, TRANSFER_BYTE
+   028c                 GET_CMD_HEADER
+   028c   3a 0c 80       LD A, (CURRENT_PTR)
+   028f   fe 04          CP 4
+   0291   ca b7 02       JP Z, TRANSFER_BYTE
                         
                          ; check if it is not a transfer
-   0291   fe 00          CP 0
-   0293   c2 9e 02       JP NZ, TRANSFER_HEADER
+   0294   fe 00          CP 0
+   0296   c2 a1 02       JP NZ, TRANSFER_HEADER
                         
-   0296   3a 03 80       LD A, (PICBYTE)
-   0299   fe 03          CP CMD_MAX
-   029b   f2 cf 02       JP P, SIMULATE_KEYBOARD ; >= CMD_MAX
+   0299   3a 03 80       LD A, (PICBYTE)
+   029c   fe 03          CP CMD_MAX
+   029e   f2 d2 02       JP P, SIMULATE_KEYBOARD ; >= CMD_MAX
                         
-   029e                 TRANSFER_HEADER
+   02a1                 TRANSFER_HEADER
                          ; transfer into the header
-   029e   21 08 80       LD HL, CURRENT_CMD
-   02a1   3a 0c 80       LD A, (CURRENT_PTR)
-   02a4   4f             LD C, A
-   02a5   06 00          LD B, 0
-   02a7   09             ADD HL, BC
-   02a8   3a 03 80       LD A, (PICBYTE)
-   02ab   77             LD (HL), A
-   02ac   0c             INC C
-   02ad   79             LD A, C
-   02ae   32 0c 80       LD (CURRENT_PTR), A
+   02a1   21 08 80       LD HL, CURRENT_CMD
+   02a4   3a 0c 80       LD A, (CURRENT_PTR)
+   02a7   4f             LD C, A
+   02a8   06 00          LD B, 0
+   02aa   09             ADD HL, BC
+   02ab   3a 03 80       LD A, (PICBYTE)
+   02ae   77             LD (HL), A
+   02af   0c             INC C
+   02b0   79             LD A, C
+   02b1   32 0c 80       LD (CURRENT_PTR), A
                         
-   02b1   c3 e1 02       JP END_HANDLE_SERIAL
+   02b4   c3 e4 02       JP END_HANDLE_SERIAL
                         
-   02b4                 TRANSFER_BYTE
+   02b7                 TRANSFER_BYTE
                          ; transfer into RAM
-   02b4   2a 09 80       LD HL, (CURRENT_ADDR)
-   02b7   3a 03 80       LD A, (PICBYTE)
-   02ba   77             LD (HL), A
-   02bb   23             INC HL
-   02bc   22 09 80       LD (CURRENT_ADDR), HL
-   02bf   3a 0b 80       LD A, (CURRENT_LEN)
-   02c2   3d             DEC A
-   02c3   32 0b 80       LD (CURRENT_LEN), A
-   02c6   c2 e1 02       JP NZ, END_HANDLE_SERIAL
+   02b7   2a 09 80       LD HL, (CURRENT_ADDR)
+   02ba   3a 03 80       LD A, (PICBYTE)
+   02bd   77             LD (HL), A
+   02be   23             INC HL
+   02bf   22 09 80       LD (CURRENT_ADDR), HL
+   02c2   3a 0b 80       LD A, (CURRENT_LEN)
+   02c5   3d             DEC A
+   02c6   32 0b 80       LD (CURRENT_LEN), A
+   02c9   c2 e4 02       JP NZ, END_HANDLE_SERIAL
                         
-   02c9   32 0c 80       LD (CURRENT_PTR), A
+   02cc   32 0c 80       LD (CURRENT_PTR), A
                         
-   02cc   c3 e1 02       JP END_HANDLE_SERIAL
+   02cf   c3 e4 02       JP END_HANDLE_SERIAL
                         
-   02cf                 SIMULATE_KEYBOARD
-   02cf   21 00 a0       LD HL, KEYBUF
-   02d2   3a 01 80       LD A, (NUMKEY)
-   02d5   4f             LD C, A
-   02d6   06 00          LD B, 0
-   02d8   09             ADD HL, BC ; HL = pointer into buffer
-   02d9   3c             INC A
-   02da   32 01 80       LD (NUMKEY), A
+   02d2                 SIMULATE_KEYBOARD
+   02d2   21 00 a0       LD HL, KEYBUF
+   02d5   3a 01 80       LD A, (NUMKEY)
+   02d8   4f             LD C, A
+   02d9   06 00          LD B, 0
+   02db   09             ADD HL, BC ; HL = pointer into buffer
+   02dc   3c             INC A
+   02dd   32 01 80       LD (NUMKEY), A
                         
-   02dd   3a 03 80       LD A, (PICBYTE) ; Key in A
-   02e0   77             LD (HL), A ; Stick our letter in buffer
+   02e0   3a 03 80       LD A, (PICBYTE) ; Key in A
+   02e3   77             LD (HL), A ; Stick our letter in buffer
                         
-   02e1                 END_HANDLE_SERIAL
+   02e4                 END_HANDLE_SERIAL
                         
-   02e1   c1             POP BC
-   02e2   e1             POP HL
-   02e3   c9             RET
+   02e4   c1             POP BC
+   02e5   e1             POP HL
+   02e6   c9             RET
                         
                         ;------------------
                         
-   02e4                 HANDLE_KEYBOARD
-   02e4   e5             PUSH HL
-   02e5   c5             PUSH BC
+   02e7                 HANDLE_KEYBOARD
+   02e7   e5             PUSH HL
+   02e8   c5             PUSH BC
                         
-   02e6   3a 03 80       LD A, (PICBYTE) ; Get the byte
+   02e9   3a 03 80       LD A, (PICBYTE) ; Get the byte
                         
-   02e9   fe f0          CP UP_KEY ; Key-up is preceded by UP_KEY
-   02eb   c2 f6 02       JP NZ, NOT_UP_KEY
+   02ec   fe f0          CP UP_KEY ; Key-up is preceded by UP_KEY
+   02ee   c2 f9 02       JP NZ, NOT_UP_KEY
                         
-   02ee   3e 01          LD A, 1
-   02f0   32 07 80       LD (UPKEY_FLAG), A
-   02f3   c3 76 03       JP END_HANDLE_KEYBOARD
+   02f1   3e 01          LD A, 1
+   02f3   32 07 80       LD (UPKEY_FLAG), A
+   02f6   c3 79 03       JP END_HANDLE_KEYBOARD
                         
-   02f6                 NOT_UP_KEY
-   02f6   fe e0          CP EXT_KEY ; Extended keys preceded by EXT_KEY
-   02f8   ca 71 03       JP Z, DID_KEY ; For now just ignore
+   02f9                 NOT_UP_KEY
+   02f9   fe e0          CP EXT_KEY ; Extended keys preceded by EXT_KEY
+   02fb   ca 74 03       JP Z, DID_KEY ; For now just ignore
                         
-   02fb   fe e1          CP EXT2_KEY ; Break preceded by EXT2_KEY
-   02fd   ca 71 03       JP Z, DID_KEY ; For now just ignore
+   02fe   fe e1          CP EXT2_KEY ; Break preceded by EXT2_KEY
+   0300   ca 74 03       JP Z, DID_KEY ; For now just ignore
                         
-   0300   cb 7f          BIT 7, A ; See if high bit is on
-   0302   c2 71 03       JP NZ, DID_KEY ; Ignore if >= 128
+   0303   cb 7f          BIT 7, A ; See if high bit is on
+   0305   c2 74 03       JP NZ, DID_KEY ; Ignore if >= 128
                         
-   0305   fe 12          CP LSHIFT_KEY ; See if it is a shift key
-   0307   ca 0f 03       JP Z, IS_SHIFT
-   030a   fe 59          CP RSHIFT_KEY
-   030c   c2 1a 03       JP NZ, NOT_SHIFT
-   030f                 IS_SHIFT
-   030f   3a 07 80       LD A, (UPKEY_FLAG)
-   0312   ee 01          XOR 1
-   0314   32 04 80       LD (SHIFT_STATUS), A
-   0317   c3 71 03       JP DID_KEY
+   0308   fe 12          CP LSHIFT_KEY ; See if it is a shift key
+   030a   ca 12 03       JP Z, IS_SHIFT
+   030d   fe 59          CP RSHIFT_KEY
+   030f   c2 1d 03       JP NZ, NOT_SHIFT
+   0312                 IS_SHIFT
+   0312   3a 07 80       LD A, (UPKEY_FLAG)
+   0315   ee 01          XOR 1
+   0317   32 04 80       LD (SHIFT_STATUS), A
+   031a   c3 74 03       JP DID_KEY
                         
-   031a                 NOT_SHIFT
-   031a   fe 14          CP CTRL_KEY ; See if it is a control key
-   031c   c2 2a 03       JP NZ, NOT_CTRL
+   031d                 NOT_SHIFT
+   031d   fe 14          CP CTRL_KEY ; See if it is a control key
+   031f   c2 2d 03       JP NZ, NOT_CTRL
                         
-   031f   3a 07 80       LD A, (UPKEY_FLAG)
-   0322   ee 01          XOR 1
-   0324   32 05 80       LD (CTRL_STATUS), A
-   0327   c3 71 03       JP DID_KEY
+   0322   3a 07 80       LD A, (UPKEY_FLAG)
+   0325   ee 01          XOR 1
+   0327   32 05 80       LD (CTRL_STATUS), A
+   032a   c3 74 03       JP DID_KEY
                         
-   032a                 NOT_CTRL
-   032a   fe 11          CP ALT_KEY ; See if it is an alt key
-   032c   c2 3a 03       JP NZ, NOT_ALT
+   032d                 NOT_CTRL
+   032d   fe 11          CP ALT_KEY ; See if it is an alt key
+   032f   c2 3d 03       JP NZ, NOT_ALT
                         
-   032f   3a 07 80       LD A, (UPKEY_FLAG)
-   0332   ee 01          XOR 1
-   0334   32 06 80       LD (ALT_STATUS), A
-   0337   c3 71 03       JP DID_KEY
+   0332   3a 07 80       LD A, (UPKEY_FLAG)
+   0335   ee 01          XOR 1
+   0337   32 06 80       LD (ALT_STATUS), A
+   033a   c3 74 03       JP DID_KEY
                         
-   033a                 NOT_ALT
-   033a   6f             LD L, A ; HL = A
-   033b   26 00          LD H, 0
+   033d                 NOT_ALT
+   033d   6f             LD L, A ; HL = A
+   033e   26 00          LD H, 0
                         
-   033d   3a 07 80       LD A, (UPKEY_FLAG) ; Ignore all other key ups
-   0340   fe 01          CP 1
-   0342   ca 71 03       JP Z, DID_KEY
+   0340   3a 07 80       LD A, (UPKEY_FLAG) ; Ignore all other key ups
+   0343   fe 01          CP 1
+   0345   ca 74 03       JP Z, DID_KEY
                         
-   0345   29             ADD HL, HL ; HL *= 4
-   0346   29             ADD HL, HL
+   0348   29             ADD HL, HL ; HL *= 4
+   0349   29             ADD HL, HL
                         
-   0347   06 00          LD B, 0
-   0349   3a 04 80       LD A, (SHIFT_STATUS)
-   034c   4f             LD C, A
-   034d   09             ADD HL, BC
+   034a   06 00          LD B, 0
+   034c   3a 04 80       LD A, (SHIFT_STATUS)
+   034f   4f             LD C, A
+   0350   09             ADD HL, BC
                         
-   034e   3a 05 80       LD A, (CTRL_STATUS)
-   0351   4f             LD C, A
-   0352   09             ADD HL, BC
-   0353   09             ADD HL, BC
+   0351   3a 05 80       LD A, (CTRL_STATUS)
+   0354   4f             LD C, A
+   0355   09             ADD HL, BC
+   0356   09             ADD HL, BC
                         
-   0354   3a 06 80       LD A, (ALT_STATUS)
-   0357   4f             LD C, A
-   0358   09             ADD HL, BC
-   0359   09             ADD HL, BC
-   035a   09             ADD HL, BC
+   0357   3a 06 80       LD A, (ALT_STATUS)
+   035a   4f             LD C, A
+   035b   09             ADD HL, BC
+   035c   09             ADD HL, BC
+   035d   09             ADD HL, BC
                         
-   035b   01 d3 03       LD BC, KEY_XLAT ; Translation table
-   035e   09             ADD HL, BC
+   035e   01 d6 03       LD BC, KEY_XLAT ; Translation table
+   0361   09             ADD HL, BC
                         
-   035f   7e             LD A, (HL) ; Get actual key
-   0360   f5             PUSH AF
+   0362   7e             LD A, (HL) ; Get actual key
+   0363   f5             PUSH AF
                         
-   0361   21 00 a0       LD HL, KEYBUF
-   0364   3a 01 80       LD A, (NUMKEY)
-   0367   4f             LD C, A
-   0368   06 00          LD B, 0
-   036a   09             ADD HL, BC ; HL = pointer into buffer
-   036b   3c             INC A
-   036c   32 01 80       LD (NUMKEY), A
+   0364   21 00 a0       LD HL, KEYBUF
+   0367   3a 01 80       LD A, (NUMKEY)
+   036a   4f             LD C, A
+   036b   06 00          LD B, 0
+   036d   09             ADD HL, BC ; HL = pointer into buffer
+   036e   3c             INC A
+   036f   32 01 80       LD (NUMKEY), A
                         
-   036f   f1             POP AF ; Key in A
-   0370   77             LD (HL), A ; Stick our ASCII letter in there
+   0372   f1             POP AF ; Key in A
+   0373   77             LD (HL), A ; Stick our ASCII letter in there
                         
                         
-   0371                 DID_KEY
+   0374                 DID_KEY
                          ; Reset "up" flag
-   0371   3e 00          LD A, 0
-   0373   32 07 80       LD (UPKEY_FLAG), A
+   0374   3e 00          LD A, 0
+   0376   32 07 80       LD (UPKEY_FLAG), A
                         
-   0376                 END_HANDLE_KEYBOARD
+   0379                 END_HANDLE_KEYBOARD
                         
-   0376   c1             POP BC
-   0377   e1             POP HL
-   0378   c9             RET
-                        
-                        ;------------------
-                        
-   0379                 ISR1
-   0379   f5             PUSH AF
-                        
-   037a   3e 20          LD A, 020H ; End of Interrupt
-   037c   d3 00          OUT (I8259A), A
-                        
-   037e   f1             POP AF
-   037f   fb             EI
-   0380   c9             RET
+   0379   c1             POP BC
+   037a   e1             POP HL
+   037b   c9             RET
                         
                         ;------------------
                         
-   0381                 ISR2
-   0381   f5             PUSH AF
+   037c                 ISR1
+   037c   f5             PUSH AF
                         
-   0382   3e 20          LD A, 020H ; End of Interrupt
-   0384   d3 00          OUT (I8259A), A
+   037d   3e 20          LD A, 020H ; End of Interrupt
+   037f   d3 00          OUT (I8259A), A
                         
-   0386   f1             POP AF
-   0387   fb             EI
-   0388   c9             RET
-                        
-                        ;------------------
-                        
-   0389                 ISR3
-   0389   f5             PUSH AF
-                        
-   038a   3e 20          LD A, 020H ; End of Interrupt
-   038c   d3 00          OUT (I8259A), A
-                        
-   038e   f1             POP AF
-   038f   fb             EI
-   0390   c9             RET
+   0381   f1             POP AF
+   0382   fb             EI
+   0383   c9             RET
                         
                         ;------------------
                         
-   0391                 ISR4
-   0391   f5             PUSH AF
+   0384                 ISR2
+   0384   f5             PUSH AF
                         
-   0392   3e 20          LD A, 020H ; End of Interrupt
-   0394   d3 00          OUT (I8259A), A
+   0385   3e 20          LD A, 020H ; End of Interrupt
+   0387   d3 00          OUT (I8259A), A
                         
-   0396   f1             POP AF
-   0397   fb             EI
-   0398   c9             RET
-                        
-                        ;------------------
-                        
-   0399                 ISR5
-   0399   f5             PUSH AF
-                        
-   039a   3e 20          LD A, 020H ; End of Interrupt
-   039c   d3 00          OUT (I8259A), A
-                        
-   039e   f1             POP AF
-   039f   fb             EI
-   03a0   c9             RET
+   0389   f1             POP AF
+   038a   fb             EI
+   038b   c9             RET
                         
                         ;------------------
                         
-   03a1                 ISR6
-   03a1   f5             PUSH AF
+   038c                 ISR3
+   038c   f5             PUSH AF
                         
-   03a2   3e 20          LD A, 020H ; End of Interrupt
-   03a4   d3 00          OUT (I8259A), A
+   038d   3e 20          LD A, 020H ; End of Interrupt
+   038f   d3 00          OUT (I8259A), A
                         
-   03a6   f1             POP AF
-   03a7   fb             EI
-   03a8   c9             RET
+   0391   f1             POP AF
+   0392   fb             EI
+   0393   c9             RET
                         
                         ;------------------
                         
-   03a9                 ISR7
-   03a9   f5             PUSH AF
+   0394                 ISR4
+   0394   f5             PUSH AF
                         
-   03aa   3e 20          LD A, 020H ; End of Interrupt
-   03ac   d3 00          OUT (I8259A), A
+   0395   3e 20          LD A, 020H ; End of Interrupt
+   0397   d3 00          OUT (I8259A), A
                         
-   03ae   f1             POP AF
-   03af   fb             EI
-   03b0   c9             RET
+   0399   f1             POP AF
+   039a   fb             EI
+   039b   c9             RET
+                        
+                        ;------------------
+                        
+   039c                 ISR5
+   039c   f5             PUSH AF
+                        
+   039d   3e 20          LD A, 020H ; End of Interrupt
+   039f   d3 00          OUT (I8259A), A
+                        
+   03a1   f1             POP AF
+   03a2   fb             EI
+   03a3   c9             RET
+                        
+                        ;------------------
+                        
+   03a4                 ISR6
+   03a4   f5             PUSH AF
+                        
+   03a5   3e 20          LD A, 020H ; End of Interrupt
+   03a7   d3 00          OUT (I8259A), A
+                        
+   03a9   f1             POP AF
+   03aa   fb             EI
+   03ab   c9             RET
+                        
+                        ;------------------
+                        
+   03ac                 ISR7
+   03ac   f5             PUSH AF
+                        
+   03ad   3e 20          LD A, 020H ; End of Interrupt
+   03af   d3 00          OUT (I8259A), A
+                        
+   03b1   f1             POP AF
+   03b2   fb             EI
+   03b3   c9             RET
                         
                         ;----------------------------------------
                         
-   03b1   50 49 43 31   INTROSTR DB "PIC16C64 test", 10, 0
-   03b5   36 43 36 34   
-   03b9   20 74 65 73   
-   03bd   74 0a 00      
+   03b4   50 49 43 31   INTROSTR DB "PIC16C64 test", 10, 0
+   03b8   36 43 36 34   
+   03bc   20 74 65 73   
+   03c0   74 0a 00      
                         
-   03c0   59 6f 75 72   PLEASESTR DB "Your name?", 10, 0
-   03c4   20 6e 61 6d   
-   03c8   65 3f 0a 00   
-   03cc   48 65 6c 6c   HELLOSTR DB "Hello ", 0
-   03d0   6f 20 00      
+   03c3   59 6f 75 72   PLEASESTR DB "Your name?", 10, 0
+   03c7   20 6e 61 6d   
+   03cb   65 3f 0a 00   
+   03cf   48 65 6c 6c   HELLOSTR DB "Hello ", 0
+   03d3   6f 20 00      
                         
-   03d3                 KEY_XLAT ; Normal, shift, ctrl, alt
-   03d3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03d7   39 39 39 39    DB '9', '9', '9', '9' ; F9
-   03db   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03df   35 35 35 35    DB '5', '5', '5', '5' ; F5
-   03e3   33 33 33 33    DB '3', '3', '3', '3' ; F3
-   03e7   31 31 31 31    DB '1', '1', '1', '1' ; F1
-   03eb   32 32 32 32    DB '2', '2', '2', '2' ; F2
-   03ef   31 31 31 31    DB '1', '1', '1', '1' ; F12
-   03f3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03f7   31 31 31 31    DB '1', '1', '1', '1' ; F10
-   03fb   38 38 38 38    DB '8', '8', '8', '8' ; F8
-   03ff   36 36 36 36    DB '6', '6', '6', '6' ; F6
-   0403   34 34 34 34    DB '4', '4', '4', '4' ; F4
-   0407   09 09 09 09    DB 9, 9, 9, 9 ; Tab
-   040b   60 7e 60 60    DB '`', '~', '`', '`'
-   040f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0413   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0417   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Alt
-   041b   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Left shift
-   041f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0423   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Control
-   0427   71 51 11 11    DB 'q', 'Q', 17, 17
-   042b   31 21 31 31    DB '1', '!', '1', '1'
-   042f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0433   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0437   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   043b   7a 5a 1a 1a    DB 'z', 'Z', 26, 26
-   043f   73 53 13 13    DB 's', 'S', 19, 19
-   0443   61 41 01 01    DB 'a', 'A', 1, 1
-   0447   77 57 17 17    DB 'w', 'W', 23, 23
-   044b   32 40 32 32    DB '2', '@', '2', '2'
-   044f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0453   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0457   63 43 03 03    DB 'c', 'C', 3, 3
-   045b   78 58 18 18    DB 'x', 'X', 24, 24
-   045f   64 44 04 04    DB 'd', 'D', 4, 4
-   0463   65 45 05 05    DB 'e', 'E', 5, 5
-   0467   34 24 34 34    DB '4', '$', '4', '4'
-   046b   33 23 33 33    DB '3', '#', '3', '3'
-   046f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0473   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0477   20 20 20 20    DB ' ', ' ', ' ', ' '
-   047b   76 56 16 16    DB 'v', 'V', 22, 22
-   047f   66 46 06 06    DB 'f', 'F', 6, 6
-   0483   74 54 14 14    DB 't', 'T', 20, 20
-   0487   72 52 12 12    DB 'r', 'R', 18, 18
-   048b   35 25 35 35    DB '5', '%', '5', '5'
-   048f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0493   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0497   6e 4e 0e 0e    DB 'n', 'N', 14, 14
-   049b   62 42 02 02    DB 'b', 'B', 2, 2
-   049f   68 48 08 08    DB 'h', 'H', 8, 8
-   04a3   67 47 07 07    DB 'g', 'G', 7, 7
-   04a7   79 59 19 19    DB 'y', 'Y', 25, 25
-   04ab   36 5e 36 36    DB '6', '^', '6', '6'
-   04af   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04b3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04b7   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04bb   6d 4d 0d 0d    DB 'm', 'M', 13, 13
-   04bf   6a 4a 0a 0a    DB 'j', 'J', 10, 10
-   04c3   75 55 15 15    DB 'u', 'U', 21, 21
-   04c7   37 26 37 37    DB '7', '&', '7', '7'
-   04cb   38 2a 38 38    DB '8', '*', '8', '8'
-   04cf   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04d3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04d7   2c 3c 2c 2c    DB ',', '<', ',', ','
-   04db   6b 4b 0b 0b    DB 'k', 'K', 11, 11
-   04df   69 49 09 09    DB 'i', 'I', 9, 9
-   04e3   6f 4f 0f 0f    DB 'o', 'O', 15, 15
-   04e7   30 29 30 30    DB '0', ')', '0', '0'
-   04eb   39 28 39 39    DB '9', '(', '9', '9'
-   04ef   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04f3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04f7   2e 3e 2e 2e    DB '.', '>', '.', '.'
-   04fb   2f 3f 2f 2f    DB '/', '?', '/', '/'
-   04ff   6c 4c 0c 0c    DB 'l', 'L', 12, 12
-   0503   3b 3a 3b 3b    DB ';', ':', ';', ';'
-   0507   70 50 10 10    DB 'p', 'P', 16, 16
-   050b   2d 5f 2d 2d    DB '-', '_', '-', '-'
-   050f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0513   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0517   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   051b   27 22 27 27    DB 39, '"', 39, 39 ; Single quote
-   051f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0523   5b 7b 5b 5b    DB '[', '{', '[', '['
-   0527   3d 2b 3d 3d    DB '=', '+', '=', '='
-   052b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   052f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0533   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Caps lock
-   0537   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Right shift
-   053b   0a 0a 0a 0a    DB 10, 10, 10, 10 ; Enter
-   053f   5d 7d 5d 5d    DB ']', '}', ']', ']'
-   0543   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0547   5c 7c 5c 5c    DB 92, '|', 92, 92 ; Backslash
-   054b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   054f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0553   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0557   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   055b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   055f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0563   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0567   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   056b   08 08 08 08    DB 8, 8, 8, 8 ; Backspace
-   056f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0573   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0577   31 31 31 31    DB '1', '1', '1', '1' ; Numeric 1
-   057b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   057f   34 34 34 34    DB '4', '4', '4', '4' ; Numeric 4
-   0583   37 37 37 37    DB '7', '7', '7', '7' ; Numeric 7
-   0587   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   058b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   058f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0593   30 30 30 30    DB '0', '0', '0', '0' ; Numeric 0
-   0597   2e 2e 2e 2e    DB '.', '.', '.', '.' ; Numeric .
-   059b   32 32 32 32    DB '2', '2', '2', '2' ; Numeric 2
-   059f   35 35 35 35    DB '5', '5', '5', '5' ; Numeric 5
-   05a3   36 36 36 36    DB '6', '6', '6', '6' ; Numeric 6
-   05a7   38 38 38 38    DB '8', '8', '8', '8' ; Numeric 8
-   05ab   1b 1b 1b 1b    DB 27, 27, 27, 27 ; Escape
-   05af   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Num lock
-   05b3   31 31 31 31    DB '1', '1', '1', '1' ; F11
-   05b7   2b 2b 2b 2b    DB '+', '+', '+', '+' ; Numeric +
-   05bb   33 33 33 33    DB '3', '3', '3', '3' ; Numeric 3
-   05bf   2d 2d 2d 2d    DB '-', '-', '-', '-' ; Numeric -
-   05c3   2a 2a 2a 2a    DB '*', '*', '*', '*' ; Numeric *
-   05c7   39 39 39 39    DB '9', '9', '9', '9' ; Numeric 9
-   05cb   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Scroll lock
-   05cf   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03d6                 KEY_XLAT ; Normal, shift, ctrl, alt
+   03d6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03da   39 39 39 39    DB '9', '9', '9', '9' ; F9
+   03de   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03e2   35 35 35 35    DB '5', '5', '5', '5' ; F5
+   03e6   33 33 33 33    DB '3', '3', '3', '3' ; F3
+   03ea   31 31 31 31    DB '1', '1', '1', '1' ; F1
+   03ee   32 32 32 32    DB '2', '2', '2', '2' ; F2
+   03f2   31 31 31 31    DB '1', '1', '1', '1' ; F12
+   03f6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03fa   31 31 31 31    DB '1', '1', '1', '1' ; F10
+   03fe   38 38 38 38    DB '8', '8', '8', '8' ; F8
+   0402   36 36 36 36    DB '6', '6', '6', '6' ; F6
+   0406   34 34 34 34    DB '4', '4', '4', '4' ; F4
+   040a   09 09 09 09    DB 9, 9, 9, 9 ; Tab
+   040e   60 7e 60 60    DB '`', '~', '`', '`'
+   0412   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0416   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   041a   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Alt
+   041e   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Left shift
+   0422   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0426   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Control
+   042a   71 51 11 11    DB 'q', 'Q', 17, 17
+   042e   31 21 31 31    DB '1', '!', '1', '1'
+   0432   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0436   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   043a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   043e   7a 5a 1a 1a    DB 'z', 'Z', 26, 26
+   0442   73 53 13 13    DB 's', 'S', 19, 19
+   0446   61 41 01 01    DB 'a', 'A', 1, 1
+   044a   77 57 17 17    DB 'w', 'W', 23, 23
+   044e   32 40 32 32    DB '2', '@', '2', '2'
+   0452   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0456   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   045a   63 43 03 03    DB 'c', 'C', 3, 3
+   045e   78 58 18 18    DB 'x', 'X', 24, 24
+   0462   64 44 04 04    DB 'd', 'D', 4, 4
+   0466   65 45 05 05    DB 'e', 'E', 5, 5
+   046a   34 24 34 34    DB '4', '$', '4', '4'
+   046e   33 23 33 33    DB '3', '#', '3', '3'
+   0472   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0476   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   047a   20 20 20 20    DB ' ', ' ', ' ', ' '
+   047e   76 56 16 16    DB 'v', 'V', 22, 22
+   0482   66 46 06 06    DB 'f', 'F', 6, 6
+   0486   74 54 14 14    DB 't', 'T', 20, 20
+   048a   72 52 12 12    DB 'r', 'R', 18, 18
+   048e   35 25 35 35    DB '5', '%', '5', '5'
+   0492   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0496   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   049a   6e 4e 0e 0e    DB 'n', 'N', 14, 14
+   049e   62 42 02 02    DB 'b', 'B', 2, 2
+   04a2   68 48 08 08    DB 'h', 'H', 8, 8
+   04a6   67 47 07 07    DB 'g', 'G', 7, 7
+   04aa   79 59 19 19    DB 'y', 'Y', 25, 25
+   04ae   36 5e 36 36    DB '6', '^', '6', '6'
+   04b2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04b6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04ba   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04be   6d 4d 0d 0d    DB 'm', 'M', 13, 13
+   04c2   6a 4a 0a 0a    DB 'j', 'J', 10, 10
+   04c6   75 55 15 15    DB 'u', 'U', 21, 21
+   04ca   37 26 37 37    DB '7', '&', '7', '7'
+   04ce   38 2a 38 38    DB '8', '*', '8', '8'
+   04d2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04d6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04da   2c 3c 2c 2c    DB ',', '<', ',', ','
+   04de   6b 4b 0b 0b    DB 'k', 'K', 11, 11
+   04e2   69 49 09 09    DB 'i', 'I', 9, 9
+   04e6   6f 4f 0f 0f    DB 'o', 'O', 15, 15
+   04ea   30 29 30 30    DB '0', ')', '0', '0'
+   04ee   39 28 39 39    DB '9', '(', '9', '9'
+   04f2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04f6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04fa   2e 3e 2e 2e    DB '.', '>', '.', '.'
+   04fe   2f 3f 2f 2f    DB '/', '?', '/', '/'
+   0502   6c 4c 0c 0c    DB 'l', 'L', 12, 12
+   0506   3b 3a 3b 3b    DB ';', ':', ';', ';'
+   050a   70 50 10 10    DB 'p', 'P', 16, 16
+   050e   2d 5f 2d 2d    DB '-', '_', '-', '-'
+   0512   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0516   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   051a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   051e   27 22 27 27    DB 39, '"', 39, 39 ; Single quote
+   0522   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0526   5b 7b 5b 5b    DB '[', '{', '[', '['
+   052a   3d 2b 3d 3d    DB '=', '+', '=', '='
+   052e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0532   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0536   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Caps lock
+   053a   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Right shift
+   053e   0a 0a 0a 0a    DB 10, 10, 10, 10 ; Enter
+   0542   5d 7d 5d 5d    DB ']', '}', ']', ']'
+   0546   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   054a   5c 7c 5c 5c    DB 92, '|', 92, 92 ; Backslash
+   054e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0552   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0556   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   055a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   055e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0562   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0566   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   056a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   056e   08 08 08 08    DB 8, 8, 8, 8 ; Backspace
+   0572   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0576   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   057a   31 31 31 31    DB '1', '1', '1', '1' ; Numeric 1
+   057e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0582   34 34 34 34    DB '4', '4', '4', '4' ; Numeric 4
+   0586   37 37 37 37    DB '7', '7', '7', '7' ; Numeric 7
+   058a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   058e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0592   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0596   30 30 30 30    DB '0', '0', '0', '0' ; Numeric 0
+   059a   2e 2e 2e 2e    DB '.', '.', '.', '.' ; Numeric .
+   059e   32 32 32 32    DB '2', '2', '2', '2' ; Numeric 2
+   05a2   35 35 35 35    DB '5', '5', '5', '5' ; Numeric 5
+   05a6   36 36 36 36    DB '6', '6', '6', '6' ; Numeric 6
+   05aa   38 38 38 38    DB '8', '8', '8', '8' ; Numeric 8
+   05ae   1b 1b 1b 1b    DB 27, 27, 27, 27 ; Escape
+   05b2   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Num lock
+   05b6   31 31 31 31    DB '1', '1', '1', '1' ; F11
+   05ba   2b 2b 2b 2b    DB '+', '+', '+', '+' ; Numeric +
+   05be   33 33 33 33    DB '3', '3', '3', '3' ; Numeric 3
+   05c2   2d 2d 2d 2d    DB '-', '-', '-', '-' ; Numeric -
+   05c6   2a 2a 2a 2a    DB '*', '*', '*', '*' ; Numeric *
+   05ca   39 39 39 39    DB '9', '9', '9', '9' ; Numeric 9
+   05ce   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Scroll lock
+   05d2   3f 3f 3f 3f    DB '?', '?', '?', '?'
                         
-   3f00                  ORG 03F00H
-   3f00                 INTTABLE
+   3000                  ORG 03000H
                         
-                         ; IRQ0
-   3f00   c3 2b 02       JP ISR0
-   3f03   00             DB 0
+   3000                 ZCCOUT
                         
-                         ; IRQ1
-   3f04   c3 79 03       JP ISR1
-   3f07   00             DB 0
-                        
-                         ; IRQ2
-   3f08   c3 81 03       JP ISR2
-   3f0b   00             DB 0
-                        
-                         ; IRQ3
-   3f0c   c3 89 03       JP ISR3
-   3f0f   00             DB 0
-                        
-                         ; IRQ4
-   3f10   c3 91 03       JP ISR4
-   3f13   00             DB 0
-                        
-                         ; IRQ5
-   3f14   c3 99 03       JP ISR5
-   3f17   00             DB 0
-                        
-                         ; IRQ6
-   3f18   c3 a1 03       JP ISR6
-   3f1b   00             DB 0
-                        
-                         ; IRQ7
-   3f1c   c3 a9 03       JP ISR7
-   3f1f   00             DB 0
-                        
-   4000                  ORG 04000H
-                        
-                        
-   4000   3e 00          LD A, 0
-   4002   32 0d 80       LD (SHOULD_RUN), A
-   4005   cd 09 40       CALL _main
-   4008   76             HALT
+   3000   3e 00          LD A, 0
+   3002   32 0d 80       LD (SHOULD_RUN), A
+   3005   cd 09 30       CALL _main
+   3008   76             HALT
                         
                         
                          ;
                          ; Function "main".
                          ;
-   4009                 _main
-   4009   fd e5          PUSH IY
-   400b   fd 21 00 00    LD IY, 0
-   400f   fd 39          ADD IY, SP
-   4011   21 e2 ff       LD HL, -30
-   4014   39             ADD HL, SP
-   4015   f9             LD SP, HL
+   3009                 _main
+   3009   fd e5          PUSH IY
+   300b   fd 21 00 00    LD IY, 0
+   300f   fd 39          ADD IY, SP
+   3011   21 e2 ff       LD HL, -30
+   3014   39             ADD HL, SP
+   3015   f9             LD SP, HL
                          ; Variable "buffer" is at location IY - 30
                         
                          ; (tst.c, 66) }
-   4016                 zcc$3
+   3016                 zcc$3
                          ; (tst.c, 62) while (1) {
-   4016   21 01 00       LD HL, 1
-   4019   11 00 00       LD DE, 0
-   401c   19             ADD HL, DE
-   401d   ca 4c 40       JP Z, zcc$4
+   3016   21 01 00       LD HL, 1
+   3019   b7             OR A
+   301a   11 00 00       LD DE, 0
+   301d   ed 52          SBC HL, DE
+   301f   ca 4e 30       JP Z, zcc$4
                          ; (tst.c, 63) printf("What's your name?\n");
-   4020   21 67 40       LD HL, zcc$1
-   4023   e5             PUSH HL
-   4024   cd 7a 40       CALL _printf
-   4027   33             INC SP
-   4028   33             INC SP
+   3022   21 69 30       LD HL, zcc$1
+   3025   e5             PUSH HL
+   3026   cd 7c 30       CALL _printf
+   3029   33             INC SP
+   302a   33             INC SP
                         
                          ; (tst.c, 64) gets(buffer);
-   4029   01 e2 ff       LD BC, -30
-   402c   fd e5          PUSH IY
-   402e   e1             POP HL
-   402f   09             ADD HL, BC
-   4030   e5             PUSH HL
-   4031   cd 33 42       CALL _gets
-   4034   33             INC SP
-   4035   33             INC SP
+   302b   01 e2 ff       LD BC, -30
+   302e   fd e5          PUSH IY
+   3030   e1             POP HL
+   3031   09             ADD HL, BC
+   3032   e5             PUSH HL
+   3033   cd 05 32       CALL _gets
+   3036   33             INC SP
+   3037   33             INC SP
                         
                          ; (tst.c, 65) printf("Hey there %s\n", buffer);
-   4036   01 e2 ff       LD BC, -30
-   4039   fd e5          PUSH IY
-   403b   e1             POP HL
-   403c   09             ADD HL, BC
-   403d   e5             PUSH HL
-   403e   21 59 40       LD HL, zcc$2
-   4041   e5             PUSH HL
-   4042   cd 7a 40       CALL _printf
-   4045   33             INC SP
-   4046   33             INC SP
-   4047   33             INC SP
-   4048   33             INC SP
-   4049   c3 16 40       JP zcc$3
-   404c                 zcc$4
+   3038   01 e2 ff       LD BC, -30
+   303b   fd e5          PUSH IY
+   303d   e1             POP HL
+   303e   09             ADD HL, BC
+   303f   e5             PUSH HL
+   3040   21 5b 30       LD HL, zcc$2
+   3043   e5             PUSH HL
+   3044   cd 7c 30       CALL _printf
+   3047   33             INC SP
+   3048   33             INC SP
+   3049   33             INC SP
+   304a   33             INC SP
+   304b   c3 16 30       JP zcc$3
+   304e                 zcc$4
                         
-   404c   fd f9          LD SP, IY
-   404e   fd e1          POP IY
+   304e   fd f9          LD SP, IY
+   3050   fd e1          POP IY
                         
-   4050   c9             RET
+   3052   c9             RET
                         
-   4051   00 00         _src DW 0
-   4053   00 00         _dst DW 0
-   4055   00 00         _buffer DW 0
-   4057   00 00         _format DW 0
+   3053   00 00         _src DW 0
+   3055   00 00         _dst DW 0
+   3057   00 00         _buffer DW 0
+   3059   00 00         _format DW 0
                         
-   4059   48 65 79 20   zcc$2 DB "Hey there %s", 10, 0
-   405d   74 68 65 72   
-   4061   65 20 25 73   
-   4065   0a 00         
-   4067   57 68 61 74   zcc$1 DB "What's your name?", 10, 0
-   406b   27 73 20 79   
-   406f   6f 75 72 20   
-   4073   6e 61 6d 65   
-   4077   3f 0a 00      
+   305b   48 65 79 20   zcc$2 DB "Hey there %s", 10, 0
+   305f   74 68 65 72   
+   3063   65 20 25 73   
+   3067   0a 00         
+   3069   57 68 61 74   zcc$1 DB "What's your name?", 10, 0
+   306d   27 73 20 79   
+   3071   6f 75 72 20   
+   3075   6e 61 6d 65   
+   3079   3f 0a 00      
                         
                         ; functions that look kinda like libc functions
                         
@@ -1211,78 +1183,79 @@
                         ; IY = pointer to next arg to be processed
                         ;
                         
-   407a                 _printf
-   407a   fd e5          PUSH IY
-   407c   fd 21 00 00    LD IY, 0
-   4080   fd 39          ADD IY, SP
+   307c                 _printf
+   307c   fd e5          PUSH IY
+   307e   fd 21 00 00    LD IY, 0
+   3082   fd 39          ADD IY, SP
                         
-   4082   f5             PUSH AF
-   4083   dd e5          PUSH IX
+   3084   f5             PUSH AF
+   3085   dd e5          PUSH IX
                         
                          ; IY points at IY on stack
-   4085   fd 23          INC IY
-   4087   fd 23          INC IY ; points at return address
-   4089   fd 23          INC IY
-   408b   fd 23          INC IY ; points at first argument
+   3087   fd 23          INC IY
+   3089   fd 23          INC IY ; points at return address
+   308b   fd 23          INC IY
+   308d   fd 23          INC IY ; points at first argument (format string)
                         
-   408d   fd 6e 00       LD L, (IY + 0) ; format string into HL
-   4090   fd 66 01       LD H, (IY + 1)
-   4093   fd 23          INC IY
-   4095   fd 23          INC IY
+   308f   fd 6e 00       LD L, (IY + 0) ; format string into HL
+   3092   fd 66 01       LD H, (IY + 1)
+   3095   fd 23          INC IY
+   3097   fd 23          INC IY ; points at next argument (first after format string)
                         
-   4097   dd 21 e1 40    LD IX, PRINTF_BUF
+   3099   dd 21 88 88    LD IX, PRINTF_BUF
                         
-   409b                 PRINTF_LOOP
-   409b   7e             LD A, (HL)
-   409c   fe 25          CP '%'
-   409e   c2 c7 40       JP NZ, PRINTF_NOT_PERCENT
+   309d                 PRINTF_LOOP
+   309d   7e             LD A, (HL)
+   309e   fe 25          CP '%'
+   30a0   c2 c9 30       JP NZ, PRINTF_NOT_PERCENT
                         
-   40a1   23             INC HL
-   40a2   7e             LD A, (HL)
-   40a3   fe 64          CP 'd'
-   40a5   c2 af 40       JP NZ, PRINTF_NOT_DECIMAL
+   30a3   23             INC HL
+   30a4   7e             LD A, (HL)
+   30a5   fe 64          CP 'd'
+   30a7   c2 b1 30       JP NZ, PRINTF_NOT_DECIMAL
                         
-   40a8   cd 11 41       CALL PRINTF_CONVERT_DECIMAL
+   30aa   cd e3 30       CALL PRINTF_CONVERT_DECIMAL
                         
-   40ab   23             INC HL
-   40ac   c3 9b 40       JP PRINTF_LOOP
+   30ad   23             INC HL
+   30ae   c3 9d 30       JP PRINTF_LOOP
                         
-   40af                 PRINTF_NOT_DECIMAL
-   40af   fe 78          CP 'x'
-   40b1   c2 bb 40       JP NZ, PRINTF_NOT_HEX
+   30b1                 PRINTF_NOT_DECIMAL
+   30b1   fe 78          CP 'x'
+   30b3   c2 bd 30       JP NZ, PRINTF_NOT_HEX
                         
-   40b4   cd 13 42       CALL PRINTF_CONVERT_HEX
+   30b6   cd e5 31       CALL PRINTF_CONVERT_HEX
                         
-   40b7   23             INC HL
-   40b8   c3 9b 40       JP PRINTF_LOOP
+   30b9   23             INC HL
+   30ba   c3 9d 30       JP PRINTF_LOOP
                         
-   40bb                 PRINTF_NOT_HEX
-   40bb   fe 73          CP 's'
-   40bd   c2 c7 40       JP NZ, PRINTF_NOT_PERCENT
+   30bd                 PRINTF_NOT_HEX
+   30bd   fe 73          CP 's'
+   30bf   c2 c9 30       JP NZ, PRINTF_NOT_PERCENT
                         
-   40c0   cd 23 42       CALL PRINTF_CONVERT_STRING
+   30c2   cd f5 31       CALL PRINTF_CONVERT_STRING
                         
-   40c3   23             INC HL
-   40c4   c3 9b 40       JP PRINTF_LOOP
+   30c5   23             INC HL
+   30c6   c3 9d 30       JP PRINTF_LOOP
                         
-   40c7                 PRINTF_NOT_PERCENT
-   40c7   dd 77 00       LD (IX), A
-   40ca   dd 23          INC IX
-   40cc   23             INC HL
-   40cd   fe 00          CP 0
-   40cf   c2 9b 40       JP NZ, PRINTF_LOOP
+   30c9                 PRINTF_NOT_PERCENT
+   30c9   dd 77 00       LD (IX), A
+   30cc   dd 23          INC IX
+   30ce   23             INC HL
+   30cf   fe 00          CP 0
+   30d1   c2 9d 30       JP NZ, PRINTF_LOOP
                         
-   40d2   21 e1 40       LD HL, PRINTF_BUF
-   40d5   cd 89 00       CALL LCDPRINT
-   40d8   21 00 00       LD HL, 0
+   30d4   21 88 88       LD HL, PRINTF_BUF
+   30d7   cd 89 00       CALL LCDPRINT
+   30da   21 00 00       LD HL, 0
                         
-   40db   dd e1          POP IX
-   40dd   f1             POP AF
-   40de   fd e1          POP IY
+   30dd   dd e1          POP IX
+   30df   f1             POP AF
+   30e0   fd e1          POP IY
                         
-   40e0   c9             RET
+   30e2   c9             RET
                         
-   40e1                 PRINTF_BUF DS 48 ; 24 bytes on the display, pad to be sure
+                        ;PRINTF_BUF DS 48 ; 24 bytes on the display, pad to be sure
+   8888                 PRINTF_BUF EQU 08888H
                         
                         ;
                         ; PRINTF_CONVERT_DECIMAL
@@ -1297,190 +1270,190 @@
                         ; HL = int
                         ;
                         
-   4111                 PRINTF_CONVERT_DECIMAL
-   4111   e5             PUSH HL
-   4112   f5             PUSH AF
-   4113   c5             PUSH BC
+   30e3                 PRINTF_CONVERT_DECIMAL
+   30e3   e5             PUSH HL
+   30e4   f5             PUSH AF
+   30e5   c5             PUSH BC
                         
-   4114   fd 6e 00       LD L, (IY + 0)
-   4117   fd 66 01       LD H, (IY + 1)
-   411a   fd 23          INC IY
-   411c   fd 23          INC IY
+   30e6   fd 6e 00       LD L, (IY + 0)
+   30e9   fd 66 01       LD H, (IY + 1)
+   30ec   fd 23          INC IY
+   30ee   fd 23          INC IY
                         
-   411e   af             XOR A ; reset carry and set A to 0
-   411f   47             LD B, A ; BC = 0
-   4120   4f             LD C, A
-   4121   ed 4a          ADC HL, BC ; HL = HL (set zero flag)
-   4123   c2 30 41       JP NZ, PCD_NOT_ZERO
+   30f0   af             XOR A ; reset carry and set A to 0
+   30f1   47             LD B, A ; BC = 0
+   30f2   4f             LD C, A
+   30f3   ed 4a          ADC HL, BC ; HL = HL (set zero flag)
+   30f5   c2 02 31       JP NZ, PCD_NOT_ZERO
                         
-   4126   3e 30          LD A, '0'
-   4128   dd 77 00       LD (IX), A
-   412b   dd 23          INC IX
+   30f8   3e 30          LD A, '0'
+   30fa   dd 77 00       LD (IX), A
+   30fd   dd 23          INC IX
                         
-   412d   c3 84 41       JP PCD_END
+   30ff   c3 56 31       JP PCD_END
                         
-   4130                 PCD_NOT_ZERO
-   4130   fd e5          PUSH IY
-   4132   d5             PUSH DE
+   3102                 PCD_NOT_ZERO
+   3102   fd e5          PUSH IY
+   3104   d5             PUSH DE
                         
-   4133   3e 00          LD A, 0 ; D = 0 (printed flag)
-   4135   57             LD D, A
+   3105   3e 00          LD A, 0 ; D = 0 (printed flag)
+   3107   57             LD D, A
                         
-   4136   fd 21 88 41    LD IY, PCD_TABLE
+   3108   fd 21 5a 31    LD IY, PCD_TABLE
                         
-   413a                 PCD_LOOP
-   413a   fd 7e 00       LD A, (IY)
-   413d   fd 23          INC IY ; does not affect condition bits
-   413f   fe 24          CP '$' ; end of table
-   4141   ca 81 41       JP Z, PCD_LOOP_END
+   310c                 PCD_LOOP
+   310c   fd 7e 00       LD A, (IY)
+   310f   fd 23          INC IY ; does not affect condition bits
+   3111   fe 24          CP '$' ; end of table
+   3113   ca 53 31       JP Z, PCD_LOOP_END
                         
-   4144   fd 4e 00       LD C, (IY) ; get word to compare to
-   4147   fd 23          INC IY
-   4149   fd 46 00       LD B, (IY)
-   414c   fd 23          INC IY
+   3116   fd 4e 00       LD C, (IY) ; get word to compare to
+   3119   fd 23          INC IY
+   311b   fd 46 00       LD B, (IY)
+   311e   fd 23          INC IY
                         
-   414e   fe 30          CP '0' ; special case
-   4150   c2 6b 41       JP NZ, PCD_NOT_ZERO_DIGIT
+   3120   fe 30          CP '0' ; special case
+   3122   c2 3d 31       JP NZ, PCD_NOT_ZERO_DIGIT
                         
-   4153   7a             LD A, D ; printed flag
-   4154   fe 00          CP 0
-   4156   ca 3a 41       JP Z, PCD_LOOP ; before first digit, do not print zero
+   3125   7a             LD A, D ; printed flag
+   3126   fe 00          CP 0
+   3128   ca 0c 31       JP Z, PCD_LOOP ; before first digit, do not print zero
                         
                          ; the number in BC represents the smallest number which HL
                          ; has to be to not print a zero right now
-   4159   a7             AND A ; clear carry
-   415a   e5             PUSH HL ; do not clobber it
-   415b   ed 42          SBC HL, BC ; HL -= BC
-   415d   e1             POP HL
-   415e   d2 3a 41       JP NC, PCD_LOOP ; HL >= BC
+   312b   a7             AND A ; clear carry
+   312c   e5             PUSH HL ; do not clobber it
+   312d   ed 42          SBC HL, BC ; HL -= BC
+   312f   e1             POP HL
+   3130   d2 0c 31       JP NC, PCD_LOOP ; HL >= BC
                         
-   4161   3e 30          LD A, '0' ; print zero
-   4163   dd 77 00       LD (IX), A
-   4166   dd 23          INC IX
-   4168   c3 3a 41       JP PCD_LOOP
+   3133   3e 30          LD A, '0' ; print zero
+   3135   dd 77 00       LD (IX), A
+   3138   dd 23          INC IX
+   313a   c3 0c 31       JP PCD_LOOP
                         
-   416b                 PCD_NOT_ZERO_DIGIT
-   416b   a7             AND A ; clear carry
-   416c   e5             PUSH HL ; do not clobber HL
-   416d   ed 42          SBC HL, BC ; HL -= BC
-   416f   e1             POP HL
-   4170   da 3a 41       JP C, PCD_LOOP ; HL < BC
+   313d                 PCD_NOT_ZERO_DIGIT
+   313d   a7             AND A ; clear carry
+   313e   e5             PUSH HL ; do not clobber HL
+   313f   ed 42          SBC HL, BC ; HL -= BC
+   3141   e1             POP HL
+   3142   da 0c 31       JP C, PCD_LOOP ; HL < BC
                         
-   4173   dd 77 00       LD (IX), A ; print digit
-   4176   dd 23          INC IX
+   3145   dd 77 00       LD (IX), A ; print digit
+   3148   dd 23          INC IX
                         
-   4178   a7             AND A ; clear carry
-   4179   ed 42          SBC HL, BC ; HL -= BC
+   314a   a7             AND A ; clear carry
+   314b   ed 42          SBC HL, BC ; HL -= BC
                         
-   417b   3e 01          LD A, 1 ; printed flag = 1
-   417d   57             LD D, A
+   314d   3e 01          LD A, 1 ; printed flag = 1
+   314f   57             LD D, A
                         
-   417e   c3 3a 41       JP PCD_LOOP
+   3150   c3 0c 31       JP PCD_LOOP
                         
-   4181                 PCD_LOOP_END
-   4181   d1             POP DE
-   4182   fd e1          POP IY
+   3153                 PCD_LOOP_END
+   3153   d1             POP DE
+   3154   fd e1          POP IY
                         
-   4184                 PCD_END
-   4184   c1             POP BC
-   4185   f1             POP AF
-   4186   e1             POP HL
-   4187   c9             RET
+   3156                 PCD_END
+   3156   c1             POP BC
+   3157   f1             POP AF
+   3158   e1             POP HL
+   3159   c9             RET
                         
-   4188                 PCD_TABLE
-   4188   36             DB '6'
-   4189   60 ea          DW 60000
-   418b   35             DB '5'
-   418c   50 c3          DW 50000
-   418e   34             DB '4'
-   418f   40 9c          DW 40000
-   4191   33             DB '3'
-   4192   30 75          DW 30000
-   4194   32             DB '2'
-   4195   20 4e          DW 20000
-   4197   31             DB '1'
-   4198   10 27          DW 10000
-   419a   30             DB '0'
-   419b   e8 03          DW 1000
-   419d   39             DB '9'
-   419e   28 23          DW 9000
-   41a0   38             DB '8'
-   41a1   40 1f          DW 8000
-   41a3   37             DB '7'
-   41a4   58 1b          DW 7000
-   41a6   36             DB '6'
-   41a7   70 17          DW 6000
-   41a9   35             DB '5'
-   41aa   88 13          DW 5000
-   41ac   34             DB '4'
-   41ad   a0 0f          DW 4000
-   41af   33             DB '3'
-   41b0   b8 0b          DW 3000
-   41b2   32             DB '2'
-   41b3   d0 07          DW 2000
-   41b5   31             DB '1'
-   41b6   e8 03          DW 1000
-   41b8   30             DB '0'
-   41b9   64 00          DW 100
-   41bb   39             DB '9'
-   41bc   84 03          DW 900
-   41be   38             DB '8'
-   41bf   20 03          DW 800
-   41c1   37             DB '7'
-   41c2   bc 02          DW 700
-   41c4   36             DB '6'
-   41c5   58 02          DW 600
-   41c7   35             DB '5'
-   41c8   f4 01          DW 500
-   41ca   34             DB '4'
-   41cb   90 01          DW 400
-   41cd   33             DB '3'
-   41ce   2c 01          DW 300
-   41d0   32             DB '2'
-   41d1   c8 00          DW 200
-   41d3   31             DB '1'
-   41d4   64 00          DW 100
-   41d6   30             DB '0'
-   41d7   0a 00          DW 10
-   41d9   39             DB '9'
-   41da   5a 00          DW 90
-   41dc   38             DB '8'
-   41dd   50 00          DW 80
-   41df   37             DB '7'
-   41e0   46 00          DW 70
-   41e2   36             DB '6'
-   41e3   3c 00          DW 60
-   41e5   35             DB '5'
-   41e6   32 00          DW 50
-   41e8   34             DB '4'
-   41e9   28 00          DW 40
-   41eb   33             DB '3'
-   41ec   1e 00          DW 30
-   41ee   32             DB '2'
-   41ef   14 00          DW 20
-   41f1   31             DB '1'
-   41f2   0a 00          DW 10
-   41f4   30             DB '0'
-   41f5   01 00          DW 1
-   41f7   39             DB '9'
-   41f8   09 00          DW 9
-   41fa   38             DB '8'
-   41fb   08 00          DW 8
-   41fd   37             DB '7'
-   41fe   07 00          DW 7
-   4200   36             DB '6'
-   4201   06 00          DW 6
-   4203   35             DB '5'
-   4204   05 00          DW 5
-   4206   34             DB '4'
-   4207   04 00          DW 4
-   4209   33             DB '3'
-   420a   03 00          DW 3
-   420c   32             DB '2'
-   420d   02 00          DW 2
-   420f   31             DB '1'
-   4210   01 00          DW 1
-   4212   24             DB '$'
+   315a                 PCD_TABLE
+   315a   36             DB '6'
+   315b   60 ea          DW 60000
+   315d   35             DB '5'
+   315e   50 c3          DW 50000
+   3160   34             DB '4'
+   3161   40 9c          DW 40000
+   3163   33             DB '3'
+   3164   30 75          DW 30000
+   3166   32             DB '2'
+   3167   20 4e          DW 20000
+   3169   31             DB '1'
+   316a   10 27          DW 10000
+   316c   30             DB '0'
+   316d   e8 03          DW 1000
+   316f   39             DB '9'
+   3170   28 23          DW 9000
+   3172   38             DB '8'
+   3173   40 1f          DW 8000
+   3175   37             DB '7'
+   3176   58 1b          DW 7000
+   3178   36             DB '6'
+   3179   70 17          DW 6000
+   317b   35             DB '5'
+   317c   88 13          DW 5000
+   317e   34             DB '4'
+   317f   a0 0f          DW 4000
+   3181   33             DB '3'
+   3182   b8 0b          DW 3000
+   3184   32             DB '2'
+   3185   d0 07          DW 2000
+   3187   31             DB '1'
+   3188   e8 03          DW 1000
+   318a   30             DB '0'
+   318b   64 00          DW 100
+   318d   39             DB '9'
+   318e   84 03          DW 900
+   3190   38             DB '8'
+   3191   20 03          DW 800
+   3193   37             DB '7'
+   3194   bc 02          DW 700
+   3196   36             DB '6'
+   3197   58 02          DW 600
+   3199   35             DB '5'
+   319a   f4 01          DW 500
+   319c   34             DB '4'
+   319d   90 01          DW 400
+   319f   33             DB '3'
+   31a0   2c 01          DW 300
+   31a2   32             DB '2'
+   31a3   c8 00          DW 200
+   31a5   31             DB '1'
+   31a6   64 00          DW 100
+   31a8   30             DB '0'
+   31a9   0a 00          DW 10
+   31ab   39             DB '9'
+   31ac   5a 00          DW 90
+   31ae   38             DB '8'
+   31af   50 00          DW 80
+   31b1   37             DB '7'
+   31b2   46 00          DW 70
+   31b4   36             DB '6'
+   31b5   3c 00          DW 60
+   31b7   35             DB '5'
+   31b8   32 00          DW 50
+   31ba   34             DB '4'
+   31bb   28 00          DW 40
+   31bd   33             DB '3'
+   31be   1e 00          DW 30
+   31c0   32             DB '2'
+   31c1   14 00          DW 20
+   31c3   31             DB '1'
+   31c4   0a 00          DW 10
+   31c6   30             DB '0'
+   31c7   01 00          DW 1
+   31c9   39             DB '9'
+   31ca   09 00          DW 9
+   31cc   38             DB '8'
+   31cd   08 00          DW 8
+   31cf   37             DB '7'
+   31d0   07 00          DW 7
+   31d2   36             DB '6'
+   31d3   06 00          DW 6
+   31d5   35             DB '5'
+   31d6   05 00          DW 5
+   31d8   34             DB '4'
+   31d9   04 00          DW 4
+   31db   33             DB '3'
+   31dc   03 00          DW 3
+   31de   32             DB '2'
+   31df   02 00          DW 2
+   31e1   31             DB '1'
+   31e2   01 00          DW 1
+   31e4   24             DB '$'
                         
                         ;
                         ; PRINTF_CONVERT_HEX
@@ -1495,18 +1468,18 @@
                         ; HL = int
                         ;
                         
-   4213                 PRINTF_CONVERT_HEX
-   4213   e5             PUSH HL
+   31e5                 PRINTF_CONVERT_HEX
+   31e5   e5             PUSH HL
                         
-   4214   fd 6e 00       LD L, (IY + 0)
-   4217   fd 66 01       LD H, (IY + 1)
-   421a   fd 23          INC IY
-   421c   fd 23          INC IY
+   31e6   fd 6e 00       LD L, (IY + 0)
+   31e9   fd 66 01       LD H, (IY + 1)
+   31ec   fd 23          INC IY
+   31ee   fd 23          INC IY
                         
-   421e   cd 2d 01       CALL PHEXWORD
+   31f0   cd 2d 01       CALL PHEXWORD
                         
-   4221   e1             POP HL
-   4222   c9             RET
+   31f3   e1             POP HL
+   31f4   c9             RET
                         
                         ;
                         ; PRINTF_CONVERT_STRING
@@ -1519,93 +1492,128 @@
                         ; IX = incremented past string
                         ;
                         
-   4223                 PRINTF_CONVERT_STRING
-   4223   e5             PUSH HL
+   31f5                 PRINTF_CONVERT_STRING
+   31f5   e5             PUSH HL
                         
-   4224   fd 6e 00       LD L, (IY + 0)
-   4227   fd 66 01       LD H, (IY + 1)
-   422a   fd 23          INC IY
-   422c   fd 23          INC IY
+   31f6   fd 6e 00       LD L, (IY + 0)
+   31f9   fd 66 01       LD H, (IY + 1)
+   31fc   fd 23          INC IY
+   31fe   fd 23          INC IY
                         
-   422e   cd b8 01       CALL STRCPY ; increments IX for us
+   3200   cd b8 01       CALL STRCPY ; increments IX for us
                         
-   4231   e1             POP HL
-   4232   c9             RET
+   3203   e1             POP HL
+   3204   c9             RET
                         
                         ;
                         ; char *gets(char *buffer) -- just like C
                         ;
                         
                         
-   4233                 _gets
-   4233   fd e5          PUSH IY
-   4235   fd 21 00 00    LD IY, 0
-   4239   fd 39          ADD IY, SP
+   3205                 _gets
+   3205   fd e5          PUSH IY
+   3207   fd 21 00 00    LD IY, 0
+   320b   fd 39          ADD IY, SP
                         
-   423b   fd 6e 04       LD L, (IY + 4) ; buffer into HL
-   423e   fd 66 05       LD H, (IY + 5)
+   320d   fd 6e 04       LD L, (IY + 4) ; buffer into HL
+   3210   fd 66 05       LD H, (IY + 5)
                         
-   4241   e5             PUSH HL
-   4242   cd 38 01       CALL GETS
-   4245   e1             POP HL ; so that return value is buffer
+   3213   e5             PUSH HL
+   3214   cd 38 01       CALL GETS
+   3217   e1             POP HL ; so that return value is buffer
                         
-   4246   fd e1          POP IY
+   3218   fd e1          POP IY
                         
-   4248   c9             RET
+   321a   c9             RET
                         
                         ;
                         ; char *strcpy(char *dst, char *src) -- just like C
                         ;
                         
                         
-   4249                 _strcpy
-   4249   fd e5          PUSH IY
-   424b   fd 21 00 00    LD IY, 0
-   424f   fd 39          ADD IY, SP
-   4251   f5             PUSH AF
-   4252   dd e5          PUSH IX
+   321b                 _strcpy
+   321b   fd e5          PUSH IY
+   321d   fd 21 00 00    LD IY, 0
+   3221   fd 39          ADD IY, SP
+   3223   f5             PUSH AF
+   3224   dd e5          PUSH IX
                         
-   4254   fd 6e 04       LD L, (IY + 4) ; destination into IX
-   4257   fd 66 05       LD H, (IY + 5)
-   425a   e5             PUSH HL
-   425b   e5             PUSH HL
-   425c   dd e1          POP IX
+   3226   fd 6e 04       LD L, (IY + 4) ; destination into IX
+   3229   fd 66 05       LD H, (IY + 5)
+   322c   e5             PUSH HL
+   322d   e5             PUSH HL
+   322e   dd e1          POP IX
                         
-   425e   fd 6e 06       LD L, (IY + 6) ; source into HL
-   4261   fd 66 07       LD H, (IY + 7)
+   3230   fd 6e 06       LD L, (IY + 6) ; source into HL
+   3233   fd 66 07       LD H, (IY + 7)
                         
-   4264                 STRCPY_NEXT_BYTE
-   4264   7e             LD A, (HL)
-   4265   dd 77 00       LD (IX), A
-   4268   23             INC HL
-   4269   dd 23          INC IX
+   3236                 STRCPY_NEXT_BYTE
+   3236   7e             LD A, (HL)
+   3237   dd 77 00       LD (IX), A
+   323a   23             INC HL
+   323b   dd 23          INC IX
                         
-   426b   fe 00          CP 0
-   426d   c2 64 42       JP NZ, STRCPY_NEXT_BYTE
+   323d   fe 00          CP 0
+   323f   c2 36 32       JP NZ, STRCPY_NEXT_BYTE
                         
-   4270   e1             POP HL ; return the destination
+   3242   e1             POP HL ; return the destination
                         
-   4271   dd e1          POP IX
-   4273   f1             POP AF
-   4274   fd e1          POP IY
+   3243   dd e1          POP IX
+   3245   f1             POP AF
+   3246   fd e1          POP IY
                         
-   4276   c9             RET
+   3248   c9             RET
                         
-   4277                  END
+   3f00                  ORG 03F00H
+   3f00                 INTTABLE
+                        
+                         ; IRQ0
+   3f00   c3 2e 02       JP ISR0
+   3f03   00             DB 0
+                        
+                         ; IRQ1
+   3f04   c3 7c 03       JP ISR1
+   3f07   00             DB 0
+                        
+                         ; IRQ2
+   3f08   c3 84 03       JP ISR2
+   3f0b   00             DB 0
+                        
+                         ; IRQ3
+   3f0c   c3 8c 03       JP ISR3
+   3f0f   00             DB 0
+                        
+                         ; IRQ4
+   3f10   c3 94 03       JP ISR4
+   3f13   00             DB 0
+                        
+                         ; IRQ5
+   3f14   c3 9c 03       JP ISR5
+   3f17   00             DB 0
+                        
+                         ; IRQ6
+   3f18   c3 a4 03       JP ISR6
+   3f1b   00             DB 0
+                        
+                         ; IRQ7
+   3f1c   c3 ac 03       JP ISR7
+   3f1f   00             DB 0
+                        
+   3f20                  END
 0011  ALT_KEY       8006  ALT_STATUS    0171  BACKSPACE     0003  CMD_MAX   
 0002  CMD_RUN       0001  CMD_SEND      0014  CTRL_KEY      8005  CTRL_STATUS
 8009  CURRENT_ADDR    8008  CURRENT_CMD    800b  CURRENT_LEN    800c  CURRENT_PTR
-0371  DID_KEY       0111  DIG1DONE      010f  DIG1LESS      0125  DIG2DONE  
-0123  DIG2LESS      0376  END_HANDLE_KEYBOARD    02e1  END_HANDLE_SERIAL    00e1  EXT2_KEY  
+0374  DID_KEY       0111  DIG1DONE      010f  DIG1LESS      0125  DIG2DONE  
+0123  DIG2LESS      0379  END_HANDLE_KEYBOARD    02e4  END_HANDLE_SERIAL    00e1  EXT2_KEY  
 00e0  EXT_KEY       0138  GETS          0164  GETS_COPY     01a5  GETS_DONE 
-0147  GETS_LOOP     0289  GET_CMD_HEADER    003f  GOTRESETSTR    015b  GOT_KEY   
-02e4  HANDLE_KEYBOARD    026f  HANDLE_SERIAL    03cc  HELLOSTR      0000  I8259A    
-0001  I8259B        c000  INPUT_BUF     03b1  INTROSTR      3f00  INTTABLE  
-022b  ISR0          0268  ISR0_END      0246  ISR0_IS_COMMAND    025d  ISR0_IS_KEYBOARD
-0257  ISR0_IS_SERIAL    0254  ISR0_IS_TIMER    0263  ISR0_RESET    0379  ISR1      
-0381  ISR2          0389  ISR3          0391  ISR4          0399  ISR5      
-03a1  ISR6          03a9  ISR7          030f  IS_SHIFT      a000  KEYBUF    
-03d3  KEY_XLAT      0061  LCDCLR        0003  LCDDATA       004c  LCDINIT   
+0147  GETS_LOOP     028c  GET_CMD_HEADER    003f  GOTRESETSTR    015b  GOT_KEY   
+02e7  HANDLE_KEYBOARD    0272  HANDLE_SERIAL    03cf  HELLOSTR      0000  I8259A    
+0001  I8259B        c000  INPUT_BUF     03b4  INTROSTR      3f00  INTTABLE  
+022e  ISR0          026b  ISR0_END      0249  ISR0_IS_COMMAND    0260  ISR0_IS_KEYBOARD
+025a  ISR0_IS_SERIAL    0257  ISR0_IS_TIMER    0266  ISR0_RESET    037c  ISR1      
+0384  ISR2          038c  ISR3          0394  ISR4          039c  ISR5      
+03a4  ISR6          03ac  ISR7          0312  IS_SHIFT      a000  KEYBUF    
+03d6  KEY_XLAT      0061  LCDCLR        0003  LCDDATA       004c  LCDINIT   
 0002  LCDINST       00a5  LCDNOSWITCH    00ce  LCDP1LOOP     00b2  LCDP1SL1  
 00b4  LCDP1SL2      00b6  LCDP1SL3      00e7  LCDP1SLP1     00e9  LCDP1SLP2 
 00eb  LCDP1SLP3     00a3  LCDP2LOOP     0093  LCDPCLOOP     00d5  LCDPDOIT  
@@ -1613,20 +1621,20 @@
 0089  LCDPRINT      00d9  LCDPWLOOP     0001  LCLEAR        007f  LCSTRING  
 0005  LCSTRLEN      0080  LHALF1        00c0  LHALF2        006b  LISTRING  
 000a  LISTRLEN      0038  LRESET        0012  LSHIFT_KEY    01cb  MAIN      
-0187  NEXT_KEY      033a  NOT_ALT       0182  NOT_BACKSPACE    032a  NOT_CTRL  
-031a  NOT_SHIFT     02f6  NOT_UP_KEY    8001  NUMKEY        0058  OUTBLOOP  
-0056  OUTBYTES      c040  OUTPUT_BUF    000a  PAUSE         4184  PCD_END   
-413a  PCD_LOOP      4181  PCD_LOOP_END    4130  PCD_NOT_ZERO    416b  PCD_NOT_ZERO_DIGIT
-4188  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD      0004  PIC       
+0187  NEXT_KEY      033d  NOT_ALT       0182  NOT_BACKSPACE    032d  NOT_CTRL  
+031d  NOT_SHIFT     02f9  NOT_UP_KEY    8001  NUMKEY        0058  OUTBLOOP  
+0056  OUTBYTES      c040  OUTPUT_BUF    000a  PAUSE         3156  PCD_END   
+310c  PCD_LOOP      3153  PCD_LOOP_END    3102  PCD_NOT_ZERO    313d  PCD_NOT_ZERO_DIGIT
+315a  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD      0004  PIC       
 8003  PICBYTE       8000  PIC_COMMAND    0002  PIC_KBD_CMD    0000  PIC_NON_CMD
-0001  PIC_SER_CMD    0003  PIC_TIM_CMD    03c0  PLEASESTR     01fc  PRINTAGAIN
-40e1  PRINTF_BUF    4111  PRINTF_CONVERT_DECIMAL    4213  PRINTF_CONVERT_HEX    4223  PRINTF_CONVERT_STRING
-409b  PRINTF_LOOP    40af  PRINTF_NOT_DECIMAL    40bb  PRINTF_NOT_HEX    40c7  PRINTF_NOT_PERCENT
-0059  RSHIFT_KEY    8004  SHIFT_STATUS    800d  SHOULD_RUN    02cf  SIMULATE_KEYBOARD
-0000  STACKTOP      01b8  STRCPY        01ba  STRCPY_LOOP    4264  STRCPY_NEXT_BYTE
-02b4  TRANSFER_BYTE    029e  TRANSFER_HEADER    8007  UPKEY_FLAG    00f0  UP_KEY    
-00e4  WAITSECS      4055  _buffer       4053  _dst          4057  _format   
-4233  _gets         4009  _main         407a  _printf       4051  _src      
-4249  _strcpy       4067  zcc$1         4059  zcc$2         4016  zcc$3     
-404c  zcc$4         
+0001  PIC_SER_CMD    0003  PIC_TIM_CMD    03c3  PLEASESTR     01ff  PRINTAGAIN
+8888  PRINTF_BUF    30e3  PRINTF_CONVERT_DECIMAL    31e5  PRINTF_CONVERT_HEX    31f5  PRINTF_CONVERT_STRING
+309d  PRINTF_LOOP    30b1  PRINTF_NOT_DECIMAL    30bd  PRINTF_NOT_HEX    30c9  PRINTF_NOT_PERCENT
+0059  RSHIFT_KEY    8004  SHIFT_STATUS    800d  SHOULD_RUN    02d2  SIMULATE_KEYBOARD
+0000  STACKTOP      01b8  STRCPY        01ba  STRCPY_LOOP    3236  STRCPY_NEXT_BYTE
+02b7  TRANSFER_BYTE    02a1  TRANSFER_HEADER    8007  UPKEY_FLAG    00f0  UP_KEY    
+00e4  WAITSECS      3000  ZCCOUT        3057  _buffer       3055  _dst      
+3059  _format       3205  _gets         3009  _main         307c  _printf   
+3053  _src          321b  _strcpy       3069  zcc$1         305b  zcc$2     
+3016  zcc$3         304e  zcc$4         
 

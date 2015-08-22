@@ -22,12 +22,12 @@ _printf
 	INC	IY
 	INC	IY	; points at return address
 	INC	IY
-	INC	IY	; points at first argument
+	INC	IY	; points at first argument (format string)
 
 	LD	L, (IY + 0)	; format string into HL
 	LD	H, (IY + 1)
 	INC	IY
-	INC	IY
+	INC	IY      ; points at next argument (first after format string)
 
 	LD	IX, PRINTF_BUF
 
@@ -81,7 +81,8 @@ PRINTF_NOT_PERCENT
 
 	RET	
 
-PRINTF_BUF	DS	48  ; 24 bytes on the display, pad to be sure
+;PRINTF_BUF	DS	48  ; 24 bytes on the display, pad to be sure
+PRINTF_BUF  EQU     08888H
 
 ;
 ; PRINTF_CONVERT_DECIMAL

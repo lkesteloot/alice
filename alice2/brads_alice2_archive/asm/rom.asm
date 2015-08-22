@@ -1,5 +1,8 @@
-#undef SLOWCLOCK   ; Defined if we are running slow
-#undef NOPRINT     ; Defined to turn off printing
+; Defined if we are running slow:
+#undef SLOWCLOCK
+
+; Defined to turn off printing:
+#undef NOPRINT
 
 ; library.asm must be first!
 #include "library.asm"
@@ -100,6 +103,8 @@ MAIN
 ;
 ; Go, go, go!
 ;
+
+        JP      ZCCOUT
 
 PRINTAGAIN
 	LD	HL, PLEASESTR
@@ -655,6 +660,12 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 	DB	 '?', '?', '?', '?'  ; Scroll lock
 	DB	 '?', '?', '?', '?'
 
+	ORG	03000H
+
+ZCCOUT
+#include "zcc_out.asm"
+#include "libc.asm"
+
 	ORG	03F00H
 INTTABLE
 
@@ -689,10 +700,5 @@ INTTABLE
 	; IRQ7
 	JP	ISR7
 	DB	0
-
-	ORG	04000H
-
-#include "zcc_out.asm"
-#include "libc.asm"
 
 	END
