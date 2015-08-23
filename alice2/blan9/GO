@@ -28,7 +28,7 @@ echo "Building emulator"
 
 echo "--------------------------------------------------------------------------------"
 echo "Queuing up serial port upload"
-(sleep 2 && cd ../emulator && ./sendhex -j 4000 - $ASM/rom.hex | nc localhost 6606) &
+(sleep 2 && cd ../emulator && ./sendhex -j 9000 - $ASM/rom.hex | nc localhost 6606) &
 
 if [ -x "$VNC" ]; then
     echo "--------------------------------------------------------------------------------"

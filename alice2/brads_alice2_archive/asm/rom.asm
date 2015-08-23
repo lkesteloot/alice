@@ -22,9 +22,9 @@ CURRENT_ADDR	EQU	08009H ; two bytes
 CURRENT_LEN	EQU	0800BH
 CURRENT_PTR	EQU	0800CH ; point into CURRENT_CMD
 SHOULD_RUN	EQU	0800DH
-KEYBUF		EQU	0A000H ; keyboard buffer.
-INPUT_BUF	EQU	0C000H
-OUTPUT_BUF	EQU	0C040H
+KEYBUF		EQU	08100H ; keyboard buffer.
+INPUT_BUF	EQU	08200H
+OUTPUT_BUF	EQU	08300H
 
 LSHIFT_KEY	EQU	012H
 RSHIFT_KEY	EQU	059H
@@ -658,7 +658,7 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 	DB	 '?', '?', '?', '?'  ; Scroll lock
 	DB	 '?', '?', '?', '?'
 
-	ORG	04000H
+	ORG	09000H
 
 #include "zcc_out.asm"
 #include "libc.asm"

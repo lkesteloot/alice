@@ -371,7 +371,7 @@
                                 ; Copy entire keyboard buffer into ours.
    015b   f3             DI
    015c   3a 01 80       LD A, (NUMKEY) ; in case it changed before DI
-   015f   fd 21 00 a0    LD IY, KEYBUF
+   015f   fd 21 00 81    LD IY, KEYBUF
    0163   47             LD B, A
                         
    0164                 GETS_COPY
@@ -477,9 +477,9 @@
    800b                 CURRENT_LEN EQU 0800BH
    800c                 CURRENT_PTR EQU 0800CH ; point into CURRENT_CMD
    800d                 SHOULD_RUN EQU 0800DH
-   a000                 KEYBUF EQU 0A000H ; keyboard buffer.
-   c000                 INPUT_BUF EQU 0C000H
-   c040                 OUTPUT_BUF EQU 0C040H
+   8100                 KEYBUF EQU 08100H ; keyboard buffer.
+   8200                 INPUT_BUF EQU 08200H
+   8300                 OUTPUT_BUF EQU 08300H
                         
    0012                 LSHIFT_KEY EQU 012H
    0059                 RSHIFT_KEY EQU 059H
@@ -563,21 +563,21 @@
    01fc   21 c0 03       LD HL, PLEASESTR
    01ff   cd 89 00       CALL LCDPRINT
                         
-   0202   21 00 c0       LD HL, INPUT_BUF
+   0202   21 00 82       LD HL, INPUT_BUF
    0205   cd 38 01       CALL GETS
                         
    0208   21 cc 03       LD HL, HELLOSTR
-   020b   dd 21 40 c0    LD IX, OUTPUT_BUF
+   020b   dd 21 00 83    LD IX, OUTPUT_BUF
    020f   cd b8 01       CALL STRCPY
                         
-   0212   21 00 c0       LD HL, INPUT_BUF
+   0212   21 00 82       LD HL, INPUT_BUF
    0215   cd b8 01       CALL STRCPY
                         
    0218   dd 36 00 0a    LD (IX), PAUSE
    021c   dd 23          INC IX
    021e   dd 36 00 00    LD (IX), 0
                         
-   0222   21 40 c0       LD HL, OUTPUT_BUF
+   0222   21 00 83       LD HL, OUTPUT_BUF
    0225   cd 89 00       CALL LCDPRINT
                         
    0228   c3 fc 01       JP PRINTAGAIN
@@ -730,7 +730,7 @@
    02cc   c3 e1 02       JP END_HANDLE_SERIAL
                         
    02cf                 SIMULATE_KEYBOARD
-   02cf   21 00 a0       LD HL, KEYBUF
+   02cf   21 00 81       LD HL, KEYBUF
    02d2   3a 01 80       LD A, (NUMKEY)
    02d5   4f             LD C, A
    02d6   06 00          LD B, 0
@@ -833,7 +833,7 @@
    035f   7e             LD A, (HL) ; Get actual key
    0360   f5             PUSH AF
                         
-   0361   21 00 a0       LD HL, KEYBUF
+   0361   21 00 81       LD HL, KEYBUF
    0364   3a 01 80       LD A, (NUMKEY)
    0367   4f             LD C, A
    0368   06 00          LD B, 0
@@ -1083,171 +1083,171 @@
    05cb   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Scroll lock
    05cf   3f 3f 3f 3f    DB '?', '?', '?', '?'
                         
-   4000                  ORG 04000H
+   9000                  ORG 09000H
                         
                         
-   4000   3e 00          LD A, 0
-   4002   32 0d 80       LD (SHOULD_RUN), A
-   4005   cd 09 40       CALL _main
-   4008   76             HALT
+   9000   3e 00          LD A, 0
+   9002   32 0d 80       LD (SHOULD_RUN), A
+   9005   cd 09 90       CALL _main
+   9008   76             HALT
                         
                         
                          ;
                          ; Function "main".
                          ;
-   4009                 _main
-   4009   fd e5          PUSH IY
-   400b   fd 21 00 00    LD IY, 0
-   400f   fd 39          ADD IY, SP
-   4011   21 de ff       LD HL, -34
-   4014   39             ADD HL, SP
-   4015   f9             LD SP, HL
+   9009                 _main
+   9009   fd e5          PUSH IY
+   900b   fd 21 00 00    LD IY, 0
+   900f   fd 39          ADD IY, SP
+   9011   21 de ff       LD HL, -34
+   9014   39             ADD HL, SP
+   9015   f9             LD SP, HL
                          ; Variable "j" is at location IY - 2
                          ; Variable "i" is at location IY - 4
                          ; Variable "buffer" is at location IY - 34
                         
                          ; (tst.c, 72) }
-   4016                 zcc$3
+   9016                 zcc$3
                          ; (tst.c, 63) while (1) {
-   4016   21 01 00       LD HL, 1
-   4019   b7             OR A
-   401a   11 00 00       LD DE, 0
-   401d   ed 52          SBC HL, DE
-   401f   ca ea 40       JP Z, zcc$4
+   9016   21 01 00       LD HL, 1
+   9019   b7             OR A
+   901a   11 00 00       LD DE, 0
+   901d   ed 52          SBC HL, DE
+   901f   ca ea 90       JP Z, zcc$4
                          ; (tst.c, 64) printf("What's your name?\n");
-   4022   21 05 41       LD HL, zcc$1
-   4025   e5             PUSH HL
-   4026   cd 18 41       CALL _printf
-   4029   33             INC SP
-   402a   33             INC SP
+   9022   21 05 91       LD HL, zcc$1
+   9025   e5             PUSH HL
+   9026   cd 18 91       CALL _printf
+   9029   33             INC SP
+   902a   33             INC SP
                         
                          ; (tst.c, 65) gets(buffer);
-   402b   01 de ff       LD BC, -34
-   402e   fd e5          PUSH IY
-   4030   e1             POP HL
-   4031   09             ADD HL, BC
-   4032   e5             PUSH HL
-   4033   cd d1 42       CALL _gets
-   4036   33             INC SP
-   4037   33             INC SP
+   902b   01 de ff       LD BC, -34
+   902e   fd e5          PUSH IY
+   9030   e1             POP HL
+   9031   09             ADD HL, BC
+   9032   e5             PUSH HL
+   9033   cd d1 92       CALL _gets
+   9036   33             INC SP
+   9037   33             INC SP
                         
                          ; (tst.c, 66) printf("Hey there %s\n", buffer);
-   4038   01 de ff       LD BC, -34
-   403b   fd e5          PUSH IY
-   403d   e1             POP HL
-   403e   09             ADD HL, BC
-   403f   e5             PUSH HL
-   4040   21 f7 40       LD HL, zcc$2
-   4043   e5             PUSH HL
-   4044   cd 18 41       CALL _printf
-   4047   33             INC SP
-   4048   33             INC SP
-   4049   33             INC SP
-   404a   33             INC SP
+   9038   01 de ff       LD BC, -34
+   903b   fd e5          PUSH IY
+   903d   e1             POP HL
+   903e   09             ADD HL, BC
+   903f   e5             PUSH HL
+   9040   21 f7 90       LD HL, zcc$2
+   9043   e5             PUSH HL
+   9044   cd 18 91       CALL _printf
+   9047   33             INC SP
+   9048   33             INC SP
+   9049   33             INC SP
+   904a   33             INC SP
                         
                          ; (tst.c, 67) for (j = 0; j < 8; j++) {
-   404b   21 00 00       LD HL, 0
-   404e   e5             PUSH HL
-   404f   fd e5          PUSH IY
-   4051   dd e1          POP IX
-   4053   01 fe ff       LD BC, -2
-   4056   dd 09          ADD IX, BC
-   4058   e1             POP HL
-   4059   dd 75 00       LD (IX + 0), L
-   405c   dd 74 01       LD (IX + 1), H
-   405f   c3 c6 40       JP zcc$8
-   4062                 zcc$5
+   904b   21 00 00       LD HL, 0
+   904e   e5             PUSH HL
+   904f   fd e5          PUSH IY
+   9051   dd e1          POP IX
+   9053   01 fe ff       LD BC, -2
+   9056   dd 09          ADD IX, BC
+   9058   e1             POP HL
+   9059   dd 75 00       LD (IX + 0), L
+   905c   dd 74 01       LD (IX + 1), H
+   905f   c3 c6 90       JP zcc$8
+   9062                 zcc$5
                          ; (tst.c, 68) for (i = 0; i < 10000; i++) {
-   4062   21 00 00       LD HL, 0
-   4065   e5             PUSH HL
-   4066   fd e5          PUSH IY
-   4068   dd e1          POP IX
-   406a   01 fc ff       LD BC, -4
-   406d   dd 09          ADD IX, BC
-   406f   e1             POP HL
-   4070   dd 75 00       LD (IX + 0), L
-   4073   dd 74 01       LD (IX + 1), H
-   4076   c3 8f 40       JP zcc$12
-   4079                 zcc$9
-   4079                 zcc$10
-   4079   fd e5          PUSH IY
-   407b   dd e1          POP IX
-   407d   01 fc ff       LD BC, -4
-   4080   dd 09          ADD IX, BC
-   4082   dd 6e 00       LD L, (IX + 0)
-   4085   dd 66 01       LD H, (IX + 1)
-   4088   23             INC HL
-   4089   dd 75 00       LD (IX + 0), L
-   408c   dd 74 01       LD (IX + 1), H
-   408f                 zcc$12
-   408f   fd 6e fc       LD L, (IY + -4)
-   4092   fd 66 fd       LD H, (IY + -3)
-   4095   e5             PUSH HL
-   4096   21 10 27       LD HL, 10000
-   4099   d1             POP DE
-   409a   37             SCF
-   409b   3f             CCF
-   409c   ed 52          SBC HL, DE
-   409e   21 01 00       LD HL, 1
-   40a1   f2 a7 40       JP P, zcc$13
-   40a4   21 00 00       LD HL, 0
-   40a7                 zcc$13
-   40a7   b7             OR A
-   40a8   11 00 00       LD DE, 0
-   40ab   ed 52          SBC HL, DE
-   40ad   c2 79 40       JP NZ, zcc$9
-   40b0                 zcc$11
-   40b0                 zcc$6
+   9062   21 00 00       LD HL, 0
+   9065   e5             PUSH HL
+   9066   fd e5          PUSH IY
+   9068   dd e1          POP IX
+   906a   01 fc ff       LD BC, -4
+   906d   dd 09          ADD IX, BC
+   906f   e1             POP HL
+   9070   dd 75 00       LD (IX + 0), L
+   9073   dd 74 01       LD (IX + 1), H
+   9076   c3 8f 90       JP zcc$12
+   9079                 zcc$9
+   9079                 zcc$10
+   9079   fd e5          PUSH IY
+   907b   dd e1          POP IX
+   907d   01 fc ff       LD BC, -4
+   9080   dd 09          ADD IX, BC
+   9082   dd 6e 00       LD L, (IX + 0)
+   9085   dd 66 01       LD H, (IX + 1)
+   9088   23             INC HL
+   9089   dd 75 00       LD (IX + 0), L
+   908c   dd 74 01       LD (IX + 1), H
+   908f                 zcc$12
+   908f   fd 6e fc       LD L, (IY + -4)
+   9092   fd 66 fd       LD H, (IY + -3)
+   9095   e5             PUSH HL
+   9096   21 10 27       LD HL, 10000
+   9099   d1             POP DE
+   909a   37             SCF
+   909b   3f             CCF
+   909c   ed 52          SBC HL, DE
+   909e   21 01 00       LD HL, 1
+   90a1   f2 a7 90       JP P, zcc$13
+   90a4   21 00 00       LD HL, 0
+   90a7                 zcc$13
+   90a7   b7             OR A
+   90a8   11 00 00       LD DE, 0
+   90ab   ed 52          SBC HL, DE
+   90ad   c2 79 90       JP NZ, zcc$9
+   90b0                 zcc$11
+   90b0                 zcc$6
                          ; (tst.c, 67) for (j = 0; j < 8; j++) {
-   40b0   fd e5          PUSH IY
-   40b2   dd e1          POP IX
-   40b4   01 fe ff       LD BC, -2
-   40b7   dd 09          ADD IX, BC
-   40b9   dd 6e 00       LD L, (IX + 0)
-   40bc   dd 66 01       LD H, (IX + 1)
-   40bf   23             INC HL
-   40c0   dd 75 00       LD (IX + 0), L
-   40c3   dd 74 01       LD (IX + 1), H
-   40c6                 zcc$8
-   40c6   fd 6e fe       LD L, (IY + -2)
-   40c9   fd 66 ff       LD H, (IY + -1)
-   40cc   e5             PUSH HL
-   40cd   21 08 00       LD HL, 8
-   40d0   d1             POP DE
-   40d1   37             SCF
-   40d2   3f             CCF
-   40d3   ed 52          SBC HL, DE
-   40d5   21 01 00       LD HL, 1
-   40d8   f2 de 40       JP P, zcc$14
-   40db   21 00 00       LD HL, 0
-   40de                 zcc$14
-   40de   b7             OR A
-   40df   11 00 00       LD DE, 0
-   40e2   ed 52          SBC HL, DE
-   40e4   c2 62 40       JP NZ, zcc$5
-   40e7                 zcc$7
-   40e7   c3 16 40       JP zcc$3
-   40ea                 zcc$4
+   90b0   fd e5          PUSH IY
+   90b2   dd e1          POP IX
+   90b4   01 fe ff       LD BC, -2
+   90b7   dd 09          ADD IX, BC
+   90b9   dd 6e 00       LD L, (IX + 0)
+   90bc   dd 66 01       LD H, (IX + 1)
+   90bf   23             INC HL
+   90c0   dd 75 00       LD (IX + 0), L
+   90c3   dd 74 01       LD (IX + 1), H
+   90c6                 zcc$8
+   90c6   fd 6e fe       LD L, (IY + -2)
+   90c9   fd 66 ff       LD H, (IY + -1)
+   90cc   e5             PUSH HL
+   90cd   21 08 00       LD HL, 8
+   90d0   d1             POP DE
+   90d1   37             SCF
+   90d2   3f             CCF
+   90d3   ed 52          SBC HL, DE
+   90d5   21 01 00       LD HL, 1
+   90d8   f2 de 90       JP P, zcc$14
+   90db   21 00 00       LD HL, 0
+   90de                 zcc$14
+   90de   b7             OR A
+   90df   11 00 00       LD DE, 0
+   90e2   ed 52          SBC HL, DE
+   90e4   c2 62 90       JP NZ, zcc$5
+   90e7                 zcc$7
+   90e7   c3 16 90       JP zcc$3
+   90ea                 zcc$4
                         
-   40ea   fd f9          LD SP, IY
-   40ec   fd e1          POP IY
+   90ea   fd f9          LD SP, IY
+   90ec   fd e1          POP IY
                         
-   40ee   c9             RET
+   90ee   c9             RET
                         
-   40ef   00 00         _src DW 0
-   40f1   00 00         _dst DW 0
-   40f3   00 00         _buffer DW 0
-   40f5   00 00         _format DW 0
+   90ef   00 00         _src DW 0
+   90f1   00 00         _dst DW 0
+   90f3   00 00         _buffer DW 0
+   90f5   00 00         _format DW 0
                         
-   40f7   48 65 79 20   zcc$2 DB "Hey there %s", 10, 0
-   40fb   74 68 65 72   
-   40ff   65 20 25 73   
-   4103   0a 00         
-   4105   57 68 61 74   zcc$1 DB "What's your name?", 10, 0
-   4109   27 73 20 79   
-   410d   6f 75 72 20   
-   4111   6e 61 6d 65   
-   4115   3f 0a 00      
+   90f7   48 65 79 20   zcc$2 DB "Hey there %s", 10, 0
+   90fb   74 68 65 72   
+   90ff   65 20 25 73   
+   9103   0a 00         
+   9105   57 68 61 74   zcc$1 DB "What's your name?", 10, 0
+   9109   27 73 20 79   
+   910d   6f 75 72 20   
+   9111   6e 61 6d 65   
+   9115   3f 0a 00      
                         
                         ; functions that look kinda like libc functions
                         
@@ -1264,78 +1264,78 @@
                         ; IY = pointer to next arg to be processed
                         ;
                         
-   4118                 _printf
-   4118   fd e5          PUSH IY
-   411a   fd 21 00 00    LD IY, 0
-   411e   fd 39          ADD IY, SP
+   9118                 _printf
+   9118   fd e5          PUSH IY
+   911a   fd 21 00 00    LD IY, 0
+   911e   fd 39          ADD IY, SP
                         
-   4120   f5             PUSH AF
-   4121   dd e5          PUSH IX
+   9120   f5             PUSH AF
+   9121   dd e5          PUSH IX
                         
                          ; IY points at IY on stack
-   4123   fd 23          INC IY
-   4125   fd 23          INC IY ; points at return address
-   4127   fd 23          INC IY
-   4129   fd 23          INC IY ; points at first argument (format string)
+   9123   fd 23          INC IY
+   9125   fd 23          INC IY ; points at return address
+   9127   fd 23          INC IY
+   9129   fd 23          INC IY ; points at first argument (format string)
                         
-   412b   fd 6e 00       LD L, (IY + 0) ; format string into HL
-   412e   fd 66 01       LD H, (IY + 1)
-   4131   fd 23          INC IY
-   4133   fd 23          INC IY ; points at next argument (first after format string)
+   912b   fd 6e 00       LD L, (IY + 0) ; format string into HL
+   912e   fd 66 01       LD H, (IY + 1)
+   9131   fd 23          INC IY
+   9133   fd 23          INC IY ; points at next argument (first after format string)
                         
-   4135   dd 21 7f 41    LD IX, PRINTF_BUF
+   9135   dd 21 7f 91    LD IX, PRINTF_BUF
                         
-   4139                 PRINTF_LOOP
-   4139   7e             LD A, (HL)
-   413a   fe 25          CP '%'
-   413c   c2 65 41       JP NZ, PRINTF_NOT_PERCENT
+   9139                 PRINTF_LOOP
+   9139   7e             LD A, (HL)
+   913a   fe 25          CP '%'
+   913c   c2 65 91       JP NZ, PRINTF_NOT_PERCENT
                         
-   413f   23             INC HL
-   4140   7e             LD A, (HL)
-   4141   fe 64          CP 'd'
-   4143   c2 4d 41       JP NZ, PRINTF_NOT_DECIMAL
+   913f   23             INC HL
+   9140   7e             LD A, (HL)
+   9141   fe 64          CP 'd'
+   9143   c2 4d 91       JP NZ, PRINTF_NOT_DECIMAL
                         
-   4146   cd af 41       CALL PRINTF_CONVERT_DECIMAL
+   9146   cd af 91       CALL PRINTF_CONVERT_DECIMAL
                         
-   4149   23             INC HL
-   414a   c3 39 41       JP PRINTF_LOOP
+   9149   23             INC HL
+   914a   c3 39 91       JP PRINTF_LOOP
                         
-   414d                 PRINTF_NOT_DECIMAL
-   414d   fe 78          CP 'x'
-   414f   c2 59 41       JP NZ, PRINTF_NOT_HEX
+   914d                 PRINTF_NOT_DECIMAL
+   914d   fe 78          CP 'x'
+   914f   c2 59 91       JP NZ, PRINTF_NOT_HEX
                         
-   4152   cd b1 42       CALL PRINTF_CONVERT_HEX
+   9152   cd b1 92       CALL PRINTF_CONVERT_HEX
                         
-   4155   23             INC HL
-   4156   c3 39 41       JP PRINTF_LOOP
+   9155   23             INC HL
+   9156   c3 39 91       JP PRINTF_LOOP
                         
-   4159                 PRINTF_NOT_HEX
-   4159   fe 73          CP 's'
-   415b   c2 65 41       JP NZ, PRINTF_NOT_PERCENT
+   9159                 PRINTF_NOT_HEX
+   9159   fe 73          CP 's'
+   915b   c2 65 91       JP NZ, PRINTF_NOT_PERCENT
                         
-   415e   cd c1 42       CALL PRINTF_CONVERT_STRING
+   915e   cd c1 92       CALL PRINTF_CONVERT_STRING
                         
-   4161   23             INC HL
-   4162   c3 39 41       JP PRINTF_LOOP
+   9161   23             INC HL
+   9162   c3 39 91       JP PRINTF_LOOP
                         
-   4165                 PRINTF_NOT_PERCENT
-   4165   dd 77 00       LD (IX), A
-   4168   dd 23          INC IX
-   416a   23             INC HL
-   416b   fe 00          CP 0
-   416d   c2 39 41       JP NZ, PRINTF_LOOP
+   9165                 PRINTF_NOT_PERCENT
+   9165   dd 77 00       LD (IX), A
+   9168   dd 23          INC IX
+   916a   23             INC HL
+   916b   fe 00          CP 0
+   916d   c2 39 91       JP NZ, PRINTF_LOOP
                         
-   4170   21 7f 41       LD HL, PRINTF_BUF
-   4173   cd 89 00       CALL LCDPRINT
-   4176   21 00 00       LD HL, 0
+   9170   21 7f 91       LD HL, PRINTF_BUF
+   9173   cd 89 00       CALL LCDPRINT
+   9176   21 00 00       LD HL, 0
                         
-   4179   dd e1          POP IX
-   417b   f1             POP AF
-   417c   fd e1          POP IY
+   9179   dd e1          POP IX
+   917b   f1             POP AF
+   917c   fd e1          POP IY
                         
-   417e   c9             RET
+   917e   c9             RET
                         
-   417f                 PRINTF_BUF DS 48 ; 24 bytes on the display, pad to be sure
+   917f                 PRINTF_BUF DS 48 ; 24 bytes on the display, pad to be sure
                         
                         ;
                         ; PRINTF_CONVERT_DECIMAL
@@ -1350,190 +1350,190 @@
                         ; HL = int
                         ;
                         
-   41af                 PRINTF_CONVERT_DECIMAL
-   41af   e5             PUSH HL
-   41b0   f5             PUSH AF
-   41b1   c5             PUSH BC
+   91af                 PRINTF_CONVERT_DECIMAL
+   91af   e5             PUSH HL
+   91b0   f5             PUSH AF
+   91b1   c5             PUSH BC
                         
-   41b2   fd 6e 00       LD L, (IY + 0)
-   41b5   fd 66 01       LD H, (IY + 1)
-   41b8   fd 23          INC IY
-   41ba   fd 23          INC IY
+   91b2   fd 6e 00       LD L, (IY + 0)
+   91b5   fd 66 01       LD H, (IY + 1)
+   91b8   fd 23          INC IY
+   91ba   fd 23          INC IY
                         
-   41bc   af             XOR A ; reset carry and set A to 0
-   41bd   47             LD B, A ; BC = 0
-   41be   4f             LD C, A
-   41bf   ed 4a          ADC HL, BC ; HL = HL (set zero flag)
-   41c1   c2 ce 41       JP NZ, PCD_NOT_ZERO
+   91bc   af             XOR A ; reset carry and set A to 0
+   91bd   47             LD B, A ; BC = 0
+   91be   4f             LD C, A
+   91bf   ed 4a          ADC HL, BC ; HL = HL (set zero flag)
+   91c1   c2 ce 91       JP NZ, PCD_NOT_ZERO
                         
-   41c4   3e 30          LD A, '0'
-   41c6   dd 77 00       LD (IX), A
-   41c9   dd 23          INC IX
+   91c4   3e 30          LD A, '0'
+   91c6   dd 77 00       LD (IX), A
+   91c9   dd 23          INC IX
                         
-   41cb   c3 22 42       JP PCD_END
+   91cb   c3 22 92       JP PCD_END
                         
-   41ce                 PCD_NOT_ZERO
-   41ce   fd e5          PUSH IY
-   41d0   d5             PUSH DE
+   91ce                 PCD_NOT_ZERO
+   91ce   fd e5          PUSH IY
+   91d0   d5             PUSH DE
                         
-   41d1   3e 00          LD A, 0 ; D = 0 (printed flag)
-   41d3   57             LD D, A
+   91d1   3e 00          LD A, 0 ; D = 0 (printed flag)
+   91d3   57             LD D, A
                         
-   41d4   fd 21 26 42    LD IY, PCD_TABLE
+   91d4   fd 21 26 92    LD IY, PCD_TABLE
                         
-   41d8                 PCD_LOOP
-   41d8   fd 7e 00       LD A, (IY)
-   41db   fd 23          INC IY ; does not affect condition bits
-   41dd   fe 24          CP '$' ; end of table
-   41df   ca 1f 42       JP Z, PCD_LOOP_END
+   91d8                 PCD_LOOP
+   91d8   fd 7e 00       LD A, (IY)
+   91db   fd 23          INC IY ; does not affect condition bits
+   91dd   fe 24          CP '$' ; end of table
+   91df   ca 1f 92       JP Z, PCD_LOOP_END
                         
-   41e2   fd 4e 00       LD C, (IY) ; get word to compare to
-   41e5   fd 23          INC IY
-   41e7   fd 46 00       LD B, (IY)
-   41ea   fd 23          INC IY
+   91e2   fd 4e 00       LD C, (IY) ; get word to compare to
+   91e5   fd 23          INC IY
+   91e7   fd 46 00       LD B, (IY)
+   91ea   fd 23          INC IY
                         
-   41ec   fe 30          CP '0' ; special case
-   41ee   c2 09 42       JP NZ, PCD_NOT_ZERO_DIGIT
+   91ec   fe 30          CP '0' ; special case
+   91ee   c2 09 92       JP NZ, PCD_NOT_ZERO_DIGIT
                         
-   41f1   7a             LD A, D ; printed flag
-   41f2   fe 00          CP 0
-   41f4   ca d8 41       JP Z, PCD_LOOP ; before first digit, do not print zero
+   91f1   7a             LD A, D ; printed flag
+   91f2   fe 00          CP 0
+   91f4   ca d8 91       JP Z, PCD_LOOP ; before first digit, do not print zero
                         
                          ; the number in BC represents the smallest number which HL
                          ; has to be to not print a zero right now
-   41f7   a7             AND A ; clear carry
-   41f8   e5             PUSH HL ; do not clobber it
-   41f9   ed 42          SBC HL, BC ; HL -= BC
-   41fb   e1             POP HL
-   41fc   d2 d8 41       JP NC, PCD_LOOP ; HL >= BC
+   91f7   a7             AND A ; clear carry
+   91f8   e5             PUSH HL ; do not clobber it
+   91f9   ed 42          SBC HL, BC ; HL -= BC
+   91fb   e1             POP HL
+   91fc   d2 d8 91       JP NC, PCD_LOOP ; HL >= BC
                         
-   41ff   3e 30          LD A, '0' ; print zero
-   4201   dd 77 00       LD (IX), A
-   4204   dd 23          INC IX
-   4206   c3 d8 41       JP PCD_LOOP
+   91ff   3e 30          LD A, '0' ; print zero
+   9201   dd 77 00       LD (IX), A
+   9204   dd 23          INC IX
+   9206   c3 d8 91       JP PCD_LOOP
                         
-   4209                 PCD_NOT_ZERO_DIGIT
-   4209   a7             AND A ; clear carry
-   420a   e5             PUSH HL ; do not clobber HL
-   420b   ed 42          SBC HL, BC ; HL -= BC
-   420d   e1             POP HL
-   420e   da d8 41       JP C, PCD_LOOP ; HL < BC
+   9209                 PCD_NOT_ZERO_DIGIT
+   9209   a7             AND A ; clear carry
+   920a   e5             PUSH HL ; do not clobber HL
+   920b   ed 42          SBC HL, BC ; HL -= BC
+   920d   e1             POP HL
+   920e   da d8 91       JP C, PCD_LOOP ; HL < BC
                         
-   4211   dd 77 00       LD (IX), A ; print digit
-   4214   dd 23          INC IX
+   9211   dd 77 00       LD (IX), A ; print digit
+   9214   dd 23          INC IX
                         
-   4216   a7             AND A ; clear carry
-   4217   ed 42          SBC HL, BC ; HL -= BC
+   9216   a7             AND A ; clear carry
+   9217   ed 42          SBC HL, BC ; HL -= BC
                         
-   4219   3e 01          LD A, 1 ; printed flag = 1
-   421b   57             LD D, A
+   9219   3e 01          LD A, 1 ; printed flag = 1
+   921b   57             LD D, A
                         
-   421c   c3 d8 41       JP PCD_LOOP
+   921c   c3 d8 91       JP PCD_LOOP
                         
-   421f                 PCD_LOOP_END
-   421f   d1             POP DE
-   4220   fd e1          POP IY
+   921f                 PCD_LOOP_END
+   921f   d1             POP DE
+   9220   fd e1          POP IY
                         
-   4222                 PCD_END
-   4222   c1             POP BC
-   4223   f1             POP AF
-   4224   e1             POP HL
-   4225   c9             RET
+   9222                 PCD_END
+   9222   c1             POP BC
+   9223   f1             POP AF
+   9224   e1             POP HL
+   9225   c9             RET
                         
-   4226                 PCD_TABLE
-   4226   36             DB '6'
-   4227   60 ea          DW 60000
-   4229   35             DB '5'
-   422a   50 c3          DW 50000
-   422c   34             DB '4'
-   422d   40 9c          DW 40000
-   422f   33             DB '3'
-   4230   30 75          DW 30000
-   4232   32             DB '2'
-   4233   20 4e          DW 20000
-   4235   31             DB '1'
-   4236   10 27          DW 10000
-   4238   30             DB '0'
-   4239   e8 03          DW 1000
-   423b   39             DB '9'
-   423c   28 23          DW 9000
-   423e   38             DB '8'
-   423f   40 1f          DW 8000
-   4241   37             DB '7'
-   4242   58 1b          DW 7000
-   4244   36             DB '6'
-   4245   70 17          DW 6000
-   4247   35             DB '5'
-   4248   88 13          DW 5000
-   424a   34             DB '4'
-   424b   a0 0f          DW 4000
-   424d   33             DB '3'
-   424e   b8 0b          DW 3000
-   4250   32             DB '2'
-   4251   d0 07          DW 2000
-   4253   31             DB '1'
-   4254   e8 03          DW 1000
-   4256   30             DB '0'
-   4257   64 00          DW 100
-   4259   39             DB '9'
-   425a   84 03          DW 900
-   425c   38             DB '8'
-   425d   20 03          DW 800
-   425f   37             DB '7'
-   4260   bc 02          DW 700
-   4262   36             DB '6'
-   4263   58 02          DW 600
-   4265   35             DB '5'
-   4266   f4 01          DW 500
-   4268   34             DB '4'
-   4269   90 01          DW 400
-   426b   33             DB '3'
-   426c   2c 01          DW 300
-   426e   32             DB '2'
-   426f   c8 00          DW 200
-   4271   31             DB '1'
-   4272   64 00          DW 100
-   4274   30             DB '0'
-   4275   0a 00          DW 10
-   4277   39             DB '9'
-   4278   5a 00          DW 90
-   427a   38             DB '8'
-   427b   50 00          DW 80
-   427d   37             DB '7'
-   427e   46 00          DW 70
-   4280   36             DB '6'
-   4281   3c 00          DW 60
-   4283   35             DB '5'
-   4284   32 00          DW 50
-   4286   34             DB '4'
-   4287   28 00          DW 40
-   4289   33             DB '3'
-   428a   1e 00          DW 30
-   428c   32             DB '2'
-   428d   14 00          DW 20
-   428f   31             DB '1'
-   4290   0a 00          DW 10
-   4292   30             DB '0'
-   4293   01 00          DW 1
-   4295   39             DB '9'
-   4296   09 00          DW 9
-   4298   38             DB '8'
-   4299   08 00          DW 8
-   429b   37             DB '7'
-   429c   07 00          DW 7
-   429e   36             DB '6'
-   429f   06 00          DW 6
-   42a1   35             DB '5'
-   42a2   05 00          DW 5
-   42a4   34             DB '4'
-   42a5   04 00          DW 4
-   42a7   33             DB '3'
-   42a8   03 00          DW 3
-   42aa   32             DB '2'
-   42ab   02 00          DW 2
-   42ad   31             DB '1'
-   42ae   01 00          DW 1
-   42b0   24             DB '$'
+   9226                 PCD_TABLE
+   9226   36             DB '6'
+   9227   60 ea          DW 60000
+   9229   35             DB '5'
+   922a   50 c3          DW 50000
+   922c   34             DB '4'
+   922d   40 9c          DW 40000
+   922f   33             DB '3'
+   9230   30 75          DW 30000
+   9232   32             DB '2'
+   9233   20 4e          DW 20000
+   9235   31             DB '1'
+   9236   10 27          DW 10000
+   9238   30             DB '0'
+   9239   e8 03          DW 1000
+   923b   39             DB '9'
+   923c   28 23          DW 9000
+   923e   38             DB '8'
+   923f   40 1f          DW 8000
+   9241   37             DB '7'
+   9242   58 1b          DW 7000
+   9244   36             DB '6'
+   9245   70 17          DW 6000
+   9247   35             DB '5'
+   9248   88 13          DW 5000
+   924a   34             DB '4'
+   924b   a0 0f          DW 4000
+   924d   33             DB '3'
+   924e   b8 0b          DW 3000
+   9250   32             DB '2'
+   9251   d0 07          DW 2000
+   9253   31             DB '1'
+   9254   e8 03          DW 1000
+   9256   30             DB '0'
+   9257   64 00          DW 100
+   9259   39             DB '9'
+   925a   84 03          DW 900
+   925c   38             DB '8'
+   925d   20 03          DW 800
+   925f   37             DB '7'
+   9260   bc 02          DW 700
+   9262   36             DB '6'
+   9263   58 02          DW 600
+   9265   35             DB '5'
+   9266   f4 01          DW 500
+   9268   34             DB '4'
+   9269   90 01          DW 400
+   926b   33             DB '3'
+   926c   2c 01          DW 300
+   926e   32             DB '2'
+   926f   c8 00          DW 200
+   9271   31             DB '1'
+   9272   64 00          DW 100
+   9274   30             DB '0'
+   9275   0a 00          DW 10
+   9277   39             DB '9'
+   9278   5a 00          DW 90
+   927a   38             DB '8'
+   927b   50 00          DW 80
+   927d   37             DB '7'
+   927e   46 00          DW 70
+   9280   36             DB '6'
+   9281   3c 00          DW 60
+   9283   35             DB '5'
+   9284   32 00          DW 50
+   9286   34             DB '4'
+   9287   28 00          DW 40
+   9289   33             DB '3'
+   928a   1e 00          DW 30
+   928c   32             DB '2'
+   928d   14 00          DW 20
+   928f   31             DB '1'
+   9290   0a 00          DW 10
+   9292   30             DB '0'
+   9293   01 00          DW 1
+   9295   39             DB '9'
+   9296   09 00          DW 9
+   9298   38             DB '8'
+   9299   08 00          DW 8
+   929b   37             DB '7'
+   929c   07 00          DW 7
+   929e   36             DB '6'
+   929f   06 00          DW 6
+   92a1   35             DB '5'
+   92a2   05 00          DW 5
+   92a4   34             DB '4'
+   92a5   04 00          DW 4
+   92a7   33             DB '3'
+   92a8   03 00          DW 3
+   92aa   32             DB '2'
+   92ab   02 00          DW 2
+   92ad   31             DB '1'
+   92ae   01 00          DW 1
+   92b0   24             DB '$'
                         
                         ;
                         ; PRINTF_CONVERT_HEX
@@ -1548,18 +1548,18 @@
                         ; HL = int
                         ;
                         
-   42b1                 PRINTF_CONVERT_HEX
-   42b1   e5             PUSH HL
+   92b1                 PRINTF_CONVERT_HEX
+   92b1   e5             PUSH HL
                         
-   42b2   fd 6e 00       LD L, (IY + 0)
-   42b5   fd 66 01       LD H, (IY + 1)
-   42b8   fd 23          INC IY
-   42ba   fd 23          INC IY
+   92b2   fd 6e 00       LD L, (IY + 0)
+   92b5   fd 66 01       LD H, (IY + 1)
+   92b8   fd 23          INC IY
+   92ba   fd 23          INC IY
                         
-   42bc   cd 2d 01       CALL PHEXWORD
+   92bc   cd 2d 01       CALL PHEXWORD
                         
-   42bf   e1             POP HL
-   42c0   c9             RET
+   92bf   e1             POP HL
+   92c0   c9             RET
                         
                         ;
                         ; PRINTF_CONVERT_STRING
@@ -1572,77 +1572,77 @@
                         ; IX = incremented past string
                         ;
                         
-   42c1                 PRINTF_CONVERT_STRING
-   42c1   e5             PUSH HL
+   92c1                 PRINTF_CONVERT_STRING
+   92c1   e5             PUSH HL
                         
-   42c2   fd 6e 00       LD L, (IY + 0)
-   42c5   fd 66 01       LD H, (IY + 1)
-   42c8   fd 23          INC IY
-   42ca   fd 23          INC IY
+   92c2   fd 6e 00       LD L, (IY + 0)
+   92c5   fd 66 01       LD H, (IY + 1)
+   92c8   fd 23          INC IY
+   92ca   fd 23          INC IY
                         
-   42cc   cd b8 01       CALL STRCPY ; increments IX for us
+   92cc   cd b8 01       CALL STRCPY ; increments IX for us
                         
-   42cf   e1             POP HL
-   42d0   c9             RET
+   92cf   e1             POP HL
+   92d0   c9             RET
                         
                         ;
                         ; char *gets(char *buffer) -- just like C. Does not store EOL.
                         ;
                         
                         
-   42d1                 _gets
-   42d1   fd e5          PUSH IY
-   42d3   fd 21 00 00    LD IY, 0
-   42d7   fd 39          ADD IY, SP
+   92d1                 _gets
+   92d1   fd e5          PUSH IY
+   92d3   fd 21 00 00    LD IY, 0
+   92d7   fd 39          ADD IY, SP
                         
-   42d9   fd 6e 04       LD L, (IY + 4) ; buffer into HL
-   42dc   fd 66 05       LD H, (IY + 5)
+   92d9   fd 6e 04       LD L, (IY + 4) ; buffer into HL
+   92dc   fd 66 05       LD H, (IY + 5)
                         
-   42df   e5             PUSH HL
-   42e0   cd 38 01       CALL GETS
-   42e3   e1             POP HL ; so that return value is buffer
+   92df   e5             PUSH HL
+   92e0   cd 38 01       CALL GETS
+   92e3   e1             POP HL ; so that return value is buffer
                         
-   42e4   fd e1          POP IY
+   92e4   fd e1          POP IY
                         
-   42e6   c9             RET
+   92e6   c9             RET
                         
                         ;
                         ; char *strcpy(char *dst, char *src) -- just like C
                         ;
                         
                         
-   42e7                 _strcpy
-   42e7   fd e5          PUSH IY
-   42e9   fd 21 00 00    LD IY, 0
-   42ed   fd 39          ADD IY, SP
-   42ef   f5             PUSH AF
-   42f0   dd e5          PUSH IX
+   92e7                 _strcpy
+   92e7   fd e5          PUSH IY
+   92e9   fd 21 00 00    LD IY, 0
+   92ed   fd 39          ADD IY, SP
+   92ef   f5             PUSH AF
+   92f0   dd e5          PUSH IX
                         
-   42f2   fd 6e 04       LD L, (IY + 4) ; destination into IX
-   42f5   fd 66 05       LD H, (IY + 5)
-   42f8   e5             PUSH HL
-   42f9   e5             PUSH HL
-   42fa   dd e1          POP IX
+   92f2   fd 6e 04       LD L, (IY + 4) ; destination into IX
+   92f5   fd 66 05       LD H, (IY + 5)
+   92f8   e5             PUSH HL
+   92f9   e5             PUSH HL
+   92fa   dd e1          POP IX
                         
-   42fc   fd 6e 06       LD L, (IY + 6) ; source into HL
-   42ff   fd 66 07       LD H, (IY + 7)
+   92fc   fd 6e 06       LD L, (IY + 6) ; source into HL
+   92ff   fd 66 07       LD H, (IY + 7)
                         
-   4302                 STRCPY_NEXT_BYTE
-   4302   7e             LD A, (HL)
-   4303   dd 77 00       LD (IX), A
-   4306   23             INC HL
-   4307   dd 23          INC IX
+   9302                 STRCPY_NEXT_BYTE
+   9302   7e             LD A, (HL)
+   9303   dd 77 00       LD (IX), A
+   9306   23             INC HL
+   9307   dd 23          INC IX
                         
-   4309   fe 00          CP 0
-   430b   c2 02 43       JP NZ, STRCPY_NEXT_BYTE
+   9309   fe 00          CP 0
+   930b   c2 02 93       JP NZ, STRCPY_NEXT_BYTE
                         
-   430e   e1             POP HL ; return the destination
+   930e   e1             POP HL ; return the destination
                         
-   430f   dd e1          POP IX
-   4311   f1             POP AF
-   4312   fd e1          POP IY
+   930f   dd e1          POP IX
+   9311   f1             POP AF
+   9312   fd e1          POP IY
                         
-   4314   c9             RET
+   9314   c9             RET
                         
    3f00                  ORG 03F00H
    3f00                 INTTABLE
@@ -1688,11 +1688,11 @@
 00e0  EXT_KEY       0138  GETS          0164  GETS_COPY     01a5  GETS_DONE 
 0147  GETS_LOOP     0289  GET_CMD_HEADER    003f  GOTRESETSTR    015b  GOT_KEY   
 02e4  HANDLE_KEYBOARD    026f  HANDLE_SERIAL    03cc  HELLOSTR      0000  I8259A    
-0001  I8259B        c000  INPUT_BUF     03b1  INTROSTR      3f00  INTTABLE  
+0001  I8259B        8200  INPUT_BUF     03b1  INTROSTR      3f00  INTTABLE  
 022b  ISR0          0268  ISR0_END      0246  ISR0_IS_COMMAND    025d  ISR0_IS_KEYBOARD
 0257  ISR0_IS_SERIAL    0254  ISR0_IS_TIMER    0263  ISR0_RESET    0379  ISR1      
 0381  ISR2          0389  ISR3          0391  ISR4          0399  ISR5      
-03a1  ISR6          03a9  ISR7          030f  IS_SHIFT      a000  KEYBUF    
+03a1  ISR6          03a9  ISR7          030f  IS_SHIFT      8100  KEYBUF    
 03d3  KEY_XLAT      0061  LCDCLR        0003  LCDDATA       004c  LCDINIT   
 0002  LCDINST       00a5  LCDNOSWITCH    00ce  LCDP1LOOP     00b2  LCDP1SL1  
 00b4  LCDP1SL2      00b6  LCDP1SL3      00e7  LCDP1SLP1     00e9  LCDP1SLP2 
@@ -1703,20 +1703,20 @@
 000a  LISTRLEN      0038  LRESET        0012  LSHIFT_KEY    01cb  MAIN      
 0191  NEXT_KEY      033a  NOT_ALT       018c  NOT_BACKSPACE    032a  NOT_CTRL  
 031a  NOT_SHIFT     02f6  NOT_UP_KEY    8001  NUMKEY        0058  OUTBLOOP  
-0056  OUTBYTES      c040  OUTPUT_BUF    000a  PAUSE         4222  PCD_END   
-41d8  PCD_LOOP      421f  PCD_LOOP_END    41ce  PCD_NOT_ZERO    4209  PCD_NOT_ZERO_DIGIT
-4226  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD      0004  PIC       
+0056  OUTBYTES      8300  OUTPUT_BUF    000a  PAUSE         9222  PCD_END   
+91d8  PCD_LOOP      921f  PCD_LOOP_END    91ce  PCD_NOT_ZERO    9209  PCD_NOT_ZERO_DIGIT
+9226  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD      0004  PIC       
 8003  PICBYTE       8000  PIC_COMMAND    0002  PIC_KBD_CMD    0000  PIC_NON_CMD
 0001  PIC_SER_CMD    0003  PIC_TIM_CMD    03c0  PLEASESTR     01fc  PRINTAGAIN
-417f  PRINTF_BUF    41af  PRINTF_CONVERT_DECIMAL    42b1  PRINTF_CONVERT_HEX    42c1  PRINTF_CONVERT_STRING
-4139  PRINTF_LOOP    414d  PRINTF_NOT_DECIMAL    4159  PRINTF_NOT_HEX    4165  PRINTF_NOT_PERCENT
+917f  PRINTF_BUF    91af  PRINTF_CONVERT_DECIMAL    92b1  PRINTF_CONVERT_HEX    92c1  PRINTF_CONVERT_STRING
+9139  PRINTF_LOOP    914d  PRINTF_NOT_DECIMAL    9159  PRINTF_NOT_HEX    9165  PRINTF_NOT_PERCENT
 0059  RSHIFT_KEY    8004  SHIFT_STATUS    800d  SHOULD_RUN    02cf  SIMULATE_KEYBOARD
-0000  STACKTOP      01b8  STRCPY        01ba  STRCPY_LOOP    4302  STRCPY_NEXT_BYTE
+0000  STACKTOP      01b8  STRCPY        01ba  STRCPY_LOOP    9302  STRCPY_NEXT_BYTE
 02b4  TRANSFER_BYTE    029e  TRANSFER_HEADER    8007  UPKEY_FLAG    00f0  UP_KEY    
-00e4  WAITSECS      40f3  _buffer       40f1  _dst          40f5  _format   
-42d1  _gets         4009  _main         4118  _printf       40ef  _src      
-42e7  _strcpy       4105  zcc$1         4079  zcc$10        40b0  zcc$11    
-408f  zcc$12        40a7  zcc$13        40de  zcc$14        40f7  zcc$2     
-4016  zcc$3         40ea  zcc$4         4062  zcc$5         40b0  zcc$6     
-40e7  zcc$7         40c6  zcc$8         4079  zcc$9         
+00e4  WAITSECS      90f3  _buffer       90f1  _dst          90f5  _format   
+92d1  _gets         9009  _main         9118  _printf       90ef  _src      
+92e7  _strcpy       9105  zcc$1         9079  zcc$10        90b0  zcc$11    
+908f  zcc$12        90a7  zcc$13        90de  zcc$14        90f7  zcc$2     
+9016  zcc$3         90ea  zcc$4         9062  zcc$5         90b0  zcc$6     
+90e7  zcc$7         90c6  zcc$8         9079  zcc$9         
 
