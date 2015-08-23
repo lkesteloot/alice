@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 
 #if 0
@@ -56,7 +57,7 @@ main()
     }
 #endif
 
-#if 1
+#if 0
     char buffer[30];
     int i, j;
 
@@ -64,10 +65,23 @@ main()
 	printf("What's your name?\n");
 	gets(buffer);
 	printf("Hey there %s\n", buffer);
+
         for (j = 0; j < 8; j++) {
             for (i = 0; i < 10000; i++) {
                 /* Nothing. */
             }
+        }
+    }
+#endif
+
+#if 1
+    int i;
+
+    while (1) {
+        i = get_timer_counter();
+	printf("Timer %d\n", i);
+        for (i = 0; i < 10000; i++) {
+            /* Nothing. */
         }
     }
 #endif

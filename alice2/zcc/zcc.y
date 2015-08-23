@@ -1104,6 +1104,9 @@ expr_item:
 	      var = get_ident($1, NAME_SPACE_VARIABLE);
 
 	      if (var == NULL) {
+                  // XXX this next check fails because yychar == YYEMPTY (-2) sometimes.
+                  // I think it used to work. It means that functions are found to be
+                  // variables, which later fails and crashes.
 		  if (yychar == '(') {
 		      yywarning("implicit declaration of function `%s'", $1);
 		      var = new_ident($1, NAME_SPACE_VARIABLE, SCOPE_GLOBAL);

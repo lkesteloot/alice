@@ -22,6 +22,7 @@ CURRENT_ADDR	EQU	08009H ; two bytes
 CURRENT_LEN	EQU	0800BH
 CURRENT_PTR	EQU	0800CH ; point into CURRENT_CMD
 SHOULD_RUN	EQU	0800DH ; whether to jump to addr from serial.
+TIMER_COUNTER   EQU     0800EH ; incremented each time we get a timer.
 KEYBUF		EQU	08100H ; keyboard buffer.
 INPUT_BUF	EQU	08200H
 OUTPUT_BUF	EQU	08300H
@@ -80,6 +81,7 @@ MAIN
 	LD	(UPKEY_FLAG), A
 	LD	(CURRENT_PTR), A
 	LD	(SHOULD_RUN), A
+	LD	(TIMER_COUNTER), A
 
 ;
 ; Read a byte from the pic in case it triggered
@@ -213,7 +215,10 @@ ISR0_IS_COMMAND
 	JP	ISR0_END
 
 ISR0_IS_TIMER
-	; do something
+	; Increment timer counter.
+        LD      A, (TIMER_COUNTER)
+        INC     A
+        LD      (TIMER_COUNTER), A
 	JP	ISR0_RESET
 
 ISR0_IS_SERIAL

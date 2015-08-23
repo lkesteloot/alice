@@ -4,3 +4,4 @@
 #include "printf.asm"
 #include "gets.asm"
 #include "strcpy.asm"
+#include "timer.asm"
