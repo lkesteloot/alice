@@ -476,7 +476,7 @@
    8009                 CURRENT_ADDR EQU 08009H ; two bytes
    800b                 CURRENT_LEN EQU 0800BH
    800c                 CURRENT_PTR EQU 0800CH ; point into CURRENT_CMD
-   800d                 SHOULD_RUN EQU 0800DH
+   800d                 SHOULD_RUN EQU 0800DH ; whether to jump to addr from serial.
    8100                 KEYBUF EQU 08100H ; keyboard buffer.
    8200                 INPUT_BUF EQU 08200H
    8300                 OUTPUT_BUF EQU 08300H
@@ -560,13 +560,13 @@
                         ;
                         
    01fc                 PRINTAGAIN
-   01fc   21 c0 03       LD HL, PLEASESTR
+   01fc   21 c0 03       LD HL, BOOTSTR
    01ff   cd 89 00       CALL LCDPRINT
                         
    0202   21 00 82       LD HL, INPUT_BUF
    0205   cd 38 01       CALL GETS
                         
-   0208   21 cc 03       LD HL, HELLOSTR
+   0208   21 cf 03       LD HL, HELLOSTR
    020b   dd 21 00 83    LD IX, OUTPUT_BUF
    020f   cd b8 01       CALL STRCPY
                         
@@ -827,7 +827,7 @@
    0359   09             ADD HL, BC
    035a   09             ADD HL, BC
                         
-   035b   01 d3 03       LD BC, KEY_XLAT ; Translation table
+   035b   01 d6 03       LD BC, KEY_XLAT ; Translation table
    035e   09             ADD HL, BC
                         
    035f   7e             LD A, (HL) ; Get actual key
@@ -947,141 +947,142 @@
    03b9   20 74 65 73   
    03bd   74 0a 00      
                         
-   03c0   59 6f 75 72   PLEASESTR DB "Your name?", 10, 0
-   03c4   20 6e 61 6d   
-   03c8   65 3f 0a 00   
-   03cc   48 65 6c 6c   HELLOSTR DB "Hello ", 0
-   03d0   6f 20 00      
+   03c0   41 6c 69 63   BOOTSTR DB "Alice II, v1.0", 0
+   03c4   65 20 49 49   
+   03c8   2c 20 76 31   
+   03cc   2e 30 00      
+   03cf   48 65 6c 6c   HELLOSTR DB "Hello ", 0
+   03d3   6f 20 00      
                         
-   03d3                 KEY_XLAT ; Normal, shift, ctrl, alt
-   03d3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03d7   39 39 39 39    DB '9', '9', '9', '9' ; F9
-   03db   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03df   35 35 35 35    DB '5', '5', '5', '5' ; F5
-   03e3   33 33 33 33    DB '3', '3', '3', '3' ; F3
-   03e7   31 31 31 31    DB '1', '1', '1', '1' ; F1
-   03eb   32 32 32 32    DB '2', '2', '2', '2' ; F2
-   03ef   31 31 31 31    DB '1', '1', '1', '1' ; F12
-   03f3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   03f7   31 31 31 31    DB '1', '1', '1', '1' ; F10
-   03fb   38 38 38 38    DB '8', '8', '8', '8' ; F8
-   03ff   36 36 36 36    DB '6', '6', '6', '6' ; F6
-   0403   34 34 34 34    DB '4', '4', '4', '4' ; F4
-   0407   09 09 09 09    DB 9, 9, 9, 9 ; Tab
-   040b   60 7e 60 60    DB '`', '~', '`', '`'
-   040f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0413   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0417   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Alt
-   041b   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Left shift
-   041f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0423   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Control
-   0427   71 51 11 11    DB 'q', 'Q', 17, 17
-   042b   31 21 31 31    DB '1', '!', '1', '1'
-   042f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0433   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0437   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   043b   7a 5a 1a 1a    DB 'z', 'Z', 26, 26
-   043f   73 53 13 13    DB 's', 'S', 19, 19
-   0443   61 41 01 01    DB 'a', 'A', 1, 1
-   0447   77 57 17 17    DB 'w', 'W', 23, 23
-   044b   32 40 32 32    DB '2', '@', '2', '2'
-   044f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0453   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0457   63 43 03 03    DB 'c', 'C', 3, 3
-   045b   78 58 18 18    DB 'x', 'X', 24, 24
-   045f   64 44 04 04    DB 'd', 'D', 4, 4
-   0463   65 45 05 05    DB 'e', 'E', 5, 5
-   0467   34 24 34 34    DB '4', '$', '4', '4'
-   046b   33 23 33 33    DB '3', '#', '3', '3'
-   046f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0473   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0477   20 20 20 20    DB ' ', ' ', ' ', ' '
-   047b   76 56 16 16    DB 'v', 'V', 22, 22
-   047f   66 46 06 06    DB 'f', 'F', 6, 6
-   0483   74 54 14 14    DB 't', 'T', 20, 20
-   0487   72 52 12 12    DB 'r', 'R', 18, 18
-   048b   35 25 35 35    DB '5', '%', '5', '5'
-   048f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0493   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0497   6e 4e 0e 0e    DB 'n', 'N', 14, 14
-   049b   62 42 02 02    DB 'b', 'B', 2, 2
-   049f   68 48 08 08    DB 'h', 'H', 8, 8
-   04a3   67 47 07 07    DB 'g', 'G', 7, 7
-   04a7   79 59 19 19    DB 'y', 'Y', 25, 25
-   04ab   36 5e 36 36    DB '6', '^', '6', '6'
-   04af   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04b3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04b7   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04bb   6d 4d 0d 0d    DB 'm', 'M', 13, 13
-   04bf   6a 4a 0a 0a    DB 'j', 'J', 10, 10
-   04c3   75 55 15 15    DB 'u', 'U', 21, 21
-   04c7   37 26 37 37    DB '7', '&', '7', '7'
-   04cb   38 2a 38 38    DB '8', '*', '8', '8'
-   04cf   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04d3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04d7   2c 3c 2c 2c    DB ',', '<', ',', ','
-   04db   6b 4b 0b 0b    DB 'k', 'K', 11, 11
-   04df   69 49 09 09    DB 'i', 'I', 9, 9
-   04e3   6f 4f 0f 0f    DB 'o', 'O', 15, 15
-   04e7   30 29 30 30    DB '0', ')', '0', '0'
-   04eb   39 28 39 39    DB '9', '(', '9', '9'
-   04ef   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04f3   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   04f7   2e 3e 2e 2e    DB '.', '>', '.', '.'
-   04fb   2f 3f 2f 2f    DB '/', '?', '/', '/'
-   04ff   6c 4c 0c 0c    DB 'l', 'L', 12, 12
-   0503   3b 3a 3b 3b    DB ';', ':', ';', ';'
-   0507   70 50 10 10    DB 'p', 'P', 16, 16
-   050b   2d 5f 2d 2d    DB '-', '_', '-', '-'
-   050f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0513   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0517   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   051b   27 22 27 27    DB 39, '"', 39, 39 ; Single quote
-   051f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0523   5b 7b 5b 5b    DB '[', '{', '[', '['
-   0527   3d 2b 3d 3d    DB '=', '+', '=', '='
-   052b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   052f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0533   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Caps lock
-   0537   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Right shift
-   053b   0a 0a 0a 0a    DB 10, 10, 10, 10 ; Enter
-   053f   5d 7d 5d 5d    DB ']', '}', ']', ']'
-   0543   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0547   5c 7c 5c 5c    DB 92, '|', 92, 92 ; Backslash
-   054b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   054f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0553   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0557   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   055b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   055f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0563   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0567   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   056b   08 08 08 08    DB 8, 8, 8, 8 ; Backspace
-   056f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0573   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0577   31 31 31 31    DB '1', '1', '1', '1' ; Numeric 1
-   057b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   057f   34 34 34 34    DB '4', '4', '4', '4' ; Numeric 4
-   0583   37 37 37 37    DB '7', '7', '7', '7' ; Numeric 7
-   0587   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   058b   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   058f   3f 3f 3f 3f    DB '?', '?', '?', '?'
-   0593   30 30 30 30    DB '0', '0', '0', '0' ; Numeric 0
-   0597   2e 2e 2e 2e    DB '.', '.', '.', '.' ; Numeric .
-   059b   32 32 32 32    DB '2', '2', '2', '2' ; Numeric 2
-   059f   35 35 35 35    DB '5', '5', '5', '5' ; Numeric 5
-   05a3   36 36 36 36    DB '6', '6', '6', '6' ; Numeric 6
-   05a7   38 38 38 38    DB '8', '8', '8', '8' ; Numeric 8
-   05ab   1b 1b 1b 1b    DB 27, 27, 27, 27 ; Escape
-   05af   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Num lock
-   05b3   31 31 31 31    DB '1', '1', '1', '1' ; F11
-   05b7   2b 2b 2b 2b    DB '+', '+', '+', '+' ; Numeric +
-   05bb   33 33 33 33    DB '3', '3', '3', '3' ; Numeric 3
-   05bf   2d 2d 2d 2d    DB '-', '-', '-', '-' ; Numeric -
-   05c3   2a 2a 2a 2a    DB '*', '*', '*', '*' ; Numeric *
-   05c7   39 39 39 39    DB '9', '9', '9', '9' ; Numeric 9
-   05cb   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Scroll lock
-   05cf   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03d6                 KEY_XLAT ; Normal, shift, ctrl, alt
+   03d6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03da   39 39 39 39    DB '9', '9', '9', '9' ; F9
+   03de   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03e2   35 35 35 35    DB '5', '5', '5', '5' ; F5
+   03e6   33 33 33 33    DB '3', '3', '3', '3' ; F3
+   03ea   31 31 31 31    DB '1', '1', '1', '1' ; F1
+   03ee   32 32 32 32    DB '2', '2', '2', '2' ; F2
+   03f2   31 31 31 31    DB '1', '1', '1', '1' ; F12
+   03f6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   03fa   31 31 31 31    DB '1', '1', '1', '1' ; F10
+   03fe   38 38 38 38    DB '8', '8', '8', '8' ; F8
+   0402   36 36 36 36    DB '6', '6', '6', '6' ; F6
+   0406   34 34 34 34    DB '4', '4', '4', '4' ; F4
+   040a   09 09 09 09    DB 9, 9, 9, 9 ; Tab
+   040e   60 7e 60 60    DB '`', '~', '`', '`'
+   0412   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0416   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   041a   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Alt
+   041e   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Left shift
+   0422   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0426   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Control
+   042a   71 51 11 11    DB 'q', 'Q', 17, 17
+   042e   31 21 31 31    DB '1', '!', '1', '1'
+   0432   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0436   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   043a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   043e   7a 5a 1a 1a    DB 'z', 'Z', 26, 26
+   0442   73 53 13 13    DB 's', 'S', 19, 19
+   0446   61 41 01 01    DB 'a', 'A', 1, 1
+   044a   77 57 17 17    DB 'w', 'W', 23, 23
+   044e   32 40 32 32    DB '2', '@', '2', '2'
+   0452   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0456   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   045a   63 43 03 03    DB 'c', 'C', 3, 3
+   045e   78 58 18 18    DB 'x', 'X', 24, 24
+   0462   64 44 04 04    DB 'd', 'D', 4, 4
+   0466   65 45 05 05    DB 'e', 'E', 5, 5
+   046a   34 24 34 34    DB '4', '$', '4', '4'
+   046e   33 23 33 33    DB '3', '#', '3', '3'
+   0472   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0476   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   047a   20 20 20 20    DB ' ', ' ', ' ', ' '
+   047e   76 56 16 16    DB 'v', 'V', 22, 22
+   0482   66 46 06 06    DB 'f', 'F', 6, 6
+   0486   74 54 14 14    DB 't', 'T', 20, 20
+   048a   72 52 12 12    DB 'r', 'R', 18, 18
+   048e   35 25 35 35    DB '5', '%', '5', '5'
+   0492   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0496   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   049a   6e 4e 0e 0e    DB 'n', 'N', 14, 14
+   049e   62 42 02 02    DB 'b', 'B', 2, 2
+   04a2   68 48 08 08    DB 'h', 'H', 8, 8
+   04a6   67 47 07 07    DB 'g', 'G', 7, 7
+   04aa   79 59 19 19    DB 'y', 'Y', 25, 25
+   04ae   36 5e 36 36    DB '6', '^', '6', '6'
+   04b2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04b6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04ba   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04be   6d 4d 0d 0d    DB 'm', 'M', 13, 13
+   04c2   6a 4a 0a 0a    DB 'j', 'J', 10, 10
+   04c6   75 55 15 15    DB 'u', 'U', 21, 21
+   04ca   37 26 37 37    DB '7', '&', '7', '7'
+   04ce   38 2a 38 38    DB '8', '*', '8', '8'
+   04d2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04d6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04da   2c 3c 2c 2c    DB ',', '<', ',', ','
+   04de   6b 4b 0b 0b    DB 'k', 'K', 11, 11
+   04e2   69 49 09 09    DB 'i', 'I', 9, 9
+   04e6   6f 4f 0f 0f    DB 'o', 'O', 15, 15
+   04ea   30 29 30 30    DB '0', ')', '0', '0'
+   04ee   39 28 39 39    DB '9', '(', '9', '9'
+   04f2   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04f6   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   04fa   2e 3e 2e 2e    DB '.', '>', '.', '.'
+   04fe   2f 3f 2f 2f    DB '/', '?', '/', '/'
+   0502   6c 4c 0c 0c    DB 'l', 'L', 12, 12
+   0506   3b 3a 3b 3b    DB ';', ':', ';', ';'
+   050a   70 50 10 10    DB 'p', 'P', 16, 16
+   050e   2d 5f 2d 2d    DB '-', '_', '-', '-'
+   0512   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0516   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   051a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   051e   27 22 27 27    DB 39, '"', 39, 39 ; Single quote
+   0522   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0526   5b 7b 5b 5b    DB '[', '{', '[', '['
+   052a   3d 2b 3d 3d    DB '=', '+', '=', '='
+   052e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0532   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0536   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Caps lock
+   053a   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Right shift
+   053e   0a 0a 0a 0a    DB 10, 10, 10, 10 ; Enter
+   0542   5d 7d 5d 5d    DB ']', '}', ']', ']'
+   0546   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   054a   5c 7c 5c 5c    DB 92, '|', 92, 92 ; Backslash
+   054e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0552   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0556   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   055a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   055e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0562   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0566   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   056a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   056e   08 08 08 08    DB 8, 8, 8, 8 ; Backspace
+   0572   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0576   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   057a   31 31 31 31    DB '1', '1', '1', '1' ; Numeric 1
+   057e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0582   34 34 34 34    DB '4', '4', '4', '4' ; Numeric 4
+   0586   37 37 37 37    DB '7', '7', '7', '7' ; Numeric 7
+   058a   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   058e   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0592   3f 3f 3f 3f    DB '?', '?', '?', '?'
+   0596   30 30 30 30    DB '0', '0', '0', '0' ; Numeric 0
+   059a   2e 2e 2e 2e    DB '.', '.', '.', '.' ; Numeric .
+   059e   32 32 32 32    DB '2', '2', '2', '2' ; Numeric 2
+   05a2   35 35 35 35    DB '5', '5', '5', '5' ; Numeric 5
+   05a6   36 36 36 36    DB '6', '6', '6', '6' ; Numeric 6
+   05aa   38 38 38 38    DB '8', '8', '8', '8' ; Numeric 8
+   05ae   1b 1b 1b 1b    DB 27, 27, 27, 27 ; Escape
+   05b2   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Num lock
+   05b6   31 31 31 31    DB '1', '1', '1', '1' ; F11
+   05ba   2b 2b 2b 2b    DB '+', '+', '+', '+' ; Numeric +
+   05be   33 33 33 33    DB '3', '3', '3', '3' ; Numeric 3
+   05c2   2d 2d 2d 2d    DB '-', '-', '-', '-' ; Numeric -
+   05c6   2a 2a 2a 2a    DB '*', '*', '*', '*' ; Numeric *
+   05ca   39 39 39 39    DB '9', '9', '9', '9' ; Numeric 9
+   05ce   3f 3f 3f 3f    DB '?', '?', '?', '?' ; Scroll lock
+   05d2   3f 3f 3f 3f    DB '?', '?', '?', '?'
                         
    9000                  ORG 09000H
                         
@@ -1680,34 +1681,34 @@
    3f1f   00             DB 0
                         
    3f20                  END
-0011  ALT_KEY       8006  ALT_STATUS    017b  BACKSPACE     0003  CMD_MAX   
-0002  CMD_RUN       0001  CMD_SEND      0014  CTRL_KEY      8005  CTRL_STATUS
-8009  CURRENT_ADDR    8008  CURRENT_CMD    800b  CURRENT_LEN    800c  CURRENT_PTR
-0371  DID_KEY       0111  DIG1DONE      010f  DIG1LESS      0125  DIG2DONE  
-0123  DIG2LESS      0376  END_HANDLE_KEYBOARD    02e1  END_HANDLE_SERIAL    00e1  EXT2_KEY  
-00e0  EXT_KEY       0138  GETS          0164  GETS_COPY     01a5  GETS_DONE 
-0147  GETS_LOOP     0289  GET_CMD_HEADER    003f  GOTRESETSTR    015b  GOT_KEY   
-02e4  HANDLE_KEYBOARD    026f  HANDLE_SERIAL    03cc  HELLOSTR      0000  I8259A    
-0001  I8259B        8200  INPUT_BUF     03b1  INTROSTR      3f00  INTTABLE  
-022b  ISR0          0268  ISR0_END      0246  ISR0_IS_COMMAND    025d  ISR0_IS_KEYBOARD
-0257  ISR0_IS_SERIAL    0254  ISR0_IS_TIMER    0263  ISR0_RESET    0379  ISR1      
-0381  ISR2          0389  ISR3          0391  ISR4          0399  ISR5      
-03a1  ISR6          03a9  ISR7          030f  IS_SHIFT      8100  KEYBUF    
-03d3  KEY_XLAT      0061  LCDCLR        0003  LCDDATA       004c  LCDINIT   
-0002  LCDINST       00a5  LCDNOSWITCH    00ce  LCDP1LOOP     00b2  LCDP1SL1  
-00b4  LCDP1SL2      00b6  LCDP1SL3      00e7  LCDP1SLP1     00e9  LCDP1SLP2 
-00eb  LCDP1SLP3     00a3  LCDP2LOOP     0093  LCDPCLOOP     00d5  LCDPDOIT  
-00df  LCDPDONE      0099  LCDPLOOP      00db  LCDPNEXT      00c6  LCDPNLOOP 
-0089  LCDPRINT      00d9  LCDPWLOOP     0001  LCLEAR        007f  LCSTRING  
-0005  LCSTRLEN      0080  LHALF1        00c0  LHALF2        006b  LISTRING  
-000a  LISTRLEN      0038  LRESET        0012  LSHIFT_KEY    01cb  MAIN      
-0191  NEXT_KEY      033a  NOT_ALT       018c  NOT_BACKSPACE    032a  NOT_CTRL  
-031a  NOT_SHIFT     02f6  NOT_UP_KEY    8001  NUMKEY        0058  OUTBLOOP  
-0056  OUTBYTES      8300  OUTPUT_BUF    000a  PAUSE         9222  PCD_END   
-91d8  PCD_LOOP      921f  PCD_LOOP_END    91ce  PCD_NOT_ZERO    9209  PCD_NOT_ZERO_DIGIT
-9226  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD      0004  PIC       
-8003  PICBYTE       8000  PIC_COMMAND    0002  PIC_KBD_CMD    0000  PIC_NON_CMD
-0001  PIC_SER_CMD    0003  PIC_TIM_CMD    03c0  PLEASESTR     01fc  PRINTAGAIN
+0011  ALT_KEY       8006  ALT_STATUS    017b  BACKSPACE     03c0  BOOTSTR   
+0003  CMD_MAX       0002  CMD_RUN       0001  CMD_SEND      0014  CTRL_KEY  
+8005  CTRL_STATUS    8009  CURRENT_ADDR    8008  CURRENT_CMD    800b  CURRENT_LEN
+800c  CURRENT_PTR    0371  DID_KEY       0111  DIG1DONE      010f  DIG1LESS  
+0125  DIG2DONE      0123  DIG2LESS      0376  END_HANDLE_KEYBOARD    02e1  END_HANDLE_SERIAL
+00e1  EXT2_KEY      00e0  EXT_KEY       0138  GETS          0164  GETS_COPY 
+01a5  GETS_DONE     0147  GETS_LOOP     0289  GET_CMD_HEADER    003f  GOTRESETSTR
+015b  GOT_KEY       02e4  HANDLE_KEYBOARD    026f  HANDLE_SERIAL    03cf  HELLOSTR  
+0000  I8259A        0001  I8259B        8200  INPUT_BUF     03b1  INTROSTR  
+3f00  INTTABLE      022b  ISR0          0268  ISR0_END      0246  ISR0_IS_COMMAND
+025d  ISR0_IS_KEYBOARD    0257  ISR0_IS_SERIAL    0254  ISR0_IS_TIMER    0263  ISR0_RESET
+0379  ISR1          0381  ISR2          0389  ISR3          0391  ISR4      
+0399  ISR5          03a1  ISR6          03a9  ISR7          030f  IS_SHIFT  
+8100  KEYBUF        03d6  KEY_XLAT      0061  LCDCLR        0003  LCDDATA   
+004c  LCDINIT       0002  LCDINST       00a5  LCDNOSWITCH    00ce  LCDP1LOOP 
+00b2  LCDP1SL1      00b4  LCDP1SL2      00b6  LCDP1SL3      00e7  LCDP1SLP1 
+00e9  LCDP1SLP2     00eb  LCDP1SLP3     00a3  LCDP2LOOP     0093  LCDPCLOOP 
+00d5  LCDPDOIT      00df  LCDPDONE      0099  LCDPLOOP      00db  LCDPNEXT  
+00c6  LCDPNLOOP     0089  LCDPRINT      00d9  LCDPWLOOP     0001  LCLEAR    
+007f  LCSTRING      0005  LCSTRLEN      0080  LHALF1        00c0  LHALF2    
+006b  LISTRING      000a  LISTRLEN      0038  LRESET        0012  LSHIFT_KEY
+01cb  MAIN          0191  NEXT_KEY      033a  NOT_ALT       018c  NOT_BACKSPACE
+032a  NOT_CTRL      031a  NOT_SHIFT     02f6  NOT_UP_KEY    8001  NUMKEY    
+0058  OUTBLOOP      0056  OUTBYTES      8300  OUTPUT_BUF    000a  PAUSE     
+9222  PCD_END       91d8  PCD_LOOP      921f  PCD_LOOP_END    91ce  PCD_NOT_ZERO
+9209  PCD_NOT_ZERO_DIGIT    9226  PCD_TABLE     00f8  PHEXBYTE      012d  PHEXWORD  
+0004  PIC           8003  PICBYTE       8000  PIC_COMMAND    0002  PIC_KBD_CMD
+0000  PIC_NON_CMD    0001  PIC_SER_CMD    0003  PIC_TIM_CMD    01fc  PRINTAGAIN
 917f  PRINTF_BUF    91af  PRINTF_CONVERT_DECIMAL    92b1  PRINTF_CONVERT_HEX    92c1  PRINTF_CONVERT_STRING
 9139  PRINTF_LOOP    914d  PRINTF_NOT_DECIMAL    9159  PRINTF_NOT_HEX    9165  PRINTF_NOT_PERCENT
 0059  RSHIFT_KEY    8004  SHIFT_STATUS    800d  SHOULD_RUN    02cf  SIMULATE_KEYBOARD
