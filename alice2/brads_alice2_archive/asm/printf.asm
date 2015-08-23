@@ -81,8 +81,7 @@ PRINTF_NOT_PERCENT
 
 	RET	
 
-;PRINTF_BUF	DS	48  ; 24 bytes on the display, pad to be sure
-PRINTF_BUF  EQU     08888H
+PRINTF_BUF	DS	48  ; 24 bytes on the display, pad to be sure
 
 ;
 ; PRINTF_CONVERT_DECIMAL
