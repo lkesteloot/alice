@@ -17,15 +17,17 @@ typedef struct string {
     struct string *next;
 } STRING_CONST;
 
+static const int INVALID_LABEL = 0;
+
 FILE *outf;
 STRING_CONST *string_head = NULL;
 int unsupported = 0;
 
-void output_node(NODE *node);
+void output_node(NODE *node, int break_label, int continue_label);
 
 static int get_new_label(void)
 {
-    static int label = 1;
+    static int label = INVALID_LABEL + 1;
 
     return label++;
 }
@@ -142,7 +144,7 @@ output_line(int line)
 }
 
 int
-output_parameters(NODE *node)
+output_parameters(NODE *node, int break_label, int continue_label)
 {
     int stack_size;
 
@@ -150,10 +152,10 @@ output_parameters(NODE *node)
 
     if (node != NULL) {
 	if (node->op == FUNCTION_PARAM) {
-	    stack_size += output_parameters(node->arg[1]);
-	    stack_size += output_parameters(node->arg[0]);
+	    stack_size += output_parameters(node->arg[1], break_label, continue_label);
+	    stack_size += output_parameters(node->arg[0], break_label, continue_label);
 	} else {
-	    output_node(node);
+	    output_node(node, break_label, continue_label);
 	    output_code("PUSH", "HL");
 	    stack_size = 2;
 	}
@@ -162,7 +164,7 @@ output_parameters(NODE *node)
     return stack_size;
 }
 
-void output_node(NODE *node)
+void output_node(NODE *node, int break_label, int continue_label)
 {
     NODE *n;
     int top, cont, out, bottom, not, tmp1, imm, state;
@@ -172,6 +174,9 @@ void output_node(NODE *node)
     if (node == NULL) {
 	return;
     }
+
+    // In case we call yyerror().
+    yylineno = node->line;
 
     if (node->line != last_line && node->op != ';' && node->op != FOR) {
 	last_line = node->line;
@@ -216,14 +221,14 @@ void output_node(NODE *node)
 	    break;
 	case '(':
 	    /* limited function call support */
-	    stack_size = output_parameters(node->arg[1]);
+	    stack_size = output_parameters(node->arg[1], break_label, continue_label);
 	    output_code("CALL", "_%s", node->arg[0]->data.var->name);
 	    while (stack_size-- > 0) {
 		output_code("INC", "SP");
 	    }
 	    break;
 	case INCR:
-	    output_node(node->arg[0]); /* Address is in IX */
+	    output_node(node->arg[0], break_label, continue_label); /* Address is in IX */
 	    if (node->data.detail == -1) {  /* Preincrement */
 		output_code("LD", "L, (IX + 0)");
 		output_code("LD", "H, (IX + 1)");
@@ -241,7 +246,7 @@ void output_node(NODE *node)
 	    }
 	    break;
 	case CAST:
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    /*
 	     * Use get_decl_size() to do the right thing here. Not
 	     * necessary right now.
@@ -252,7 +257,7 @@ void output_node(NODE *node)
 	    break;
 	case '*':
 	    if (node->numargs == 1) {
-		output_node(node->arg[0]);
+		output_node(node->arg[0], break_label, continue_label);
 		output_code("PUSH", "HL");
 		output_code("POP", "IX");
 		if (!node->lhs) {
@@ -269,7 +274,7 @@ void output_node(NODE *node)
 			node->arg[1] = n;
 		    }
 
-		    output_node(node->arg[0]);
+		    output_node(node->arg[0], break_label, continue_label);
 
 		    imm = node->arg[1]->data.value;
 		    if (imm < 0) {
@@ -315,7 +320,7 @@ void output_node(NODE *node)
 			output_code("ADD", "HL, DE");
 		    }
 		} else {
-		    output_comment("Unsupported operator: %s.",
+		    output_comment("Unsupported operands: %s.",
 			get_op_name(node->op));
 		    unsupported++;
 		}
@@ -323,15 +328,15 @@ void output_node(NODE *node)
 	    break;
 	case '-':
 	    if (node->numargs == 1) {
-		output_node(node->arg[0]);
+		output_node(node->arg[0], break_label, continue_label);
 		output_code("LD", "A, 255");
 		output_code("XOR", "H");
 		output_code("XOR", "L");
 		output_code("INC", "HL");
 	    } else {
-		output_node(node->arg[1]);
+		output_node(node->arg[1], break_label, continue_label);
 		output_code("PUSH", "HL");
-		output_node(node->arg[0]);
+		output_node(node->arg[0], break_label, continue_label);
 		output_code("POP", "BC");
 		output_code("SCF", "");
 		output_code("CCF", "");
@@ -339,17 +344,17 @@ void output_node(NODE *node)
 	    }
 	    break;
 	case '+':
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "BC");
 	    output_code("ADD", "HL, BC");
 	    break;
 	case '<':
 	    tmp1 = get_new_label();
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "DE");
 	    output_code("SCF", "");
 	    output_code("CCF", "");
@@ -361,9 +366,9 @@ void output_node(NODE *node)
 	    break;
 	case EQUALS:
 	    tmp1 = get_new_label();
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "DE");
 	    output_code("SCF", "");
 	    output_code("CCF", "");
@@ -375,9 +380,9 @@ void output_node(NODE *node)
 	    break;
 	case NOT_EQUALS:
 	    tmp1 = get_new_label();
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "DE");
 	    output_code("SCF", "");
 	    output_code("CCF", "");
@@ -389,13 +394,13 @@ void output_node(NODE *node)
 	    break;
 	case '&':
 	    if (node->numargs == 1) {
-		output_node(node->arg[0]);
+		output_node(node->arg[0], break_label, continue_label);
 		output_code("PUSH", "IX");
 		output_code("POP", "HL");
 	    } else {
-		output_node(node->arg[0]);
+		output_node(node->arg[0], break_label, continue_label);
 		output_code("PUSH", "HL");
-		output_node(node->arg[1]);
+		output_node(node->arg[1], break_label, continue_label);
 		output_code("POP", "DE");
 		output_code("LD", "A, H");
 		output_code("AND", "D");
@@ -406,9 +411,9 @@ void output_node(NODE *node)
 	    }
 	    break;
 	case '|':
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "DE");
 	    output_code("LD", "A, H");
 	    output_code("OR", "D");
@@ -418,30 +423,31 @@ void output_node(NODE *node)
 	    output_code("LD", "L, A");
 	    break;
 	case '=':
-	    output_node(node->arg[1]); /* Value is in HL */
+	    output_node(node->arg[1], break_label, continue_label); /* Value is in HL */
 	    output_code("PUSH", "HL");
-	    output_node(node->arg[0]); /* Address is in IX */
+	    output_node(node->arg[0], break_label, continue_label); /* Address is in IX */
 	    output_code("POP", "HL");  /* Value is in HL */
 	    output_code("LD", "(IX + 0), L");
 	    output_code("LD", "(IX + 1), H");
 	    break;
 	case ',':
-	    output_node(node->arg[0]);
-	    output_node(node->arg[1]);
+	    output_node(node->arg[0], break_label, continue_label);
+	    output_node(node->arg[1], break_label, continue_label);
 	    break;
 	case IF:
 	    not = get_new_label();
 	    if (node->numargs == 3) {
 		bottom = get_new_label();
 	    }
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
+	    output_code("OR", "A"); // Reset carry.
 	    output_code("LD", "DE, 0");
-	    output_code("ADD", "HL, DE");
+	    output_code("SBC", "HL, DE"); // HL -= DE - carry. NOP except sets Z.
 	    output_code("JP", "Z, " LABEL_PREFIX "%d", not);
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    if (node->numargs == 3) {
 		output_code("JP", LABEL_PREFIX "%d", bottom);
-		output_node(node->arg[3]);
+		output_node(node->arg[3], break_label, continue_label);
 		output_label(LABEL_PREFIX "%d", bottom);
 	    } else {
 		output_label(LABEL_PREFIX "%d", not);
@@ -452,16 +458,17 @@ void output_node(NODE *node)
 	    cont = get_new_label();
 	    out = get_new_label();
 	    bottom = get_new_label();
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_code("JP", LABEL_PREFIX "%d", bottom);
 	    output_label(LABEL_PREFIX "%d", top);
-	    output_node(node->arg[3]);
+	    output_node(node->arg[3], out, cont);
 	    output_label(LABEL_PREFIX "%d", cont);
-	    output_node(node->arg[2]);
+	    output_node(node->arg[2], out, cont);
 	    output_label(LABEL_PREFIX "%d", bottom);
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], out, cont);
+	    output_code("OR", "A"); // Reset carry.
 	    output_code("LD", "DE, 0");
-	    output_code("ADD", "HL, DE");
+	    output_code("SBC", "HL, DE"); // HL -= DE - carry. NOP except sets Z.
 	    output_code("JP", "NZ, " LABEL_PREFIX "%d", top);
 	    output_label(LABEL_PREFIX "%d", out);
 	    break;
@@ -469,12 +476,12 @@ void output_node(NODE *node)
 	    top = get_new_label();
 	    out = get_new_label();
 	    output_label(LABEL_PREFIX "%d", top);
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], out, top);
 	    output_code("OR", "A"); // Reset carry.
 	    output_code("LD", "DE, 0");
 	    output_code("SBC", "HL, DE"); // HL -= DE - carry. NOP except sets Z.
 	    output_code("JP", "Z, " LABEL_PREFIX "%d", out);
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], out, top);
 	    output_code("JP", LABEL_PREFIX "%d", top);
 	    output_label(LABEL_PREFIX "%d", out);
 	    break;
@@ -483,18 +490,33 @@ void output_node(NODE *node)
 	    cont = get_new_label();
 	    out = get_new_label();
 	    output_label(LABEL_PREFIX "%d", top);
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], out, cont);
 	    output_label(LABEL_PREFIX "%d", cont);
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], out, cont);
+	    output_code("OR", "A"); // Reset carry.
 	    output_code("LD", "DE, 0");
-	    output_code("ADD", "HL, DE");
+	    output_code("SBC", "HL, DE"); // HL -= DE - carry. NOP except sets Z.
 	    output_code("JP", "NZ, " LABEL_PREFIX "%d", top);
 	    output_label(LABEL_PREFIX "%d", out);
 	    break;
+        case BREAK:
+            if (break_label == INVALID_LABEL) {
+                yyerror("break not inside loop or switch");
+            } else {
+                output_code("JP", LABEL_PREFIX "%d", break_label);
+            }
+            break;
+        case CONTINUE:
+            if (continue_label == INVALID_LABEL) {
+                yyerror("continue not inside loop");
+            } else {
+                output_code("JP", LABEL_PREFIX "%d", continue_label);
+            }
+            break;
 	case ';':
-	    output_node(node->arg[0]);
+	    output_node(node->arg[0], break_label, continue_label);
 	    output_blank();
-	    output_node(node->arg[1]);
+	    output_node(node->arg[1], break_label, continue_label);
 	    break;
 	default:
 	    output_comment("Unsupported operator: %s.",
@@ -622,7 +644,7 @@ void output_function(char *name, NODE *node)
 	}
     }
     output_blank();
-    output_node(node);
+    output_node(node, INVALID_LABEL, INVALID_LABEL);
     output_blank();
     output_code("LD", "SP, IY");
     output_code("POP", "IY");

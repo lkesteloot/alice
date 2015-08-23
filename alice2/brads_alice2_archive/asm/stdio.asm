@@ -2,7 +2,8 @@
 ;
 ; GETS - Inputs a string into the
 ;   buffer pointed to by HL.  String is
-;   NULL-terminated.
+;   NULL-terminated and does not contain
+;   the linefeed.
 ;
 ; No registers are modified.
 ;
@@ -36,6 +37,7 @@ GETS_LOOP ; wait for key
 	JP	(HL)
 
 GOT_KEY
+        ; Copy entire keyboard buffer into ours.
 	DI
 	LD	A, (NUMKEY)	; in case it changed before DI
 	LD	IY, KEYBUF
@@ -44,6 +46,10 @@ GOT_KEY
 GETS_COPY
 	LD	A, (IY)
 
+	CP	10 ; return (keyboard)
+	JP	Z, GETS_DONE
+	CP	13 ; return (maybe serial)
+	JP	Z, GETS_DONE
 	CP	8  ; backspace
 	JP	Z, BACKSPACE
 	CP	127  ; delete
@@ -64,16 +70,10 @@ BACKSPACE
 	JP	NEXT_KEY
 
 NOT_BACKSPACE
-	LD	(IX), A
+	LD	(IX), A ; copy letter to our buffer
 	INC	IX
 
 NEXT_KEY
-	CP	10 ; return (keyboard)
-	JP	Z, GETS_DONE
-
-	CP	13 ; return (maybe serial)
-	JP	Z, GETS_DONE
-
 	INC	IY
 
 	DJNZ	GETS_COPY
@@ -92,7 +92,7 @@ GETS_DONE
 	LD	(NUMKEY), A
 	EI
 
-	LD	(IX), 0
+        LD	(IX), 0 ; nul-terminate.
 
 	POP	IY
 	POP	IX

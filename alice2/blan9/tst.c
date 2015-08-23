@@ -58,11 +58,17 @@ main()
 
 #if 1
     char buffer[30];
+    int i, j;
 
     while (1) {
 	printf("What's your name?\n");
 	gets(buffer);
 	printf("Hey there %s\n", buffer);
+        for (j = 0; j < 8; j++) {
+            for (i = 0; i < 10000; i++) {
+                /* Nothing. */
+            }
+        }
     }
 #endif
 

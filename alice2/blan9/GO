@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ASM=../brads_alice2_archive/asm
+VNC="/Applications/VNC Viewer.app/Contents/MacOS/vncviewer"
 
 # true/false to easily enable to modification of zcc_out.asm.
 if true; then
@@ -28,6 +29,12 @@ echo "Building emulator"
 echo "--------------------------------------------------------------------------------"
 echo "Queuing up serial port upload"
 (sleep 2 && cd ../emulator && ./sendhex -j 4000 - $ASM/rom.hex | nc localhost 6606) &
+
+if [ -x "$VNC" ]; then
+    echo "--------------------------------------------------------------------------------"
+    echo "Starting VNC viewer"
+    (sleep 1 && "$VNC" localhost) &
+fi
 
 echo "--------------------------------------------------------------------------------"
 echo "Running emulator"

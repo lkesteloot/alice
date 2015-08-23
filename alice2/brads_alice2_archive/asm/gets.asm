@@ -1,6 +1,6 @@
 
 ;
-; char *gets(char *buffer) -- just like C
+; char *gets(char *buffer) -- just like C. Does not store EOL.
 ;
 
 

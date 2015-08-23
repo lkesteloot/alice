@@ -21,6 +21,11 @@ static void simplify_node(NODE *node)
     int type1;
     int type2;
 
+    if (node == NULL) {
+        // An empty statement, for example.
+        return;
+    }
+
     if (node->op == '+' && node->numargs == 2) {
 	type1 = node->arg[0]->decl->decl_type;
 	type2 = node->arg[1]->decl->decl_type;
