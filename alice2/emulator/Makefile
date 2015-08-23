@@ -1,9 +1,15 @@
+.PHONY: all
 OPT=-O2
 LDFLAGS=-L/opt/local/lib -lvncserver
 CXXFLAGS=-I/opt/local/include -std=c++11 $(OPT)
 
+all: emulator sendhex
+
 emulator: emulator.o z80emu.o readhex.o
 	$(CXX) $(LDFLAGS) $^   -o $@
+
+sendhex: sendhex.c
+	$(CC) sendhex.c -o sendhex
 
 clean:
 	rm emulator emulator.o z80emu.o readhex readhex.o

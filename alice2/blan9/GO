@@ -22,7 +22,15 @@ echo "Assembling ROM"
 (cd $ASM && ./asm80 rom.asm) || exit 1
 
 echo "--------------------------------------------------------------------------------"
+echo "Building emulator"
+(cd ../emulator && make) || exit 1
+
+echo "--------------------------------------------------------------------------------"
+echo "Queuing up serial port upload"
+(sleep 2 && cd ../emulator && ./sendhex -j 4000 - $ASM/rom.hex | nc localhost 6606) &
+
+echo "--------------------------------------------------------------------------------"
 echo "Running emulator"
-(cd ../emulator && make && ./emulator $ASM/rom.hex) || exit 1
+(cd ../emulator && ./emulator $ASM/rom.hex) || exit 1
 
 

@@ -104,8 +104,6 @@ MAIN
 ; Go, go, go!
 ;
 
-        JP      ZCCOUT
-
 PRINTAGAIN
 	LD	HL, PLEASESTR
 	CALL	LCDPRINT
@@ -660,9 +658,8 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 	DB	 '?', '?', '?', '?'  ; Scroll lock
 	DB	 '?', '?', '?', '?'
 
-	ORG	03000H
+	ORG	04000H
 
-ZCCOUT
 #include "zcc_out.asm"
 #include "libc.asm"
 

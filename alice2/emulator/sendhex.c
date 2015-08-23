@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 
     f = fopen(argv[2], "r");
     if (f == NULL) {
-	perror(argv[1]);
+	perror(argv[2]);
 	exit(EXIT_FAILURE);
     }
 
@@ -124,7 +124,7 @@ main(int argc, char *argv[])
     if(argv[1][0] != '-')  {
         device_fd = open(argv[1], O_CREAT | O_WRONLY, 0644 );
         if (device_fd == -1) {
-            perror("open");
+            perror(argv[1]);
             exit(EXIT_FAILURE);
         }
     } else {

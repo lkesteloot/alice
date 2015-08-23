@@ -42,6 +42,7 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes)
     int byte;
     char line[256];
     int line_number = 0;
+    int skipped_bytes = 0;
 
     while (fgets(line, sizeof(line), f) != NULL) {
 	s = (unsigned char *) line;
@@ -81,13 +82,12 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes)
 
 	    checksum += (unsigned char) byte;
 
-            if (address > max_bytes) {
-                printf("Too many bytes in hex file on line %d (%d > %d).\n",
-                        line_number, address, max_bytes);
-                return 0;
+            if (address >= max_bytes) {
+                skipped_bytes++;
+            } else {
+                buf[address] = byte;
             }
 
-            buf[address] = byte;
 	    address++;
 	}
 
@@ -99,6 +99,10 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes)
                     line_number, checksum, file_checksum);
             return 0;
         }
+    }
+
+    if (skipped_bytes > 0) {
+        printf("Skipped %d bytes.\n", skipped_bytes);
     }
 
     return 1;
