@@ -245,6 +245,24 @@ void output_node(NODE *node, int break_label, int continue_label)
 		output_code("LD", "(IX + 1), D");
 	    }
 	    break;
+	case DECR:
+	    output_node(node->arg[0], break_label, continue_label); /* Address is in IX */
+	    if (node->data.detail == -1) {  /* Predecrement */
+		output_code("LD", "L, (IX + 0)");
+		output_code("LD", "H, (IX + 1)");
+		output_code("DEC", "HL");
+		output_code("LD", "(IX + 0), L");
+		output_code("LD", "(IX + 1), H");
+	    } else {  /* Postdecrement */
+		output_code("LD", "L, (IX + 0)");
+		output_code("LD", "H, (IX + 1)");
+		output_code("LD", "E, L");
+		output_code("LD", "D, H");
+		output_code("DEC", "DE");
+		output_code("LD", "(IX + 0), E");
+		output_code("LD", "(IX + 1), D");
+	    }
+	    break;
 	case CAST:
 	    output_node(node->arg[0], break_label, continue_label);
 	    /*
@@ -356,11 +374,25 @@ void output_node(NODE *node, int break_label, int continue_label)
 	    output_code("PUSH", "HL");
 	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "DE");
-	    output_code("SCF", "");
-	    output_code("CCF", "");
-	    output_code("SBC", "HL, DE");
+	    output_code("OR", "A ; Clear carry flag");
+	    output_code("SBC", "HL, DE ; HL = HL - DE - C");
+	    output_code("LD", "HL, 0");
+	    output_code("JP", "M, " LABEL_PREFIX "%d", tmp1);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", tmp1);
 	    output_code("LD", "HL, 1");
-	    output_code("JP", "P, " LABEL_PREFIX "%d", tmp1);
+	    output_label(LABEL_PREFIX "%d", tmp1);
+	    break;
+        case GREATER_EQUALS:
+	    tmp1 = get_new_label();
+	    output_node(node->arg[0], break_label, continue_label);
+	    output_code("PUSH", "HL");
+	    output_node(node->arg[1], break_label, continue_label);
+	    output_code("POP", "DE");
+	    output_code("OR", "A ; Clear carry flag");
+	    output_code("SBC", "HL, DE ; HL = HL - DE - C");
+	    output_code("LD", "HL, 1");
+	    output_code("JP", "M, " LABEL_PREFIX "%d", tmp1);
+	    output_code("JP", "Z, " LABEL_PREFIX "%d", tmp1);
 	    output_code("LD", "HL, 0");
 	    output_label(LABEL_PREFIX "%d", tmp1);
 	    break;
