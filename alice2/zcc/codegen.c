@@ -275,14 +275,17 @@ void output_node(NODE *node, int break_label, int continue_label)
 	    break;
 	case '*':
 	    if (node->numargs == 1) {
+                // Pointer dereference.
 		output_node(node->arg[0], break_label, continue_label);
 		output_code("PUSH", "HL");
 		output_code("POP", "IX");
 		if (!node->lhs) {
+                    // Actually dereference it.
 		    output_code("LD", "H, (IX + 1)");
 		    output_code("LD", "L, (IX)");
 		}
 	    } else {
+                // Multiplication.
 		if (node->arg[0]->op == NUMBER ||
 		    node->arg[1]->op == NUMBER) {
 
@@ -366,6 +369,7 @@ void output_node(NODE *node, int break_label, int continue_label)
 	    output_code("PUSH", "HL");
 	    output_node(node->arg[1], break_label, continue_label);
 	    output_code("POP", "BC");
+            // XXX Multiply by size of pointer type.
 	    output_code("ADD", "HL, BC");
 	    break;
 	case '<':
@@ -460,7 +464,9 @@ void output_node(NODE *node, int break_label, int continue_label)
 	    output_node(node->arg[0], break_label, continue_label); /* Address is in IX */
 	    output_code("POP", "HL");  /* Value is in HL */
 	    output_code("LD", "(IX + 0), L");
-	    output_code("LD", "(IX + 1), H");
+            if (get_decl_size(node->arg[0]->decl) == 2) {
+                output_code("LD", "(IX + 1), H");
+            }
 	    break;
 	case ',':
 	    output_node(node->arg[0], break_label, continue_label);
