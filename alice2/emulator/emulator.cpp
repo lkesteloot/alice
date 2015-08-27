@@ -19,12 +19,7 @@ unsigned short Z80_INTERRUPT_FETCH_DATA;
 
 std::vector<board_base*> boards;
 
-// 14 offset from left, 9 offset from right
-
 const int font_scale = 2;
-const int lcd_rows = 2;
-const int lcd_columns = 16;
-const int lcd_chars_height = lcd_rows * (fontheight + 1) * font_scale;
 
 uint32_t rfb_pixel(int  r, int g, int b)
 {
@@ -565,9 +560,21 @@ struct LCDboard : board_base
     const int LCDDATA = 0x3; // LCD data I/O port
     const bool use_special_alice2_clear = true;
 
-    unsigned char lcd[lcd_rows * lcd_columns];
+    enum lcd_model {
+        LCD_1x16,
+        LCD_2x16,
+        LCD_4x40,
+    };
+
+    static const int lcd_max_rows = 4;
+    static const int lcd_max_columns = 40;
+
+    unsigned char lcd[lcd_max_rows * lcd_max_columns];
     int cursor;
     rfbScreenInfoPtr rfb_server;
+
+    int lcd_rows;
+    int lcd_columns;
 
     int rfb_offset_x, rfb_offset_y;
 
@@ -584,9 +591,28 @@ struct LCDboard : board_base
         rfb_offset_y = offset_y;
     }
 
-    LCDboard()
+    LCDboard(lcd_model model)
     {
         cursor = 0;
+
+        switch(model) {
+            case LCD_1x16: {
+                lcd_rows = 1;
+                lcd_columns = 16;
+                break;
+            };
+            case LCD_2x16: {
+                lcd_rows = 2;
+                lcd_columns = 16;
+                break;
+            };
+            case LCD_4x40: {
+                lcd_rows = 4;
+                lcd_columns = 40;
+                break;
+            };
+        }
+
         memset(lcd, ' ', sizeof(lcd));
     }
 
@@ -671,13 +697,31 @@ const int cycles_per_loop = 50000;
 int main(int argc, char **argv)
 {
     VIDEOboard::video_mode video = VIDEOboard::NORMAL;
+    LCDboard::lcd_model lcd = LCDboard::LCD_2x16;
 
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
 
     while((argc > 0) && (argv[0][0] == '-')) {
-	if(strcmp(argv[0], "-video") == 0) {
+	if(strcmp(argv[0], "-lcd") == 0) {
+            if(argc < 2) {
+                fprintf(stderr, "-lcd requires a parameter; 1x16, 2x16, or 4x40\n");
+                exit(EXIT_FAILURE);
+            }
+            if(strcmp(argv[1], "1x16") == 0)
+                lcd = LCDboard::LCD_1x16;
+            else if(strcmp(argv[1], "2x16") == 0)
+                lcd = LCDboard::LCD_2x16;
+            else if(strcmp(argv[1], "4x40") == 0)
+                lcd = LCDboard::LCD_4x40;
+            else {
+                fprintf(stderr, "-lcd parameter must be 1x16, 2x16, or 4x40\n");
+                exit(EXIT_FAILURE);
+            }
+	    argc -= 2;
+	    argv += 2;
+	} else if(strcmp(argv[0], "-video") == 0) {
             if(argc < 2) {
                 fprintf(stderr, "-video requires a parameter; normal, double, halfmax, or max\n");
                 exit(EXIT_FAILURE);
@@ -742,7 +786,7 @@ int main(int argc, char **argv)
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
     boards.push_back(new VIDEOboard(video));
-    boards.push_back(new LCDboard());
+    boards.push_back(new LCDboard(lcd));
     boards.push_back(new IOboard());
 
     const int border_width = 4;
@@ -822,7 +866,6 @@ int main(int argc, char **argv)
         }
     }
 
-
-    return(0);
+    return 0;
 }
 
