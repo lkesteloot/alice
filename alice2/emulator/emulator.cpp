@@ -165,9 +165,26 @@ void populate_keycode_map()
 struct IOboard : board_base
 {
     const int PIC_port = 0x04;
-    const int CMD_SER = 0x01;
-    const int CMD_KBD = 0x02;
-    const int CMD_TIM = 0x03;
+
+    // Old command bytes from PIC to CPU
+    const int CMD_SER_old = 0x01;
+    const int CMD_KBD_old = 0x02;
+    const int CMD_TIM_old = 0x03;
+
+    // New command bytes from PIC to CPU,
+    // can be ORd with a length in lower nybble
+    const int CMD_SER = 0x10;
+    const int CMD_KBD = 0x20;
+    const int CMD_TIM = 0x30;
+    const int CMD_SPI = 0x40;
+
+    const int PIC_SER_SEND = 0x10;  // send bytes to serial, lower bits are count, bytes follow
+    const int PIC_KBD_SEND = 0x20;  // placeholder for send-to-keyboard
+    const int PIC_CFG_SEND = 0x30;  // placeholder for send PIC configuration
+    const int PIC_SPI_WRITE = 0x40; // write bytes to SPI, lower bits and next byte are count, bytes follow
+    const int PIC_SPI_READ = 0x50;  // read bytes from SPI, lower bits and next byte are count
+    const int PIC_SPI_CS = 0x60;    // lower 4 bits are the chip-select mask
+
     std::vector<unsigned char> queue;
     double last_timer_interrupt;
     const double timer_frequency_hertz = 10;
@@ -175,8 +192,11 @@ struct IOboard : board_base
 
     enum { NONE, PENDING, SIGNALED } interrupt_status;
 
-    IOboard() :
-        interrupt_status(NONE)
+    bool use_old_PIC_commands; // Use the old SER, TIM, and KBD command bytes
+
+    IOboard(bool use_old_PIC_commands_) :
+        interrupt_status(NONE),
+        use_old_PIC_commands(use_old_PIC_commands_)
     { }
 
     virtual bool io_read(int addr, unsigned char &data)
@@ -217,7 +237,7 @@ struct IOboard : board_base
 
     void enqueue_AT_keycode(unsigned char key)
     {
-        enqueue(CMD_KBD);
+        enqueue(use_old_PIC_commands ? CMD_KBD_old : CMD_KBD);
         enqueue(key);
     }
 
@@ -307,7 +327,7 @@ struct IOboard : board_base
         double current_time = tv.tv_sec + tv.tv_usec / 1000000.0;
 
         while((current_time - last_timer_interrupt) > timer_interval_seconds) {
-            enqueue(CMD_TIM);
+            enqueue(use_old_PIC_commands ? CMD_TIM_old : CMD_TIM);
             last_timer_interrupt += timer_interval_seconds;
         }
 
@@ -336,7 +356,7 @@ struct IOboard : board_base
                     data_sock = -1;
                 } else {
                     for(int i = 0; i < count; i++) {
-                        enqueue(CMD_SER);
+                        enqueue(use_old_PIC_commands ? CMD_SER_old : CMD_SER);
                         enqueue(buffer[i]);
                     }
                 }
@@ -694,19 +714,49 @@ static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 
 const int cycles_per_loop = 50000;
 
+void usage(char *progname)
+{
+    printf("\n");
+    printf("usage: %s [options] {ROM.bin|ROM.hex}\n", progname);
+    printf("\n");
+    printf("options:\n");
+    printf("\t-use-old-PIC-commands   Have PIC emulation send old PIC command bytes\n");
+    printf("\t                        (for old ripped ROM)\n");
+    printf("\t-video MODE             Use video MODE\n");
+    printf("\t                        \"normal\"  - 176 columns (default)\n");
+    printf("\t                        \"double\"  - 352 columns\n");
+    printf("\t                        \"halfmax\" - 248 columns\n");
+    printf("\t                        \"normal\"  - 496 columns\n");
+    printf("\t-lcd TYPE               Use lcd TYPE, \"1x16\", \"2x16\", \"4x40\"\n");
+    printf("\n");
+}
+
 int main(int argc, char **argv)
 {
     VIDEOboard::video_mode video = VIDEOboard::NORMAL;
     LCDboard::lcd_model lcd = LCDboard::LCD_2x16;
+    bool use_old_PIC_commands = false;
 
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
 
     while((argc > 0) && (argv[0][0] == '-')) {
-	if(strcmp(argv[0], "-lcd") == 0) {
+	if(
+            (strcmp(argv[0], "-help") == 0) ||
+            (strcmp(argv[0], "-h") == 0) ||
+            (strcmp(argv[0], "-?") == 0))
+         {
+             usage(progname);
+             exit(EXIT_SUCCESS);
+	} else if(strcmp(argv[0], "-use-old-PIC-commands") == 0) {
+            use_old_PIC_commands = true;
+	    argc -= 1;
+	    argv += 1;
+	} else if(strcmp(argv[0], "-lcd") == 0) {
             if(argc < 2) {
                 fprintf(stderr, "-lcd requires a parameter; 1x16, 2x16, or 4x40\n");
+                usage(progname);
                 exit(EXIT_FAILURE);
             }
             if(strcmp(argv[1], "1x16") == 0)
@@ -717,6 +767,7 @@ int main(int argc, char **argv)
                 lcd = LCDboard::LCD_4x40;
             else {
                 fprintf(stderr, "-lcd parameter must be 1x16, 2x16, or 4x40\n");
+                usage(progname);
                 exit(EXIT_FAILURE);
             }
 	    argc -= 2;
@@ -724,6 +775,7 @@ int main(int argc, char **argv)
 	} else if(strcmp(argv[0], "-video") == 0) {
             if(argc < 2) {
                 fprintf(stderr, "-video requires a parameter; normal, double, halfmax, or max\n");
+                usage(progname);
                 exit(EXIT_FAILURE);
             }
             if(strcmp(argv[1], "normal") == 0)
@@ -736,18 +788,20 @@ int main(int argc, char **argv)
                 video = VIDEOboard::MAX;
             else {
                 fprintf(stderr, "-video parameter must be normal, double, halfmax, or max\n");
+                usage(progname);
                 exit(EXIT_FAILURE);
             }
 	    argc -= 2;
 	    argv += 2;
 	} else {
 	    fprintf(stderr, "unknown parameter \"%s\"\n", argv[0]);
+            usage(progname);
 	    exit(EXIT_FAILURE);
 	}
     }
 
     if(argc < 1) {
-        fprintf(stderr, "%s rom.bin or rom.hex\n", progname);
+        usage(progname);
         exit(EXIT_FAILURE);
     }
 
@@ -760,7 +814,7 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
         memset(b, '\0', sizeof(b));
-        int success = read_hex(fp, b, sizeof(b));
+        int success = read_hex(fp, b, sizeof(b), 0);
         if (!success) {
             fprintf(stderr, "error reading hex file %s\n", filename);
             exit(EXIT_FAILURE);
@@ -787,7 +841,7 @@ int main(int argc, char **argv)
     boards.push_back(new RAMboard());
     boards.push_back(new VIDEOboard(video));
     boards.push_back(new LCDboard(lcd));
-    boards.push_back(new IOboard());
+    boards.push_back(new IOboard(use_old_PIC_commands));
 
     const int border_width = 4;
     const int border_height = 4;
@@ -868,4 +922,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

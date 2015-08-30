@@ -14,7 +14,10 @@ extern "C" {
 //
 // Returns 1 on success, 0 on failure (file was longer than max_bytes or if
 // there was a parsing error). Does not close the file.
-int read_hex(FILE *f, unsigned char buf[], int max_bytes);
+//
+// If bad_checksum_is_error is non-zero (true) and a record checksum does not
+// match the function's calculation of the checksum, return failure.
+int read_hex(FILE *f, unsigned char buf[], int max_bytes, int bad_checksum_is_error);
 
 #ifdef __cplusplus
 }

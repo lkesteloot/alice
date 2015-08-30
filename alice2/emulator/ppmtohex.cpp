@@ -206,11 +206,14 @@ bool pnm_get_pixel(int width, int height, float *pixels, int x, int y, float& r,
 
 int main(int argc, char **argv)
 {
-    if(argc < 2 || (strcmp(argv[1], "-h") == 0)) {
+    if((argc > 1) && (strcmp(argv[1], "-h") == 0)) {
         fprintf(stderr, "%s [rowbytes] < image.pnm > output.hex\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    video_columns = atoi(argv[1]) * 8;
+
+    if(argc > 1)
+        video_columns = atoi(argv[1]) * 8;
+
     if(video_columns == 0) {
         fprintf(stderr, "%s [rowbytes] < image.pnm > output.hex\n", argv[0]);
         exit(EXIT_FAILURE);
