@@ -28,6 +28,8 @@ INPUT_BUF	EQU	08200H
 OUTPUT_BUF	EQU	08300H
 GFX_BUF     	EQU	08400H ; graphics variables
 
+#include "graphics.asm"
+
 LSHIFT_KEY	EQU	012H
 RSHIFT_KEY	EQU	059H
 CTRL_KEY	EQU	014H
@@ -53,6 +55,7 @@ CMD_MAX		EQU	003H	; one past max value of a command
 ;
 
 MAIN
+        ; DI
         CALL    GFX_INIT
         CALL    GFX_CLEAR
 
@@ -114,15 +117,10 @@ PRINTAGAIN
         LD      A, 5
         CALL    GFX_GRAYBAR
 
-        LD      A, 1
+        LD      A, 10
         CALL    WAITSECS
 
 	JP	PRINTAGAIN
-
-; GFX_CLS
-;         RET
-; GFX_GRAYBAR
-;         RET
 
 ;----------------------------------------
 
@@ -386,7 +384,6 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 
 ; #include "zcc_out.asm"
 ; #include "libc.asm"
-#include "graphics.asm"
 
 	ORG	03F00H
 INTTABLE
