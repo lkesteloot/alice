@@ -32,7 +32,7 @@ static int get_word(unsigned char *s)
     return get_byte(s)*256 + get_byte(s + 2);
 }
 
-int read_hex(FILE *f, unsigned char buf[], int max_bytes)
+int read_hex(FILE *f, unsigned char buf[], int max_bytes, int bad_checksum_is_error)
 {
     unsigned char *s;
     int num_bytes;
@@ -97,7 +97,8 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes)
         if (checksum != file_checksum) {
             printf("Checksum mismatch on line %d: %02x vs %02x\n",
                     line_number, checksum, file_checksum);
-            return 0;
+            if(bad_checksum_is_error)
+                return 0;
         }
     }
 

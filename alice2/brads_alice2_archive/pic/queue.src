@@ -46,12 +46,23 @@ outq_size	equ	040h	; number of bytes in output queue
 outq_wrap_mask	equ	03fh	; mask for wrapping queue pointers
 
 ;
-; Queue command constants
+; Command constants for queue *to* CPU
 ;
 pic_non_cmd	equ	000h	; no command yet (not used on the pic)
-pic_ser_cmd	equ	001h	; serial byte
-pic_kbd_cmd	equ	002h	; keyboard byte
-pic_tim_cmd	equ	003h	; timer (no byte)
+pic_ser_cmd	equ	010h	; serial byte
+pic_kbd_cmd	equ	020h	; keyboard byte
+pic_tim_cmd	equ	030h	; timer (no byte)
+pic_spi_cmd     equ     040H    ; SPI bytes follow
+
+;
+; Constants for commands *from* CPU
+;
+pic_ser_send    equ     010H    ; send bytes to serial, lower bits are count, bytes follow
+pic_kbd_send    equ     020H    ; placeholder for send-to-keyboard
+pic_cfg_send    equ     030H    ; placeholder for send PIC configuration
+pic_spi_write   equ     040H    ; write bytes to SPI, lower bits and next byte are count, bytes follow
+pic_spi_read    equ     050H    ; read bytes from SPI, lower bits and next byte are count
+pic_spi_cs      equ     060H    ; lower 4 bits are the chip-select mask
 
 ;
 ; Timer1 constants

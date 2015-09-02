@@ -38,10 +38,18 @@ UP_KEY		EQU	0F0H
 EXT_KEY		EQU	0E0H
 EXT2_KEY	EQU	0E1H
 
-PIC_NON_CMD	EQU	000H
-PIC_SER_CMD	EQU	001H
-PIC_KBD_CMD	EQU	002H
-PIC_TIM_CMD	EQU	003H
+PIC_NON_CMD	EQU	000H    ; no command is pending
+PIC_SER_CMD	EQU	010H    ; one serial byte follows
+PIC_KBD_CMD	EQU	020H    ; one keyboard byte follows
+PIC_TIM_CMD	EQU	030H    ; timer interrupt
+PIC_SPI_CMD     EQU     040H    ; SPI bytes follow
+
+PIC_SER_SEND    EQU     010H    ; send bytes to serial, lower bits are count, bytes follow
+PIC_KBD_SEND    EQU     020H    ; placeholder for send-to-keyboard
+PIC_CFG_SEND    EQU     030H    ; placeholder for send PIC configuration
+PIC_SPI_WRITE   EQU     040H    ; write bytes to SPI, lower bits and next byte are count, bytes follow
+PIC_SPI_READ    EQU     050H    ; read bytes from SPI, lower bits and next byte are count
+PIC_SPI_CS      EQU     060H    ; lower 4 bits are the chip-select mask
 
 CMD_SEND	EQU	001H
 CMD_RUN		EQU	002H
