@@ -13,7 +13,7 @@ static int get_nybble(unsigned char *s)
     } else if (*s >= 'A' && *s <= 'F') {
 	value = *s - 'A' + 10;
     } else {
-	printf("Invalid hex character: %c\n", *s);
+	fprintf(stderr, "Invalid hex character: %c\n", *s);
 	value = 0;
     }
 
@@ -50,7 +50,7 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes, int bad_checksum_is_er
 
         // Must start with colon.
 	if (*s != ':') {
-	    printf("Bad format on line %d: %s\n", line_number, line);
+	    fprintf(stderr, "Bad format on line %d: %s\n", line_number, line);
             return 0;
 	}
 	s++;
@@ -95,7 +95,7 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes, int bad_checksum_is_er
         checksum = ~checksum + 1;
         int file_checksum = get_byte(s);
         if (checksum != file_checksum) {
-            printf("Checksum mismatch on line %d: %02x vs %02x\n",
+            fprintf(stderr, "Checksum mismatch on line %d: %02x vs %02x\n",
                     line_number, checksum, file_checksum);
             if(bad_checksum_is_error)
                 return 0;
@@ -103,7 +103,7 @@ int read_hex(FILE *f, unsigned char buf[], int max_bytes, int bad_checksum_is_er
     }
 
     if (skipped_bytes > 0) {
-        printf("Skipped %d bytes.\n", skipped_bytes);
+        fprintf(stderr, "Skipped %d bytes.\n", skipped_bytes);
     }
 
     return 1;

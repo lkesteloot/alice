@@ -5,6 +5,7 @@
 
 #include "readhex.h"
 
+// Convert a .hex file to a .bin file.
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "usage: hex2bin in.hex out.bin\n");
@@ -20,6 +21,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Assume the ROM we're writing is 16K.
     unsigned char b[16384];
     memset(b, '\0', sizeof(b));
 
@@ -36,7 +38,7 @@ int main(int argc, char *argv[]) {
         fwrite(b, 1, sizeof(b), outf);
         fclose(outf);
     } else {
-        fprintf(stderr, "Could not read hex file.\n");
+        // The read_hex() routine will print the error.
         return 1;
     }
 
