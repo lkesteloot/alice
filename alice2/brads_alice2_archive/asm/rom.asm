@@ -48,10 +48,11 @@ CMD_MAX		EQU	003H	; one past max value of a command
 ;----------------------------------------
 
 ;
-; Memory test program
+; Main ROM routine.
 ;
 
 MAIN
+        CALL    GFX_INIT
         CALL    GFX_CLS
 
         LD      A, 4
