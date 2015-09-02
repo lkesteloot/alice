@@ -52,8 +52,10 @@ CMD_MAX		EQU	003H	; one past max value of a command
 ;
 
 MAIN
-	LD	HL, INTROSTR
-	CALL 	LCDPRINT
+        CALL    GFX_CLS
+
+        LD      A, 4
+        CALL    GFX_GRAYBAR
 
 ;
 ; Setup the 8259
@@ -107,27 +109,18 @@ MAIN
 ;
 
 PRINTAGAIN
-	LD	HL, BOOTSTR
-	CALL	LCDPRINT
+        LD      A, 5
+        CALL    GFX_GRAYBAR
 
-	LD	HL, INPUT_BUF
-	CALL	GETS
-
-	LD	HL, HELLOSTR
-	LD	IX, OUTPUT_BUF
-	CALL	STRCPY
-
-	LD	HL, INPUT_BUF
-	CALL	STRCPY
-
-	LD	(IX), PAUSE
-	INC	IX
-	LD	(IX), 0
-
-	LD	HL, OUTPUT_BUF
-	CALL	LCDPRINT
+        LD      A, 1
+        CALL    WAITSECS
 
 	JP	PRINTAGAIN
+
+; GFX_CLS
+;         RET
+; GFX_GRAYBAR
+;         RET
 
 ;----------------------------------------
 
@@ -152,294 +145,18 @@ ISR0	; PIC interrupt
 
 	PUSH	AF
 
+        LD      A, 6
+        CALL    GFX_GRAYBAR
+
 	IN	A, (PIC)
-	LD	(PICBYTE), A
+        ADD     A, 7
+        CALL    GFX_GRAYBAR
 
-; START TEST
-#if 0
-	PUSH	IX
-	PUSH	HL
-	PUSH	BC
-
-	LD	IX, OUTPUT_BUF
-	CALL	PHEXBYTE	; Hex A into IX
-
-	LD	HL, KEYBUF
-	LD	A, (NUMKEY)
-	LD	C, A
-	LD	B, 0
-	ADD	HL, BC		; HL = pointer into buffer
-	INC	A
-	LD	(NUMKEY), A
-
-	LD	A, (OUTPUT_BUF)	; Key in A
-	LD	(HL), A		; Stick our letter in buffer
-
-	LD	HL, KEYBUF
-	LD	A, (NUMKEY)
-	LD	C, A
-	LD	B, 0
-	ADD	HL, BC		; HL = pointer into buffer
-	INC	A
-	LD	(NUMKEY), A
-
-	LD	A, (OUTPUT_BUF+1); Key in A
-	LD	(HL), A		; Stick our letter in buffer
-
-	POP	BC
-	POP	HL
-	POP	IX
-
-	JP	ISR0_END
-#endif
-; END TEST
-
-	LD	A, (PIC_COMMAND)
-	CP	PIC_NON_CMD	; Cmd not read yet
-	JP	Z, ISR0_IS_COMMAND
-
-	CP	PIC_SER_CMD
-	JP	Z, ISR0_IS_SERIAL
-
-	CP	PIC_KBD_CMD
-	JP	Z, ISR0_IS_KEYBOARD
-
-	JP	ISR0_RESET	; Whoa, bad byte
-
-ISR0_IS_COMMAND
-	LD	A, (PICBYTE)
-	CP	PIC_TIM_CMD	; special case for timer cause no data
-	JP	Z, ISR0_IS_TIMER
-
-	LD	(PIC_COMMAND), A
-	JP	ISR0_END
-
-ISR0_IS_TIMER
-	; Increment timer counter.
-        LD      A, (TIMER_COUNTER)
-        INC     A
-        LD      (TIMER_COUNTER), A
-	JP	ISR0_RESET
-
-ISR0_IS_SERIAL
-	CALL	HANDLE_SERIAL
-	JP	ISR0_RESET
-
-ISR0_IS_KEYBOARD
-	CALL	HANDLE_KEYBOARD
-	JP	ISR0_RESET
-
-ISR0_RESET
-	LD	A, PIC_NON_CMD
-	LD	(PIC_COMMAND), A
-	; FALLTHROUGH
-
-ISR0_END
 	LD	A, 020H		; End of Interrupt
 	OUT	(I8259A), A
 
 	POP	AF
 	EI
-	RET
-
-;------------------
-
-HANDLE_SERIAL  ; trashes A
-	PUSH	HL
-	PUSH	BC
-
-	; we get downloaded programs through serial.  handle
-	; that first.  we get one command byte, then two
-	; address bytes, then a length byte.  if the command
-	; is CMD_SEND, then this header is followed by "length"
-	; bytes to stick into "address".  if the command is
-	; CMD_RUN, then the length is zero and SHOULD_RUN is
-	; set to 1, which causes the input routine to jump
-	; to the address in CURRENT_ADDR.
-
-	LD	A, (CURRENT_PTR)
-	CP	3
-	JP	NZ, GET_CMD_HEADER
-
-	; just got last byte of header
-	LD	A, (CURRENT_CMD)
-	CP	CMD_RUN
-	JP	NZ, GET_CMD_HEADER
-
-	; ignore length and run
-	LD	A, 1
-	LD	(SHOULD_RUN), A
-	JP	END_HANDLE_SERIAL
-
-GET_CMD_HEADER
-	LD	A, (CURRENT_PTR)
-	CP	4
-	JP	Z, TRANSFER_BYTE
-
-	; check if it is not a transfer
-	CP	0
-	JP	NZ, TRANSFER_HEADER
-
-	LD	A, (PICBYTE)
-	CP	CMD_MAX
-	JP	P, SIMULATE_KEYBOARD ; >= CMD_MAX
-
-TRANSFER_HEADER
-	; transfer into the header
-	LD	HL, CURRENT_CMD
-	LD	A, (CURRENT_PTR)
-	LD	C, A
-	LD	B, 0
-	ADD	HL, BC
-	LD	A, (PICBYTE)
-	LD	(HL), A
-	INC	C
-	LD	A, C
-	LD	(CURRENT_PTR), A
-
-	JP	END_HANDLE_SERIAL
-
-TRANSFER_BYTE
-	; transfer into RAM
-	LD	HL, (CURRENT_ADDR)
-	LD	A, (PICBYTE)
-	LD	(HL), A
-	INC	HL
-	LD	(CURRENT_ADDR), HL
-	LD	A, (CURRENT_LEN)
-	DEC	A
-	LD	(CURRENT_LEN), A
-	JP	NZ, END_HANDLE_SERIAL
-
-	LD	(CURRENT_PTR), A
-
-	JP	END_HANDLE_SERIAL
-
-SIMULATE_KEYBOARD
-	LD	HL, KEYBUF
-	LD	A, (NUMKEY)
-	LD	C, A
-	LD	B, 0
-	ADD	HL, BC		; HL = pointer into buffer
-	INC	A
-	LD	(NUMKEY), A
-
-	LD	A, (PICBYTE)	; Key in A
-	LD	(HL), A		; Stick our letter in buffer
-
-END_HANDLE_SERIAL
-
-	POP	BC
-	POP	HL
-	RET
-
-;------------------
-
-HANDLE_KEYBOARD
-	PUSH	HL
-	PUSH	BC
-
-	LD	A, (PICBYTE)	; Get the byte
-
-	CP	UP_KEY		; Key-up is preceded by UP_KEY
-	JP	NZ, NOT_UP_KEY
-
-	LD	A, 1
-	LD	(UPKEY_FLAG), A
-	JP	END_HANDLE_KEYBOARD
-
-NOT_UP_KEY
-	CP	EXT_KEY		; Extended keys preceded by EXT_KEY
-	JP	Z, DID_KEY	; For now just ignore
-
-	CP	EXT2_KEY	; Break preceded by EXT2_KEY
-	JP	Z, DID_KEY	; For now just ignore
-
-	BIT	7, A		; See if high bit is on
-	JP	NZ, DID_KEY	; Ignore if >= 128
-
-	CP	LSHIFT_KEY	; See if it is a shift key
-	JP	Z, IS_SHIFT
-	CP	RSHIFT_KEY
-	JP	NZ, NOT_SHIFT
-IS_SHIFT
-	LD	A, (UPKEY_FLAG)
-	XOR	1
-	LD	(SHIFT_STATUS), A
-	JP	DID_KEY
-
-NOT_SHIFT
-	CP	CTRL_KEY	; See if it is a control key
-	JP	NZ, NOT_CTRL
-
-	LD	A, (UPKEY_FLAG)
-	XOR	1
-	LD	(CTRL_STATUS), A
-	JP	DID_KEY
-
-NOT_CTRL
-	CP	ALT_KEY		; See if it is an alt key
-	JP	NZ, NOT_ALT
-
-	LD	A, (UPKEY_FLAG)
-	XOR	1
-	LD	(ALT_STATUS), A
-	JP	DID_KEY
-
-NOT_ALT
-	LD	L, A		; HL = A
-	LD	H, 0
-
-	LD	A, (UPKEY_FLAG) ; Ignore all other key ups
-	CP	1
-	JP	Z, DID_KEY
-
-	ADD	HL, HL		; HL *= 4
-	ADD	HL, HL
-
-	LD	B, 0
-	LD	A, (SHIFT_STATUS)
-	LD	C, A
-	ADD	HL, BC
-
-	LD	A, (CTRL_STATUS)
-	LD	C, A
-	ADD	HL, BC
-	ADD	HL, BC
-
-	LD	A, (ALT_STATUS)
-	LD	C, A
-	ADD	HL, BC
-	ADD	HL, BC
-	ADD	HL, BC
-
-	LD	BC, KEY_XLAT	; Translation table
-	ADD	HL, BC
-
-	LD	A, (HL)		; Get actual key
-	PUSH	AF
-
-	LD	HL, KEYBUF
-	LD	A, (NUMKEY)
-	LD	C, A
-	LD	B, 0
-	ADD	HL, BC		; HL = pointer into buffer
-	INC	A
-	LD	(NUMKEY), A
-
-	POP	AF		; Key in A
-	LD	(HL), A		; Stick our ASCII letter in there
-
-
-DID_KEY
-	; Reset "up" flag
-	LD	A, 0
-	LD	(UPKEY_FLAG), A
-
-END_HANDLE_KEYBOARD
-
-	POP	BC
-	POP	HL
 	RET
 
 ;------------------
@@ -665,8 +382,8 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 
 	ORG	09000H
 
-#include "zcc_out.asm"
-#include "libc.asm"
+; #include "zcc_out.asm"
+; #include "libc.asm"
 
 	ORG	03F00H
 INTTABLE
