@@ -26,6 +26,7 @@ TIMER_COUNTER   EQU     0800EH ; incremented each time we get a timer.
 KEYBUF		EQU	08100H ; keyboard buffer.
 INPUT_BUF	EQU	08200H
 OUTPUT_BUF	EQU	08300H
+GFX_BUF     	EQU	08400H ; graphics variables
 
 LSHIFT_KEY	EQU	012H
 RSHIFT_KEY	EQU	059H
@@ -53,7 +54,7 @@ CMD_MAX		EQU	003H	; one past max value of a command
 
 MAIN
         CALL    GFX_INIT
-        CALL    GFX_CLS
+        CALL    GFX_CLEAR
 
         LD      A, 4
         CALL    GFX_GRAYBAR
@@ -385,6 +386,7 @@ KEY_XLAT 	; Normal, shift, ctrl, alt
 
 ; #include "zcc_out.asm"
 ; #include "libc.asm"
+#include "graphics.asm"
 
 	ORG	03F00H
 INTTABLE
