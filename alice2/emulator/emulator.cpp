@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <unistd.h>
+#include <signal.h>
 #include <map>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -781,13 +782,12 @@ void print_state(Z80_STATE* state)
 struct Debugger
 {
     char breakpoints[65536];
-    bool initial_break;
+    sig_t previous_sigint;
     void ctor()
     {
         memset(breakpoints, 0, sizeof(breakpoints));
     }
-    Debugger() :
-        initial_break(true)
+    Debugger()
     {
         ctor();
     }
@@ -980,6 +980,12 @@ bool debugger_jump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
     return true;
 }
 
+bool debugger_quit(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    quit = true;
+    return true;
+}
+
 bool debugger_break(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 2) {
@@ -1027,6 +1033,8 @@ void populate_command_handlers()
     command_handlers["break"] = debugger_break;
     command_handlers["nobreak"] = debugger_nobreak;
     command_handlers["list"] = debugger_list;
+    command_handlers["quit"] = debugger_quit;
+    command_handlers["exit"] = debugger_quit;
         // dis addr count
         // reset
 }
@@ -1067,15 +1075,23 @@ bool Debugger::process_line(std::vector<board_base*>& boards, Z80_STATE* state, 
 
 bool Debugger::should_debug(std::vector<board_base*>& boards, Z80_STATE* state)
 {
-    return initial_break || breakpoints[state->pc];
+    return breakpoints[state->pc];
+}
+
+bool enter_debugger = false;
+
+void mark_enter_debugger(int signal)
+{
+    enter_debugger = true;
 }
 
 void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
 {
+    signal(SIGINT, previous_sigint);
     for(auto b = boards.begin(); b != boards.end(); b++)
         (*b)->pause();
 
-    if(!feof(fp) && (initial_break || breakpoints[state->pc])) {
+    if(!feof(fp)) {
         bool run = false;
         do {
             print_state(state);
@@ -1097,7 +1113,7 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
     for(auto b = boards.begin(); b != boards.end(); b++) 
         (*b)->resume();
 
-    initial_break = false;
+    previous_sigint = signal(SIGINT, mark_enter_debugger);
 }
 
 int main(int argc, char **argv)
@@ -1192,7 +1208,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-
     char *filename = argv[0];
     unsigned char b[16384];
     if (strlen(filename) >= 4 && strcmp(filename + strlen(filename) - 4, ".hex") == 0) {
@@ -1274,6 +1289,7 @@ int main(int argc, char **argv)
     rfbProcessEvents(server, 1000);
 
     if(debugger) {
+        enter_debugger = true;
         debugger->process_line(boards, &state, debugger_argument);
         cycles_per_loop = 1;
     }
@@ -1284,8 +1300,9 @@ int main(int argc, char **argv)
     unsigned long long cycles_then = 0;
     while(!quit)
     {
-        if(debugger && debugger->should_debug(boards, &state)) {
+        if(enter_debugger || debugger->should_debug(boards, &state)) {
             debugger->go(stdin, boards, &state);
+            enter_debugger = false;
         } else {
             total_cycles += Z80Emulate(&state, cycles_per_loop);
             time_t then;
