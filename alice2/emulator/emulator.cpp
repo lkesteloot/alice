@@ -193,6 +193,7 @@ struct IOboard : board_base
     double last_timer_interrupt;
     const double timer_frequency_hertz = 10;
     const double timer_interval_seconds = 1.0 / timer_frequency_hertz;
+    bool paused;
 
     enum { NONE, PENDING, SIGNALED } interrupt_status;
 
@@ -202,7 +203,8 @@ struct IOboard : board_base
     IOboard(bool use_old_PIC_commands_, bool give_timer_interrupts_) :
         interrupt_status(NONE),
         use_old_PIC_commands(use_old_PIC_commands_),
-        give_timer_interrupts(give_timer_interrupts_)
+        give_timer_interrupts(give_timer_interrupts_),
+        paused(false)
     { }
 
     virtual bool io_read(int addr, unsigned char &data)
@@ -325,9 +327,29 @@ struct IOboard : board_base
     }
 
     int data_sock = -1;
+    double pause_time;
+
+    void pause()
+    {
+        paused = true;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        pause_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+    }
+
+    void resume()
+    {
+        paused = false;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        double now = tv.tv_sec + tv.tv_usec / 1000000.0;
+        last_timer_interrupt += (now - pause_time);
+    }
 
     void idle()
     {
+        if(paused)
+            return;
         if(give_timer_interrupts) {
             struct timeval tv;
             gettimeofday(&tv, NULL);
@@ -720,7 +742,6 @@ static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
             break;
 }
 
-const int cycles_per_loop = 50000;
 
 void usage(char *progname)
 {
@@ -776,7 +797,7 @@ struct Debugger
     bool should_debug(std::vector<board_base*>& boards, Z80_STATE* state);
 };
 
-typedef bool (*command_handler)(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv);
+typedef bool (*command_handler)(Debugger* d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv);
 
 std::map<std::string, command_handler> command_handlers;
 
@@ -789,7 +810,7 @@ void store_memory(void *arg, int address, unsigned char p)
     info[2]++; // XXX Could be overwrites...
 }
 
-bool debugger_readhex(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_readhex(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 2) {
         fprintf(stderr, "readhex: expected filename argument\n");
@@ -813,7 +834,7 @@ bool debugger_readhex(std::vector<board_base*>& boards, Z80_STATE* state, int ar
     return false;
 }
 
-bool debugger_readbin(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_readbin(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 3) {
         fprintf(stderr, "readbin: expected filename and address\n");
@@ -871,7 +892,7 @@ void dump_buffer_hex(int indent, int actual_address, unsigned char *data, int si
     }
 }
 
-bool debugger_dump(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_dump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 3) {
         fprintf(stderr, "dump: expected address and length\n");
@@ -886,7 +907,7 @@ bool debugger_dump(std::vector<board_base*>& boards, Z80_STATE* state, int argc,
     return false;
 }
 
-bool debugger_in(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_in(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 2) {
         fprintf(stderr, "out: expected port number\n");
@@ -899,7 +920,7 @@ bool debugger_in(std::vector<board_base*>& boards, Z80_STATE* state, int argc, c
     return false;
 }
 
-bool debugger_out(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_out(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 3) {
         fprintf(stderr, "out: expected port number and byte\n");
@@ -911,30 +932,32 @@ bool debugger_out(std::vector<board_base*>& boards, Z80_STATE* state, int argc, 
     return false;
 }
 
-bool debugger_help(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     printf("Debugger commands:\n");
-    printf("\tdump addr count\n");
-    printf("\treadhex file.hex\n");
-    printf("\treadbin addr file.bin\n");
-    printf("\tbreak addr\n");
-    printf("\tnobreak addr\n");
-    printf("\tstep\n");
-    printf("\tdis addr count\n");
-    printf("\tjump addr\n");
-    printf("\tin port\n");
-    printf("\tout byte port\n");
-    printf("\thelp\n");
-    printf("\t?\n");
+    printf("    dump addr count\n");
+    printf("    readhex file.hex\n");
+    printf("    readbin addr file.bin\n");
+    printf("    step\n");
+    printf("    list\n");
+    printf("    break addr\n");
+    printf("    nobreak addr\n");
+    // printf("    dis addr count\n");
+    // printf("    reset\n");
+    printf("    jump addr\n");
+    printf("    in port\n");
+    printf("    out byte port\n");
+    printf("    help\n");
+    printf("    ?\n");
     return false;
 }
 
-bool debugger_continue(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_continue(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     return true;
 }
 
-bool debugger_step(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_step(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     int count = 1;
     if(argc > 1) {
@@ -947,7 +970,7 @@ bool debugger_step(std::vector<board_base*>& boards, Z80_STATE* state, int argc,
     return false;
 }
 
-bool debugger_jump(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+bool debugger_jump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     if(argc != 2) {
         fprintf(stderr, "jump: expected address\n");
@@ -955,6 +978,37 @@ bool debugger_jump(std::vector<board_base*>& boards, Z80_STATE* state, int argc,
     }
     state->pc = strtol(argv[1], NULL, 0);
     return true;
+}
+
+bool debugger_break(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 2) {
+        fprintf(stderr, "break: expected address\n");
+        return false;
+    }
+    int address = strtol(argv[1], NULL, 0);
+    d->breakpoints[address] = 1;
+    return false;
+}
+
+bool debugger_nobreak(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 2) {
+        fprintf(stderr, "break: expected address\n");
+        return false;
+    }
+    int address = strtol(argv[1], NULL, 0);
+    d->breakpoints[address] = 0;
+    return false;
+}
+
+bool debugger_list(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    printf("breakpoints:\n");
+    for(int i = 0; i < 65536; i++)
+        if(d->breakpoints[i])
+            printf("    0x%04X\n", i);
+    return false;
 }
 
 void populate_command_handlers()
@@ -970,9 +1024,9 @@ void populate_command_handlers()
     command_handlers["g"] = debugger_continue;
     command_handlers["step"] = debugger_step;
     command_handlers["jump"] = debugger_jump;
-        // break addr
-        // nobreak addr
-        // list
+    command_handlers["break"] = debugger_break;
+    command_handlers["nobreak"] = debugger_nobreak;
+    command_handlers["list"] = debugger_list;
         // dis addr count
         // reset
 }
@@ -996,7 +1050,7 @@ bool Debugger::process_command(std::vector<board_base*>& boards, Z80_STATE* stat
         return false;
     }
     
-    return (*it).second(boards, state, argc, argv);
+    return (*it).second(this, boards, state, argc, argv);
 }
 
 bool Debugger::process_line(std::vector<board_base*>& boards, Z80_STATE* state, char *line)
@@ -1018,7 +1072,9 @@ bool Debugger::should_debug(std::vector<board_base*>& boards, Z80_STATE* state)
 
 void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
 {
-    // pause() boards
+    for(auto b = boards.begin(); b != boards.end(); b++)
+        (*b)->pause();
+
     if(!feof(fp) && (initial_break || breakpoints[state->pc])) {
         bool run = false;
         do {
@@ -1037,12 +1093,16 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
             }
         } while(!run);
     }
+
+    for(auto b = boards.begin(); b != boards.end(); b++) 
+        (*b)->resume();
+
     initial_break = false;
-    // resume() boards
 }
 
 int main(int argc, char **argv)
 {
+    int cycles_per_loop = 50000;
     VIDEOboard::video_mode video = VIDEOboard::NORMAL;
     LCDboard::lcd_model lcd = LCDboard::LCD_2x16;
     bool use_old_PIC_commands = false;
@@ -1213,8 +1273,10 @@ int main(int argc, char **argv)
     rfbInitServer(server);
     rfbProcessEvents(server, 1000);
 
-    if(debugger)
+    if(debugger) {
         debugger->process_line(boards, &state, debugger_argument);
+        cycles_per_loop = 1;
+    }
 
     time_t time_then;
     time_then = time(NULL);
