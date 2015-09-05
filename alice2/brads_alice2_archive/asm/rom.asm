@@ -63,12 +63,13 @@ CMD_MAX		EQU	003H	; one past max value of a command
 ;
 
 MAIN
-        ; DI
         CALL    GFX_INIT
-        CALL    GFX_CLEAR
+        CALL    GFX_TESTPAT
+        ; CALL    GFX_CLEAR
 
         LD      A, 4
         CALL    GFX_GRAYBAR
+        HALT
 
 ;
 ; Setup the 8259
