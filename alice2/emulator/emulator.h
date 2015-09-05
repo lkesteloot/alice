@@ -21,6 +21,8 @@ struct board_base
     virtual bool get_rfb_requirements(int& w, int& h) { w=-1; h=-1; return false; } 
     virtual void set_rfb(rfbScreenInfoPtr server, int x, int y) { }
     virtual void idle(void) {};
+    virtual void pause(void) {};
+    virtual void resume(void) {};
 };
 
 extern std::vector<board_base*> boards;
