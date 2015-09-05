@@ -1,9 +1,13 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <string>
 #include <unistd.h>
 #include <map>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include "emulator.h"
 #include <rfb/keysym.h>
@@ -193,10 +197,12 @@ struct IOboard : board_base
     enum { NONE, PENDING, SIGNALED } interrupt_status;
 
     bool use_old_PIC_commands; // Use the old SER, TIM, and KBD command bytes
+    bool give_timer_interrupts; // Use the old SER, TIM, and KBD command bytes
 
-    IOboard(bool use_old_PIC_commands_) :
+    IOboard(bool use_old_PIC_commands_, bool give_timer_interrupts_) :
         interrupt_status(NONE),
-        use_old_PIC_commands(use_old_PIC_commands_)
+        use_old_PIC_commands(use_old_PIC_commands_),
+        give_timer_interrupts(give_timer_interrupts_)
     { }
 
     virtual bool io_read(int addr, unsigned char &data)
@@ -322,13 +328,15 @@ struct IOboard : board_base
 
     void idle()
     {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        double current_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+        if(give_timer_interrupts) {
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+            double current_time = tv.tv_sec + tv.tv_usec / 1000000.0;
 
-        while((current_time - last_timer_interrupt) > timer_interval_seconds) {
-            enqueue(use_old_PIC_commands ? CMD_TIM_old : CMD_TIM);
-            last_timer_interrupt += timer_interval_seconds;
+            while((current_time - last_timer_interrupt) > timer_interval_seconds) {
+                enqueue(use_old_PIC_commands ? CMD_TIM_old : CMD_TIM);
+                last_timer_interrupt += timer_interval_seconds;
+            }
         }
 
         if(data_sock > -1) {
@@ -720,8 +728,13 @@ void usage(char *progname)
     printf("usage: %s [options] {ROM.bin|ROM.hex}\n", progname);
     printf("\n");
     printf("options:\n");
+    printf("\t-debugger init          Invoke debugger on startup\n");
+    printf("\t                        \"init\" can be commands (separated by \";\"\n");
+    printf("\t                        or a filename.  The initial commands can be\n");
+    printf("\t                        the empty string.\n");
     printf("\t-use-old-PIC-commands   Have PIC emulation send old PIC command bytes\n");
     printf("\t                        (for old ripped ROM)\n");
+    printf("\t-no-PIC-timer           Don't issue PIC timer interrupts\n");
     printf("\t-video MODE             Use video MODE\n");
     printf("\t                        \"normal\"  - 176 columns (default)\n");
     printf("\t                        \"double\"  - 352 columns\n");
@@ -731,11 +744,225 @@ void usage(char *progname)
     printf("\n");
 }
 
+void print_state(Z80_STATE* state)
+{
+    printf("BC :%04X  DE :%04X  HL :%04X  AF :%04X  IX : %04X  IY :%04X\n",
+        state->registers.word[Z80_BC], state->registers.word[Z80_DE],
+        state->registers.word[Z80_HL], state->registers.word[Z80_AF],
+        state->registers.word[Z80_IX], state->registers.word[Z80_IY]);
+    printf("BC':%04X  DE':%04X  HL':%04X  AF':%04X\n",
+        state->alternates[Z80_BC], state->alternates[Z80_DE],
+        state->alternates[Z80_HL], state->alternates[Z80_AF]);
+    printf("PC :%04X\n",
+        state->pc);
+}
+
+struct Debugger
+{
+    char breakpoints[65536];
+    bool initial_break;
+    void ctor()
+    {
+        memset(breakpoints, 0, sizeof(breakpoints));
+    }
+    Debugger() :
+        initial_break(true)
+    {
+        ctor();
+    }
+    bool process_line(std::vector<board_base*>& boards, Z80_STATE* state, char *line);
+    bool process_command(std::vector<board_base*>& boards, Z80_STATE* state, char *command);
+    void go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state);
+};
+
+typedef bool (*command_handler)(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv);
+
+std::map<std::string, command_handler> command_handlers;
+
+void store_memory(void *arg, int address, unsigned char p)
+{
+    int *info = (int*)arg;
+    Z80_WRITE_BYTE(address, p);
+    info[0] = std::min(info[0], address);
+    info[1] = std::max(info[1], address);
+    info[2]++; // XXX Could be overwrites...
+}
+
+bool debugger_readhex(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 2) {
+        fprintf(stderr, "readhex: expected filename argument\n");
+        return false;
+    }
+    FILE *fp = fopen(argv[1], "ra");
+    if(fp == NULL) {
+        fprintf(stderr, "failed to open %s for reading\n", argv[1]);
+        return false;
+    }
+    int info[3] = {0xffff, 0, 0};
+    int success = read_hex_func(fp, store_memory, info, 0);
+    if (!success) {
+        fprintf(stderr, "error reading hex file %s\n", argv[1]);
+        fclose(fp);
+        return false;
+    }
+    printf("Read %d bytes from %s into 0x%04X..0x%04X (might be sparse)\n",
+        info[2], argv[1], info[0], info[1]);
+    fclose(fp);
+    return false;
+}
+
+void dump_buffer_hex(int indent, int actual_address, unsigned char *data, int size)
+{
+    int address = 0;
+    int screen_lines = 0;
+
+    while(size > 0) {
+        if(screen_lines >= 24) { 
+            printf(":");
+            static char line[512];
+            fgets(line, sizeof(line), stdin);
+            screen_lines = 0;
+        }
+        int howmany = std::min(size, 16);
+
+        printf("%*s0x%04X: ", indent, "", actual_address + address);
+        for(int i = 0; i < howmany; i++)
+            printf("%02X ", data[i]);
+        printf("\n");
+
+        printf("%*s        ", indent, "");
+        for(int i = 0; i < howmany; i++)
+            printf(" %c ", isprint(data[i]) ? data[i] : '.');
+        printf("\n");
+        screen_lines++;
+
+        size -= howmany;
+        data += howmany;
+        address += howmany;
+    }
+}
+
+bool debugger_dump(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 3) {
+        fprintf(stderr, "dump: expected address and length\n");
+        return false;
+    }
+    int address = strtol(argv[1], NULL, 0);
+    int length = strtol(argv[2], NULL, 0);
+    static unsigned char buffer[65536];
+    for(int i = 0; i < length; i++)
+        Z80_READ_BYTE(address + i, buffer[i]);
+    dump_buffer_hex(4, address, buffer, length);
+    return false;
+}
+
+bool debugger_help(std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    printf("Debugger commands:\n");
+    printf("\tdump addr count\n");
+    printf("\treadhex file.hex\n");
+    printf("\tputbin addr file.bin\n");
+    printf("\tbreak addr\n");
+    printf("\tnobreak addr\n");
+    printf("\tstep\n");
+    printf("\tdis addr count\n");
+    printf("\tjump addr\n");
+    printf("\tin port\n");
+    printf("\tout byte port\n");
+    printf("\thelp\n");
+    printf("\t?\n");
+    return false;
+}
+
+void populate_command_handlers()
+{
+    command_handlers["readhex"] = debugger_readhex;
+    command_handlers["dump"] = debugger_dump;
+    command_handlers["?"] = debugger_help;
+    command_handlers["help"] = debugger_help;
+        // dump addr count
+        // readhex file.hex
+        // putbin addr file.bin
+        // break addr
+        // list
+        // disable
+        // enable
+        // step
+        // dis addr count
+        // jump addr
+        // in port
+        // out byte port
+        // help; ?
+}
+
+bool Debugger::process_command(std::vector<board_base*>& boards, Z80_STATE* state, char *command)
+{
+    // process commands
+    char **ap, *argv[10];
+
+    for (ap = argv; (*ap = strsep(&command, " \t")) != NULL;)
+        if (**ap != '\0')
+            if (++ap >= &argv[10])
+                break;
+    int argc = ap - argv;
+    if(argc == 0)
+        return false;
+
+    auto it = command_handlers.find(argv[0]);
+    if(it == command_handlers.end()) {
+        fprintf(stderr, "debugger command not defined: \"%s\"\n", argv[0]);
+    } else {
+        (*it).second(boards, state, argc, argv);
+    }
+
+    return false;
+}
+
+bool Debugger::process_line(std::vector<board_base*>& boards, Z80_STATE* state, char *line)
+{
+    char *command;
+
+    while((command = strsep(&line, ";")) != NULL) {
+        bool run = process_command(boards, state, command);
+        if(run)
+            return true;
+    }
+    return false;
+}
+
+void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
+{
+    if(!feof(fp) && (initial_break || breakpoints[state->pc])) {
+        bool run = false;
+        do {
+            print_state(state);
+            if(fp == stdin) {
+                char *line;
+                line = readline(" ? ");
+                run = process_line(boards, state, line);
+                free(line);
+            } else {
+                char line[512];
+                if(fgets(line, sizeof(line), fp) == NULL)
+                    break;
+                line[strlen(line) - 1] = '\0';
+                run = process_line(boards, state, line);
+            }
+        } while(!run);
+    }
+    initial_break = false;
+}
+
 int main(int argc, char **argv)
 {
     VIDEOboard::video_mode video = VIDEOboard::NORMAL;
     LCDboard::lcd_model lcd = LCDboard::LCD_2x16;
     bool use_old_PIC_commands = false;
+    bool give_timer_interrupts = true;
+    Debugger *debugger = NULL;
+    char *debugger_argument = NULL;
 
     char *progname = argv[0];
     argc -= 1;
@@ -749,6 +976,20 @@ int main(int argc, char **argv)
          {
              usage(progname);
              exit(EXIT_SUCCESS);
+	} else if(strcmp(argv[0], "-debugger") == 0) {
+            if(argc < 2) {
+                fprintf(stderr, "-debugger requires initial commands (can be empty, e.g. \"\"\n");
+                usage(progname);
+                exit(EXIT_FAILURE);
+            }
+            debugger = new Debugger();
+            debugger_argument = argv[1];
+	    argc -= 2;
+	    argv += 2;
+	} else if(strcmp(argv[0], "-no-PIC-timer") == 0) {
+            give_timer_interrupts = false;
+	    argc -= 1;
+	    argv += 1;
 	} else if(strcmp(argv[0], "-use-old-PIC-commands") == 0) {
             use_old_PIC_commands = true;
 	    argc -= 1;
@@ -805,6 +1046,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+
     char *filename = argv[0];
     unsigned char b[16384];
     if (strlen(filename) >= 4 && strcmp(filename + strlen(filename) - 4, ".hex") == 0) {
@@ -835,13 +1077,14 @@ int main(int argc, char **argv)
     }
 
     populate_keycode_map();
+    populate_command_handlers();
 
     boards.push_back(new PIC8259board());
     boards.push_back(new ROMboard(b));
     boards.push_back(new RAMboard());
     boards.push_back(new VIDEOboard(video));
     boards.push_back(new LCDboard(lcd));
-    boards.push_back(new IOboard(use_old_PIC_commands));
+    boards.push_back(new IOboard(use_old_PIC_commands, give_timer_interrupts));
 
     const int border_width = 4;
     const int border_height = 4;
@@ -884,22 +1127,29 @@ int main(int argc, char **argv)
     rfbInitServer(server);
     rfbProcessEvents(server, 1000);
 
+    if(debugger)
+        debugger->process_line(boards, &state, debugger_argument);
+
     time_t time_then;
     time_then = time(NULL);
     unsigned long long total_cycles = 0;
     unsigned long long cycles_then = 0;
     while(!quit)
     {
-        total_cycles += Z80Emulate(&state, cycles_per_loop);
-        time_t then;
-        then = time(NULL);
+        if(debugger) {
+            debugger->go(stdin, boards, &state);
+        } else {
+            total_cycles += Z80Emulate(&state, cycles_per_loop);
+            time_t then;
+            then = time(NULL);
 
-        time_t time_now;
-        time_now = time(NULL);
-        if(time_now != time_then) {
-            if(debug) printf("%llu cycles-ish per second\n", total_cycles - cycles_then);
-            cycles_then = total_cycles;
-            time_then = time_now;
+            time_t time_now;
+            time_now = time(NULL);
+            if(time_now != time_then) {
+                if(debug) printf("%llu cycles-ish per second\n", total_cycles - cycles_then);
+                cycles_then = total_cycles;
+                time_then = time_now;
+            }
         }
 
         rfbProcessEvents(server, 1000);
