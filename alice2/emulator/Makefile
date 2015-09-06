@@ -1,7 +1,7 @@
 .PHONY: all
-OPT=-g
+OPT=-O2
 LDFLAGS=-L/opt/local/lib -lvncserver -lreadline
-CXXFLAGS=-I/opt/local/include -std=c++11 $(OPT)
+CXXFLAGS=-Wall -I/opt/local/include -std=c++11 $(OPT)
 
 all: emulator sendhex
 
