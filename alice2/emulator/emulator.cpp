@@ -11,8 +11,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "emulator.h"
 #include <rfb/keysym.h>
+#include "emulator.h"
 
 #include "z80emu.h"
 #include "8x16.h"
@@ -170,19 +170,20 @@ void populate_keycode_map()
 
 struct socket_connection
 {
-    int listen_sock;
-    int data_sock;
+    int listen_socket;
+    int data_socket;
+
     bool listen(int port)
     {
-        listen_sock = socket(PF_INET, SOCK_STREAM, 0);
-        if(listen_sock < 0) {
+        listen_socket = socket(PF_INET, SOCK_STREAM, 0);
+        if(listen_socket < 0) {
             perror("socket");
             return false;
         }
-        fcntl(listen_sock, F_SETFL, O_NONBLOCK);
+        fcntl(listen_socket, F_SETFL, O_NONBLOCK);
 
         int reuse = 1;
-        if(setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
+        if(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
             perror("setsockopt");
             return false;
         }
@@ -194,75 +195,79 @@ struct socket_connection
         addr.s_addr = 0;
         socket_addr.sin_addr = addr;
 
-        if(bind(listen_sock, (struct sockaddr*)&socket_addr, sizeof(socket_addr)) != 0) {
+        if(bind(listen_socket, (struct sockaddr*)&socket_addr, sizeof(socket_addr)) != 0) {
             perror("bind");
             return false;
         }
 
-        if(::listen(listen_sock, 1) != 0) {
+        if(::listen(listen_socket, 1) != 0) {
             perror("listen");
             return false;
         }
-        data_sock = -1;
+        data_socket = -1;
         return true;
     }
-    bool connected()
+
+    bool is_connected()
     {
-        return data_sock > -1;
+        return data_socket > -1;
     }
-    ssize_t write(unsigned char *buffer, size_t size)
+
+    ssize_t send(unsigned char *buffer, size_t size)
     {
-        if(data_sock > -1) {
-            return send(data_sock, buffer, size, 0);
-        } else
-        return -1;
+        if(data_socket > -1)
+            return ::send(data_socket, buffer, size, 0);
+        else
+            return -1;
     }
-    bool dataready()
+
+    bool is_data_ready()
     {
-        if(data_sock > -1) {
+        if(data_socket > -1) {
             fd_set fds;
             FD_ZERO(&fds);
-            FD_SET(data_sock, &fds);
+            FD_SET(data_socket, &fds);
 
             struct timeval timeout;
             timeout.tv_sec = 0;
             timeout.tv_usec = 1;
-            if(select(data_sock + 1, &fds, NULL, NULL, &timeout) == -1) {
+            if(select(data_socket + 1, &fds, NULL, NULL, &timeout) == -1) {
                 perror("select");
                 exit(EXIT_FAILURE);
             }
 
-            if(FD_ISSET(data_sock, &fds)) {
+            if(FD_ISSET(data_socket, &fds)) {
                 return true;
             }
             return false;
         }
         return false;
     }
+
     ssize_t receive(unsigned char *buffer, size_t size)
     {
-        if(data_sock > -1) {
+        if(data_socket > -1) {
             fd_set fds;
             FD_ZERO(&fds);
-            FD_SET(data_sock, &fds);
+            FD_SET(data_socket, &fds);
 
             struct timeval timeout;
             timeout.tv_sec = 0;
             timeout.tv_usec = 1;
-            if(select(data_sock + 1, &fds, NULL, NULL, &timeout) == -1) {
+            if(select(data_socket + 1, &fds, NULL, NULL, &timeout) == -1) {
                 perror("select");
                 exit(EXIT_FAILURE);
             }
 
-            if(FD_ISSET(data_sock, &fds)) {
+            if(FD_ISSET(data_socket, &fds)) {
                 ssize_t count;
-                count = recv(data_sock, buffer, size, 0);
+                count = recv(data_socket, buffer, size, 0);
                 if(count < 0) {
                     perror("recv");
                     exit(EXIT_FAILURE);
                 } else if(count == 0) {
-                    close(data_sock);
-                    data_sock = -1;
+                    close(data_socket);
+                    data_socket = -1;
                 }
                 return count;
             }
@@ -270,26 +275,27 @@ struct socket_connection
         }
         return 0;
     }
-    bool check()
+
+    bool cycle()
     {
-        if(data_sock == -1) {
+        if(data_socket == -1) {
             fd_set fds;
             FD_ZERO(&fds);
-            FD_SET(listen_sock, &fds);
+            FD_SET(listen_socket, &fds);
 
             struct timeval timeout;
             timeout.tv_sec = 0;
             timeout.tv_usec = 1;
-            if(select(listen_sock + 1, &fds, NULL, NULL, &timeout) == -1) {
+            if(select(listen_socket + 1, &fds, NULL, NULL, &timeout) == -1) {
                 perror("select");
                 return false;
             }
 
-            if(FD_ISSET(listen_sock, &fds)) {
+            if(FD_ISSET(listen_socket, &fds)) {
                 struct sockaddr_in them;
                 socklen_t addrlen = sizeof(them);
-                data_sock = accept(listen_sock, (struct sockaddr *)&them, &addrlen);
-                if(data_sock < 0)
+                data_socket = accept(listen_socket, (struct sockaddr *)&them, &addrlen);
+                if(data_socket < 0)
                 {
                     perror("accept");
                     return false;
@@ -303,6 +309,7 @@ struct socket_connection
 
 struct FakeCPMboard : board_base
 {
+    bool debug;
     static const int CONOUT_OUT = 128; // write console
     static const int CONIN_IN = 128; // read console, NON-BLOCKING!! - loop in BIOS
     static const int CONST_IN = 129; // console read ready ? 0xff : 00
@@ -317,15 +324,15 @@ struct FakeCPMboard : board_base
     static const int READ_SECTOR_IN = 137; // READ sector - returns 0 or error code
     static const int WRITE_SECTOR_IN = 138; // WRITE sector - returns 0 or error code
 
+    static const int sector_length = 128;
+    static const int sectors_per_track = 256;
+    static const int tracks_per_disk = 256;
+    static const int disk_size = tracks_per_disk * sectors_per_track * sector_length;
     int disk;
     int track;
     int sector;
     int dma;
     FILE *disks[4];
-    static const int sector_length = 128;
-    static const int sectors_per_track = 256;
-    static const int tracks_per_disk = 256;
-    static const int disk_size = tracks_per_disk * sectors_per_track * sector_length;
 
     FakeCPMboard(char *args) :
         disk(0),
@@ -333,6 +340,7 @@ struct FakeCPMboard : board_base
         sector(0),
         dma(0)
     {
+        debug = true;
         char **ap, *disknames[10];
 
         for (ap = disknames; (*ap = strsep(&args, " \t")) != NULL;)
@@ -340,6 +348,7 @@ struct FakeCPMboard : board_base
                 if (++ap >= &disknames[10])
                     break;
         int diskcount = ap - disknames;
+
         for(int i = 0; i < 4; i++) {
             if(i < diskcount) {
                 disks[i] = fopen(disknames[i], "r+");
@@ -347,9 +356,11 @@ struct FakeCPMboard : board_base
                     fprintf(stderr, "couldn't open %s as a CPM disk.  To create it as a formatted 8MB CP/M disk, try \"python -c 'import sys; sys.stdout.write(\"\\xe5\"*(8192*1024));' > %s\"\n", disknames[i], disknames[i]);
                     exit(EXIT_FAILURE);
                 }
+
                 fseek(disks[i], 0, SEEK_END);
+
                 if(ftell(disks[i]) != disk_size) {
-                    fprintf(stderr, "%s isn't an 8MB. To create it as a formatted 8MB CP/M disk, try \"python -c 'import sys; sys.stdout.write(\"\\xe5\"*(8192*1024));' > %s\"\n", disknames[i], disknames[i]);
+                    fprintf(stderr, "%s is %lu bytes, and not 8MB. To create it as a formatted 8MB CP/M disk, try \"python -c 'import sys; sys.stdout.write(\"\\xe5\"*(8192*1024));' > %s\"\n", disknames[i], ftell(disks[i]), disknames[i]);
                     exit(EXIT_FAILURE);
                 }
             } else 
@@ -362,22 +373,22 @@ struct FakeCPMboard : board_base
     socket_connection conn;
     virtual bool io_write(int addr, unsigned char data)
     {
-        if(!conn.check()) {
+        if(!conn.cycle()) {
             fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
             exit(EXIT_FAILURE);
         }
 
         switch(addr) {
             case CONOUT_OUT:
-                if(!conn.connected()) {
+                if(!conn.is_connected()) {
                     queued.push_back(data);
                 } else {
                     if(queued.size() > 0) {
                         for(int i = 0; i < queued.size(); i++)
-                            conn.write(&queued[i], 1);
+                            conn.send(&queued[i], 1);
                         queued.clear();
                     }
-                    conn.write(&data, 1);
+                    conn.send(&data, 1);
                 }
                 return true;
                 break;
@@ -421,8 +432,8 @@ struct FakeCPMboard : board_base
     }
     virtual bool io_read(int addr, unsigned char &data)
     {
-        if(!conn.check()) {
-            fif(debug)printf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
+        if(!conn.cycle()) {
+            if(debug)fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
             exit(EXIT_FAILURE);
         }
 
@@ -434,7 +445,7 @@ struct FakeCPMboard : board_base
                 return true;
                 break;
             case CONST_IN:
-                data = conn.dataready() ? 0xFF : 0x00;
+                data = conn.is_data_ready() ? 0xFF : 0x00;
                 return true;
                 break;
             case DISKSTAT_IN: // READ sector - returns 0 or error code
@@ -448,9 +459,9 @@ struct FakeCPMboard : board_base
                     fread(buffer, sizeof(buffer), 1, disks[disk]);
                     for(int i = 0; i < sector_length; i++)
                         Z80_WRITE_BYTE(dma + i, buffer[i]);
-                    data = 0xff;
-                } else
                     data = 0x00;
+                } else
+                    data = 0xff;
                 return true;
                 break;
             case WRITE_SECTOR_IN: // WRITE sector - returns 0 or error code
@@ -460,9 +471,9 @@ struct FakeCPMboard : board_base
                     for(int i = 0; i < sector_length; i++)
                         Z80_READ_BYTE(dma + i, buffer[i]);
                     fwrite(buffer, sizeof(buffer), 1, disks[disk]);
-                    data = 0xff;
-                } else
                     data = 0x00;
+                } else
+                    data = 0xff;
                 return true;
                 break;
         }
@@ -476,7 +487,14 @@ struct FakeCPMboard : board_base
         }
         printf("listening on port 6607 for Fake CPM HW console emulation\n");
     }
-    virtual void idle(void) {};
+    virtual void idle(void)
+    {
+        if(conn.is_connected() && queued.size() > 0) {
+            for(int i = 0; i < queued.size(); i++)
+                conn.send(&queued[i], 1);
+            queued.clear();
+        }
+    }
     virtual void pause(void) {};
     virtual void resume(void) {};
 };
@@ -516,10 +534,10 @@ struct IOboard : board_base
     bool give_timer_interrupts; // Use the old SER, TIM, and KBD command bytes
 
     IOboard(bool use_old_PIC_commands_, bool give_timer_interrupts_) :
+        paused(false),
         interrupt_status(NONE),
         use_old_PIC_commands(use_old_PIC_commands_),
-        give_timer_interrupts(give_timer_interrupts_),
-        paused(false)
+        give_timer_interrupts(give_timer_interrupts_)
     { }
 
     virtual bool io_read(int addr, unsigned char &data)
@@ -648,7 +666,7 @@ struct IOboard : board_base
             }
         }
 
-        if(conn.connected()) {
+        if(conn.is_connected()) {
             static unsigned char buffer[128];
             ssize_t count;
             count = conn.receive(buffer, sizeof(buffer));
@@ -657,7 +675,7 @@ struct IOboard : board_base
                 enqueue(buffer[i]);
             }
         }
-        if(!conn.check()) {
+        if(!conn.cycle()) {
             fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
             exit(EXIT_FAILURE);
         }
@@ -1003,12 +1021,60 @@ void print_state(Z80_STATE* state)
 struct Debugger
 {
     char breakpoints[65536];
+    std::string symbols[65536]; // XXX excessive memory?
     sig_t previous_sigint;
     bool state_may_have_changed;
+    bool last_was_step;
+    bool last_was_jump;
+    std::string& get_symbol(int address, int& offset)
+    {
+        static std::string no_symbol = "";
+        offset = 0;
+        while(address >= 0 && symbols[address].empty()) {
+            address--;
+            offset++;
+        }
+        if(address < 0)
+            return no_symbol;
+        return symbols[address];
+    }
+    bool load_symbols(char *filename)
+    {
+        FILE *fp = fopen(filename, "ra");
+        if(fp == NULL) {
+            fprintf(stderr, "couldn't open %s to read symbols\n", filename);
+            return false;
+        }
+        fseek(fp, 0, SEEK_END);
+        ssize_t size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        char* buffer = new char[size];
+        fread(buffer, size, 1, fp);
+        fclose(fp);
+        char *symbol_part = buffer;
+        while((symbol_part - buffer) < size && (*symbol_part != ''))
+            symbol_part++;
+        if(symbol_part - buffer >= size) {
+            fprintf(stderr, "couldn't find symbol section in %s\n", filename);
+            delete[] buffer;
+            return false;
+        }
+        int address, consumed;
+        char symbol[512];
+        while(sscanf(symbol_part, "%x %s%n", &address, symbol, &consumed) == 2) {
+            symbols[address] = symbol;
+            symbol_part += consumed;
+        }
+
+        delete[] buffer;
+        return true;
+    }
     void ctor()
     {
         memset(breakpoints, 0, sizeof(breakpoints));
         state_may_have_changed = true;
+        last_was_step = false;
+        last_was_jump = false;
     }
     Debugger()
     {
@@ -1020,6 +1086,7 @@ struct Debugger
     bool should_debug(std::vector<board_base*>& boards, Z80_STATE* state);
 };
 
+// XXX make this pointers-to-members
 typedef bool (*command_handler)(Debugger* d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv);
 
 std::map<std::string, command_handler> command_handlers;
@@ -1064,7 +1131,12 @@ bool debugger_readbin(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* 
         return false;
     }
     static unsigned char buffer[128];
-    int address = strtol(argv[2], NULL, 0);
+    char *endptr;
+    int address = strtol(argv[2], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[2]);
+        return false;
+    }
     int a = address;
     FILE *fp = fopen(argv[1], "rb");
     if(fp == NULL) {
@@ -1121,12 +1193,31 @@ bool debugger_dump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
         fprintf(stderr, "dump: expected address and length\n");
         return false;
     }
-    int address = strtol(argv[1], NULL, 0);
-    int length = strtol(argv[2], NULL, 0);
+    char *endptr;
+    int address = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
+    int length = strtol(argv[2], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[2]);
+        return false;
+    }
     static unsigned char buffer[65536];
     for(int i = 0; i < length; i++)
         Z80_READ_BYTE(address + i, buffer[i]);
     dump_buffer_hex(4, address, buffer, length);
+    return false;
+}
+
+bool debugger_symbols(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 2) {
+        fprintf(stderr, "symbols: expected filename argument\n");
+        return false;
+    }
+    d->load_symbols(argv[1]);
     return false;
 }
 
@@ -1136,9 +1227,22 @@ bool debugger_fill(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
         fprintf(stderr, "fill: expected address, length, and value\n");
         return false;
     }
-    int address = strtol(argv[1], NULL, 0);
-    int length = strtol(argv[2], NULL, 0);
-    int value = strtol(argv[3], NULL, 0);
+    char *endptr;
+    int address = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
+    int length = strtol(argv[2], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[2]);
+        return false;
+    }
+    int value = strtol(argv[3], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[3]);
+        return false;
+    }
     printf("fill %d for %d with %d\n", address, length, value);
     for(int i = 0; i < length; i++)
         Z80_WRITE_BYTE(address + i, value);
@@ -1151,7 +1255,12 @@ bool debugger_in(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state
         fprintf(stderr, "out: expected port number\n");
         return false;
     }
-    int port = strtol(argv[1], NULL, 0);
+    char *endptr;
+    int port = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
     unsigned char byte;
     Z80_INPUT_BYTE(port, byte);
     printf("received byte 0x%02X from port %d (0x%02X)\n", byte, port, port);
@@ -1164,8 +1273,17 @@ bool debugger_out(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* stat
         fprintf(stderr, "out: expected port number and byte\n");
         return false;
     }
-    int port = strtol(argv[1], NULL, 0);
-    int value = strtol(argv[2], NULL, 0);
+    char *endptr;
+    int port = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
+    int value = strtol(argv[2], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[2]);
+        return false;
+    }
     Z80_OUTPUT_BYTE(port, value);
     return false;
 }
@@ -1173,21 +1291,24 @@ bool debugger_out(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* stat
 bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     printf("Debugger commands:\n");
-    printf("    dump addr count\n");
-    printf("    fill addr count byte\n");
-    printf("    readhex file.hex\n");
-    printf("    readbin addr file.bin\n");
-    printf("    step\n");
-    printf("    list\n");
-    printf("    break addr\n");
-    printf("    nobreak addr\n");
+    printf("    dump addr count       - dump count bytes at addr\n");
+    printf("    fill addr count byte  - fill count bytes with byte at addr\n");
+    printf("    readhex file.hex      - read file.hex into memory\n");
+    printf("    readbin addr file.bin - read file.bin into memory at addr\n");
+    printf("    step [N]              - step [for N instructions]\n");
+    // printf("    watch addr            - break out of step if addr changes\n");
+    // printf("    nowatch addr          - cancel watch on addr\n");
+    printf("    break addr            - break into debugger at addr\n");
+    printf("    nobreak addr          - remove breakpoint at addr\n");
+    printf("    list                  - list breakpoints and catchpoints\n");
+    printf("    jump addr             - jump to addr \n");
+    printf("    pc addr               - set PC to addr(in anticipation of \"step\")\n");
+    printf("    in port               - input byte from port and print it\n");
+    printf("    out port byte         - output byte to port\n");
+    printf("    help                  - print this help message\n");
+    printf("    ?                     - print this help message\n");
     // printf("    dis addr count\n");
     // printf("    reset\n");
-    printf("    jump addr\n");
-    printf("    in port\n");
-    printf("    out byte port\n");
-    printf("    help\n");
-    printf("    ?\n");
     return false;
 }
 
@@ -1197,17 +1318,45 @@ bool debugger_continue(Debugger *d, std::vector<board_base*>& boards, Z80_STATE*
     return true;
 }
 
+bool brads_zero_check = true;
+
 bool debugger_step(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     int count = 1;
     if(argc > 1) {
-        count = strtol(argv[2], NULL, 0);
+        char *endptr;
+        count = strtol(argv[1], &endptr, 0);
+        if(*endptr != '\0') {
+            printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+            return false;
+        }
     }
     unsigned long long total_cycles = 0;
-    for(int i = 0; i < count; i++)
-        total_cycles += Z80Emulate(state, count);
+    int old_zero;
+    Z80_READ_BYTE(0, old_zero);
+    for(int i = 0; i < count; i++) {
+        total_cycles += Z80Emulate(state, 1);
+        if(i < count - 1) {
+            unsigned char bytes[3];
+            Z80_READ_BYTE(state->pc, bytes[0]);
+            Z80_READ_BYTE(state->pc + 1, bytes[1]);
+            Z80_READ_BYTE(state->pc + 2, bytes[2]);
+            int symbol_offset;
+            std::string& sym = d->get_symbol(state->pc, symbol_offset);
+            printf("%04X %s+0x%04X%*s : %02X %02X %02X\n", state->pc, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "", bytes[0], bytes[1], bytes[2]);
+        }
+        if(brads_zero_check) {
+            int new_zero;
+            Z80_READ_BYTE(0, new_zero);
+            if(new_zero != old_zero) {
+                printf("someone wrote 0\n");
+                break;
+            }
+        }
+    }
     printf("%llu actual cycles emulated\n", total_cycles);
     d->state_may_have_changed = true;
+    d->last_was_step = true;
     return false;
 }
 
@@ -1217,9 +1366,31 @@ bool debugger_jump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
         fprintf(stderr, "jump: expected address\n");
         return false;
     }
-    state->pc = strtol(argv[1], NULL, 0);
+    char *endptr;
+    state->pc = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
     d->state_may_have_changed = true;
+    d->last_was_jump = true;
     return true;
+}
+
+bool debugger_pc(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 2) {
+        fprintf(stderr, "jump: expected address\n");
+        return false;
+    }
+    char *endptr;
+    state->pc = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
+    d->state_may_have_changed = true;
+    return false;
 }
 
 bool debugger_quit(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
@@ -1234,7 +1405,12 @@ bool debugger_break(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* st
         fprintf(stderr, "break: expected address\n");
         return false;
     }
-    int address = strtol(argv[1], NULL, 0);
+    char *endptr;
+    int address = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
     d->breakpoints[address] = 1;
     return false;
 }
@@ -1245,7 +1421,12 @@ bool debugger_nobreak(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* 
         fprintf(stderr, "break: expected address\n");
         return false;
     }
-    int address = strtol(argv[1], NULL, 0);
+    char *endptr;
+    int address = strtol(argv[1], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
+        return false;
+    }
     d->breakpoints[address] = 0;
     return false;
 }
@@ -1267,12 +1448,14 @@ void populate_command_handlers()
     command_handlers["readbin"] = debugger_readbin;
     command_handlers["dump"] = debugger_dump;
     command_handlers["fill"] = debugger_fill;
+    command_handlers["symbols"] = debugger_symbols;
     command_handlers["in"] = debugger_in;
     command_handlers["out"] = debugger_out;
     command_handlers["go"] = debugger_continue;
     command_handlers["g"] = debugger_continue;
     command_handlers["step"] = debugger_step;
     command_handlers["jump"] = debugger_jump;
+    command_handlers["pc"] = debugger_pc;
     command_handlers["break"] = debugger_break;
     command_handlers["nobreak"] = debugger_nobreak;
     command_handlers["list"] = debugger_list;
@@ -1292,9 +1475,15 @@ bool Debugger::process_command(std::vector<board_base*>& boards, Z80_STATE* stat
             if (++ap >= &argv[10])
                 break;
     int argc = ap - argv;
-    if(argc == 0)
-        return false;
 
+    if(argc == 0) {
+        if(last_was_step)
+            return debugger_step(this, boards, state, argc, argv);
+        else
+            return false;
+    }
+
+    last_was_step = false;
     auto it = command_handlers.find(argv[0]);
     if(it == command_handlers.end()) {
         fprintf(stderr, "debugger command not defined: \"%s\"\n", argv[0]);
@@ -1318,7 +1507,9 @@ bool Debugger::process_line(std::vector<board_base*>& boards, Z80_STATE* state, 
 
 bool Debugger::should_debug(std::vector<board_base*>& boards, Z80_STATE* state)
 {
-    return breakpoints[state->pc];
+    bool should = !last_was_jump && breakpoints[state->pc];
+    last_was_jump = false;
+    return should;
 }
 
 bool enter_debugger = false;
@@ -1340,6 +1531,13 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
             if(state_may_have_changed) {
                 state_may_have_changed = false;
                 print_state(state);
+                unsigned char bytes[3];
+                Z80_READ_BYTE(state->pc, bytes[0]);
+                Z80_READ_BYTE(state->pc + 1, bytes[1]);
+                Z80_READ_BYTE(state->pc + 2, bytes[2]);
+                int symbol_offset;
+                std::string& sym = get_symbol(state->pc, symbol_offset);
+                printf("%04X %s+0x%04X%*s : %02X %02X %02X\n", state->pc, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "", bytes[0], bytes[1], bytes[2]);
             }
             if(fp == stdin) {
                 char *line;
@@ -1353,6 +1551,9 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
                 line[strlen(line) - 1] = '\0';
                 run = process_line(boards, state, line);
             }
+            for(auto b = boards.begin(); b != boards.end(); b++) 
+                (*b)->idle();
+
         } while(!run);
     }
 
@@ -1425,6 +1626,7 @@ int main(int argc, char **argv)
 	    argv += 2;
 	} else if(strcmp(argv[0], "-fakecpmhw") == 0) {
             use_fake_CPM_HW = true;
+            give_timer_interrupts = false;
             if(argc < 2) {
                 fprintf(stderr, "-fake-CPM_HW requires parameter\n");
                 usage(progname);
@@ -1548,8 +1750,8 @@ int main(int argc, char **argv)
     }
 
     int rfbargc = 0;
-    char **rgbargv = 0;
-    rfbScreenInfoPtr server = rfbGetScreen(&argc,argv,need_width,need_height,8,3,4);
+    char **rfbargv = 0;
+    rfbScreenInfoPtr server = rfbGetScreen(&rfbargc,rfbargv,need_width,need_height,8,3,4);
     unsigned char* rfb_bytes = new unsigned char[need_width*need_height*4];
     server->frameBuffer = (char *)rfb_bytes;
     server->kbdAddEvent = handleKey;

@@ -44,11 +44,38 @@ PPM Example
     # Run simulator in background or other terminal
     % nc localhost 6606 < alice.bin
 
+Debugger
+----------
+Run with the "-debugger" command-line option with a debugger command
+(or an empty string) to start the emulator in the debugger.  Type
+"help" for a list of commands.
+
+Here's an example command that
+1. Swaps RAM for ROM (using an I/O port for control of MEMORYboard)
+2. loads the CPM 2.2 and Brad's Fake CPM HW assembled sources into RAM
+3. loads symbols for those sources
+
+    -debugger "out 9 0;readhex ../cpm/cpm22.hex;readhex ../cpm/fakehw_bios.hex;symbols ../cpm/fakehw_bios.prn;symbols ../cpm/cpm22.prn"
+
+Note:
+    * Only az80-format PRN listing files are currently supported for symbols
+
+Fake CP/M 2.2 Hardware platform
+-------------------------------
+Run with "-fakecpmhw" option to enable "fake" CP/M hardware support
+(for use with Brad's CP/M BIOS that knows the fake HW I/O ports).
+Provide a comma-delimited set of 8MB CP/M disk images as a parameter.
+
+    -fakecpmhw blarg.bin
+
+Here's a python command to create a formatted CP/M 8MB disk image
+called driveA.bin.
+
+    python -c 'import sys; sys.stdout.write(\"\\xe5\"*(8192*1024));' > driveA.bin
+
 ToDo
 ----------
 Why does sending a video BIN end up resetting or hanging the system?  Did it always do that?
-combine RAM and ROM boards
-    Add a port to switch ROM out for RAM
 give video board "safe region" (green) - draw rest as dark green
 image of video monitor around video board output
 image of LCD around LCD bytes
