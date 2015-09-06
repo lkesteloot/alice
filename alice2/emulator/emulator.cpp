@@ -383,24 +383,38 @@ struct FakeCPMboard : board_base
                 break;
             case SELDSK_OUT:
                 disk = data;
+                if(debug)printf("Disk now %d\n", disk);
+                return true;
                 break;
             case SELTRK_L_OUT:
                 track = (track & 0xFF00) | (data << 0);
+                if(debug)printf("Track now %d\n", track);
+                return true;
                 break;
             case SELTRK_H_OUT:
                 track = (track & 0x00FF) | (data << 8);
+                if(debug)printf("Track now %d\n", track);
+                return true;
                 break;
             case SELSEC_L_OUT:
                 sector = (sector & 0xFF00) | (data << 0);
+                if(debug)printf("Sector now %d\n", sector);
+                return true;
                 break;
             case SELSEC_H_OUT:
                 sector = (sector & 0x00FF) | (data << 8);
+                if(debug)printf("Sector now %d\n", sector);
+                return true;
                 break;
             case SETDMA_L_OUT:
                 dma = (dma & 0xFF00) | (data << 0);
+                if(debug)printf("DMA address now %d\n", dma);
+                return true;
                 break;
             case SETDMA_H_OUT:
                 dma = (dma & 0x00FF) | (data << 8);
+                if(debug)printf("DMA address now %d\n", dma);
+                return true;
                 break;
         }
         return false;
@@ -408,7 +422,7 @@ struct FakeCPMboard : board_base
     virtual bool io_read(int addr, unsigned char &data)
     {
         if(!conn.check()) {
-            fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
+            fif(debug)printf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
             exit(EXIT_FAILURE);
         }
 
@@ -429,6 +443,7 @@ struct FakeCPMboard : board_base
                 break;
             case READ_SECTOR_IN: // READ sector - returns 0 or error code
                 if(disks[disk] != NULL) {
+                    printf("Read track %d, sector %d (%d) to %d\n", track, sector, (track * sectors_per_track + sector) * sector_length, dma);
                     fseek(disks[disk], (track * sectors_per_track + sector) * sector_length, SEEK_SET);
                     fread(buffer, sizeof(buffer), 1, disks[disk]);
                     for(int i = 0; i < sector_length; i++)
@@ -440,6 +455,7 @@ struct FakeCPMboard : board_base
                 break;
             case WRITE_SECTOR_IN: // WRITE sector - returns 0 or error code
                 if(disks[disk] != NULL) {
+                    printf("Write track %d, sector %d (%d) to %d\n", track, sector, (track * sectors_per_track + sector) * sector_length, dma);
                     fseek(disks[disk], (track * sectors_per_track + sector) * sector_length, SEEK_SET);
                     for(int i = 0; i < sector_length; i++)
                         Z80_READ_BYTE(dma + i, buffer[i]);
@@ -665,20 +681,49 @@ struct PIC8259board : board_base
     }
 };
 
-struct ROMboard : board_base
+struct MEMORYboard : board_base
 {
     unsigned char rom_bytes[16384];
-    int base_addr;
-    ROMboard(unsigned char b[16384]) 
+    unsigned char ram_bytes[65536];
+    bool loram;
+    MEMORYboard(unsigned char rom[16384]) :
+        loram(false)
     {
-        memcpy(rom_bytes, b, sizeof(rom_bytes));
-        base_addr = 0x0000;
+        memcpy(rom_bytes, rom, sizeof(rom_bytes));
     }
     virtual bool memory_read(int addr, unsigned char &data)
     {
-        if(addr >= base_addr && addr < base_addr + sizeof(rom_bytes)) {
-            data = rom_bytes[addr - base_addr];
+        if(!loram && addr >= 0 && addr < sizeof(rom_bytes)) {
+            data = rom_bytes[addr];
             if(debug) printf("read 0x%04X -> 0x%02X from ROM\n", addr, data);
+            return true;
+        }
+        if(addr >= 0 && addr < sizeof(ram_bytes)) {
+            data = ram_bytes[addr];
+            if(debug) printf("read 0x%04X -> 0x%02X from RAM\n", addr, data);
+            return true;
+        }
+        return false;
+    }
+    virtual bool memory_write(int addr, unsigned char data)
+    {
+        if(!loram && addr < sizeof(rom_bytes))
+            return false;
+        if(addr >= 0 && addr < sizeof(ram_bytes)) {
+            ram_bytes[addr] = data;
+            if(debug) printf("wrote 0x%02X to RAM 0x%04X\n", data, addr);
+            return true;
+        }
+        return false;
+    }
+    virtual bool io_write(int addr, unsigned char data)
+    {
+        if(addr == 0x8) {
+            loram = false;
+            return true;
+        }
+        if(addr == 0x9) {
+            loram = true;
             return true;
         }
         return false;
@@ -792,35 +837,6 @@ struct VIDEOboard : board_base
                 }
             }
 
-            return true;
-        }
-        return false;
-    }
-};
-
-struct RAMboard : board_base
-{
-    unsigned char ram_bytes[32768];
-    int base_addr;
-    RAMboard() 
-    {
-        memset(ram_bytes, 0, sizeof(ram_bytes));
-        base_addr = 0x8000;
-    }
-    virtual bool memory_read(int addr, unsigned char &data)
-    {
-        if(addr >= base_addr && addr < base_addr + sizeof(ram_bytes)) {
-            data = ram_bytes[addr - base_addr];
-            if(debug) printf("read 0x%04X -> 0x%02X from RAM\n", addr, data);
-            return true;
-        }
-        return false;
-    }
-    virtual bool memory_write(int addr, unsigned char data)
-    {
-        if(addr >= base_addr && addr < base_addr + sizeof(ram_bytes)) {
-            ram_bytes[addr - base_addr] = data;
-            if(debug) printf("wrote 0x%02X to RAM 0x%04X\n", data, addr);
             return true;
         }
         return false;
@@ -1511,8 +1527,7 @@ int main(int argc, char **argv)
 
     if(use_fake_CPM_HW)
         boards.push_back(new FakeCPMboard(fake_cpm_hw_arg));
-    boards.push_back(new ROMboard(b));
-    boards.push_back(new RAMboard());
+    boards.push_back(new MEMORYboard(b));
     boards.push_back(new PIC8259board());
     boards.push_back(new VIDEOboard(video));
     boards.push_back(new LCDboard(lcd));
