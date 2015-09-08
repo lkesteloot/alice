@@ -1767,6 +1767,8 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
             if(fp == stdin) {
                 char *line;
                 line = readline("? ");
+                if(strlen(line) > 0)
+                    add_history(line);
                 run = process_line(boards, state, line);
                 free(line);
             } else {
