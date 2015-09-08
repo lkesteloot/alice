@@ -10,3 +10,4 @@ cpm22.hex: cpm22.asm
 
 fakehw_bios.hex: fakehw_bios.asm
 
+putsys.hex: putsys.asm
