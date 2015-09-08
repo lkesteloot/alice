@@ -1,6 +1,10 @@
 ;
 ;       modified by Donn Stewart, dstew@cpuville.com, for his Z-80 computer
 ;
+;       modified by Brad Grantham, grantham@plunk.org, for an
+;       idealized HW implementation in a Z-80 computer emulator,
+;       September 2015.
+;
 ;	skeletal cbios for first level of CP/M 2.0 alteration
 ;
 ccp:	equ	0E400h		;base of ccp
