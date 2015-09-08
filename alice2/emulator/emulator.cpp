@@ -1506,12 +1506,17 @@ bool debugger_jump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
         fprintf(stderr, "jump: expected address\n");
         return false;
     }
+
+    if(!lookup_or_parse(d->symbol_to_address, argv[1], state->pc))
+        return false;
+
     char *endptr;
     state->pc = strtol(argv[1], &endptr, 0);
     if(*endptr != '\0') {
         printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[1]);
         return false;
     }
+
     d->state_may_have_changed = true;
     d->last_was_jump = true;
     return true;
