@@ -101,27 +101,42 @@ dpblk:	;disk parameter block for all disks.
 	defm	0		;AL1 - alloc 1
 	defw	0		;CKS - check size
 	defw	2		;OFF - track offset
+
 ;
+;       messages
+;
+SIGNON: DEFM    'CP/M 2.2 for the Alice 2 Z80 computer'
+        DEFB    13,10,0
+
+
 ;	end of fixed tables
+;    
+
 ;
+;       borrowed from Udo Monk's bios-qpm.asm
+;       print a 0 terminated string to console device
+;       pointer to string in HL
+;
+PRTMSG: LD      A,(HL)
+        OR      A
+        RET     Z
+        LD      C,A
+        CALL    conout
+        INC     HL
+        JP      PRTMSG
+
 ;	individual subroutines to perform each function
 boot:	;simplest case is to just perform parameter initialization
+        LD      SP,80H          ;use space below buffer for stack
+        LD      HL,SIGNON       ;print message
+        CALL    PRTMSG
 	XOR	a		;zero in the accum
 	LD	(iobyte),A	;clear the iobyte
 	LD	(cdisk),A	;select disk zero
-        LD      c, 'C'
-        call    conout
-        LD      c, 'O'
-        call    conout
-        LD      c, 'L'
-        call    conout
-        LD      c, 'D'
-        call    conout
-        LD      c, 0Ah
-        call    conout
 	JP	gocpm		;initialize and go to cp/m
 ;
 wboot:	;simplest case is to read the disk until all sectors loaded
+	LD	SP, 80h		;use space below buffer for stack
         LD      c, 'W'
         call    conout
         LD      c, 'A'
@@ -132,7 +147,6 @@ wboot:	;simplest case is to read the disk until all sectors loaded
         call    conout
         LD      c, 0Ah
         call    conout
-	LD	sp, 80h		;use space below buffer for stack
 	LD 	c, 0		;select disk 0
 	call	seldsk
 	call	home		;go to track 00
@@ -148,6 +162,7 @@ load1:	;load	one more sector
 	PUSH	DE		;save next sector to read
 	PUSH	HL		;save dma address
 	LD 	c, d		;get sector address to register C
+        LD      b, 0
 	call	setsec		;set sector address from register C
 	pop	BC		;recall dma address to b, C
 	PUSH	BC		;replace on stack for later recall
@@ -181,6 +196,7 @@ load1:	;load	one more sector
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
+        LD      B, 0
 	call	settrk		;track address set from register c
 	pop	HL
 	pop	DE
@@ -256,7 +272,7 @@ reader:	;reader character into register a from reader device
 ;
 home:	;move to the track 00	position of current drive
 ;	translate this call into a settrk call with Parameter 00
-	LD     c, 0		;select track 0
+	LD     bc, 0		;select track 0
 	call   settrk
 	ret			;we will move to 00 on first read/write
 ;
@@ -282,16 +298,16 @@ seldsk:	;select disk given by register c
 	ret
 ;
 settrk:	;set track given by register c
-	LD 	a, c
 	LD	(track),BC
+	LD 	a, c
 	OUT	(fake_seltrk_l_out),A
 	LD 	a, b
 	OUT	(fake_seltrk_h_out),A
 	ret
 ;
 setsec:	;set sector given by register c
-	LD 	a, c
 	LD	(sector),BC
+	LD 	a, c
 	OUT	(fake_selsec_l_out),A
 	LD 	a, b
 	OUT	(fake_selsec_h_out),A

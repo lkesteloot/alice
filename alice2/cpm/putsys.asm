@@ -1,6 +1,7 @@
 ;Copies the memory image of CP/M loaded at E400h onto tracks 0 and 1 of the first CP/M disk
 ;Load and run from ROM monitor
 ;Uses calls to BIOS, in memory at FA00h
+;XXX grantham; Alice 2 fake disk has 64 sectors per track, but it's okay to leave 26 here
 ;Writes track 0, sectors 2 to 26, then track 1, sectors 1 to 25
 conout:  equ     0fa0ch  ;console out
 seldsk: equ     0fa1bh  ;pass disk no. in c
@@ -17,10 +18,12 @@ monitor_warm_start:     equ     046Fh   ;Return to ROM monitor
         ld      (sector),a
         ld      hl,0E400h       ;start of CCP
         ld      (address),hl
-        ld      c,0     ;CP/M track
+        ld      c,0     ;CP/M track lo
+        ld      b,0     ;CP/M track hi
         call    settrk
 wr_trk_0_loop:  ld      a,(sector)
-        ld      c,a     ;CP/M sector
+        ld      c,a     ;CP/M sector lo
+        ld      b,0     ;CP/M sector hi
         call    setsec
         ld      bc,(address)    ;memory location
         call    setdma
@@ -36,7 +39,8 @@ wr_trk_0_loop:  ld      a,(sector)
         ld      (address),hl
         jp      wr_trk_0_loop
 ;Write track 1, sectors 1 to 25
-wr_trk_1:       ld      c,1
+wr_trk_1:       ld      c,1 ; track lo
+        ld      b, 0 ; track hi
         call    settrk
         ld      hl,(address)
         ld      de,128
@@ -45,7 +49,8 @@ wr_trk_1:       ld      c,1
         ld      a,1
         ld      (sector),a
 wr_trk_1_loop:  ld      a,(sector)
-        ld      c,a     ;CP/M sector
+        ld      c,a     ;CP/M sector hi
+        ld      b,0     ;CP/M sector lo
         call    setsec
         ld      bc,(address)    ;memory location
         call    setdma
