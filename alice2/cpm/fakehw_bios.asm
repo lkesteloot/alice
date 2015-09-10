@@ -80,16 +80,6 @@ dpbase:	defw	0000h, 0000h
 	defw	dirbf, dpblk
 	defw	chk03, all03
 ;
-;	sector translate vector
-;       XXX grantham - used at all? update to match SPT below?
-trans:	defm	 1,  7, 13, 19	;sectors  1,  2,  3,  4
-	defm	25,  5, 11, 17	;sectors  5,  6,  7,  6
-	defm	23,  3,  9, 15	;sectors  9, 10, 11, 12
-	defm	21,  2,  8, 14	;sectors 13, 14, 15, 16
-	defm	20, 26,  6, 12	;sectors 17, 18, 19, 20
-	defm	18, 24,  4, 10	;sectors 21, 22, 23, 24
-	defm	16, 22		;sectors 25, 26
-;
 dpblk:	;disk parameter block for all disks.
 	defw	64		;SPT - sectors per track
 	defm	6		;BSH - block shift factor
@@ -97,8 +87,8 @@ dpblk:	;disk parameter block for all disks.
 	defm	3		;EXM - extent mask
 	defw	1023		;DSM - disk size-1 in blocks
 	defw	1023		;DRM - directory max
-	defm	192		;AL0 - alloc 0
-	defm	0		;AL1 - alloc 1
+	defm	255		;AL0 - alloc 0
+	defm	255		;AL1 - alloc 1
 	defw	0		;CKS - check size
 	defw	2		;OFF - track offset
 
@@ -320,9 +310,6 @@ sectran:
 	EX	DE,HL		;hl=.trans
 	ADD	HL,BC		;hl=.trans (sector)
 	ret			;debug no translation
-	LD 	l, (hl)		;l=trans (sector)
-	LD 	h, 0		;hl=trans (sector)
-	ret			;with value in hl
 ;
 setdma:	;set	dma address given by registers b and c
 	LD 	l, c		;low order address
