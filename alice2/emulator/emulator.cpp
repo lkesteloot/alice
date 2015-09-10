@@ -173,6 +173,13 @@ struct socket_connection
 {
     int listen_socket;
     int data_socket;
+    bool telnet_char_mode;
+
+    socket_connection(bool telnet_char_mode_) :
+        listen_socket(-1),
+        data_socket(-1),
+        telnet_char_mode(telnet_char_mode_)
+    {}
 
     bool listen(int port)
     {
@@ -310,6 +317,29 @@ struct socket_connection
                     perror("accept");
                     return false;
                 }
+                if(false && telnet_char_mode) {
+                    if(write(data_socket ,"\377\375\042\377\373\001", 6) != 6) {
+                        printf("Telnet character mode was requested but sending the sequence failed\n");
+                        close(data_socket);
+                        data_socket = -1;
+                        return false;
+                    }
+                    char c;
+                    int i = 65;
+                    while(i > 0) {
+                        ssize_t wasread;
+                        if((wasread = read(data_socket, &c, 1)) == 1) {
+                            // printf("%d\n", i);
+                            i--;
+                        } else if(wasread < 0) {
+                            // printf("Telnet character mode was requested but client socket read failed\n");
+                            // close(data_socket);
+                            // data_socket = -1;
+                            // return false;
+                        }
+                    }
+                }
+
             }
         }
         return true;
@@ -348,12 +378,13 @@ struct FakeCPMboard : board_base
         disk(0),
         track(0),
         sector(0),
-        dma(0)
+        dma(0),
+        conn(true)
     {
         debug = true;
         char **ap, *disknames[10];
 
-        for (ap = disknames; (*ap = strsep(&args, " \t")) != NULL;)
+        for (ap = disknames; (*ap = strsep(&args, ",")) != NULL;)
             if (**ap != '\0')
                 if (++ap >= &disknames[10])
                     break;
@@ -380,7 +411,7 @@ struct FakeCPMboard : board_base
 
     std::vector<unsigned char> queued;
     const int server_port = 6607;
-    socket_connection conn;
+    struct socket_connection conn;
     virtual bool io_write(int addr, unsigned char data)
     {
         if(!conn.cycle()) {
@@ -560,7 +591,8 @@ struct IOboard : board_base
         paused(false),
         interrupt_status(NONE),
         use_old_PIC_commands(use_old_PIC_commands_),
-        give_timer_interrupts(give_timer_interrupts_)
+        give_timer_interrupts(give_timer_interrupts_),
+        conn(false)
     { }
 
     virtual bool io_read(int addr, unsigned char &data)
@@ -1030,10 +1062,11 @@ static void handleKey(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 
 void print_state(Z80_STATE* state)
 {
-    printf("BC :%04X  DE :%04X  HL :%04X  AF :%04X  IX : %04X  IY :%04X\n",
+    printf("BC :%04X  DE :%04X  HL :%04X  AF :%04X  IX : %04X  IY :%04X  SP :%04X\n",
         state->registers.word[Z80_BC], state->registers.word[Z80_DE],
         state->registers.word[Z80_HL], state->registers.word[Z80_AF],
-        state->registers.word[Z80_IX], state->registers.word[Z80_IY]);
+        state->registers.word[Z80_IX], state->registers.word[Z80_IY],
+        state->registers.word[Z80_SP]);
     printf("BC':%04X  DE':%04X  HL':%04X  AF':%04X\n",
         state->alternates[Z80_BC], state->alternates[Z80_DE],
         state->alternates[Z80_HL], state->alternates[Z80_AF]);
@@ -1176,7 +1209,7 @@ struct Debugger
 void disassemble(int address, Debugger *d, int bytecount)
 {
     static unsigned char buffer[65536];
-    int actual_bytes = std::max(3, actual_bytes);
+    int actual_bytes = std::max(3, bytecount);
     for(int i = 0; i < actual_bytes; i++)
         Z80_READ_BYTE(address + i, buffer[i]);
 
@@ -1485,7 +1518,7 @@ bool debugger_step(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
         }
     }
     unsigned long long total_cycles = 0;
-    for(int i = 0; (i < count) && (!d->should_debug(boards, state)); i++) {
+    for(int i = 0; i < count; i++) {
         total_cycles += Z80Emulate(state, 1);
         if(i < count - 1) {
             if(verbose) {
@@ -1493,6 +1526,8 @@ bool debugger_step(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
                 disassemble(state->pc, d, 1);
             }
         }
+        if(d->should_debug(boards, state))
+            break;
     }
     printf("%llu actual cycles emulated\n", total_cycles);
     d->state_may_have_changed = true;
@@ -1744,7 +1779,6 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
     for(auto b = boards.begin(); b != boards.end(); b++)
         (*b)->pause();
 
-
     if(!feof(fp)) {
         bool run = false;
         do {
@@ -1837,6 +1871,9 @@ int main(int argc, char **argv)
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
+
+    for(int i = 0; i < argc; i++)
+        printf("%d: %s\n", i, argv[i]);
 
     while((argc > 0) && (argv[0][0] == '-')) {
 	if(
@@ -2023,15 +2060,21 @@ int main(int argc, char **argv)
             debugger->go(stdin, boards, &state);
             enter_debugger = false;
         } else {
+            struct timeval tv;
+            double start, stop;
+
+            gettimeofday(&tv, NULL);
+            start = tv.tv_sec + tv.tv_usec / 1000000.0;
             if(debugger) {
-                int prev_cycles = total_cycles;
+                unsigned long long cycles = 0;
                 do {
-                    total_cycles += Z80Emulate(&state, 1);
+                    cycles += Z80Emulate(&state, 1);
                     if(enter_debugger || debugger->should_debug(boards, &state)) {
                         debugger->go(stdin, boards, &state);
                         enter_debugger = false;
                     }
-                } while(total_cycles - prev_cycles < cycles_per_loop);
+                } while(cycles < cycles_per_loop);
+                total_cycles += cycles;
             } else {
                 total_cycles += Z80Emulate(&state, cycles_per_loop);
             }
@@ -2041,14 +2084,27 @@ int main(int argc, char **argv)
             time_t time_now;
             time_now = time(NULL);
             if(time_now != time_then) {
-                if(debug) printf("%llu cycles-ish per second\n", total_cycles - cycles_then);
+                if(debug) printf("%llu cycles per second\n", total_cycles - cycles_then);
                 cycles_then = total_cycles;
                 time_then = time_now;
             }
+            gettimeofday(&tv, NULL);
+            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+            // printf("%f in Emulate\n", (stop - start) * 1000000);
         }
 
-        rfbProcessEvents(server, 1000);
+            struct timeval tv;
+            double start, stop;
 
+            gettimeofday(&tv, NULL);
+            start = tv.tv_sec + tv.tv_usec / 1000000.0;
+        rfbProcessEvents(server, 1000);
+            gettimeofday(&tv, NULL);
+            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+            // printf("%f in rfbProcessEvents\n", (stop - start) * 1000000);
+
+            gettimeofday(&tv, NULL);
+            start = tv.tv_sec + tv.tv_usec / 1000000.0;
         for(auto b = boards.begin(); b != boards.end(); b++) {
             int irq;
             if((*b)->board_get_interrupt(irq)) {
@@ -2059,10 +2115,18 @@ int main(int argc, char **argv)
                 break;
             }
         }
+            gettimeofday(&tv, NULL);
+            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+            // printf("%f in board irq check\n", (stop - start) * 1000000);
 
+            gettimeofday(&tv, NULL);
+            start = tv.tv_sec + tv.tv_usec / 1000000.0;
         for(auto b = boards.begin(); b != boards.end(); b++) {
             (*b)->idle();
         }
+            gettimeofday(&tv, NULL);
+            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+            // printf("%f in board idle\n", (stop - start) * 1000000);
     }
 
     return 0;
