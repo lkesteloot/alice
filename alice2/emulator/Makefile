@@ -1,7 +1,13 @@
 .PHONY: all
-OPT=-O2
+
+BG80D_PATH=$(HOME)/trees/bg80d
+USE_BG80D=1
+
+OPT=-g
 LDFLAGS=-L/opt/local/lib -lvncserver -lreadline
-CXXFLAGS=-Wall -I/opt/local/include -std=c++11 $(OPT)
+CXXFLAGS=-Wall -I/opt/local/include -I$(BG80D_PATH) -DUSE_BG80D=$(USE_BG80D) -std=c++11 $(OPT)
+
+VPATH=$(BG80D_PATH)
 
 all: emulator sendhex
 
@@ -17,7 +23,7 @@ clean:
 immaculate: clean
 	rm tables.h maketables
 
-emulator.o: emulator.h z80emu.h
+emulator.o: emulator.h z80emu.h bg80d.h
 
 z80emu.o: z80emu.cpp z80emu.h instructions.h macros.h tables.h emulator.h
 

@@ -1206,47 +1206,58 @@ struct Debugger
     bool should_debug(std::vector<board_base*>& boards, Z80_STATE* state);
 };
 
+#include "bg80d.h"
+
+__uint8_t reader(void *p)
+{
+    int& address = *(int*)p;
+    unsigned char data;
+    Z80_READ_BYTE(address, data);
+    address++;
+    return data;
+}
+
 void disassemble(int address, Debugger *d, int bytecount)
 {
-    static unsigned char buffer[65536];
-    int actual_bytes = std::max(3, bytecount);
-    for(int i = 0; i < actual_bytes; i++)
-        Z80_READ_BYTE(address + i, buffer[i]);
 
-    static int disassembler_status = 0;
+#if USE_BG80D
 
-    if(disassembler_status != 2) {
-        char cmd[512];
-        FILE *input = fopen("/tmp/dis.bin", "w");
-        fwrite(buffer, 1, actual_bytes, input);
-        fclose(input);
-        sprintf(cmd, "bg80d.py --start=0 --end=%d --offset=%d < /tmp/dis.bin", bytecount, address);
-        FILE *pipe = popen(cmd, "r");
-        if(pipe != NULL) {
-            char output[512];
-            if(fgets(output, sizeof(output), pipe) == NULL) {
-                printf("failed to fgets from bg80d.py; using internal hex dump\n");
-                if(disassembler_status == 0)
-                    disassembler_status = 2;
-            } else {
-                int a = atoi(output);
-                int symbol_offset;
-                std::string& sym = d->get_symbol(a, symbol_offset);
-                printf("%04X %s+0x%04X%*s%s", a, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "", output + 11);
-                disassembler_status = 1;
-            }
-            pclose(pipe);
-        } else {
-            printf("pipe failed to bg80.py; using internal hex dump\n");
-            if(disassembler_status == 0)
-                disassembler_status = 2;
-        }
-    }
-    if(disassembler_status == 2) {
+    while(bytecount > 0) {
+
+        int address_was = address;
+
         int symbol_offset;
         std::string& sym = d->get_symbol(address, symbol_offset);
-        printf("%04X %s+0x%04X%*s : %02X %02X %02X\n", address, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "", buffer[0], buffer[1], buffer[2]);
+
+        bg80d::opcode_spec_t *opcode = bg80d::decode(reader, &address, address);
+        if(opcode == 0)
+            break;
+
+        printf("%04X %s+0x%04X%*s", address_was, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "");
+
+        int opcode_length = (opcode->pc_after - address_was);
+        int opcode_bytes_pad = 1 + 3 + 3 + 3 - opcode_length * 3;
+        for(int i = 0; i < opcode_length; i++) {
+            unsigned char byte;
+            Z80_READ_BYTE(address_was + i, byte);
+            printf("%.2hhX ", byte);
+        }
+
+        printf("%*s", opcode_bytes_pad, "");
+        printf("%5s %s\n", opcode->prefix, opcode->description);
+
+        bytecount -= opcode_length;
     }
+    // FB5C conin+0x0002         e6     AND A, n        ff          ;  AND of ff to reg
+
+#else
+
+    int symbol_offset;
+    std::string& sym = d->get_symbol(address, symbol_offset);
+    printf("%04X %s+0x%04X%*s : %02X %02X %02X\n", address, sym.c_str(), symbol_offset, 16 - (int)sym.size() - 5, "", buffer[0], buffer[1], buffer[2]);
+
+#endif
+
 }
 
 // XXX make this pointers-to-members
