@@ -241,7 +241,7 @@ struct socket_connection
             timeout.tv_usec = 1;
             int result;
             if((result = select(data_socket + 1, &fds, NULL, NULL, &timeout)) == -1) {
-                if(result == EINTR)
+                if(errno == EINTR)
                     return false;
                 perror("select");
                 exit(EXIT_FAILURE);
@@ -267,8 +267,8 @@ struct socket_connection
             timeout.tv_usec = 1;
             int result;
             if((result = select(data_socket + 1, &fds, NULL, NULL, &timeout)) == -1) {
-                if(result == EINTR)
-                    return false;
+                if(errno == EINTR)
+                    return 0;
                 perror("select");
                 exit(EXIT_FAILURE);
             }
@@ -302,7 +302,7 @@ struct socket_connection
             timeout.tv_usec = 1;
             int result;
             if((result = select(listen_socket + 1, &fds, NULL, NULL, &timeout)) == -1) {
-                if(result == EINTR)
+                if(errno == EINTR)
                     return true;
                 perror("select");
                 return false;
@@ -484,6 +484,8 @@ struct FakeCPMboard : board_base
                 if(conn.receive(&data, 1) != 1) {
                     data = 0x00;
                 }
+		if(data == 10)
+		    data = 13; // XXX turn newline into carriage return
                 return true;
                 break;
             case CONST_IN:
@@ -1217,8 +1219,9 @@ __uint8_t reader(void *p)
     return data;
 }
 
-void disassemble(int address, Debugger *d, int bytecount)
+int disassemble(int address, Debugger *d, int bytecount)
 {
+    int total_bytes = 0;
 
 #if USE_BG80D
 
@@ -1247,6 +1250,7 @@ void disassemble(int address, Debugger *d, int bytecount)
         printf("%5s %s\n", opcode->prefix, opcode->description);
 
         bytecount -= opcode_length;
+	total_bytes += opcode_length;
     }
     // FB5C conin+0x0002         e6     AND A, n        ff          ;  AND of ff to reg
 
@@ -1258,7 +1262,15 @@ void disassemble(int address, Debugger *d, int bytecount)
 
 #endif
 
+    return total_bytes;
 }
+
+void disassemble_instructions(int address, Debugger *d, int insncount)
+{
+    for(int i = 0; i < insncount; i++)
+	address += disassemble(address, d, 1);
+}
+
 
 // XXX make this pointers-to-members
 typedef bool (*command_handler)(Debugger* d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv);
@@ -1374,6 +1386,27 @@ void dump_buffer_hex(int indent, int actual_address, unsigned char *data, int si
         data += howmany;
         address += howmany;
     }
+}
+
+bool debugger_dis(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
+{
+    if(argc != 3) {
+        fprintf(stderr, "dis: expected address and count\n");
+        return false;
+    }
+    char *endptr;
+
+    int address;
+    if(!lookup_or_parse(d->symbol_to_address, argv[1], address))
+        return false;
+
+    int count = strtol(argv[2], &endptr, 0);
+    if(*endptr != '\0') {
+        printf("number parsing failed for %s; forgot to lead with 0x?\n", argv[2]);
+        return false;
+    }
+    disassemble_instructions(address, d, count);
+    return false;
 }
 
 bool debugger_dump(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
@@ -1497,7 +1530,7 @@ bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
     printf("    out port byte         - output byte to port\n");
     printf("    help                  - print this help message\n");
     printf("    ?                     - print this help message\n");
-    // printf("    dis addr count\n");
+    printf("    dis addr count        - disassemble count instructions at addr\n");
     // printf("    reset\n");
     return false;
 }
@@ -1725,7 +1758,7 @@ void populate_command_handlers()
     command_handlers["list"] = debugger_list;
     command_handlers["quit"] = debugger_quit;
     command_handlers["exit"] = debugger_quit;
-        // dis addr count
+    command_handlers["dis"] = debugger_dis;
         // reset
 }
 
@@ -1882,9 +1915,6 @@ int main(int argc, char **argv)
     char *progname = argv[0];
     argc -= 1;
     argv += 1;
-
-    for(int i = 0; i < argc; i++)
-        printf("%d: %s\n", i, argv[i]);
 
     while((argc > 0) && (argv[0][0] == '-')) {
 	if(
@@ -2104,18 +2134,18 @@ int main(int argc, char **argv)
             // printf("%f in Emulate\n", (stop - start) * 1000000);
         }
 
-            struct timeval tv;
-            double start, stop;
+        struct timeval tv;
+        double start, stop;
 
-            gettimeofday(&tv, NULL);
-            start = tv.tv_sec + tv.tv_usec / 1000000.0;
+        gettimeofday(&tv, NULL);
+        start = tv.tv_sec + tv.tv_usec / 1000000.0;
         rfbProcessEvents(server, 1000);
-            gettimeofday(&tv, NULL);
-            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
-            // printf("%f in rfbProcessEvents\n", (stop - start) * 1000000);
+        gettimeofday(&tv, NULL);
+        stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+        // printf("%f in rfbProcessEvents\n", (stop - start) * 1000000);
 
-            gettimeofday(&tv, NULL);
-            start = tv.tv_sec + tv.tv_usec / 1000000.0;
+        gettimeofday(&tv, NULL);
+        start = tv.tv_sec + tv.tv_usec / 1000000.0;
         for(auto b = boards.begin(); b != boards.end(); b++) {
             int irq;
             if((*b)->board_get_interrupt(irq)) {
@@ -2126,18 +2156,18 @@ int main(int argc, char **argv)
                 break;
             }
         }
-            gettimeofday(&tv, NULL);
-            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
-            // printf("%f in board irq check\n", (stop - start) * 1000000);
+        gettimeofday(&tv, NULL);
+        stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+        // printf("%f in board irq check\n", (stop - start) * 1000000);
 
-            gettimeofday(&tv, NULL);
-            start = tv.tv_sec + tv.tv_usec / 1000000.0;
+        gettimeofday(&tv, NULL);
+        start = tv.tv_sec + tv.tv_usec / 1000000.0;
         for(auto b = boards.begin(); b != boards.end(); b++) {
             (*b)->idle();
         }
-            gettimeofday(&tv, NULL);
-            stop = tv.tv_sec + tv.tv_usec / 1000000.0;
-            // printf("%f in board idle\n", (stop - start) * 1000000);
+        gettimeofday(&tv, NULL);
+        stop = tv.tv_sec + tv.tv_usec / 1000000.0;
+        // printf("%f in board idle\n", (stop - start) * 1000000);
     }
 
     return 0;
