@@ -4,7 +4,8 @@ BG80D_PATH=$(HOME)/trees/bg80d
 USE_BG80D=1
 
 OPT=-g
-LDFLAGS=-L/opt/local/lib -lvncserver -lreadline
+LDFLAGS=-L/opt/local/lib
+LDLIBS=-lvncserver -lreadline
 CXXFLAGS=-Wall -I/opt/local/include -I$(BG80D_PATH) -DUSE_BG80D=$(USE_BG80D) -std=c++11 $(OPT)
 
 VPATH=$(BG80D_PATH)
@@ -12,7 +13,7 @@ VPATH=$(BG80D_PATH)
 all: emulator sendhex
 
 emulator: emulator.o z80emu.o readhex.o
-	$(CXX) $(LDFLAGS) $^   -o $@
+	$(CXX) $(LDFLAGS) $^   -o $@ $(LDLIBS)
 
 sendhex: sendhex.c
 	$(CC) sendhex.c -o sendhex
