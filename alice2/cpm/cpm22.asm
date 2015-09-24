@@ -23,7 +23,7 @@
 ;
 ; XXX grantham - okay to set to 64?
 ;
-MEM	EQU	64		;for a 62k system (TS802 TEST - WORKS OK).
+MEM	EQU	57		;
 ;
 IOBYTE	EQU	3		;i/o definition byte.
 TDRIVE	EQU	4		;current drive name and user number.
@@ -3724,9 +3724,15 @@ CKSUMTBL: DEFB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ;*
 ;*        B I O S   J U M P   T A B L E
 ;*
+;* 20150922 grantham - Note that jump table here is defined so that it
+;* will overlay the CBIOS if the CBIOS is set to originate (ORG) at the
+;* assembled address for symbol "BOOT".  So what I am saying is, assemble
+;* this and then go into the CBIOS and change the ORG to whatever value
+;* BOOT has in the PRN output for this file!
+;*
 ;**************************************************************
 ;
-BOOT:	JP	0		;NOTE WE USE FAKE DESTINATIONS
+BOOT:	JP	0		
 WBOOT:	JP	0
 CONST:	JP	0
 CONIN:	JP	0

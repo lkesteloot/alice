@@ -7,15 +7,19 @@
 ;
 ;	skeletal cbios for first level of CP/M 2.0 alteration
 ;
-ccp:	equ	0E400h		;base of ccp
-bdos:	equ	0EC06h		;bdos entry
-bios:	equ	0FA00h		;base of bios
+;
+; 20150922 grantham - Assemble cpm22.asm, then come here and set "bios"
+; to whatever value BOOT has in the PRN output for cpm22.asm!
+
+ccp:	equ	0C800h		;base of ccp
+bdos:	equ	0D006h		;bdos entry
+bios:	equ	0DE00h		;base of bios
 cdisk:	equ	0004h		;address of current disk number 0=a,... l5=p
 iobyte:	equ	0003h		;intel i/o byte
 disks:	equ	04h		;number of disks in the system
 
 ;
-; Brad's crazy fake hardware interface
+; Brads crazy fake hardware interface
 ;
 fake_conout_out:     equ     128; write console
 fake_conin_in:       equ     128; read console, NON-BLOCKING!! - loop in BIOS
@@ -103,7 +107,7 @@ SIGNON: DEFM    'CP/M 2.2 for the Alice 2 Z80 computer'
 ;    
 
 ;
-;       borrowed from Udo Monk's bios-qpm.asm
+;       borrowed from Udo Monks bios-qpm.asm
 ;       print a 0 terminated string to console device
 ;       pointer to string in HL
 ;
