@@ -1,10 +1,10 @@
 ;Copies the memory image of CP/M loaded at E400h onto tracks 0 and 1 of the first CP/M disk
 ;Load and run from ROM monitor
-;Uses calls to BIOS, in memory at FA00h
+;Uses calls to BIOS
 ;XXX grantham; Alice 2 fake disk has 64 sectors per track, but it's okay to leave 26 here
 ;Writes track 0, sectors 2 to 26, then track 1, sectors 1 to 25
-bios	equ	0DE00h
-ccp	equ	0C800h
+bios	equ	0BF00h
+ccp	equ	0A900h
 conout:  equ     bios + 0ch  ;console out
 seldsk: equ     bios + 01bh  ;pass disk no. in c
 setdma: equ     bios + 024h  ;pass address in bc

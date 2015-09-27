@@ -23,7 +23,8 @@
 ;
 ; XXX grantham - okay to set to 64?
 ;
-MEM	EQU	57		;
+MEM	EQU	197		; 256-byte pages
+
 ;
 IOBYTE	EQU	3		;i/o definition byte.
 TDRIVE	EQU	4		;current drive name and user number.
@@ -51,7 +52,8 @@ DEL	EQU	7FH		;rubout
 ;
 ;   Set origin for CP/M
 ;
-	ORG	(MEM-7)*1024
+CPMSIZE EQU	7
+	ORG	(MEM-CPMSIZE*4)*256
 ;
 CBASE:	JP	COMMAND		;execute command processor (ccp).
 	JP	CLEARBUF	;entry to empty input buffer before starting ccp.

@@ -11,9 +11,9 @@
 ; 20150922 grantham - Assemble cpm22.asm, then come here and set "bios"
 ; to whatever value BOOT has in the PRN output for cpm22.asm!
 
-ccp:	equ	0C800h		;base of ccp
-bdos:	equ	0D006h		;bdos entry
-bios:	equ	0DE00h		;base of bios
+ccp:	equ	0A900h		;base of ccp
+bdos:	equ	0B106h		;bdos entry
+bios:	equ	0BF00h		;base of bios
 cdisk:	equ	0004h		;address of current disk number 0=a,... l5=p
 iobyte:	equ	0003h		;intel i/o byte
 disks:	equ	04h		;number of disks in the system
