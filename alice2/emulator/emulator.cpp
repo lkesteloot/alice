@@ -1314,7 +1314,7 @@ bool debugger_readhex(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* 
         return false;
     }
     int info[3] = {0xffff, 0, 0};
-    int success = read_hex_func(fp, store_memory, info, 0);
+    int success = read_hex(fp, store_memory, info, 0);
     if (!success) {
         fprintf(stderr, "error reading hex file %s\n", argv[1]);
         fclose(fp);
@@ -2014,7 +2014,9 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
         memset(b, '\0', sizeof(b));
-        int success = read_hex(fp, b, sizeof(b), 0);
+        struct memory_desc md;
+        memory_desc_init(&md, b, 0, sizeof(b));
+        int success = read_hex(fp, memory_desc_store, &md, 1);
         if (!success) {
             fprintf(stderr, "error reading hex file %s\n", filename);
             exit(EXIT_FAILURE);
