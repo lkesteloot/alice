@@ -12,4 +12,4 @@ namebase=`echo $1 | sed 's/\..*$//'`
 
 cc -x c -E -P $1 > /tmp/asm.cpp
 shift
-az80/az80 /tmp/asm.cpp -o $namebase.hex -l $namebase.prn
+$(dirname $0)/az80/az80 /tmp/asm.cpp -o $namebase.hex -l $namebase.prn
