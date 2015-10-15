@@ -1,6 +1,6 @@
 .PHONY: all
 
-BG80D_PATH=$(HOME)/trees/bg80d
+BG80D_PATH=bg80d
 USE_BG80D=1
 
 OPT=-g
