@@ -2055,10 +2055,12 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="16"/>
 <wire x1="78.74" y1="12.7" x2="73.66" y2="12.7" width="0.1524" layer="91"/>
+<label x="76.2" y="12.7" size="1.778" layer="95" rot="MR0"/>
 </segment>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="22"/>
 <wire x1="93.98" y1="25.4" x2="99.06" y2="25.4" width="0.1524" layer="91"/>
+<label x="96.52" y="25.4" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="+5" class="0">
@@ -2074,10 +2076,12 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="2"/>
 <wire x1="78.74" y1="48.26" x2="73.66" y2="48.26" width="0.1524" layer="91"/>
+<label x="76.2" y="48.26" size="1.778" layer="95" rot="MR0"/>
 </segment>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="32"/>
 <wire x1="93.98" y1="50.8" x2="99.06" y2="50.8" width="0.1524" layer="91"/>
+<label x="96.52" y="50.8" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="+12" class="0">
@@ -2135,6 +2139,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="21"/>
 <wire x1="93.98" y1="22.86" x2="99.06" y2="22.86" width="0.1524" layer="91"/>
+<label x="96.52" y="22.86" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="D5" class="0">
@@ -2150,6 +2155,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="19"/>
 <wire x1="93.98" y1="17.78" x2="99.06" y2="17.78" width="0.1524" layer="91"/>
+<label x="96.52" y="17.78" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="D3" class="0">
@@ -2165,6 +2171,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="17"/>
 <wire x1="93.98" y1="12.7" x2="99.06" y2="12.7" width="0.1524" layer="91"/>
+<label x="96.52" y="12.7" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="D1" class="0">
@@ -2180,6 +2187,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="14"/>
 <wire x1="78.74" y1="17.78" x2="73.66" y2="17.78" width="0.1524" layer="91"/>
+<label x="76.2" y="17.78" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="D6" class="0">
@@ -2195,6 +2203,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="20"/>
 <wire x1="93.98" y1="20.32" x2="99.06" y2="20.32" width="0.1524" layer="91"/>
+<label x="96.52" y="20.32" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="D4" class="0">
@@ -2210,6 +2219,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="18"/>
 <wire x1="93.98" y1="15.24" x2="99.06" y2="15.24" width="0.1524" layer="91"/>
+<label x="96.52" y="15.24" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="D2" class="0">
@@ -2225,6 +2235,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="15"/>
 <wire x1="78.74" y1="15.24" x2="73.66" y2="15.24" width="0.1524" layer="91"/>
+<label x="76.2" y="15.24" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="D0" class="0">
@@ -2240,6 +2251,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="13"/>
 <wire x1="78.74" y1="20.32" x2="73.66" y2="20.32" width="0.1524" layer="91"/>
+<label x="76.2" y="20.32" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A0" class="0">
@@ -2255,6 +2267,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="12"/>
 <wire x1="78.74" y1="22.86" x2="73.66" y2="22.86" width="0.1524" layer="91"/>
+<label x="76.2" y="22.86" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A2" class="0">
@@ -2270,6 +2283,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="10"/>
 <wire x1="78.74" y1="27.94" x2="73.66" y2="27.94" width="0.1524" layer="91"/>
+<label x="76.2" y="27.94" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A4" class="0">
@@ -2285,6 +2299,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="8"/>
 <wire x1="78.74" y1="33.02" x2="73.66" y2="33.02" width="0.1524" layer="91"/>
+<label x="76.2" y="33.02" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A6" class="0">
@@ -2300,6 +2315,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="6"/>
 <wire x1="78.74" y1="38.1" x2="73.66" y2="38.1" width="0.1524" layer="91"/>
+<label x="76.2" y="38.1" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A8" class="0">
@@ -2315,6 +2331,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="27"/>
 <wire x1="93.98" y1="38.1" x2="99.06" y2="38.1" width="0.1524" layer="91"/>
+<label x="96.52" y="38.1" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A10" class="0">
@@ -2330,6 +2347,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="23"/>
 <wire x1="93.98" y1="27.94" x2="99.06" y2="27.94" width="0.1524" layer="91"/>
+<label x="96.52" y="27.94" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A12" class="0">
@@ -2345,6 +2363,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="4"/>
 <wire x1="78.74" y1="43.18" x2="73.66" y2="43.18" width="0.1524" layer="91"/>
+<label x="76.2" y="43.18" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A14" class="0">
@@ -2356,6 +2375,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="3"/>
 <wire x1="78.74" y1="45.72" x2="73.66" y2="45.72" width="0.1524" layer="91"/>
+<label x="76.2" y="45.72" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A1" class="0">
@@ -2371,6 +2391,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="11"/>
 <wire x1="78.74" y1="25.4" x2="73.66" y2="25.4" width="0.1524" layer="91"/>
+<label x="76.2" y="25.4" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A3" class="0">
@@ -2386,6 +2407,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="9"/>
 <wire x1="78.74" y1="30.48" x2="73.66" y2="30.48" width="0.1524" layer="91"/>
+<label x="76.2" y="30.48" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A5" class="0">
@@ -2401,6 +2423,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="7"/>
 <wire x1="78.74" y1="35.56" x2="73.66" y2="35.56" width="0.1524" layer="91"/>
+<label x="76.2" y="35.56" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A7" class="0">
@@ -2416,6 +2439,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="5"/>
 <wire x1="78.74" y1="40.64" x2="73.66" y2="40.64" width="0.1524" layer="91"/>
+<label x="76.2" y="40.64" size="1.778" layer="95" rot="MR0"/>
 </segment>
 </net>
 <net name="A9" class="0">
@@ -2431,6 +2455,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="26"/>
 <wire x1="93.98" y1="35.56" x2="99.06" y2="35.56" width="0.1524" layer="91"/>
+<label x="96.52" y="35.56" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A11" class="0">
@@ -2446,6 +2471,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="25"/>
 <wire x1="93.98" y1="33.02" x2="99.06" y2="33.02" width="0.1524" layer="91"/>
+<label x="96.52" y="33.02" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A13" class="0">
@@ -2461,6 +2487,7 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="28"/>
 <wire x1="93.98" y1="40.64" x2="99.06" y2="40.64" width="0.1524" layer="91"/>
+<label x="96.52" y="40.64" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="A15" class="0">
@@ -2474,24 +2501,28 @@ type I, package type TS</description>
 <segment>
 <pinref part="SRAM" gate="G$1" pin="31"/>
 <wire x1="93.98" y1="48.26" x2="99.06" y2="48.26" width="0.1524" layer="91"/>
+<label x="96.52" y="48.26" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="SRAM_CS2" class="0">
 <segment>
 <pinref part="SRAM" gate="G$1" pin="30"/>
 <wire x1="93.98" y1="45.72" x2="99.06" y2="45.72" width="0.1524" layer="91"/>
+<label x="96.52" y="45.72" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="/MW" class="0">
 <segment>
 <pinref part="SRAM" gate="G$1" pin="29"/>
 <wire x1="93.98" y1="43.18" x2="99.06" y2="43.18" width="0.1524" layer="91"/>
+<label x="96.52" y="43.18" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="/MR" class="0">
 <segment>
 <pinref part="SRAM" gate="G$1" pin="24"/>
 <wire x1="93.98" y1="30.48" x2="99.06" y2="30.48" width="0.1524" layer="91"/>
+<label x="96.52" y="30.48" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="N$16" class="0">
