@@ -1,5 +1,10 @@
 Using the "Fake CP/M Hardware" in the emulator
 
+Premade disks:
+    ./emulator -debugger "out 9 0;readhex ../cpm/cpm22.hex;readhex ../cpm/fakehw_bios.hex;symbols ../cpm/fakehw_bios.prn;symbols ../cpm/cpm22.prn;pc 0xbf00" -fakecpmhw driveA.bin,wordstar.dsk ../brads_alice2_archive/asm/rom.hex
+    g
+    # then telnet localhost 6607, and break into telnet's prompt and set character mode with "mode char"
+
 Build cpmtools, add the entry in diskdefs to the distribution's diskdefs, then install.  Or install prebuilt cpmtools and add the content in diskdefs to the installed diskdefs (e.g. /usr/local/share/diskdefs).  This installs a CP/M disk definition for an 8MB file matching the definition in fakehw_bios.asm.
 
 python -c 'import sys; sys.stdout.write("\xe5"*(8192*1024));' > driveA.bin
