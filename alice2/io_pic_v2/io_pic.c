@@ -52,42 +52,42 @@ void setup()
 
 char hello_LCD[] = "Hello LCD";
 
-void try_lcd(int clock_idle_high, int output_valid_edge)
+void spi_config_for_lcd()
 {
-    int i;
-    int dummy;
     // Set up SPI for NewHaven LCD
-    // Set TMR2 to /16 pre, /8 comparator, source is Fosc/4,
+    // Set TMR2 to /16 pre, /5 comparator, source is Fosc/4,
     // output is /2 for SSP clock, yielding 19.53Khz
-    // 20Mhz / 4 / 16 / 8 / 2 = 19.53125000000000000000
+    // 20Mhz / 4 / 16 / 8 / 2 = 26Khz
     T2CONbits.T2CKPS = 0b11;    // 1:16 prescale
-    //PR2 = 8;                    // TMR2 PR2 trigger on 8
-    PR2 = 32;                    // TMR2 PR2 trigger on 32
+    // PR2 = 6;                    // TMR2 PR2 trigger on 6
+    PR2 = 8;                    // TMR2 PR2 trigger on 8
     T2CONbits.TMR2ON = 1;       // enable timer 2
-    // SPI master mode
+
+    // slave select for LCD
     TRISBbits.TRISB7 = 0;       // B7 is /SS for LCD - set to output
     PORTBbits.RB7 = 1;          // B7 is /SS for LCD - disable
-    SSPCON1bits.SSPEN = 0;      // Clear SPI
+
+    // SPI master mode
+    SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
     TRISCbits.TRISC5 = 0;       // SDO is output
     TRISCbits.TRISC3 = 0;       // SCK is output
-    SSPCON1bits.CKP = clock_idle_high;        // Clock idle high
+    SSPCON1bits.CKP = 1;        // Clock idle high
     SSPCON1bits.SSPM = 0b0011;  // SPI Master, CK = TMR2 / 2
-    SSPSTATbits.CKE = output_valid_edge;        // Output valid by active(low) to idle(high) ??
-    SSPSTATbits.SMP = 0;        // Sample at middle ??
+    SSPSTATbits.CKE = 0;        // Output valid by active(low) to idle(high)
+    SSPSTATbits.SMP = 0;        // Sample at middle (unused on LCD)
     SSPCON1bits.SSPEN = 1;      // Enable SPI
+}
+
+void spi_enable_lcd()
+{
     PORTBbits.RB7 = 0;          // B7 is /SS for LCD - enable
-    // write to LCD 
-    SSPBUF = 0xFE; while(!SSPSTATbits.BF); dummy = SSPBUF; // Command escape
-    SSPBUF = 0x51; while(!SSPSTATbits.BF); dummy = SSPBUF; // Clear screen
-    SSPBUF = 0xFE; while(!SSPSTATbits.BF); dummy = SSPBUF; // Command escape
-    SSPBUF = 0x46; while(!SSPSTATbits.BF); dummy = SSPBUF; // Cursor Home
-    for(i = 0; i < sizeof(hello_LCD); i++) {
-        SSPBUF = hello_LCD[i]; while(!SSPSTATbits.BF); dummy = SSPBUF;
-    }
-    SSPBUF = '0' + clock_idle_high; while(!SSPSTATbits.BF); dummy = SSPBUF; // Cursor Home
-    SSPBUF = '0' + output_valid_edge; while(!SSPSTATbits.BF); dummy = SSPBUF; // Cursor Home
+}
+
+void spi_disable_lcd()
+{
     PORTBbits.RB7 = 1;          // B7 is /SS for LCD - disable
 }
+
 
 void main()
 {
@@ -97,22 +97,20 @@ void main()
 
     pause(); // NewHaven LCD requires 100ms delay on power-up
 
-    try_lcd(0, 0);
+    spi_config_for_lcd();
+    spi_enable_lcd();
+
+    // write to LCD 
+    SSPBUF = 0xFE; while(!SSPSTATbits.BF); dummy = SSPBUF; // Command escape
+    SSPBUF = 0x51; while(!SSPSTATbits.BF); dummy = SSPBUF; // Clear screen
+    SSPBUF = 0xFE; while(!SSPSTATbits.BF); dummy = SSPBUF; // Command escape
+    SSPBUF = 0x46; while(!SSPSTATbits.BF); dummy = SSPBUF; // Cursor Home
     pause();
-    pause();
-    pause();
-    try_lcd(0, 1);
-    pause();
-    pause();
-    pause();
-    try_lcd(1, 0);
-    pause();
-    pause();
-    pause();
-    try_lcd(1, 1);
-    pause();
-    pause();
-    pause();
+    for(i = 0; i < sizeof(hello_LCD) - 1; i++) {
+        SSPBUF = hello_LCD[i]; while(!SSPSTATbits.BF); dummy = SSPBUF;
+    }
+
+    spi_disable_lcd();
 
     // Set up USART
     // write to RS-232 "Hello Serial World" 
