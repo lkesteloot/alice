@@ -206,7 +206,7 @@ struct socket_connection
     }
 };
 
-const int PIC_command_lengths[4] = {6, 134, 1, 1};
+const int PIC_command_lengths[5] = {0, 6, 134, 1, 1};
 
 struct Alice3HW : board_base
 {
@@ -301,6 +301,7 @@ struct Alice3HW : board_base
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
                 response_length = rp - response;
+                if(debug) printf("CMD_READ yielded %zd bytes\n", response_length);
                 break;
             }
 
@@ -324,11 +325,15 @@ struct Alice3HW : board_base
                 } else {
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
+                response_length = rp - response;
+                if(debug) printf("CMD_WRITE yielded %zd bytes\n", response_length);
                 break;
             }
 
             case Alice3HW::PIC_CMD_CONST:
                 *rp++ = conn.is_data_ready() ? Alice3HW::PIC_READY : Alice3HW::PIC_NOT_READY;
+                response_length = rp - response;
+                if(debug) printf("CMD_CONST yielded %zd bytes\n", response_length);
                 break;
 
             case Alice3HW::PIC_CMD_CONIN: {
@@ -341,6 +346,8 @@ struct Alice3HW : board_base
 		if(data == 10)
 		    data = 13; // XXX turn newline into carriage return
                 *rp++ = data;
+                response_length = rp - response;
+                if(debug) printf("CMD_CONIN yielded %zd bytes\n", response_length);
                 break;
             }
         }
@@ -372,7 +379,8 @@ struct Alice3HW : board_base
 
         if(addr == Alice3HW::PIC_PORT) {
             command[command_length++] = data;
-            if(command_length > 0 && command_length == PIC_command_lengths[command[0]]) {
+            if(command_length == PIC_command_lengths[command[0]]) {
+                if(debug) printf("process %zd bytes as PIC command\n", command_length);
                 process_pic_command(command, command_length);
                 command_length = 0; 
             }
@@ -393,8 +401,12 @@ struct Alice3HW : board_base
                 data = 0;
             else {
                 data = response[response_index++];
-                if(response_index == response_length)
+                if(debug) printf("PIC sending byte %d: 0x%02X\n", response_index - 1, data);
+                if(response_index == response_length) {
+                    if(debug) printf("end of response\n");
                     response_length = 0;
+                    response_index = 0;
+                }
             }
             return true;
         }
@@ -1293,7 +1305,7 @@ int main(int argc, char **argv)
     Debugger *debugger = NULL;
     char *debugger_argument = NULL;
 
-    char *alice3_hw_arg = NULL;
+    populate_command_handlers();
 
     char *progname = argv[0];
     argc -= 1;
@@ -1324,19 +1336,19 @@ int main(int argc, char **argv)
 	}
     }
 
-    if(argc < 1) {
+    if(argc < 2) {
         usage(progname);
         exit(EXIT_FAILURE);
     }
 
-    alice3_hw_arg = argv[1];
+    char *alice3_hw_arg = argv[0];
 
-    char *filename = argv[2];
+    char *romname = argv[1];
     unsigned char b[16384];
-    if (strlen(filename) >= 4 && strcmp(filename + strlen(filename) - 4, ".hex") == 0) {
-        FILE *fp = fopen(filename, "ra");
+    if (strlen(romname) >= 4 && strcmp(romname + strlen(romname) - 4, ".hex") == 0) {
+        FILE *fp = fopen(romname, "ra");
         if(fp == NULL) {
-            fprintf(stderr, "failed to open %s for reading\n", filename);
+            fprintf(stderr, "failed to open %s for reading\n", romname);
             exit(EXIT_FAILURE);
         }
         memset(b, '\0', sizeof(b));
@@ -1344,19 +1356,19 @@ int main(int argc, char **argv)
         memory_desc_init(&md, b, 0, sizeof(b));
         int success = read_hex(fp, memory_desc_store, &md, 1);
         if (!success) {
-            fprintf(stderr, "error reading hex file %s\n", filename);
+            fprintf(stderr, "error reading hex file %s\n", romname);
             exit(EXIT_FAILURE);
         }
         fclose(fp);
     } else {
-        FILE *fp = fopen(filename, "rb");
+        FILE *fp = fopen(romname, "rb");
         if(fp == NULL) {
-            fprintf(stderr, "failed to open %s for reading\n", filename);
+            fprintf(stderr, "failed to open %s for reading\n", romname);
             exit(EXIT_FAILURE);
         }
         size_t length = fread(b, 1, sizeof(b), fp);
         if(length < 16384) {
-            fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", filename, length);
+            fprintf(stderr, "ROM read from %s was unexpectedly short (%zd bytes)\n", romname, length);
             exit(EXIT_FAILURE);
         }
         fclose(fp);
