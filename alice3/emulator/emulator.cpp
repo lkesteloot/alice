@@ -1261,10 +1261,16 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
             if(fp == stdin) {
                 char *line;
                 line = readline("? ");
-                if(strlen(line) > 0)
-                    add_history(line);
-                run = process_line(boards, state, line);
-                free(line);
+                if (line == NULL) {
+                    printf("\n");
+                    quit = true;
+                    run = true;
+                } else {
+                    if(strlen(line) > 0)
+                        add_history(line);
+                    run = process_line(boards, state, line);
+                    free(line);
+                }
             } else {
                 char line[512];
                 if(fgets(line, sizeof(line), fp) == NULL)
