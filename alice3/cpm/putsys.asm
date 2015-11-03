@@ -3,8 +3,9 @@
 ;Uses calls to BIOS
 ;XXX grantham; Alice 2 fake disk has 64 sectors per track, but it's okay to leave 26 here
 ;Writes track 0, sectors 2 to 26, then track 1, sectors 1 to 25
-bios	equ	0BF00h
-ccp	equ	0A900h
+ccp:    equ     0E400h          ;base of ccp
+bdos:   equ     0EC06h          ;bdos entry
+bios:   equ     0FA00h          ;base of bios
 conout:  equ     bios + 0ch  ;console out
 seldsk: equ     bios + 01bh  ;pass disk no. in c
 setdma: equ     bios + 024h  ;pass address in bc
