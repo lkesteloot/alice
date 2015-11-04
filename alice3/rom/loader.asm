@@ -6,6 +6,8 @@
 ; Defines loader:
 #include "loader_address.asm"
 
+PICPORT EQU     0
+
         org     loader
 
         ; Disable interrupts.
@@ -40,17 +42,78 @@
         call    print
 
         ; Load boot sector from disk.
-
+        ld      a, 0            ; Disk 0
+        ld      de, 0           ; Sector 0
+        ld      bc, 0           ; Track 0
+        ld      hl, bootsector  ; Buffer
+        call    ldsector
 
         ; Jump to boot sector.
+        jp      bootsector
 
-        halt    ; XXX remove
+        ; ------------------------------------------
+        ; Load a sector from disk.
+        ; A = disk number
+        ; DE = sector number
+        ; BC = track number
+        ; HL = buffer address with 128 bytes
+        ;
+        ; Halts on error.
+ldsector:
+        push    af
+        push    hl
+        push    bc
 
+        ; Send command to load sector.
+        push    bc
+        ld      c, PICPORT
+
+        push    af
+        ld      a, 1
+        out     (c), a          ; "Read sector"
+        pop     af
+        out     (c), a          ; Disk
+        out     (c), e          ; Sector (LSB)
+        out     (c), d          ; Sector (MSB)
+        pop     de              ; Was "bc"
+        out     (c), e          ; Track (LSB)
+        out     (c), d          ; Track (MSB)
+
+        ; Poll until we get a non-zero result.
+ldwait:
+        in      a, (PICPORT)
+        cp      a
+        jp      z, ldwait
+
+        ; Check for failure (success = 1).
+        ld      b, 1
+        cp      b
+        jp      nz, ldfail
+
+        ; Load 128 bytes.
+        ld      b, 128
+        ld      c, PICPORT
+        inir                        ; Read B bytes from C into HL
+
+        pop     bc
+        pop     hl
+        pop     af
+
+        ret
+
+        ; ------------------------------------------
         ; Inform user that RAM failed and halt.
 ramfail: ld      hl, rambadmsg
         call    print
         halt
 
+        ; ------------------------------------------
+        ; Inform user that sector load failed and halt.
+ldfail: ld      hl, ldfailmsg
+        call    print
+        halt
+
+        ; ------------------------------------------
         ; Print a nul-terminated string at HL.
 print:  push    af
         push    hl
@@ -66,6 +129,9 @@ prtend: pop     hl
         pop     af
         ret
 
+        ; ------------------------------------------
+        ; Constants.
+
 msg:    defm    'Alice 3 loader'
         defb    10,0
 
@@ -76,5 +142,12 @@ ramgoodmsg:
 rambadmsg:
         defm    'RAM failed to swap'
         defb    10,0
+
+ldfailmsg:
+        defm    'Sector load failed'
+        defb    10,0
+
+bootsector:
+        ; Leave 128 bytes here.
 
 	end
