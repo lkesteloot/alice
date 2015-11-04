@@ -129,16 +129,6 @@ boot:	;simplest case is to just perform parameter initialization
 ;
 wboot:	;simplest case is to read the disk until all sectors loaded
 	LD	SP, 80h		;use space below buffer for stack
-        LD      c, 'W'
-        call    conout
-        LD      c, 'A'
-        call    conout
-        LD      c, 'R'
-        call    conout
-        LD      c, 'M'
-        call    conout
-        LD      c, 0Ah
-        call    conout
 	LD 	c, 0		;select disk 0
 	call	seldsk
 	call	home		;go to track 00
