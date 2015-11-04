@@ -47,9 +47,33 @@ void setup()
 #endif
 
     // debug LEDs
-    TRISA = 0x00;
+    TRISA = 0xF0;
 }
 
+
+/*--------------------------------------------------------------------------*/
+/* USART - serial comms ----------------------------------------------------*/
+
+int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+
+void configure_serial()
+{
+    TRISCbits.TRISC6 = 0;       // TX is output
+    TRISCbits.TRISC7 = 0;       // RX is input
+    SPBRG = baud_rate_code;
+    TXSTAbits.SYNC = 0;
+    TXSTAbits.TXEN = 1;
+    PIE1bits.TXIE = 0;
+    RCSTAbits.SPEN = 1;
+    PIE1bits.RCIE = 0; // 1;
+    RCSTAbits.CREN = 1;
+}
+
+void send_serial(unsigned char b)
+{
+    TXREG = b;
+    while(!PIR1bits.TXIF);
+}
 
 /*--------------------------------------------------------------------------*/
 /* SPI commands ------------------------------------------------------------*/
@@ -162,7 +186,7 @@ void spi_use(int peripheral)
                 // spi_disable_rtc();
                 break;
             case SPI_SD:
-                // spi_disable_sd();
+                spi_disable_sd();
                 break;
         }
 
@@ -343,7 +367,7 @@ int sdcard_init()
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
+    printf("sdcard_init: OCR response is 0x%08lX\n", OCR); spi_use(SPI_SD);
 
     // should get CSD, CID, print information about them
 
@@ -470,17 +494,19 @@ unsigned char block2[512];
 
 void main()
 {
+    unsigned int u;
     int i;
     int success;
     setup();
 
-    // configure and test LCD
-    pause(); // NewHaven LCD requires 100ms delay on power-up
-
-    printf("Hello SPI LCD!");
-
-    // Set up USART
-    // write to RS-232 "Hello Serial World" 
+    // XXX MAX232 device
+    PORTA = 0x01;
+    configure_serial();
+    PORTA = 0x02;
+    static char hello[] = "Hello RS-232!\n";
+    for(u = 0; u < sizeof(hello) - 1; u++)
+        send_serial(hello[u]);
+    PORTA = 0x04;
 
     // Set up PS/2 keyboard?
     // Prompt
@@ -497,15 +523,18 @@ void main()
     }
     spi_enable_sd();
     printf("SD Card interface is initialized for SPI\n");
+    spi_use(SPI_SD); spi_enable_sd();
     sdcard_readblock(0, originalblock);
     printf("original block: %02X %02X %02X %02X\n",
         originalblock[0], originalblock[1], originalblock[2], originalblock[3]);
+    spi_use(SPI_SD); spi_enable_sd();
 
     for(i = 0; i < 512; i++)
         block2[i] = i % 256;
 
     sdcard_writeblock(0, block2);
     printf("Wrote junk block\n");
+    spi_use(SPI_SD); spi_enable_sd();
 
     for(i = 0; i < 512; i++)
         block2[i] = 0;
@@ -522,10 +551,12 @@ void main()
             block2[0], block2[1], block2[2], block2[3]);
     } else {
         printf("Verified junk block was written\n");
+    spi_use(SPI_SD); spi_enable_sd();
     }
 
     sdcard_writeblock(0, originalblock);
     printf("Wrote original block\n");
+    spi_use(SPI_SD); spi_enable_sd();
 
     sdcard_readblock(0, block2);
 
@@ -540,9 +571,12 @@ void main()
             block2[0], block2[1], block2[2], block2[3]);
     } else {
         printf("Verified original block was written\n");
+        spi_use(SPI_SD); spi_enable_sd();
     }
     spi_disable_sd();
 #endif
+
+    PORTA = 0x8;
 
 stop:
     for(;;) {
