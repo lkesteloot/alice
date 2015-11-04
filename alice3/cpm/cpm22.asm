@@ -21,9 +21,7 @@
 ;   Set memory limit here. This is the amount of contigeous
 ; ram starting from 0000. CP/M will reside at the end of this space.
 ;
-; XXX grantham - okay to set to 64?
-;
-MEM	EQU	64		;
+MEM	EQU	64              ;KB
 ;
 IOBYTE	EQU	3		;i/o definition byte.
 TDRIVE	EQU	4		;current drive name and user number.

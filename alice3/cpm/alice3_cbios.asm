@@ -7,7 +7,6 @@
 ;
 ;	skeletal cbios for first level of CP/M 2.0 alteration
 ;
-;
 ; 20150922 grantham - Assemble cpm22.asm, then come here and set "bios"
 ; to whatever value BOOT has in the PRN output for cpm22.asm!
 
@@ -19,25 +18,24 @@ iobyte:	equ	0003h		;intel i/o byte
 disks:	equ	04h		;number of disks in the system
 
 ;
-; Brads crazy fake hardware interface
+; Alice 3 HW definitions
 ;
-fake_conout_out:     equ     128; write console
-fake_conin_in:       equ     128; read console, NON-BLOCKING!! - loop in BIOS
-fake_const_in:       equ     129; console read ready ? 0xff : 00
-fake_seldsk_out:     equ     130;
-fake_diskstat_in:    equ     130; okay ? 0xff : 0
-fake_seltrk_l_out:   equ     131;
-fake_seltrk_h_out:   equ     132;
-fake_selsec_l_out:   equ     133;
-fake_selsec_h_out:   equ     134;
-fake_setdma_l_out:   equ     135;
-fake_setdma_h_out:   equ     136;
-fake_read_sector_in: equ     137; READ sector - returns 0 or error code
-fake_write_sector_in:        equ     138; WRITE sector - returns 0 or error
+propeller_port:         equ     128     ; access to Propeller-hosted I/O
+pic_port:               equ     0       ; access to PIC-hosted I/O
+pic_poll_again:         equ     0       ; operation not complete on PIC
+pic_success:            equ     1       ; operation succeeded on PIC
+pic_failure:            equ     0FFh    ; operation succeeded on PIC
+pic_ready:              equ     1       ; operation succeeded on PIC
+pic_notready:           equ     0FFh    ; operation succeeded on PIC
+pic_cmd_read:           equ     1       ; READ sector
+pic_cmd_write:          equ     2       ; WRITE sector
+pic_cmd_const:          equ     3       ; CONST
+pic_cmd_conin:          equ     4       ; CONIN - DOES NOT BLOCK, POLL CONST
 
-;
+
 	org	bios		;origin of this program
-nsects:	equ	($-ccp)/128	;warm start sector count
+nsects:	equ	($-ccp + 127)/128	;warm start sector count
+
 ;
 ;	jump vector for individual subroutines
 ;
@@ -107,7 +105,7 @@ SIGNON: DEFM    '64K CP/M 2.2 for the Alice 3'
 ;    
 
 ;
-;       borrowed from Udo Monks bios-qpm.asm
+;       borrowed by Brad from Udo Monks bios-qpm.asm
 ;       print a 0 terminated string to console device
 ;       pointer to string in HL
 ;
@@ -218,47 +216,60 @@ gocpm:
 	ld	a,0		;invalid disk, change to disk 0
 diskok:	LD 	c, a		;send to the ccp
 	JP	ccp		;go to cp/m for further processing
-;
-;
-;	simple i/o handlers (must be filled in by user)
-;	in each case, the entry point is provided, with space reserved
-;	to insert your own code
-;
+
+; wait until PIC is ready
+pic_poll:
+	in 	a,(pic_port)	;get status
+        and     0ffh
+	jp 	z,pic_poll	;loop until success or failure
+        ret
+
+
 const:	;console status, return 0ffh if character ready, 00h if not
-	in 	a,(fake_const_in)		;get status
+	ld	a,pic_cmd_const
+	out 	(pic_port), a   ; request status
+        call    pic_poll
+	cp	pic_ready	; compare with success
+        ret     z               ; if equal, return (a is already 0xff)
+        ld      a, 0            ; otherwise set a to 0 (fail) and return
 	ret
-;
+
 conin:	;console character into register a
-	in 	a,(fake_const_in)		;get status
-	and	0ffh
-	jp 	z,conin		;loop until char ready
-	in 	a,(fake_conin_in)		;get char
-	AND	07fh		;strip parity bit
+	ld	a,pic_cmd_const
+	out 	(pic_port), a   ; request status
+        call    pic_poll
+        cp      pic_ready       ; compare with ready
+        jp      nz, conin       ; if not ready, request again
+
+	ld	a,pic_cmd_conin
+	out 	(pic_port), a   ; get character
+        call    pic_poll        ; Okay to assume this will succeed
+	in 	a,(pic_port)	; get char
+	AND	07fh		; strip parity bit
 	ret
-;
+
 conout:	;console character output from register c
 	ld	a,c		;get the char
-	out	(fake_conout_out),a		;out to port
+	out	(propeller_port),a		;out to port
 	ret
-;
+
 list:	;list character from register c
 	LD 	a, c	  	;character to register a
 	ret		  	;null subroutine
-;
+
 listst:	;return list status (0 if not ready, 1 if ready)
 	XOR	a	 	;0 is always ok to return
 	ret
-;
+
 punch:	;punch	character from	register C
 	LD 	a, c		;character to register a
 	ret			;null subroutine
-;
-;
+
 reader:	;reader character into register a from reader device
 	LD     a, 1ah		;enter end of file for now (replace later)
 	AND    7fh		;remember to strip parity bit
 	ret
-;
+
 ;
 ;	i/o drivers for the disk follow
 ;	for now, we will simply store the parameters away for use
@@ -269,11 +280,10 @@ home:	;move to the track 00	position of current drive
 	LD     bc, 0		;select track 0
 	call   settrk
 	ret			;we will move to 00 on first read/write
-;
+
 seldsk:	;select disk given by register c
 	LD	HL, 0000h	;error return code
 	LD 	a, c
-	OUT	(fake_seldsk_out),A
 	LD	(diskno),A
 	CP	disks		;must be between 0 and 3
 	RET	NC		;no carry if 4, 5,...
@@ -290,149 +300,122 @@ seldsk:	;select disk given by register c
 	LD	DE, dpbase
 	ADD	HL,DE		;hl=,dpbase (diskno*16) Note typo here in original source.
 	ret
-;
+
 settrk:	;set track given by register c
 	LD	(track),BC
-	LD 	a, c
-	OUT	(fake_seltrk_l_out),A
-	LD 	a, b
-	OUT	(fake_seltrk_h_out),A
 	ret
-;
+
 setsec:	;set sector given by register c
 	LD	(sector),BC
-	LD 	a, c
-	OUT	(fake_selsec_l_out),A
-	LD 	a, b
-	OUT	(fake_selsec_h_out),A
 	ret
-;
-;
+
 sectran:
 	;translate the sector given by bc using the
 	;translate table given by de
 	EX	DE,HL		;hl=.trans
 	ADD	HL,BC		;hl=.trans (sector)
 	ret			;debug no translation
-;
+
 setdma:	;set	dma address given by registers b and c
-	LD 	l, c		;low order address
-	LD 	h, b		;high order address
-        LD      A, C
-	OUT	(fake_setdma_l_out),A
-        LD      A, B
-	OUT	(fake_setdma_h_out),A
-	LD	(dmaad),HL	;save the address
+	LD	(dmaad),BC	;save the address
 	ret
-;
-read:
+
 ;Read one CP/M sector from disk.
-;Return a 00h in register a if the operation completes properly, and 0lh if an error occurs during the read.
+;Return a 00h in register a if the operation completes properly, and 01h if an error occurs during the read.
 ;Disk number in 'diskno'
 ;Track number in 'track'
 ;Sector number in 'sector'
 ;Dma address in 'dmaad' (0-65535)
-;
-                        in      a, (fake_read_sector_in)
-			and	01h			;error bit
-			ret
-; 			ld	hl,hstbuf		;buffer to place disk sector (256 bytes)
-; rd_status_loop_1:	in	a,(0fh)			;check status
-; 			and	80h			;check BSY bit
-; 			jp	nz,rd_status_loop_1	;loop until not busy
-; rd_status_loop_2:	in	a,(0fh)			;check	status
-; 			and	40h			;check DRDY bit
-; 			jp	z,rd_status_loop_2	;loop until ready
-; 			ld	a,01h			;number of sectors = 1
-; 			out	(0ah),a			;sector count register
-; 			ld	a,(sector)		;sector
-; 			out	(0bh),a			;lba bits 0 - 7
-; 			ld	a,(track)		;track
-; 			out	(0ch),a			;lba bits 8 - 15
-; 			ld	a,(diskno)		;disk (only bits 
-; 			out	(0dh),a			;lba bits 16 - 23
-; 			ld	a,11100000b		;LBA mode, select host drive 0
-; 			out	(0eh),a			;drive/head register
-; 			ld	a,20h			;Read sector command
-; 			out	(0fh),a
-; rd_wait_for_DRQ_set:	in	a,(0fh)			;read status
-; 			and	08h			;DRQ bit
-; 			jp	z,rd_wait_for_DRQ_set	;loop until bit set
-; rd_wait_for_BSY_clear:	in	a,(0fh)
-; 			and	80h
-; 			jp	nz,rd_wait_for_BSY_clear
-; 			in	a,(0fh)			;clear INTRQ
-; read_loop:		in	a,(08h)			;get data
-; 			ld	(hl),a
-; 			inc	hl
-; 			in	a,(0fh)			;check status
-; 			and	08h			;DRQ bit
-; 			jp	nz,read_loop		;loop until clear
-; 			ld	hl,(dmaad)		;memory location to place data read from disk
-; 			ld	de,hstbuf		;host buffer
-; 			ld	b,128			;size of CP/M sector
-; rd_sector_loop:		ld	a,(de)			;get byte from host buffer
-; 			ld	(hl),a			;put in memory
-; 			inc	hl
-; 			inc	de
-; 			djnz	rd_sector_loop		;put 128 bytes into memory
-; 			in	a,(0fh)			;get status
-; 			and	01h			;error bit
-; 			ret
 
-write:
+read:
+	ld	a,pic_cmd_read
+	out 	(pic_port), a   ; request read
+
+        ld      a,(diskno)
+	out 	(pic_port), a   ; disk byte
+
+        ld      a,(sector + 0)
+	out 	(pic_port), a   ; sector L
+        ld      a,(sector + 1)
+	out 	(pic_port), a   ; sector H
+
+        ld      a,(track + 0)
+	out 	(pic_port), a   ; track L
+        ld      a,(track + 1)
+	out 	(pic_port), a   ; track H
+
+        call    pic_poll
+	cp	pic_success	; compare with success
+        JP      z,read_continue ; if success, continue reading
+
+        ; failure
+        ld      a, 01H
+        ret
+
+read_continue:
+        
+	ld	hl,(dmaad)	; memory location to place data read from disk
+        ld	b,128		; size of CP/M sector
+        ld	c,pic_port
+
+        ; inir                  ; magic Z80 looping IN instruction
+read_loop:      ; I think this whole loop could be an INIR instruction
+        in      a,(pic_port)    ; get sector byte
+        ld	(hl),a		; put in memory
+        inc     hl              ; increment hl to next buffer location
+        djnz	read_loop
+
+        ; success
+        ld      a, 0
+        ret
+
 ;Write one CP/M sector to disk.
 ;Return a 00h in register a if the operation completes properly, and 0lh if an error occurs during the read or write
 ;Disk number in 'diskno'
 ;Track number in 'track'
 ;Sector number in 'sector'
 ;Dma address in 'dmaad' (0-65535)
-                        in      a, (fake_write_sector_in)
-			and	01h			;error bit
-			ret
-; 			ld	hl,(dmaad)		;memory location of data to write
-; 			ld	de,hstbuf		;host buffer
-; 			ld	b,128			;size of CP/M sector
-; wr_sector_loop:		ld	a,(hl)			;get byte from memory
-; 			ld	(de),a			;put in host buffer
-; 			inc	hl
-; 			inc	de
-; 			djnz	wr_sector_loop		;put 128 bytes in host buffer
-; 			ld	hl,hstbuf		;location of data to write to disk
-; wr_status_loop_1:	in	a,(0fh)			;check status
-; 			and	80h			;check BSY bit
-; 			jp	nz,wr_status_loop_1	;loop until not busy
-; wr_status_loop_2:	in	a,(0fh)			;check	status
-; 			and	40h			;check DRDY bit
-; 			jp	z,wr_status_loop_2	;loop until ready
-; 			ld	a,01h			;number of sectors = 1
-; 			out	(0ah),a			;sector count register
-; 			ld	a,(sector)
-; 			out	(0bh),a			;lba bits 0 - 7 = "sector"
-; 			ld	a,(track)
-; 			out	(0ch),a			;lba bits 8 - 15 = "track"
-; 			ld	a,(diskno)
-; 			out	(0dh),a			;lba bits 16 - 23, use 16 to 20 for "disk"
-; 			ld	a,11100000b		;LBA mode, select drive 0
-; 			out	(0eh),a			;drive/head register
-; 			ld	a,30h			;Write sector command
-; 			out	(0fh),a
-; wr_wait_for_DRQ_set:	in	a,(0fh)			;read status
-; 			and	08h			;DRQ bit
-; 			jp	z,wr_wait_for_DRQ_set	;loop until bit set			
-; write_loop:		ld	a,(hl)
-; 			out	(08h),a			;write data
-; 			inc	hl
-; 			in	a,(0fh)			;read status
-; 			and	08h			;check DRQ bit
-; 			jp	nz,write_loop		;write until bit cleared
-; wr_wait_for_BSY_clear:	in	a,(0fh)
-; 			and	80h
-; 			jp	nz,wr_wait_for_BSY_clear
-; 			in	a,(0fh)			;clear INTRQ
-; 			and	01h			;check for error
-; 			ret
-;
+write:
+	ld	a,pic_cmd_write
+	out 	(pic_port), a   ; request write
+
+        ld      a,(diskno)
+	out 	(pic_port), a   ; disk byte
+
+        ld      a,(sector + 0)
+	out 	(pic_port), a   ; sector L
+        ld      a,(sector + 1)
+	out 	(pic_port), a   ; sector H
+
+        ld      a,(track + 0)
+	out 	(pic_port), a   ; track L
+        ld      a,(track + 1)
+	out 	(pic_port), a   ; track H
+
+	ld	hl,(dmaad)	; memory location to place data to disk
+        ld	b,128		; size of CP/M sector
+        ld	c,pic_port
+
+        ; outir                 ; magic Z80 looping OUT instruction
+write_loop: ; I think this whole loop could be an OUTIR instruction
+        ld	a,(hl)		; get from memory
+        out     (c),a           ; write sector byte to disk
+        inc     hl              ; hl to next buffer byte
+        djnz	write_loop
+
+        call    pic_poll
+	cp	pic_success	; compare with success
+        JP      z,write_success  ; if success, continue
+
+        ; failure
+        ld      a, 01H
+        ret
+
+write_success:
+        ; success
+        ld      a, 0
+        ret
+
 ;	the remainder of the cbios is reserved uninitialized
 ;	data area, and does not need to be a Part of the
 ;	system	memory image (the space must be available,
