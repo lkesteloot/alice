@@ -16,13 +16,28 @@
 
         ; Display message.
         ld      hl, msg
-msglp:  ld      a, (hl)
-        or      a               ; See if it is a nul (\0).
-        jp      z, msgend
-        out     (128), a
-        inc     hl
-        jp      msglp
-msgend:
+        call    print
+
+        ; Replace ROM with RAM.
+        ld      hl, 0
+        ld      (hl), 0
+
+        ; Check that enabling RAM has worked.
+        ld      b, 0
+        ld      (hl), b
+        ld      a, (hl)
+        cp      b
+        jp      nz, ramfail
+
+        ld      b, 0FFH
+        ld      (hl), b
+        ld      a, (hl)
+        cp      b
+        jp      nz, ramfail
+
+        ; Inform user that RAM succeeded.
+        ld      hl, ramgoodmsg
+        call    print
 
         ; Load boot sector from disk.
 
@@ -31,7 +46,35 @@ msgend:
 
         halt    ; XXX remove
 
+        ; Inform user that RAM failed and halt.
+ramfail: ld      hl, rambadmsg
+        call    print
+        halt
+
+        ; Print a nul-terminated string at HL.
+print:  push    af
+        push    hl
+
+prtlp:  ld      a, (hl)
+        cp      a               ; See if it is a nul (\0).
+        jp      z, prtend
+        out     (128), a
+        inc     hl
+        jp      prtlp
+
+prtend: pop     hl
+        pop     af
+        ret
+
 msg:    defm    'Alice 3 loader'
+        defb    10,0
+
+ramgoodmsg:
+        defm    'RAM successfully swapped'
+        defb    10,0
+
+rambadmsg:
+        defm    'RAM failed to swap'
         defb    10,0
 
 	end
