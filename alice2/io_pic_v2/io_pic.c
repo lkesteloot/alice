@@ -58,9 +58,16 @@ int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
 
 void configure_serial()
 {
+    // clear
+    PORTCbits.RC6 = 0;
+    PORTCbits.RC7 = 0;
+    PIR1bits.RCIF = 0;
+
     TRISCbits.TRISC6 = 0;       // TX is output
-    TRISCbits.TRISC7 = 0;       // RX is input
+    TRISCbits.TRISC7 = 1;       // RX is input
+
     SPBRG = baud_rate_code;
+
     TXSTAbits.SYNC = 0;
     TXSTAbits.TXEN = 1;
     PIE1bits.TXIE = 0;
@@ -71,8 +78,8 @@ void configure_serial()
 
 void send_serial(unsigned char b)
 {
-    TXREG = b;
     while(!PIR1bits.TXIF);
+    TXREG = b;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -83,46 +90,6 @@ unsigned char spi_exchange(unsigned char b)
     SSPBUF = b;
     while(!SSPSTATbits.BF);
     return SSPBUF;
-}
-
-
-/*--------------------------------------------------------------------------*/
-/* LCD-specific SPI commands -----------------------------------------------*/
-
-void spi_config_for_lcd()
-{
-    // Set up SPI for NewHaven LCD
-    // Set TMR2 to /16 pre, /8 comparator, source is Fosc/4,
-    // output is /2 for SSP clock, yielding 19.53Khz
-    // but 20Mhz / 4 / 16 / 6 / 2 = 26Khz, so move to PR2=6 later
-    T2CONbits.T2CKPS = 0b11;    // 1:16 prescale
-    // PR2 = 6;                    // TMR2 PR2 trigger on 6
-    PR2 = 8;                    // TMR2 PR2 trigger on 8
-    T2CONbits.TMR2ON = 1;       // enable timer 2
-
-    // slave select for LCD
-    TRISBbits.TRISB7 = 0;       // B7 is /SS for LCD - set to output
-    PORTBbits.RB7 = 1;          // B7 is /SS for LCD - disable
-
-    // SPI master mode
-    SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
-    TRISCbits.TRISC5 = 0;       // SDO is output
-    TRISCbits.TRISC3 = 0;       // SCK is output
-    SSPCON1bits.CKP = 0;        // Clock idle high
-    SSPCON1bits.SSPM = 0b0011;  // SPI Master, CK = TMR2 / 2
-    SSPSTATbits.CKE = 0;        // Output valid by active(low) to idle(high)
-    SSPSTATbits.SMP = 0;        // Sample at middle (unused on LCD)
-    SSPCON1bits.SSPEN = 1;      // Enable SPI
-}
-
-void spi_enable_lcd()
-{
-    PORTBbits.RB7 = 0;          // B7 is /SS for LCD - enable
-}
-
-void spi_disable_lcd()
-{
-    PORTBbits.RB7 = 1;          // B7 is /SS for LCD - disable
 }
 
 
@@ -139,9 +106,9 @@ void spi_config_for_sd()
     PR2 = 1;                    // TMR2 PR2 trigger on 1
     T2CONbits.TMR2ON = 1;       // enable timer 2
 
-    // slave select for LCD
-    TRISBbits.TRISB6 = 0;       // B6 is /SS for LCD - set to output
-    PORTBbits.RB6 = 1;          // B6 is /SS for LCD - disable
+    // slave select for SD
+    TRISBbits.TRISB7 = 0;       // B7 is /SS for SD - set to output
+    PORTBbits.RB7 = 1;          // B7 is /SS for SD - disable
 
     // SPI master mode
     SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
@@ -156,57 +123,12 @@ void spi_config_for_sd()
 
 void spi_enable_sd()
 {
-    PORTBbits.RB6 = 0;          // B6 is /SS for LCD - enable
+    PORTBbits.RB7 = 0;          // B7 is /SS for SD - enable
 }
 
 void spi_disable_sd()
 {
-    PORTBbits.RB6 = 1;          // B6 is /SS for LCD - disable
-}
-
-
-/*--------------------------------------------------------------------------*/
-/* SPI multiplexing --------------------------------------------------------*/
-
-#define SPI_NONE 0
-#define SPI_LCD 1
-#define SPI_SD 2
-#define SPI_RTC 3
-
-int spi_current_peripheral = SPI_NONE;
-
-void spi_use(int peripheral)
-{
-    if(spi_current_peripheral != peripheral) {
-        switch(spi_current_peripheral) {
-            case SPI_LCD:
-                spi_disable_lcd();
-                break;
-            case SPI_RTC:
-                // spi_disable_rtc();
-                break;
-            case SPI_SD:
-                spi_disable_sd();
-                break;
-        }
-
-        switch(peripheral) {
-            case SPI_LCD:
-                spi_config_for_lcd();
-                spi_enable_lcd();
-                break;
-            case SPI_RTC:
-                // spi_config_for_rtc();
-                // spi_enable_rtc();
-                break;
-            case SPI_SD:
-                spi_config_for_sd();
-                spi_enable_sd();
-                break;
-        }
-
-        spi_current_peripheral = peripheral;
-    }
+    PORTBbits.RB7 = 1;          // B7 is /SS for SD - disable
 }
 
 
@@ -215,10 +137,7 @@ void spi_use(int peripheral)
 
 void putch(unsigned char byte)
 {
-    unsigned char dummy;
-
-    spi_use(SPI_LCD);
-    SSPBUF = byte; while(!SSPSTATbits.BF); dummy = SSPBUF;
+    send_serial(byte);
 }
 
 
@@ -259,7 +178,7 @@ unsigned char crc7_generate_bytes(unsigned char *b, int count)
     return crc;
 }
 
-int debug = 0;
+int debug = 1;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
 enum sdcard_command {
@@ -367,7 +286,7 @@ int sdcard_init()
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    printf("sdcard_init: OCR response is 0x%08lX\n", OCR); spi_use(SPI_SD);
+    printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
 
     // should get CSD, CID, print information about them
 
@@ -500,22 +419,17 @@ void main()
     setup();
 
     // XXX MAX232 device
-    PORTA = 0x01;
     configure_serial();
-    PORTA = 0x02;
-    static char hello[] = "Hello RS-232!\n";
-    for(u = 0; u < sizeof(hello) - 1; u++)
-        send_serial(hello[u]);
-    PORTA = 0x04;
+    printf("Hello RS-232.\n");
 
     // Set up PS/2 keyboard?
     // Prompt
     // Get string
     // Print string
 
-#if 0
+#if 1
     // test SD card
-    spi_use(SPI_SD);
+    spi_config_for_sd();
     spi_disable_sd();
     if(!sdcard_init()) {
         printf("failed to start access to SD card as SPI\n");
@@ -523,18 +437,15 @@ void main()
     }
     spi_enable_sd();
     printf("SD Card interface is initialized for SPI\n");
-    spi_use(SPI_SD); spi_enable_sd();
     sdcard_readblock(0, originalblock);
     printf("original block: %02X %02X %02X %02X\n",
         originalblock[0], originalblock[1], originalblock[2], originalblock[3]);
-    spi_use(SPI_SD); spi_enable_sd();
 
     for(i = 0; i < 512; i++)
         block2[i] = i % 256;
 
     sdcard_writeblock(0, block2);
     printf("Wrote junk block\n");
-    spi_use(SPI_SD); spi_enable_sd();
 
     for(i = 0; i < 512; i++)
         block2[i] = 0;
@@ -551,12 +462,10 @@ void main()
             block2[0], block2[1], block2[2], block2[3]);
     } else {
         printf("Verified junk block was written\n");
-    spi_use(SPI_SD); spi_enable_sd();
     }
 
     sdcard_writeblock(0, originalblock);
     printf("Wrote original block\n");
-    spi_use(SPI_SD); spi_enable_sd();
 
     sdcard_readblock(0, block2);
 
@@ -571,7 +480,6 @@ void main()
             block2[0], block2[1], block2[2], block2[3]);
     } else {
         printf("Verified original block was written\n");
-        spi_use(SPI_SD); spi_enable_sd();
     }
     spi_disable_sd();
 #endif
