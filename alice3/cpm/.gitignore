@@ -1,2 +1,4 @@
 *.hex
 *.prn
+hex2dsk
+boot.dsk

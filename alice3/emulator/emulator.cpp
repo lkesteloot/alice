@@ -924,7 +924,7 @@ bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
     printf("    fill addr count byte  - fill count bytes with byte at addr\n");
     printf("    readhex file.hex      - read file.hex into memory\n");
     printf("    readbin addr file.bin - read file.bin into memory at addr\n");
-    printf("    symbols file          - read symbols from file\n");
+    printf("    symbols file.prn      - read symbols from file\n");
     printf("    step [N]              - step [for N instructions]\n");
     printf("    watch addr            - break out of step if addr changes\n");
     printf("    break addr            - break into debugger at addr\n");
