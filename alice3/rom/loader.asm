@@ -94,7 +94,7 @@ ldsector:
         ; Poll until we get a non-zero result.
 ldwait:
         in      a, (PICPORT)
-        cp      a
+        or      a
         jp      z, ldwait
 
         ; Check for failure (success = 1).
@@ -130,7 +130,7 @@ print:  push    af
         push    hl
 
 prtlp:  ld      a, (hl)
-        cp      a               ; See if it is a nul (\0).
+        or      a               ; See if it is a nul (\0).
         jp      z, prtend
         out     (128), a
         inc     hl

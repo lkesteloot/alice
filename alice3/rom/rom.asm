@@ -17,7 +17,7 @@
         ; Display message.
         ld      hl, msg
 msglp:  ld      a, (hl)
-        cp      a               ; See if it is a nul (\0).
+        or      a               ; See if it is a nul (\0).
         jp      z, msgend
         out     (128), a
         inc     hl
