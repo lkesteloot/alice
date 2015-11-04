@@ -1,18 +1,18 @@
 
-; This is the loader. It is copies to RAM by the preloader (see rom.asm).
-; It is responsible for loading the first few sectors of the disk and
-; running them.
+; This CP/M loader lives in the first two sectors of the disk. It loads
+; the rest of CP/M into memory and jumps to it.
 
-; Defines loader:
-#include "loader_address.asm"
+; Where CP/M lives.
+CPM_ADDR EQU 0E400H
+
+; Where BIOS lives.
+BIOS_ADDR EQU 0FA00H
 
 ; The port we use to interact with the pic.
 PICPORT EQU     0
 
-; Where we load the boot sectors to.
-BOOT    EQU     0100H
-
-        org     loader
+        ; We are loaded at 0x100.
+        org     0100H
 
         ; Disable interrupts.
         di
@@ -24,44 +24,42 @@ BOOT    EQU     0100H
         ld      hl, msg
         call    print
 
-        ; Replace ROM with RAM.
-        ld      hl, 0
-        ld      (hl), 0
-
-        ; Check that enabling RAM has worked.
-        ld      b, 0
-        ld      (hl), b
-        ld      a, (hl)
-        cp      b
-        jp      nz, ramfail
-
-        ld      b, 0FFH
-        ld      (hl), b
-        ld      a, (hl)
-        cp      b
-        jp      nz, ramfail
-
-        ; Inform user that RAM succeeded.
-        ld      hl, ramgoodmsg
-        call    print
-
-        ; Load boot sector 0 from disk.
+        ; Load 44 sectors from disk, starting at sector 2.
         ld      a, 0            ; Disk 0
-        ld      de, 0           ; Sector 0
-        ld      bc, 0           ; Track 0
-        ld      hl, BOOT        ; Buffer
-        call    ldsector
+        ld      de, 2           ; Sector 2
+        ld      hl, CPM_ADDR    ; Buffer
 
-        ; Load boot sector 1 from disk.
-        inc     de
+        ; Loop to load sectors.
+        ld      b, 44
+cpmlp:
+        push    bc
+        ld      bc, 0           ; Track 0
         call    ldsector
+        pop     bc
+        inc     de
+        djnz    cpmlp           ; Do "b" times.
+
+        ; Load 8 sectors from disk, starting at sector 0 on track 1.
+        ld      a, 0            ; Disk 0
+        ld      de, 0           ; Sector 2
+        ld      hl, BIOS_ADDR   ; Buffer
+
+        ; Loop to load sectors.
+        ld      b, 8
+bioslp:
+        push    bc
+        ld      bc, 1           ; Track 1
+        call    ldsector
+        pop     bc
+        inc     de
+        djnz    bioslp          ; Do "b" times.
 
         ; Inform user that we are about to jump.
         ld      hl, jmpmsg
         call    print
 
-        ; Jump to boot sector.
-        jp      BOOT
+        ; Jump to CP/M.
+        jp      BIOS_ADDR
 
         ; ------------------------------------------
         ; Load a sector from disk.
@@ -115,12 +113,6 @@ ldwait:
         ret
 
         ; ------------------------------------------
-        ; Inform user that RAM failed and halt.
-ramfail: ld      hl, rambadmsg
-        call    print
-        halt
-
-        ; ------------------------------------------
         ; Inform user that sector load failed and halt.
 ldfail: ld      hl, ldfailmsg
         call    print
@@ -145,18 +137,10 @@ prtend: pop     hl
         ; ------------------------------------------
         ; Constants.
 
-msg:    defm    'Alice 3 loader'
+msg:    defm    'Alice 3 CP/M loader'
         defb    10,0
 
-jmpmsg: defm    'About to jump to boot loader'
-        defb    10,0
-
-ramgoodmsg:
-        defm    'RAM successfully swapped'
-        defb    10,0
-
-rambadmsg:
-        defm    'RAM failed to swap'
+jmpmsg: defm    'About to jump to CP/M'
         defb    10,0
 
 ldfailmsg:

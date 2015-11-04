@@ -354,6 +354,19 @@ struct Alice3HW : board_base
     std::vector<unsigned char> queued;
     const int server_port = 6607;
     struct socket_connection conn;
+    void write_to_propeller(unsigned char data)
+    {
+        if(!conn.is_connected()) {
+            queued.push_back(data);
+        } else {
+            if(queued.size() > 0) {
+                for(int i = 0; i < queued.size(); i++)
+                    conn.send(&queued[i], 1);
+                queued.clear();
+            }
+            conn.send(&data, 1);
+        }
+    }
     virtual bool io_write(int addr, unsigned char data)
     {
         if(!conn.cycle()) {
@@ -362,16 +375,11 @@ struct Alice3HW : board_base
         }
 
         if(addr == Alice3HW::PROPELLER_PORT) {
-            if(!conn.is_connected()) {
-                queued.push_back(data);
-            } else {
-                if(queued.size() > 0) {
-                    for(int i = 0; i < queued.size(); i++)
-                        conn.send(&queued[i], 1);
-                    queued.clear();
-                }
-                conn.send(&data, 1);
+            if (data == 10) {
+                // For telnet sanity.
+                write_to_propeller(13);
             }
+            write_to_propeller(data);
             return true;
         }
 

@@ -104,8 +104,8 @@ int main(int argc, char *argv[]) {
     free(buffer);
 
     // Read CP/M image.
-    buffer = read_hex_file(cpm22, 0xE400, 56*SECTOR_SIZE, &size_read);
-    memmove(disk + SECTOR_SIZE*2, buffer, SECTOR_SIZE*56);
+    buffer = read_hex_file(cpm22, 0xE400, 46*SECTOR_SIZE, &size_read);
+    memmove(disk + SECTOR_SIZE*2, buffer, SECTOR_SIZE*46);
     free(buffer);
 
     // Read BIOS image.
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 
     // Write diskette.
     FILE *f = fopen(output, "wb");
-    fwrite(buffer, 1, size, f);
+    fwrite(disk, 1, size, f);
     fclose(f);
 
     return 0;
