@@ -919,10 +919,12 @@ bool debugger_out(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* stat
 bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* state, int argc, char **argv)
 {
     printf("Debugger commands:\n");
+    printf("    go                    - continue normally\n");
     printf("    dump addr count       - dump count bytes at addr\n");
     printf("    fill addr count byte  - fill count bytes with byte at addr\n");
     printf("    readhex file.hex      - read file.hex into memory\n");
     printf("    readbin addr file.bin - read file.bin into memory at addr\n");
+    printf("    symbols file          - read symbols from file\n");
     printf("    step [N]              - step [for N instructions]\n");
     printf("    watch addr            - break out of step if addr changes\n");
     printf("    break addr            - break into debugger at addr\n");
@@ -931,13 +933,13 @@ bool debugger_help(Debugger *d, std::vector<board_base*>& boards, Z80_STATE* sta
     printf("    remove N              - remove breakpoint N\n");
     printf("    list                  - list breakpoints and catchpoints\n");
     printf("    jump addr             - jump to addr \n");
-    printf("    pc addr               - set PC to addr(in anticipation of \"step\")\n");
+    printf("    pc addr               - set PC to addr (in anticipation of \"step\")\n");
     printf("    in port               - input byte from port and print it\n");
     printf("    out port byte         - output byte to port\n");
     printf("    help                  - print this help message\n");
     printf("    ?                     - print this help message\n");
     printf("    dis addr count        - disassemble count instructions at addr\n");
-    // printf("    reset\n");
+    printf("    quit, exit, ^D        - exit the debugger\n");
     return false;
 }
 
