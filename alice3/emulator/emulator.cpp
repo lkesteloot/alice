@@ -283,14 +283,14 @@ struct Alice3HW : board_base
                 int track = command[4] + 256 * command[5];
 
                 if(disks[disk] != NULL) {
-                    printf("Read track %d, sector %d (%d)\n", track, sector, (track * sectors_per_track + sector) * sector_size);
                     long location = (track * sectors_per_track + sector) * sector_size;
+                    if(debug) printf("Read track %d, sector %d (byte %ld)\n", track, sector, location);
                     if(location >= disk_size - sector_size) {
                         fprintf(stderr, "read past end of disk ignored!!\n");
                         return;
                     }
 
-                    for(int i = 0; i < 10; i++)
+                    for(int i = 0; i < 3; i++) // to test polling
                         *rp++ = 0;
                     *rp++ = Alice3HW::PIC_SUCCESS;
 
@@ -298,10 +298,10 @@ struct Alice3HW : board_base
                     fread(rp, sector_size, 1, disks[disk]);
                     rp += sector_size;
                 } else {
+                    if(debug) printf("PIC_CMD_READ failure\n");
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
                 response_length = rp - response;
-                if(debug) printf("CMD_READ yielded %zd bytes\n", response_length);
                 break;
             }
 
@@ -310,7 +310,7 @@ struct Alice3HW : board_base
                 int sector = command[2] + 256 * command[3];
                 int track = command[4] + 256 * command[5];
                 if(disks[disk] != NULL) {
-                    printf("Write track %d, sector %d (%d)\n", track, sector, (track * sectors_per_track + sector) * sector_size);
+                    if(debug) printf("Write track %d, sector %d (%d)\n", track, sector, (track * sectors_per_track + sector) * sector_size);
                     long location = (track * sectors_per_track + sector) * sector_size;
                     if(location >= disk_size - sector_size) {
                         fprintf(stderr, "write past end of disk ignored!!\n");
@@ -319,25 +319,24 @@ struct Alice3HW : board_base
                     fseek(disks[disk], location, SEEK_SET);
                     fwrite(command + 6, sector_size, 1, disks[disk]);
 
-                    for(int i = 0; i < 10; i++)
+                    for(int i = 0; i < 3; i++) // to test polling
                         *rp++ = 0;
                     *rp++ = Alice3HW::PIC_SUCCESS;
                 } else {
+                    if(debug) printf("PIC_CMD_WRITE failure\n");
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
                 response_length = rp - response;
-                if(debug) printf("CMD_WRITE yielded %zd bytes\n", response_length);
                 break;
             }
 
             case Alice3HW::PIC_CMD_CONST:
                 *rp++ = conn.is_data_ready() ? Alice3HW::PIC_READY : Alice3HW::PIC_NOT_READY;
                 response_length = rp - response;
-                if(debug) printf("CMD_CONST yielded %zd bytes\n", response_length);
                 break;
 
             case Alice3HW::PIC_CMD_CONIN: {
-                for(int i = 0; i < 10; i++)
+                for(int i = 0; i < 3; i++) // to test polling
                     *rp++ = 0;
                 *rp++ = Alice3HW::PIC_READY;
                 unsigned char data;
@@ -347,7 +346,6 @@ struct Alice3HW : board_base
 		    data = 13; // XXX turn newline into carriage return
                 *rp++ = data;
                 response_length = rp - response;
-                if(debug) printf("CMD_CONIN yielded %zd bytes\n", response_length);
                 break;
             }
         }
@@ -380,7 +378,6 @@ struct Alice3HW : board_base
         if(addr == Alice3HW::PIC_PORT) {
             command[command_length++] = data;
             if(command_length == PIC_command_lengths[command[0]]) {
-                if(debug) printf("process %zd bytes as PIC command\n", command_length);
                 process_pic_command(command, command_length);
                 command_length = 0; 
             }
@@ -401,9 +398,7 @@ struct Alice3HW : board_base
                 data = 0;
             else {
                 data = response[response_index++];
-                if(debug) printf("PIC sending byte %d: 0x%02X\n", response_index - 1, data);
                 if(response_index == response_length) {
-                    if(debug) printf("end of response\n");
                     response_length = 0;
                     response_index = 0;
                 }
