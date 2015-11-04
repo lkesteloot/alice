@@ -6,7 +6,11 @@
 ; Defines loader:
 #include "loader_address.asm"
 
+; The port we use to interact with the pic.
 PICPORT EQU     0
+
+; Where we load the boot sectors to.
+BOOT    EQU     0100H
 
         org     loader
 
@@ -41,27 +45,35 @@ PICPORT EQU     0
         ld      hl, ramgoodmsg
         call    print
 
-        ; Load boot sector from disk.
+        ; Load boot sector 0 from disk.
         ld      a, 0            ; Disk 0
         ld      de, 0           ; Sector 0
         ld      bc, 0           ; Track 0
-        ld      hl, bootsector  ; Buffer
+        ld      hl, BOOT        ; Buffer
         call    ldsector
 
+        ; Load boot sector 1 from disk.
+        inc     de
+        call    ldsector
+
+        ; Inform user that we are about to jump.
+        ld      hl, jmpmsg
+        call    print
+
         ; Jump to boot sector.
-        jp      bootsector
+        jp      BOOT
 
         ; ------------------------------------------
         ; Load a sector from disk.
         ; A = disk number
         ; DE = sector number
         ; BC = track number
-        ; HL = buffer address with 128 bytes
+        ; HL = buffer address with 128 bytes. This register
+        ;      is left one byte past the end of the buffer.
         ;
         ; Halts on error.
 ldsector:
         push    af
-        push    hl
         push    bc
 
         ; Send command to load sector.
@@ -96,7 +108,6 @@ ldwait:
         inir                        ; Read B bytes from C into HL
 
         pop     bc
-        pop     hl
         pop     af
 
         ret
@@ -135,6 +146,9 @@ prtend: pop     hl
 msg:    defm    'Alice 3 loader'
         defb    10,0
 
+jmpmsg: defm    'About to jump to boot loader'
+        defb    10,0
+
 ramgoodmsg:
         defm    'RAM successfully swapped'
         defb    10,0
@@ -146,8 +160,5 @@ rambadmsg:
 ldfailmsg:
         defm    'Sector load failed'
         defb    10,0
-
-bootsector:
-        ; Leave 128 bytes here.
 
 	end
