@@ -146,21 +146,21 @@ prtend: pop     hl
         ; Constants.
 
 msg:    defm    'Alice 3 loader'
-        defb    10,0
+        defb    13,10,0
 
 jmpmsg: defm    'About to jump to boot loader'
-        defb    10,0
+        defb    13,10,0
 
 ramgoodmsg:
         defm    'RAM successfully swapped'
-        defb    10,0
+        defb    13,10,0
 
 rambadmsg:
         defm    'RAM failed to swap'
-        defb    10,0
+        defb    13,10,0
 
 ldfailmsg:
         defm    'Sector load failed'
-        defb    10,0
+        defb    13,10,0
 
 	end

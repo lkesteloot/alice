@@ -375,10 +375,6 @@ struct Alice3HW : board_base
         }
 
         if(addr == Alice3HW::PROPELLER_PORT) {
-            if (data == 10) {
-                // For telnet sanity.
-                write_to_propeller(13);
-            }
             write_to_propeller(data);
             return true;
         }

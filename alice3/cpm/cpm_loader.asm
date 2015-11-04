@@ -138,13 +138,13 @@ prtend: pop     hl
         ; Constants.
 
 msg:    defm    'Alice 3 CP/M loader'
-        defb    10,0
+        defb    13,10,0
 
 jmpmsg: defm    'About to jump to CP/M'
-        defb    10,0
+        defb    13,10,0
 
 ldfailmsg:
         defm    'Sector load failed'
-        defb    10,0
+        defb    13,10,0
 
 	end

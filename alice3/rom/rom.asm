@@ -34,7 +34,7 @@ msgend:
         jp      loader
 
 msg:    defm    'Alice 3 preloader'
-        defb    10,0
+        defb    13,10,0
 
 ; Defines ldrdat and ldrcnt:
 #include "loader_data.asm"

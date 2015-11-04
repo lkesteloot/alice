@@ -1,1 +1,0 @@
-./emulator -debugger "readhex ../cpm/cpm22.hex;readhex ../cpm/alice3_cbios.hex;symbols ../cpm/alice3_cbios.prn;symbols ../cpm/cpm22.prn;pc 0xfa00" driveA.bin,../../alice2/emulator/wordstar.dsk ../cpm/alice3_cbios.hex
