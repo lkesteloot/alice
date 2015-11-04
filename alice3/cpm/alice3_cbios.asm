@@ -176,9 +176,9 @@ load1:	;load	one more sector
 ;
 ;	more	sectors remain to load, check for track change
 	INC	d
-	LD 	a,d		;sector=27?, if so, change tracks
-	CP	27
-	JP	C,load1		;carry generated if sector<27
+	LD 	a,d		;sector=65?, if so, change tracks
+	CP	65
+	JP	C,load1		;carry generated if sector<65
 ;
 ;	end of	current track,	go to next track
 	LD 	d, 1		;begin with first sector of next track
