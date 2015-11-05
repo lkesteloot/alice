@@ -1,22 +1,9 @@
 #ifdef SDCC_MODE
 
-#if PIC_LINE == pic18
-
 #include <pic18fregs.h>
 
 #pragma config OSC=EC           // External clock
 #pragma config WDT=OFF          // Watchdog timer off
-
-#else // FAMILY == pic16
-
-// This will only work until I allocate a big buffer for SD card blocking
-
-#include <pic16fregs.h>
-
-#pragma config FOSC=HS          // External clock
-#pragma config WDTE=OFF         // watchdog off
-
-#endif // FAMILY
 
 #else // ! SDCC_MODE - Microchip's C compiler
 
@@ -40,11 +27,8 @@ void pause()
 
 void setup()
 {
-    // For simulator; otherwise reports WDT exception
     ClrWdt();
-#if PIC_LINE == pic18
     WDTCON = 0;
-#endif
 
     // debug LEDs
     TRISA = 0xF0;
@@ -80,7 +64,7 @@ void send_serial(unsigned char b)
 {
     while(!PIR1bits.TXIF);
     TXREG = b;
-    ClrWdt();
+    ClrWdt(); // XXX Why do I need this?
 }
 
 /*--------------------------------------------------------------------------*/
@@ -90,7 +74,7 @@ unsigned char spi_exchange(unsigned char b)
 {
     SSPBUF = b;
     while(!SSPSTATbits.BF);
-    ClrWdt();
+    ClrWdt(); // XXX Why do I need this?
     return SSPBUF;
 }
 
@@ -118,10 +102,10 @@ void spi_config_for_sd()
     TRISCbits.TRISC5 = 0;       // SDO is output
     TRISCbits.TRISC4 = 1;       // SDI is input
     TRISCbits.TRISC3 = 0;       // SCK is output
-    SSPCON1bits.CKP = 1;        // Clock idle high
+    SSPCON1bits.CKP = 0;        // Clock idle low
     SSPCON1bits.SSPM = 0b0011;  // SPI Master, CK = TMR2 / 2
-    SSPSTATbits.CKE = 0;        // Output valid by active(low) to idle(high)
-    SSPSTATbits.SMP = 0;        // Sample at middle
+    SSPSTATbits.CKE = 1;        // Output valid by active(low) to idle(high)
+    SSPSTATbits.SMP = 1;        // Sample at middle
     SSPCON1bits.SSPEN = 1;      // Enable SPI
 }
 
@@ -455,13 +439,14 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
 }
 
 unsigned char originalblock[512];
-unsigned char block2[512];
+unsigned char testblock[512];
 
 void main()
 {
     unsigned int u;
     int i;
     int success;
+    int block_number;
 
     setup();
     pause();
@@ -485,64 +470,74 @@ void main()
     }
     printf("SD Card interface is initialized for SPI\n");
 
-    printf("Reading a block\n");
-    if(!sdcard_readblock(0, originalblock)) {
-        goto stop;
-    }
-    printf("Original block:\n");
-    dump_buffer_hex(4, originalblock, 512);
+    block_number = 0;
 
-    for(i = 0; i < 512; i++)
-        block2[i] = (originalblock[i] + 0x55) % 256;
+    for(;;) {
+        printf("operating on block %d\n", block_number);
+        printf("Reading a block\n");
+        if(!sdcard_readblock(block_number, originalblock)) {
+            goto stop;
+        }
+        printf("Original block:\n");
+        dump_buffer_hex(4, originalblock, 512);
 
-    if(!sdcard_writeblock(0, block2)) {
-        printf("Failed writeblock\n");
-        goto stop;
-    }
-    printf("Wrote junk block\n");
+        for(i = 0; i < 512; i++)
+            testblock[i] = (originalblock[i] + 0x55) % 256;
 
-    for(i = 0; i < 512; i++)
-        block2[i] = 0;
-    if(!sdcard_readblock(0, block2)) {
-        printf("Failed readblock\n");
-        goto stop;
-    }
+        pause();
+        if(!sdcard_writeblock(block_number, testblock)) {
+            printf("Failed writeblock\n");
+            goto stop;
+        }
+        printf("Wrote junk block\n");
 
-    success = 1;
-    for(i = 0; i < 512; i++)
-        if(block2[i] != (originalblock[i] + 0x55) % 256)
-            success = 0;
+        for(i = 0; i < 512; i++)
+            testblock[i] = 0;
+        pause();
+        if(!sdcard_readblock(block_number, testblock)) {
+            printf("Failed readblock\n");
+            goto stop;
+        }
 
-    if(!success) {
-        printf("whoops, error verifying write of junk to block 0\n");
-        printf("block read: %02X %02X %02X %02X\n",
-            block2[0], block2[1], block2[2], block2[3]);
-    } else {
-        printf("Verified junk block was written\n");
-    }
+        success = 1;
+        for(i = 0; i < 512; i++)
+            if(testblock[i] != (originalblock[i] + 0x55) % 256)
+                success = 0;
 
-    if(!sdcard_writeblock(0, originalblock)) {
-        printf("Failed writeblock\n");
-        goto stop;
-    }
-    printf("Wrote original block\n");
+        if(!success) {
+            printf("whoops, error verifying write of junk to block 0\n");
+            printf("block read: %02X %02X %02X %02X\n",
+                testblock[0], testblock[1], testblock[2], testblock[3]);
+        } else {
+            printf("Verified junk block was written\n");
+        }
 
-    if(!sdcard_readblock(0, block2)) {
-        printf("Failed readblock\n");
-        goto stop;
-    }
+        pause();
+        if(!sdcard_writeblock(block_number, originalblock)) {
+            printf("Failed writeblock\n");
+            goto stop;
+        }
+        printf("Wrote original block\n");
 
-    success = 1;
-    for(i = 0; i < 512; i++)
-        if(originalblock[i] != block2[i])
-            success = 0;
+        pause();
+        if(!sdcard_readblock(block_number, testblock)) {
+            printf("Failed readblock\n");
+            goto stop;
+        }
 
-    if(!success) {
-        printf("whoops, error verifying write of original to block 0\n");
-        printf("block read: %02X %02X %02X %02X\n",
-            block2[0], block2[1], block2[2], block2[3]);
-    } else {
-        printf("Verified original block was written\n");
+        success = 1;
+        for(i = 0; i < 512; i++)
+            if(originalblock[i] != testblock[i])
+                success = 0;
+
+        if(!success) {
+            printf("whoops, error verifying write of original to block 0\n");
+            printf("block read: %02X %02X %02X %02X\n",
+                testblock[0], testblock[1], testblock[2], testblock[3]);
+        } else {
+            printf("Verified original block was written\n");
+        }
+        block_number ++;
     }
     spi_disable_sd();
 
