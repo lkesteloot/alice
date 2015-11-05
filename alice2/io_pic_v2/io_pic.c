@@ -80,6 +80,7 @@ void send_serial(unsigned char b)
 {
     while(!PIR1bits.TXIF);
     TXREG = b;
+    ClrWdt();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -89,6 +90,7 @@ unsigned char spi_exchange(unsigned char b)
 {
     SSPBUF = b;
     while(!SSPSTATbits.BF);
+    ClrWdt();
     return SSPBUF;
 }
 
@@ -96,14 +98,15 @@ unsigned char spi_exchange(unsigned char b)
 /*--------------------------------------------------------------------------*/
 /* SD-card-specific SPI commands -------------------------------------------*/
 
+// Postcondition: SPI configured for SD, SS high (false)
 void spi_config_for_sd()
 {
     // Set up SPI for SD card
     // Set TMR2 to /16 pre, /1 comparator, source is Fosc/4,
-    // 20Mhz / 4 / 16 / 1 / 2 = 156.25KHz,  Max out later
+    // 20Mhz / 4 / 16 / 5 / 2 = 31.25KHz,  Max out later
 
     T2CONbits.T2CKPS = 0b11;    // 1:16 prescale
-    PR2 = 1;                    // TMR2 PR2 trigger on 1
+    PR2 = 8;                    // TMR2 PR2 trigger on 8
     T2CONbits.TMR2ON = 1;       // enable timer 2
 
     // slave select for SD
@@ -113,6 +116,7 @@ void spi_config_for_sd()
     // SPI master mode
     SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
     TRISCbits.TRISC5 = 0;       // SDO is output
+    TRISCbits.TRISC4 = 1;       // SDI is input
     TRISCbits.TRISC3 = 0;       // SCK is output
     SSPCON1bits.CKP = 1;        // Clock idle high
     SSPCON1bits.SSPM = 0b0011;  // SPI Master, CK = TMR2 / 2
@@ -178,7 +182,8 @@ unsigned char crc7_generate_bytes(unsigned char *b, int count)
     return crc;
 }
 
-int debug = 1;
+int debug = 0;
+int timeout_count = 100;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
 enum sdcard_command {
@@ -199,6 +204,7 @@ void spi_bulk(unsigned char *buffer, unsigned int nlen)
 
     for(i = 0; i < nlen; i++) {
         buffer[i] = spi_exchange(buffer[i]);
+        // printf("%d: 0x%02X\n", i, buffer[i]);
     }
 }
 
@@ -209,6 +215,17 @@ void spi_writen(unsigned char *buffer, unsigned int nlen)
 
     for(i = 0; i < nlen; i++) {
         dummy = spi_exchange(buffer[i]);
+    }
+}
+
+void spi_readn(unsigned char *buffer, unsigned int nlen)
+{
+    int i;
+    unsigned char dummy;
+
+    for(i = 0; i < nlen; i++) {
+        buffer[i] = spi_exchange(0xff);
+        // printf("%d: 0x%02X\n", i, buffer[i]);
     }
 }
 
@@ -239,7 +256,7 @@ int send_sdcard_command(enum sdcard_command command, unsigned long parameter, un
         response[i] = 0xff;
     count = 0;
     do {
-        if(count > 100) {
+        if(count > timeout_count) {
             printf("send_sdcard_command: timed out waiting on response\n");
             return 0;
         }
@@ -255,7 +272,8 @@ int send_sdcard_command(enum sdcard_command command, unsigned long parameter, un
     return 1;
 }
 
-/* precondition: SD card CS is high (false) */
+// precondition: SD card CS is high (disabled)
+// postcondition: SD card CS is low (enabled)
 int sdcard_init()
 {
     unsigned char response[8];
@@ -270,6 +288,7 @@ int sdcard_init()
 
     spi_bulk(buffer, sizeof(buffer));
 
+    spi_enable_sd();
     /* interface init */
     if(!send_sdcard_command(CMD0, 0, response, 8))
         return 0;
@@ -292,7 +311,7 @@ int sdcard_init()
 
     count = 0; 
     do {
-        if(count > 100) {
+        if(count > timeout_count) {
             printf("sdcard_init: timed out waiting on transition to ACMD41\n");
             return 0;
         }
@@ -334,7 +353,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     response[0] = 0xff;
     count = 0;
     do {
-        if(count > 100) {
+        if(count > timeout_count) {
             printf("sdcard_readblock: timed out waiting on response\n");
             return 0;
         }
@@ -343,7 +362,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
         count++;
     } while(response[0] != sdcard_token_17_18_24);
 
-    spi_bulk(block, block_size);
+    spi_readn(block, block_size);
     response[0] = 0xff;
     response[1] = 0xff;
     spi_bulk(response, 2);
@@ -388,7 +407,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
 
     count = 0;
     do {
-        if(count > 100) {
+        if(count > timeout_count) {
             printf("sdcard_writeblock: timed out waiting on response\n");
             return 0;
         }
@@ -407,6 +426,33 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     return 1;
 }
 
+int isprint(unsigned char a)
+{
+    return (a >= ' ') && (a <= '~');
+}
+
+void dump_buffer_hex(int indent, unsigned char *data, int size)
+{
+    int address = 0;
+
+    while(size > 0) {
+        int howmany = (size < 16) ? size : 16;
+
+        printf("%*s0x%04X: ", indent, "", address);
+        for(int i = 0; i < howmany; i++)
+            printf("%02X ", data[i]);
+        printf("\n");
+
+        printf("%*s        ", indent, "");
+        for(int i = 0; i < howmany; i++)
+            printf(" %c ", isprint(data[i]) ? data[i] : '.');
+        printf("\n");
+
+        size -= howmany;
+        data += howmany;
+        address += howmany;
+    }
+}
 
 unsigned char originalblock[512];
 unsigned char block2[512];
@@ -416,7 +462,9 @@ void main()
     unsigned int u;
     int i;
     int success;
+
     setup();
+    pause();
 
     // XXX MAX232 device
     configure_serial();
@@ -427,33 +475,42 @@ void main()
     // Get string
     // Print string
 
-#if 1
+    pause();
+
     // test SD card
     spi_config_for_sd();
-    spi_disable_sd();
     if(!sdcard_init()) {
         printf("failed to start access to SD card as SPI\n");
         goto stop;
     }
-    spi_enable_sd();
     printf("SD Card interface is initialized for SPI\n");
-    sdcard_readblock(0, originalblock);
-    printf("original block: %02X %02X %02X %02X\n",
-        originalblock[0], originalblock[1], originalblock[2], originalblock[3]);
+
+    printf("Reading a block\n");
+    if(!sdcard_readblock(0, originalblock)) {
+        goto stop;
+    }
+    printf("Original block:\n");
+    dump_buffer_hex(4, originalblock, 512);
 
     for(i = 0; i < 512; i++)
-        block2[i] = i % 256;
+        block2[i] = (originalblock[i] + 0x55) % 256;
 
-    sdcard_writeblock(0, block2);
+    if(!sdcard_writeblock(0, block2)) {
+        printf("Failed writeblock\n");
+        goto stop;
+    }
     printf("Wrote junk block\n");
 
     for(i = 0; i < 512; i++)
         block2[i] = 0;
-    sdcard_readblock(0, block2);
+    if(!sdcard_readblock(0, block2)) {
+        printf("Failed readblock\n");
+        goto stop;
+    }
 
     success = 1;
     for(i = 0; i < 512; i++)
-        if(block2[i] != i % 256)
+        if(block2[i] != (originalblock[i] + 0x55) % 256)
             success = 0;
 
     if(!success) {
@@ -464,10 +521,16 @@ void main()
         printf("Verified junk block was written\n");
     }
 
-    sdcard_writeblock(0, originalblock);
+    if(!sdcard_writeblock(0, originalblock)) {
+        printf("Failed writeblock\n");
+        goto stop;
+    }
     printf("Wrote original block\n");
 
-    sdcard_readblock(0, block2);
+    if(!sdcard_readblock(0, block2)) {
+        printf("Failed readblock\n");
+        goto stop;
+    }
 
     success = 1;
     for(i = 0; i < 512; i++)
@@ -482,7 +545,6 @@ void main()
         printf("Verified original block was written\n");
     }
     spi_disable_sd();
-#endif
 
     PORTA = 0x8;
 
