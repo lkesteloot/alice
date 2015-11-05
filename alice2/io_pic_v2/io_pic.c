@@ -1,3 +1,4 @@
+
 #ifdef SDCC_MODE
 
 #include <pic18fregs.h>
@@ -17,6 +18,64 @@
 
 #include <stdio.h>
 
+#define PIC_POLL_AGAIN 0x00
+#define PIC_SUCCESS 0x01
+#define PIC_READY 0x01
+#define PIC_FAILURE 0xFF
+#define PIC_NOT_READY 0xFF
+
+#define PIC_CMD_NONE  0x00
+#define PIC_CMD_READ  0x01
+#define PIC_CMD_WRITE 0x02
+#define PIC_CMD_CONST 0x03
+#define PIC_CMD_CONIN 0x04
+
+int command_request; /* set this after reading all the bytes */
+unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
+int command_length = 0;
+
+unsigned char response_bytes[128];
+int response_length;
+int response_index;
+
+const int PIC_command_lengths[5] = {0, 6, 134, 1, 1};
+
+int input_char_ready = 0;
+unsigned char input_char;
+
+void interrupt intr()
+{
+    if(PIR1bits.PSPIF) {
+        // PSP interrupt
+        if(TRISEbits.IBF) {
+            // write from Z80
+            command_bytes[command_length++] = PORTD;
+            if(command_length == PIC_command_lengths[command_bytes[0]])
+                command_request = command_bytes[0];
+        } else {
+            // byte was read from PIC; send next
+            if(response_length > 0) {
+                PORTD = response_bytes[response_index];
+                response_index++;
+                if(response_index >= response_length) {
+                    response_index = 0;
+                    response_length = 0;
+                }
+            } else {
+                PORTD = 0;
+            }
+        }
+        PIR1bits.PSPIF = 0; // clear PSP interrupt
+    } if(PIR1bits.RCIF) {
+        input_char = RCREG;
+        printf("serial: '%c'\n", input_char);
+        input_char_ready = 1;
+        PIR1bits.RCIF = 0;
+    }
+}
+
+// option - serial input queue
+
 void pause()
 {
     int i;
@@ -32,6 +91,23 @@ void setup()
 
     // debug LEDs
     TRISA = 0xF0;
+
+    command_length = 0;
+    command_request = PIC_CMD_NONE;
+    PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
+    TRISEbits.TRISE0 = 1;		// /RD is input
+    TRISEbits.TRISE1 = 1;		// /WR is input
+    TRISEbits.TRISE2 = 1;		// /CS is input
+    TRISEbits.PSPMODE = 1;		// port D is PSP
+    ADCON1bits.PCFG2 = 1;               // ADCON has to be set for RE2:RE0 to be inputs
+    ADCON1bits.PCFG1 = 1;
+    ADCON1bits.PCFG0 = 1;
+    PIE1bits.PSPIE = 1; // enable interrupts on PSP
+    INTCONbits.PEIE = 1; // enable peripheral interrupts
+    INTCONbits.GIE = 1; // enable interrupts
+
+    response_length = 0;
+    PORTD = 0;
 }
 
 
@@ -56,7 +132,7 @@ void configure_serial()
     TXSTAbits.TXEN = 1;
     PIE1bits.TXIE = 0;
     RCSTAbits.SPEN = 1;
-    PIE1bits.RCIE = 0; // 1;
+    PIE1bits.RCIE = 1;
     RCSTAbits.CREN = 1;
 }
 
@@ -90,7 +166,7 @@ void spi_config_for_sd()
     // 20Mhz / 4 / 16 / 5 / 2 = 31.25KHz,  Max out later
 
     T2CONbits.T2CKPS = 0b11;    // 1:16 prescale
-    PR2 = 8;                    // TMR2 PR2 trigger on 8
+    PR2 = 1;                    // TMR2 PR2 trigger on 8
     T2CONbits.TMR2ON = 1;       // enable timer 2
 
     // slave select for SD
@@ -167,7 +243,7 @@ unsigned char crc7_generate_bytes(unsigned char *b, int count)
 }
 
 int debug = 0;
-int timeout_count = 100;
+int timeout_count = 20000;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
 enum sdcard_command {
@@ -180,6 +256,7 @@ enum sdcard_command {
 };
 unsigned char sdcard_response_IDLE = 0x01;
 unsigned char sdcard_response_SUCCESS = 0x00;
+unsigned char sdcard_response_DATA_ACCEPTED = 0xE5;
 unsigned char sdcard_token_17_18_24 = 0xFE;
 
 void spi_bulk(unsigned char *buffer, unsigned int nlen)
@@ -319,6 +396,18 @@ int sdcard_init()
 
 const unsigned int block_size = 512;
 
+void dump_more_spi_bytes(const char *why)
+{
+    unsigned int u;
+    unsigned char response[8];
+    for(u = 0; u < sizeof(response); u++)
+        response[u] = 0xff;
+    spi_bulk(response, sizeof(response));
+    printf("trailing %s: %02X %02X %02X %02X %02X %02X %02X %02X\n", why,
+        response[0], response[1], response[2], response[3],
+        response[4], response[5], response[6], response[7]);
+}
+
 /* precondition: SDcard CS is low (active) */
 int sdcard_readblock(unsigned int blocknum, unsigned char *block)
 {
@@ -353,12 +442,19 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     if(debug) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
     // discard CRC
 
-    for(u = 0; u < sizeof(response); u++)
-        response[u] = 0xff;
-    spi_bulk(response, sizeof(response));
-    if(debug) printf("trailing read: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-        response[0], response[1], response[2], response[3],
-        response[4], response[5], response[6], response[7]);
+    response[0] = 0xff;
+    count = 0;
+    do {
+        if(count > timeout_count) {
+            printf("sdcard_readblock: timed out waiting on completion\n");
+            return 0;
+        }
+        spi_bulk(response, 1);
+        if(debug) printf("readblock response 0x%02X\n", response[0]);
+        count++;
+    } while(response[0] == 0);
+
+    if(debug) dump_more_spi_bytes("read completion");
 
     return 1;
 }
@@ -378,6 +474,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
         printf("sdcard_writeblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
+    // XXX - elm-chan.org says I should be waiting >= 1byte here
 
     response[0] = sdcard_token_17_18_24;
     spi_bulk(response, 1);
@@ -389,23 +486,29 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
         response[u] = 0xff;
     spi_bulk(response, 2);
 
+    // Get DATA_ACCEPTED response from WRITE
+    response[0] = 0xff;
+    spi_bulk(response, 1);
+    if(debug) printf("writeblock response 0x%02X\n", response[0]);
+    if(response[0] != sdcard_response_DATA_ACCEPTED) {
+        printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
+        return 0;
+    }
+
     count = 0;
     do {
         if(count > timeout_count) {
-            printf("sdcard_writeblock: timed out waiting on response\n");
+            printf("sdcard_writeblock: timed out waiting on completion\n");
             return 0;
         }
+        response[0] = 0xff;
         spi_bulk(response, 1);
-        if(debug) printf("writeblock response 0x%02X\n", response[0]);
+        if(debug) printf("writeblock completion 0x%02X\n", response[0]);
         count++;
     } while(response[0] == 0);
+    printf("looped %d times waiting on write to complete.\n", count);
 
-    for(u = 0; u < sizeof(response); u++)
-        response[u] = 0xff;
-    spi_bulk(response, sizeof(response));
-    if(debug) printf("trailing write: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-        response[0], response[1], response[2], response[3],
-        response[4], response[5], response[6], response[7]);
+    if(1 || debug) dump_more_spi_bytes("write completion");
 
     return 1;
 }
@@ -438,11 +541,15 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
     }
 }
 
-unsigned char originalblock[512];
 unsigned char testblock[512];
+
+const int sectors_per_block = 4;
+const int sectors_per_track = 64;
+const int sector_size = 128;
 
 void main()
 {
+    int rl;
     unsigned int u;
     int i;
     int success;
@@ -453,7 +560,7 @@ void main()
 
     // XXX MAX232 device
     configure_serial();
-    printf("Hello RS-232.\n");
+    printf("Everything is going to be fine.\n");
 
     // Set up PS/2 keyboard?
     // Prompt
@@ -470,30 +577,30 @@ void main()
     }
     printf("SD Card interface is initialized for SPI\n");
 
+#if 0
     block_number = 0;
 
     for(;;) {
-        printf("operating on block %d\n", block_number);
-        printf("Reading a block\n");
+        unsigned char originalblock[512];
+        printf("block %d\n", block_number);
+        // printf("Reading a block\n");
         if(!sdcard_readblock(block_number, originalblock)) {
             goto stop;
         }
-        printf("Original block:\n");
-        dump_buffer_hex(4, originalblock, 512);
+        // printf("Original block:\n");
+        // dump_buffer_hex(4, originalblock, 512);
 
         for(i = 0; i < 512; i++)
             testblock[i] = (originalblock[i] + 0x55) % 256;
 
-        pause();
         if(!sdcard_writeblock(block_number, testblock)) {
             printf("Failed writeblock\n");
             goto stop;
         }
-        printf("Wrote junk block\n");
+        // printf("Wrote junk block\n");
 
         for(i = 0; i < 512; i++)
             testblock[i] = 0;
-        pause();
         if(!sdcard_readblock(block_number, testblock)) {
             printf("Failed readblock\n");
             goto stop;
@@ -512,14 +619,12 @@ void main()
             printf("Verified junk block was written\n");
         }
 
-        pause();
         if(!sdcard_writeblock(block_number, originalblock)) {
             printf("Failed writeblock\n");
             goto stop;
         }
-        printf("Wrote original block\n");
+        // printf("Wrote original block\n");
 
-        pause();
         if(!sdcard_readblock(block_number, testblock)) {
             printf("Failed readblock\n");
             goto stop;
@@ -538,17 +643,98 @@ void main()
             printf("Verified original block was written\n");
         }
         block_number ++;
+        if(block_number % 2 == 0)
+            PORTA = 0x0f;
+        else
+            PORTA = 0x00;
     }
     spi_disable_sd();
+#endif
 
     PORTA = 0x8;
 
+    for(;;) {
+        if(command_request != PIC_CMD_NONE) {
+            rl = 0;
+            switch(command_request) {
+                case PIC_CMD_READ: {
+                    unsigned int disk = command_bytes[1];
+                    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
+                    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
+                    unsigned int block = (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
+
+                    printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
+
+                    if(!sdcard_readblock(block, testblock)) {
+                        printf("some kind of block read failure\n");
+                        response_bytes[rl++] = PIC_FAILURE;
+                    } else {
+                        response_bytes[rl++] = PIC_SUCCESS;
+                        for(u = 0; u < sector_size; u++)
+                            response_bytes[rl++] = testblock[sector_byte_offset + u];
+                    }
+                    break;
+                }
+                case PIC_CMD_WRITE: {
+                    unsigned int disk = command_bytes[1];
+                    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
+                    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
+                    unsigned int block = (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
+
+                    printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
+
+                    if(!sdcard_readblock(block, testblock)) {
+                        printf("some kind of block read failure\n");
+                        response_bytes[rl++] = PIC_FAILURE;
+                    } else {
+                        for(u = 0; u < sector_size; u++)
+                            testblock[sector_byte_offset + u] = command_bytes[6 + u];
+                        if(!sdcard_writeblock(block, testblock)) {
+                            printf("some kind of block write failure\n");
+                            response_bytes[rl++] = PIC_FAILURE;
+                        } else {
+                            response_bytes[rl++] = PIC_SUCCESS;
+                        }
+                    }
+                    break;
+                }
+                case PIC_CMD_CONST: {
+                    if(input_char_ready)
+                        response_bytes[rl++] = PIC_READY;
+                    else
+                        response_bytes[rl++] = PIC_NOT_READY;
+                    break;
+                }
+                case PIC_CMD_CONIN: {
+                    if(input_char_ready) {
+                        response_bytes[rl++] = PIC_SUCCESS;
+                        response_bytes[rl++] = input_char;
+                        input_char_ready = 0;
+                    } else {
+                        printf("hm, char wasn't actually ready at CONIN\n");
+                        response_bytes[rl++] = PIC_SUCCESS;
+                        response_bytes[rl++] = input_char;
+                    }
+                    break;
+                }
+            }
+            if(rl > 0) {
+                PORTD = response_bytes[0];
+                response_index = 1;
+                response_length = rl;
+            }
+            command_request = PIC_CMD_NONE;
+        }
+    }
+
 stop:
     for(;;) {
-        PORTA = 0x55;
+        PORTA = 0x05;
         pause();
 
-        PORTA = 0xaa;
+        PORTA = 0x0a;
         pause();
     }
 }
