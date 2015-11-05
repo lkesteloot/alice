@@ -42,45 +42,64 @@ VAR
 
 PUB start | i, j, addr, data
 
-  'start vga text driver
+  ' Start vga text driver.
   vgatext.start(8, @screen, @colors, @cx0, @sync)
   
-  ' Start the terminal
+  ' Start the terminal.
   queue_head := 0
   queue_tail := 0
-  terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen)
+  terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen, @cx0, @cy0)
   
-  'start bus interface
+  ' Start bus interface.
   bus_interface.start(@queue, @queue_head, @queue_tail, queue_capacity)
-
-  'set up colors
-  repeat i from 0 to rows - 1
-    colors[i] := %%0100_1310
-    
-  colors[0] := %%3000_3330
-  colors[1] := %%0000_0300
-  colors[2] := %%1100_3300
-  colors[3] := %%0020_3330
-  colors[4] := %%3130_0000
-  colors[5] := %%3310_0000
-  colors[6] := %%1330_0000
-  colors[7] := %%0020_3300
-  
-  colors[rows-1] := %%1110_2220
-
-  ' Fill screen with characters
-  repeat i from 0 to chrs - 1
-    screen.byte[i] := i // $100
 
   ' Configure cursor shapes and blinking.
   cm0 := %011
   cm1 := %000
+  cy0 := 48
+  
+  ' Set up colors.
+  repeat i from 0 to rows - 1
+    colors[i] := %%0100_1310
 
-  repeat
-    waitcnt(clkfreq + cnt)
-    cx0 += 1
-    if cx0 == 80
-      cx0 := 0
-      cy0 += 1
-      if cy0 == 40
-        cy0 := 0
+  ' Fill screen with spaces.
+  repeat i from 0 to chrs - 1
+    screen.byte[i] := 32
+    
+  ' Write welcome message.
+  waitcnt(clkfreq*2 + cnt)
+  queue[queue_tail] := "V"
+  queue_tail += 1
+  queue[queue_tail] := "G"
+  queue_tail += 1
+  queue[queue_tail] := "A"
+  queue_tail += 1
+  queue[queue_tail] := 13
+  queue_tail += 1
+  queue[queue_tail] := 10
+  queue_tail += 1
+
+  if false ' Testing
+    colors[0] := %%3000_3330
+    colors[1] := %%0000_0300
+    colors[2] := %%1100_3300
+    colors[3] := %%0020_3330
+    colors[4] := %%3130_0000
+    colors[5] := %%3310_0000
+    colors[6] := %%1330_0000
+    colors[7] := %%0020_3300
+    colors[rows-1] := %%1110_2220
+
+    ' Fill screen with characters
+    repeat i from 0 to chrs - 1
+      screen.byte[i] := i // $100
+
+    ' Advance cursor forever.
+    repeat
+      waitcnt(clkfreq + cnt)
+      cx0 += 1
+      if cx0 == 80
+        cx0 := 0
+        cy0 += 1
+        if cy0 == 40
+          cy0 := 0
