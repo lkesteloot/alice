@@ -103,6 +103,11 @@ void setup()
 
     command_length = 0;
     command_request = PIC_CMD_NONE;
+    response_length = 0;
+}
+
+void setup_PSP()
+{
     PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
     TRISEbits.TRISE0 = 1;		// /RD is input
     TRISEbits.TRISE1 = 1;		// /WR is input
@@ -111,12 +116,16 @@ void setup()
     ADCON1bits.PCFG2 = 1;               // ADCON has to be set for RE2:RE0 to be inputs
     ADCON1bits.PCFG1 = 1;
     ADCON1bits.PCFG0 = 1;
+    PORTD = 0;
+}
+
+void enable_interrupts()
+{
     PIE1bits.PSPIE = 1; // enable interrupts on PSP
     INTCONbits.PEIE = 1; // enable peripheral interrupts
     INTCONbits.GIE = 1; // enable interrupts
-
-    response_length = 0;
-    PORTD = 0;
+    PIE1bits.TXIE = 0;
+    PIE1bits.RCIE = 1;
 }
 
 
@@ -140,8 +149,6 @@ void configure_serial()
     TXSTAbits.SYNC = 0;
     RCSTAbits.SPEN = 1;
     TXSTAbits.TXEN = 1;
-    PIE1bits.TXIE = 0;
-    PIE1bits.RCIE = 1;
     RCSTAbits.CREN = 1;
 }
 
@@ -661,6 +668,10 @@ void main()
 #endif
 
     PORTA = 0x8;
+
+    setup_PSP();
+
+    enable_interrupts();
 
     for(;;) {
         ClrWdt();
