@@ -10,6 +10,8 @@
 
 #include <xc.h>
 
+#pragma config WDT = OFF
+
 #endif // SDCC_MODE
 
 #ifndef ClrWdt
@@ -30,18 +32,18 @@
 #define PIC_CMD_CONST 0x03
 #define PIC_CMD_CONIN 0x04
 
-int command_request; /* set this after reading all the bytes */
+volatile int command_request; /* set this after reading all the bytes */
 unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
-int command_length = 0;
+volatile int command_length = 0;
 
 unsigned char response_bytes[128];
-int response_length;
-int response_index;
+volatile int response_length;
+volatile int response_index;
 
 const int PIC_command_lengths[5] = {0, 6, 134, 1, 1};
 
-int input_char_ready = 0;
-unsigned char input_char;
+volatile int input_char_ready = 0;
+volatile unsigned char input_char;
 
 void interrupt intr()
 {
@@ -49,9 +51,13 @@ void interrupt intr()
         // PSP interrupt
         if(TRISEbits.IBF) {
             // write from Z80
-            command_bytes[command_length++] = PORTD;
-            if(command_length == PIC_command_lengths[command_bytes[0]])
+            command_bytes[command_length] = PORTD;
+            PORTA = command_length;
+            command_length++;
+            if(command_length == PIC_command_lengths[command_bytes[0]]) {
+                printf("command_request = %d\n", command_bytes[0]);
                 command_request = command_bytes[0];
+            }
         } else {
             // byte was read from PIC; send next
             if(response_length > 0) {
@@ -66,10 +72,13 @@ void interrupt intr()
             }
         }
         PIR1bits.PSPIF = 0; // clear PSP interrupt
-    } if(PIR1bits.RCIF) {
+
+    }
+    
+    if(PIR1bits.RCIF) {
         input_char = RCREG;
-        printf("serial: '%c'\n", input_char);
-        input_char_ready = 1;
+        // printf("serial: '%c'\n", input_char);
+        // input_char_ready = 1;
         PIR1bits.RCIF = 0;
     }
 }
@@ -114,7 +123,7 @@ void setup()
 /*--------------------------------------------------------------------------*/
 /* USART - serial comms ----------------------------------------------------*/
 
-int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+const int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
 
 void configure_serial()
 {
@@ -129,9 +138,9 @@ void configure_serial()
     SPBRG = baud_rate_code;
 
     TXSTAbits.SYNC = 0;
+    RCSTAbits.SPEN = 1;
     TXSTAbits.TXEN = 1;
     PIE1bits.TXIE = 0;
-    RCSTAbits.SPEN = 1;
     PIE1bits.RCIE = 1;
     RCSTAbits.CREN = 1;
 }
@@ -242,7 +251,7 @@ unsigned char crc7_generate_bytes(unsigned char *b, int count)
     return crc;
 }
 
-int debug = 0;
+int debug = 1;
 int timeout_count = 20000;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
@@ -654,6 +663,7 @@ void main()
     PORTA = 0x8;
 
     for(;;) {
+        ClrWdt();
         if(command_request != PIC_CMD_NONE) {
             rl = 0;
             switch(command_request) {
@@ -670,6 +680,7 @@ void main()
                         printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
                     } else {
+                        printf("read success\n");
                         response_bytes[rl++] = PIC_SUCCESS;
                         for(u = 0; u < sector_size; u++)
                             response_bytes[rl++] = testblock[sector_byte_offset + u];
@@ -695,12 +706,14 @@ void main()
                             printf("some kind of block write failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                         } else {
+                            printf("write success\n");
                             response_bytes[rl++] = PIC_SUCCESS;
                         }
                     }
                     break;
                 }
                 case PIC_CMD_CONST: {
+                    printf("CONST\n");
                     if(input_char_ready)
                         response_bytes[rl++] = PIC_READY;
                     else
@@ -708,6 +721,7 @@ void main()
                     break;
                 }
                 case PIC_CMD_CONIN: {
+                    printf("CONIN\n");
                     if(input_char_ready) {
                         response_bytes[rl++] = PIC_SUCCESS;
                         response_bytes[rl++] = input_char;
@@ -721,8 +735,9 @@ void main()
                 }
             }
             if(rl > 0) {
-                PORTD = response_bytes[0];
+                printf("will respond with %d\n", rl);
                 response_index = 1;
+                PORTD = response_bytes[0];
                 response_length = rl;
             }
             command_request = PIC_CMD_NONE;
