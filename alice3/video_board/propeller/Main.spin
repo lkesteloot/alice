@@ -56,7 +56,7 @@ PUB start | i, j, addr, data
   ' Configure cursor shapes and blinking.
   cm0 := %011
   cm1 := %000
-  cy0 := 48
+  cy0 := 0
   
   ' Set up colors.
   repeat i from 0 to rows - 1
