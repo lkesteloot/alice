@@ -6,8 +6,8 @@
 CON
 
   ' Sync these with whatever was chosen in VGA_driver.spin.
-  COLS = 100
-  ROWS = 50
+  COLS = 80
+  ROWS = 40
   LONGS_PER_ROW = COLS / 4
 
   ' For the State variable:
