@@ -258,7 +258,6 @@ void spi_writen(unsigned char *buffer, unsigned int nlen)
 void spi_readn(unsigned char *buffer, unsigned int nlen)
 {
     int i;
-    unsigned char dummy;
 
     for(i = 0; i < nlen; i++) {
         buffer[i] = spi_exchange(0xff);
@@ -270,10 +269,9 @@ void spi_readn(unsigned char *buffer, unsigned int nlen)
 int send_sdcard_command(enum sdcard_command command, unsigned long parameter, unsigned char *response, int response_length)
 {
     int count;
-    int i;
     unsigned char command_buffer[6];
-    command_buffer[0] = 0x40 | command;
 
+    command_buffer[0] = 0x40 | command;
     command_buffer[1] = (parameter >> 24) & 0xff;
     command_buffer[2] = (parameter >> 16) & 0xff;
     command_buffer[3] = (parameter >> 8) & 0xff;
@@ -289,21 +287,19 @@ int send_sdcard_command(enum sdcard_command command, unsigned long parameter, un
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
-    for(i = 0; i < response_length; i++)
-        response[i] = 0xff;
     count = 0;
     do {
         if(count > timeout_count) {
             printf("send_sdcard_command: timed out waiting on response\n");
             return 0;
         }
-        spi_bulk(response, 1);
+        spi_readn(response, 1);
         if(debug) printf("response 0x%02X\n", response[0]);
         count++;
     } while(response[0] & 0x80);
 
     if(response_length > 1) {
-        spi_bulk(response + 1, response_length - 1);
+        spi_readn(response + 1, response_length - 1);
     }
 
     return 1;
@@ -327,15 +323,15 @@ int sdcard_init()
 
     spi_enable_sd();
     /* interface init */
-    if(!send_sdcard_command(CMD0, 0, response, 8))
+    if(!send_sdcard_command(CMD0, 0, response, 1))
         return 0;
     if(response[0] != sdcard_response_IDLE) {
         printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
         return 0;
     }
 
-    /* interface condition */
-    if(!send_sdcard_command(CMD8, 0x000001AA, response, 8))
+    /* check voltage */
+    if(!send_sdcard_command(CMD8, 0x000001AA, response, 5))
         return 0;
     if(response[0] != sdcard_response_IDLE) {
         printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
@@ -346,26 +342,26 @@ int sdcard_init()
 
     // should get CSD, CID, print information about them
 
+    // Ask the card to initialize itself, and wait for it to get out of idle mode.
     count = 0; 
     do {
         if(count > timeout_count) {
             printf("sdcard_init: timed out waiting on transition to ACMD41\n");
             return 0;
         }
-        /* get operating condition */
-        if(!send_sdcard_command(CMD55, 0x00000000, response, 8))
+        /* leading command to the ACMD41 command */
+        if(!send_sdcard_command(CMD55, 0x00000000, response, 1))
             return 0;
         if(response[0] != sdcard_response_IDLE) {
             printf("sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
             return 0;
         }
-        if(!send_sdcard_command(ACMD41, 0x40000000, response, 8))
+        /* start initialization process, set HCS (high-capacity) */
+        if(!send_sdcard_command(ACMD41, 0x40000000, response, 1))
             return 0;
         count++;
     } while(response[0] != sdcard_response_SUCCESS);
-    if(debug) printf("returned from ACMD41: %02X %02X %02X %02X %02X %02X %02X %02X\n",
-        response[0], response[1], response[2], response[3],
-        response[4], response[5], response[6], response[7]);
+    if(debug) printf("returned from ACMD41: %02X\n", response[0]);
 
     return 1;
 }
@@ -374,11 +370,8 @@ const unsigned int block_size = 512;
 
 void dump_more_spi_bytes(const char *why)
 {
-    unsigned int u;
     unsigned char response[8];
-    for(u = 0; u < sizeof(response); u++)
-        response[u] = 0xff;
-    spi_bulk(response, sizeof(response));
+    spi_readn(response, sizeof(response));
     printf("trailing %s: %02X %02X %02X %02X %02X %02X %02X %02X\n", why,
         response[0], response[1], response[2], response[3],
         response[4], response[5], response[6], response[7]);
@@ -387,10 +380,10 @@ void dump_more_spi_bytes(const char *why)
 /* precondition: SDcard CS is low (active) */
 int sdcard_readblock(unsigned int blocknum, unsigned char *block)
 {
-    unsigned int u;
     int count;
     unsigned char response[8];
 
+    // Send read block command.
     response[0] = 0xff;
     if(!send_sdcard_command(CMD17, blocknum, response, 1))
         return 0;
@@ -399,36 +392,37 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
         return 0;
     }
 
-    response[0] = 0xff;
+    // Wait for the data token.
     count = 0;
     do {
         if(count > timeout_count) {
-            printf("sdcard_readblock: timed out waiting on response\n");
+            printf("sdcard_readblock: timed out waiting for data token\n");
             return 0;
         }
-        spi_bulk(response, 1);
+        spi_readn(response, 1);
         if(debug) printf("readblock response 0x%02X\n", response[0]);
         count++;
     } while(response[0] != sdcard_token_17_18_24);
 
+    // Read data.
     spi_readn(block, block_size);
-    response[0] = 0xff;
-    response[1] = 0xff;
-    spi_bulk(response, 2);
-    if(debug) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
-    // discard CRC
 
-    response[0] = 0xff;
+    // Read and discard CRC.
+    spi_readn(response, 2);
+    if(debug) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
+
+    // Wait for DO to go high. I don't think we need to do this for block reads,
+    // but I don't think it'll hurt.
     count = 0;
     do {
         if(count > timeout_count) {
             printf("sdcard_readblock: timed out waiting on completion\n");
             return 0;
         }
-        spi_bulk(response, 1);
+        spi_readn(response, 1);
         if(debug) printf("readblock response 0x%02X\n", response[0]);
         count++;
-    } while(response[0] == 0);
+    } while(response[0] != 0xFF);
 
     if(debug) dump_more_spi_bytes("read completion");
 
@@ -442,8 +436,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     unsigned int u;
     unsigned char response[8];
 
-    for(u = 0; u < sizeof(response); u++)
-        response[u] = 0xff;
+    // Send write block command.
     if(!send_sdcard_command(CMD24, blocknum, response, 1))
         return 0;
     if(response[0] != sdcard_response_SUCCESS) {
@@ -452,36 +445,37 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     }
     // XXX - elm-chan.org says I should be waiting >= 1byte here
 
+    // Data token.
     response[0] = sdcard_token_17_18_24;
-    spi_bulk(response, 1);
+    spi_writen(response, 1);
 
+    // Send data.
     spi_writen(block, block_size);
 
     // junk CRC
-    for(u = 0; u < sizeof(response); u++)
-        response[u] = 0xff;
-    spi_bulk(response, 2);
+    response[0] = 0xff;
+    response[1] = 0xff;
+    spi_writen(response, 2);
 
     // Get DATA_ACCEPTED response from WRITE
-    response[0] = 0xff;
-    spi_bulk(response, 1);
+    spi_readn(response, 1);
     if(debug) printf("writeblock response 0x%02X\n", response[0]);
     if(response[0] != sdcard_response_DATA_ACCEPTED) {
         printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
         return 0;
     }
 
+    // Wait while busy (DO = low).
     count = 0;
     do {
         if(count > timeout_count) {
             printf("sdcard_writeblock: timed out waiting on completion\n");
             return 0;
         }
-        response[0] = 0xff;
-        spi_bulk(response, 1);
+        spi_readn(response, 1);
         if(debug) printf("writeblock completion 0x%02X\n", response[0]);
         count++;
-    } while(response[0] == 0);
+    } while(response[0] != 0xFF);
     printf("looped %d times waiting on write to complete.\n", count);
 
     if(1 || debug) dump_more_spi_bytes("write completion");
