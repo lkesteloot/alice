@@ -699,7 +699,7 @@ void main()
                         response_bytes[rl++] = PIC_FAILURE;
                     } else {
                         printf("read success:\n");
-                        dump_buffer_hex(4, testblock, 512);
+                        // dump_buffer_hex(4, testblock, 512);
                         response_bytes[rl++] = PIC_SUCCESS;
                         for(u = 0; u < sector_size; u++)
                             response_bytes[rl++] = testblock[sector_byte_offset + u];
