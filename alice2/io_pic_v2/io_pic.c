@@ -756,10 +756,9 @@ void main()
             if(rl > 0) {
                 printf("will respond with %d\n", rl);
                 di(); // critical section
-                response_index = 1;
-                PORTD = response_bytes[0];
-                ei(); // end critical section
+                response_index = 0;
                 response_length = rl;
+                ei(); // end critical section
             }
             command_request = PIC_CMD_NONE;
             command_length = 0;
