@@ -39,6 +39,7 @@ unsigned char response_bytes[128];
 volatile int response_length;
 volatile int response_index;
 
+// Element 0 is 1 here to force stoppage on receiving a bad command
 const int PIC_command_lengths[5] = {1, 6, 134, 1, 1};
 
 volatile int input_char_ready = 0;
@@ -217,6 +218,65 @@ unsigned char crc7_generate_bytes(unsigned char *b, int count)
 
     return crc;
 }
+
+/* Linux 2.6.32 crc-itu-t.c */
+/** CRC table for the CRC ITU-T V.41 0x0x1021 (x^16 + x^12 + x^15 + 1) */
+const unsigned short crc_itu_t_table[256] = {
+    0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
+    0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
+    0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
+    0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
+    0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
+    0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
+    0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
+    0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
+    0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823,
+    0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
+    0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12,
+    0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
+    0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41,
+    0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
+    0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70,
+    0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
+    0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
+    0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
+    0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
+    0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
+    0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
+    0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
+    0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
+    0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
+    0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
+    0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
+    0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
+    0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
+    0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
+    0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
+    0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
+    0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0
+};
+
+unsigned short crc_itu_t_byte(unsigned short crc, const unsigned char data)
+{
+    return (crc << 8) ^ crc_itu_t_table[((crc >> 8) ^ data) & 0xff];
+}
+
+/**
+ * crc_itu_t - Compute the CRC-ITU-T for the data buffer
+ *
+ * @crc:     previous CRC value
+ * @buffer:  data pointer
+ * @len:     number of bytes in the buffer
+ *
+ * Returns the updated CRC value
+ */
+unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t len)
+{
+    while (len--)
+        crc = crc_itu_t_byte(crc, *buffer++);
+    return crc;
+}
+
 
 int debug = 1;
 int timeout_count = 20000;
@@ -407,9 +467,19 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     // Read data.
     spi_readn(block, block_size);
 
-    // Read and discard CRC.
+    // Read CRC
     spi_readn(response, 2);
     if(debug) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
+
+    unsigned short crc_theirs = response[0] * 256 + response[1];
+
+    // calculate our version of CRC and compare
+    unsigned short crc_ours = crc_itu_t(0, block, block_size);
+
+    if(crc_theirs != crc_ours) {
+        printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
+        return 0;
+    }
 
     // Wait for DO to go high. I don't think we need to do this for block reads,
     // but I don't think it'll hurt.
@@ -514,9 +584,12 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
 
 unsigned char testblock[512];
 
-const int sectors_per_block = 4;
-const int sectors_per_track = 64;
-const int sector_size = 128;
+#define sectors_per_block 4
+#define sectors_per_track 64
+#define tracks_per_disk 1024
+#define sector_size 128
+#define disk_size (8 * 1024 * 1024)
+#define blocks_per_disk (disk_size / block_size)
 
 void interrupt intr()
 {
@@ -671,24 +744,27 @@ void main()
     enable_interrupts();
 
     for(;;) {
-        PORTAbits.RA0 = 1; // *... means we got here
+        PORTAbits.RA0 = 1; // LEDs *... means we got here
         ClrWdt();
-        PORTAbits.RA1 = 1; // **.. means we got here
+        PORTAbits.RA1 = 1; // LEDs **.. means we got here
         if(command_request != PIC_CMD_NONE) {
-            PORTAbits.RA2 = 1; // ***. means we got here
+            PORTAbits.RA2 = 1; // LEDs ***. means we got here
             rl = 0;
             switch(command_request) {
                 case PIC_CMD_READ: {
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block = (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int block = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
-                    PORTAbits.RA3 = 1; // **** means we got here
+                    PORTAbits.RA3 = 1; // LEDs **** means we got here
 
                     printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
 
-                    if(!sdcard_readblock(block, testblock)) {
+                    if(disk > 3) { 
+                        printf("asked for disk out of range\n");
+                        response_bytes[rl++] = PIC_FAILURE;
+                    } else if(!sdcard_readblock(block, testblock)) {
                         printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
                     } else {
@@ -704,12 +780,15 @@ void main()
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block = (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int block = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
 
                     printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
 
-                    if(!sdcard_readblock(block, testblock)) {
+                    if(disk > 3) { 
+                        printf("asked for disk out of range\n");
+                        response_bytes[rl++] = PIC_FAILURE;
+                    } else if(!sdcard_readblock(block, testblock)) {
                         printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
                     } else {
