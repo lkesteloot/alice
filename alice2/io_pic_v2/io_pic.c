@@ -29,8 +29,313 @@
 // CONFIG4L
 #pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
 
-
 #include <stdio.h>
+
+volatile int input_char_ready = 0;
+volatile unsigned char input_char;
+
+void pause()
+{
+    int i;
+    int j;
+    for(j = 0; j < 8; j++)
+        for (i=0;i<30000;i++) ;
+}
+
+void setup()
+{
+    SWDTEN = 0;
+
+    // debug LEDs
+    TRISA = 0xF0;
+}
+
+int isprint(unsigned char a)
+{
+    return (a >= ' ') && (a <= '~');
+}
+
+
+//----------------------------------------------------------------------------
+// AT and PS/2 Keyboard processing
+
+// Keyboard I/O constants
+const int kbd_bit_count = 11;
+
+volatile short kbd_bits = 0;
+volatile unsigned short kbd_data = 0;
+volatile char up_key_flag = 0;
+volatile char kbd_shift_status = 0;
+volatile char kbd_alt_status = 0;
+volatile char kbd_ctrl_status = 0;
+
+#define LSHIFT_KEY 0x12
+#define RSHIFT_KEY 0x59
+#define CTRL_KEY 0x14
+#define ALT_KEY 0x11
+#define UP_KEY 0xF0
+#define EXT_KEY 0xE0
+#define EXT2_KEY 0xE1
+
+#define KBD_QUEUE_LENGTH 16
+volatile unsigned char kbd_queue[KBD_QUEUE_LENGTH];
+volatile short kbd_queue_next_head = 0;
+volatile short kbd_queue_tail = 0;
+
+// Caller must ensure only one call can proceed at a time; currently
+// called through isfull() and isempty(), so must protect those
+unsigned short kbd_queue_length()
+{
+    return (kbd_queue_next_head + KBD_QUEUE_LENGTH - kbd_queue_tail) % KBD_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call to isfull() or isempty() can
+// proceed at a time.
+
+// Currently called from main() so must wrap with di(), ei()
+unsigned char kbd_queue_isfull()
+{
+    return kbd_queue_length() == KBD_QUEUE_LENGTH - 1;
+}
+
+// Currently called from interrupt routine so already protected
+unsigned char kbd_queue_isempty()
+{
+    return kbd_queue_length() == 0;
+}
+
+// Caller must ensure only one call can proceed at a time ; currently
+// typically called from interrupt routine so already protected
+void kbd_enqueue(unsigned char d)
+{
+    kbd_queue[kbd_queue_next_head] = d;
+    kbd_queue_next_head = (kbd_queue_next_head + 1) % KBD_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call can proceed at a time; currently
+// called from main() so already protected
+unsigned char kbd_dequeue()
+{
+    unsigned char d = kbd_queue[kbd_queue_tail];
+    kbd_queue_tail = (kbd_queue_tail + 1) % KBD_QUEUE_LENGTH;
+    return d;
+}
+
+// Normal, shift, ctrl, alt
+const unsigned char kbd_table[] = {
+   '?', '?', '?', '?',
+   '9', '9', '9', '9',
+   '?', '?', '?', '?',
+   '5', '5', '5', '5',
+   '3', '3', '3', '3',
+   '1', '1', '1', '1',
+   '2', '2', '2', '2',
+   '1', '1', '1', '1',
+   '?', '?', '?', '?',
+   '1', '1', '1', '1',
+   '8', '8', '8', '8',
+   '6', '6', '6', '6',
+   '4', '4', '4', '4',
+   9,   9,   9,   9,
+   '`', '~', '`', '`',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   'q', 'Q',  17,  17,
+   '1', '!', '1', '1',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   'z', 'Z',  26,  26,
+   's', 'S',  19,  19,
+   'a', 'A',   1,   1,
+   'w', 'W',  23,  23,
+   '2', '@', '2', '2',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   'c', 'C',   3,   3,
+   'x', 'X',  24,  24,
+   'd', 'D',   4,   4,
+   'e', 'E',   5,   5,
+   '4', '$', '4', '4',
+   '3', '#', '3', '3',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   ' ', ' ', ' ', ' ' ,
+   'v', 'V',  22,  22,
+   'f', 'F',   6,   6,
+   't', 'T',  20,  20,
+   'r', 'R',  18,  18,
+   '5', '%', '5', '5',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   'n', 'N',  14,  14,
+   'b', 'B',   2,   2,
+   'h', 'H',   8,   8,
+   'g', 'G',   7,   7,
+   'y', 'Y',  25,  25,
+   '6', '^', '6', '6',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   'm', 'M',  13,  13,
+   'j', 'J',  10,  10,
+   'u', 'U',  21,  21,
+   '7', '&', '7', '7',
+   '8', '*', '8', '8',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   ',', '<', ',', ',',
+   'k', 'K',  11,  11,
+   'i', 'I',   9,   9,
+   'o', 'O',  15,  15,
+   '0', ')', '0', '0',
+   '9', '(', '9', '9',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '.', '>', '.', '.',
+   '/', '?', '/', '/',
+   'l', 'L',  12,  12,
+   ';', ':', ';', ';',
+   'p', 'P',  16,  16,
+   '-', '_', '-', '-',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   39, '"',  39,  39,
+   '?', '?', '?', '?',
+   '[', '{', '[', '[',
+   '=', '+', '=', '=',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   10,  10,  10,  10,
+   ']', '}', ']', ']',
+   '?', '?', '?', '?',
+   92, '|',  92,  92,
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   8,   8,   8,   8,
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '1', '1', '1', '1',
+   '?', '?', '?', '?',
+   '4', '4', '4', '4',
+   '7', '7', '7', '7',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+   '0', '0', '0', '0',
+   '.', '.', '.', '.',
+   '2', '2', '2', '2',
+   '5', '5', '5', '5',
+   '6', '6', '6', '6',
+   '8', '8', '8', '8',
+   27,  27,  27,  27,
+   '?', '?', '?', '?',
+   '1', '1', '1', '1',
+   '+', '+', '+', '+',
+   '3', '3', '3', '3',
+   '-', '-', '-', '-',
+   '*', '*', '*', '*',
+   '9', '9', '9', '9',
+   '?', '?', '?', '?',
+   '?', '?', '?', '?',
+};
+
+unsigned char kbd_lookup(int shift, int alt, int ctrl, unsigned char byte)
+{
+    int which = 0;
+    if(shift) which = 1;
+    else if(ctrl) which = 2;
+    else if(alt) which = 3;
+    return kbd_table[byte * 4 + which];
+}
+
+void kbd_process_byte(unsigned char kbd_byte)
+{
+    if(kbd_byte == UP_KEY) {
+        up_key_flag = 1;
+    } else {
+        switch(kbd_byte) {
+            case LSHIFT_KEY:
+            case RSHIFT_KEY:
+                kbd_shift_status = !up_key_flag;
+                break;
+            case ALT_KEY:
+                kbd_alt_status = !up_key_flag;
+                break;
+            case CTRL_KEY:
+                kbd_ctrl_status = !up_key_flag;
+                break;
+            default:
+                if(!up_key_flag)
+                    if(!(kbd_byte & 0x80)) {
+                        input_char = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
+                        printf("decoded keyboard 0x%02X ('%c')\n", input_char, isprint(input_char) ? input_char : '-');
+                        input_char_ready = 1;
+                    }
+                break;
+        }
+        up_key_flag = 0;
+    }
+}
+
+void setup_keyboard()
+{
+    INTEDG0 = 1;
+    INT0IF = 0;
+    INT0IE = 1; // enable interrupts on INT0/RB0
+}
+
+
+/*--------------------------------------------------------------------------*/
+/* USART - serial comms ----------------------------------------------------*/
+
+const int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+
+void setup_serial()
+{
+    // clear
+    PORTCbits.RC6 = 0;
+    PORTCbits.RC7 = 0;
+    PIR1bits.RCIF = 0;
+
+    TRISCbits.TRISC6 = 0;       // TX is output
+    TRISCbits.TRISC7 = 1;       // RX is input
+
+    SPBRG = baud_rate_code;
+
+    TXSTAbits.SYNC = 0;
+    RCSTAbits.SPEN = 1;
+    RCSTAbits.CREN = 1;
+    TXSTAbits.TXEN = 0;
+    TXSTAbits.TXEN = 1;
+
+    PIE1bits.TXIE = 0;
+    PIE1bits.RCIE = 1;
+}
+
+void send_serial(unsigned char b)
+{
+    CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
+    while(!PIR1bits.TXIF);
+    TXREG = b;
+}
+
+
+//----------------------------------------------------------------------------
+// Alice 3 Bus
 
 #define PIC_POLL_AGAIN 0x00
 #define PIC_SUCCESS 0x01
@@ -55,30 +360,8 @@ volatile int response_index;
 // Element 0 is 1 here to force stoppage on receiving a bad command
 const int PIC_command_lengths[5] = {1, 6, 134, 1, 1};
 
-volatile int input_char_ready = 0;
-volatile unsigned char input_char;
 
-void pause()
-{
-    int i;
-    int j;
-    for(j = 0; j < 8; j++)
-        for (i=0;i<30000;i++) ;
-}
-
-void setup()
-{
-    SWDTEN = 0;
-
-    // debug LEDs
-    TRISA = 0xF0;
-
-    command_length = 0;
-    command_request = PIC_CMD_NONE;
-    response_length = 0;
-}
-
-void setup_PSP()
+void setup_slave_port()
 {
     PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
     TRISEbits.TRISE0 = 1;		// /RD is input
@@ -89,49 +372,20 @@ void setup_PSP()
     ADCON1bits.PCFG1 = 1;
     ADCON1bits.PCFG0 = 1;
     PORTD = 0;
+    PIE1bits.PSPIE = 1; // enable interrupts on PSP
+
+    command_length = 0;
+    command_request = PIC_CMD_NONE;
+    response_length = 0;
 }
 
 void enable_interrupts()
 {
-    PIE1bits.TXIE = 0;
-    PIE1bits.RCIE = 1;
-    PIE1bits.PSPIE = 1; // enable interrupts on PSP
     INTCONbits.PEIE = 1; // enable peripheral interrupts
     INTCONbits.GIE = 1; // enable interrupts
     ei();
 }
 
-
-/*--------------------------------------------------------------------------*/
-/* USART - serial comms ----------------------------------------------------*/
-
-const int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
-
-void configure_serial()
-{
-    // clear
-    PORTCbits.RC6 = 0;
-    PORTCbits.RC7 = 0;
-    PIR1bits.RCIF = 0;
-
-    TRISCbits.TRISC6 = 0;       // TX is output
-    TRISCbits.TRISC7 = 1;       // RX is input
-
-    SPBRG = baud_rate_code;
-
-    TXSTAbits.SYNC = 0;
-    RCSTAbits.SPEN = 1;
-    RCSTAbits.CREN = 1;
-    TXSTAbits.TXEN = 0;
-    TXSTAbits.TXEN = 1;
-}
-
-void send_serial(unsigned char b)
-{
-    CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
-    while(!PIR1bits.TXIF);
-    TXREG = b;
-}
 
 /*--------------------------------------------------------------------------*/
 /* SPI commands ------------------------------------------------------------*/
@@ -569,11 +823,6 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     return 1;
 }
 
-int isprint(unsigned char a)
-{
-    return (a >= ' ') && (a <= '~');
-}
-
 void dump_buffer_hex(int indent, unsigned char *data, int size)
 {
     int address = 0;
@@ -605,8 +854,8 @@ unsigned char testblock[512];
 #define sectors_per_track 64
 #define tracks_per_disk 1024
 #define sector_size 128
-#define disk_size (8 * 1024 * 1024)
-#define blocks_per_disk (disk_size / block_size)
+/* disk is 8MB, so 16384 512-byte blocks per disk */
+#define blocks_per_disk 16384
 
 void interrupt intr()
 {
@@ -646,6 +895,22 @@ void interrupt intr()
         // printf("serial: '%c'\n", input_char);
         input_char_ready = 1;
     }
+
+    if(INT0IF) {
+        kbd_data = (kbd_data >> 1) | (PORTBbits.RB1 << 10);
+        INT0IF = 0;
+        if(kbd_bits++ == kbd_bit_count) {
+            // printf("raw keyboard bits 0x%04X\n", kbd_data);
+            if(kbd_queue_isfull()) {
+                printf("Keyboard queue overflow\n");
+            } else {
+                kbd_enqueue((kbd_data >> 1) & 0xff);
+            }
+            kbd_data = 0;
+            kbd_bits = 0;
+            // printf("raw keyboard byte 0x%02X\n", kbd_byte);
+        }
+    }
 }
 
 
@@ -661,7 +926,8 @@ void main()
     pause();
 
     // XXX MAX232 device
-    configure_serial();
+    setup_serial(); // transmit and receive but global interrupts disabled
+
     printf("Everything is going to be fine.\n");
 
     // Set up PS/2 keyboard?
@@ -755,7 +1021,9 @@ void main()
 
     PORTA = 0x0;
 
-    setup_PSP();
+    setup_slave_port();
+
+    setup_keyboard();
 
     enable_interrupts();
 
@@ -885,6 +1153,17 @@ void main()
             command_request = PIC_CMD_NONE;
             command_length = 0;
         }
+
+        {
+            di();
+            unsigned char empty = kbd_queue_isempty();
+            ei();
+            if(!empty) {
+                unsigned kb = kbd_dequeue();
+                kbd_process_byte(kb);
+            }
+        }
+
     }
 
 stop:
