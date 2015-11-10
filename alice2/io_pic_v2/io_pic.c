@@ -1,21 +1,34 @@
-#ifdef SDCC_MODE
+// PIC18C452 Configuration Bit Settings
 
-#include <pic18fregs.h>
-
-#pragma config OSC=EC           // External clock
-#pragma config WDT=OFF          // Watchdog timer off
-
-#else // ! SDCC_MODE - Microchip's C compiler
+// 'C' source line config statements
 
 #include <xc.h>
 
-#pragma config WDT = OFF
+// #pragma config statements should precede project file includes.
+// Use project enums instead of #define for ON and OFF.
 
-#endif // SDCC_MODE
+// CONFIG1L
+#pragma config CP = OFF         // Code Protection bits (Program memory code protection off)
 
-#ifndef ClrWdt
-#define ClrWdt CLRWDT
-#endif
+// CONFIG1H
+#pragma config OSC = RCIO       // Oscillator Selection bits (RC oscillator w/OSC2 configured as RA6)
+#pragma config OSCS = OFF       // Oscillator System Clock Switch Enable bit (Oscillator system clock switch option is disabled (main oscillator is source))
+
+// CONFIG2L
+#pragma config PWRT = OFF       // Power-up Timer Enable bit (PWRT disabled)
+#pragma config BOR = ON         // Brown-out Reset Enable bit (Brown-out Reset enabled)
+#pragma config BORV = 25        // Brown-out Reset Voltage bits (VBOR set to 2.5V)
+
+// CONFIG2H
+#pragma config WDT = OFF        // Watchdog Timer Enable bit (WDT disabled (control is placed on the SWDTEN bit))
+#pragma config WDTPS = 128      // Watchdog Timer Postscale Select bits (1:128)
+
+// CONFIG3H
+#pragma config CCP2MX = ON      // CCP2 Mux bit (CCP2 input/output is multiplexed with RC1)
+
+// CONFIG4L
+#pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
+
 
 #include <stdio.h>
 
@@ -32,10 +45,10 @@
 #define PIC_CMD_CONIN 0x04
 
 volatile int command_request; /* set this after reading all the bytes */
-unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
+volatile unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
 volatile int command_length = 0;
 
-unsigned char response_bytes[128];
+volatile unsigned char response_bytes[128];
 volatile int response_length;
 volatile int response_index;
 
@@ -50,13 +63,12 @@ void pause()
     int i;
     int j;
     for(j = 0; j < 8; j++)
-        for (i=0;i<30000;i++) ClrWdt();
+        for (i=0;i<30000;i++) ;
 }
 
 void setup()
 {
-    ClrWdt();
-    WDTCON = 0;
+    SWDTEN = 0;
 
     // debug LEDs
     TRISA = 0xF0;
@@ -81,11 +93,11 @@ void setup_PSP()
 
 void enable_interrupts()
 {
+    PIE1bits.TXIE = 0;
+    PIE1bits.RCIE = 1;
     PIE1bits.PSPIE = 1; // enable interrupts on PSP
     INTCONbits.PEIE = 1; // enable peripheral interrupts
     INTCONbits.GIE = 1; // enable interrupts
-    PIE1bits.TXIE = 0;
-    PIE1bits.RCIE = 1;
     ei();
 }
 
@@ -109,15 +121,16 @@ void configure_serial()
 
     TXSTAbits.SYNC = 0;
     RCSTAbits.SPEN = 1;
-    TXSTAbits.TXEN = 1;
     RCSTAbits.CREN = 1;
+    TXSTAbits.TXEN = 0;
+    TXSTAbits.TXEN = 1;
 }
 
 void send_serial(unsigned char b)
 {
+    CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
     while(!PIR1bits.TXIF);
     TXREG = b;
-    ClrWdt(); // XXX Why do I need this?
 }
 
 /*--------------------------------------------------------------------------*/
@@ -127,7 +140,7 @@ unsigned char spi_exchange(unsigned char b)
 {
     SSPBUF = b;
     while(!SSPSTATbits.BF);
-    ClrWdt(); // XXX Why do I need this?
+    CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
     return SSPBUF;
 }
 
@@ -179,6 +192,7 @@ void spi_disable_sd()
 void putch(unsigned char byte)
 {
     send_serial(byte);
+    CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
 }
 
 
@@ -479,6 +493,8 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     if(crc_theirs != crc_ours) {
         printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
         return 0;
+    } else {
+        printf("CRC matches\n");
     }
 
     // Wait for DO to go high. I don't think we need to do this for block reads,
@@ -582,6 +598,7 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
     }
 }
 
+int previous_block = 0xffff;
 unsigned char testblock[512];
 
 #define sectors_per_block 4
@@ -624,11 +641,10 @@ void interrupt intr()
         PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
     
-    if(PIR1bits.RCIF) {
-        input_char = RCREG;
+    if(RCIF) {
+        input_char = RCREG; // clears RCIF
         // printf("serial: '%c'\n", input_char);
-        // input_char_ready = 1;
-        PIR1bits.RCIF = 0;
+        input_char_ready = 1;
     }
 }
 
@@ -744,8 +760,8 @@ void main()
     enable_interrupts();
 
     for(;;) {
+        CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
         PORTAbits.RA0 = 1; // LEDs *... means we got here
-        ClrWdt();
         PORTAbits.RA1 = 1; // LEDs **.. means we got here
         if(command_request != PIC_CMD_NONE) {
             PORTAbits.RA2 = 1; // LEDs ***. means we got here
@@ -755,55 +771,87 @@ void main()
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int block_number = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
                     PORTAbits.RA3 = 1; // LEDs **** means we got here
 
-                    printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
+                    printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
                         printf("asked for disk out of range\n");
                         response_bytes[rl++] = PIC_FAILURE;
-                    } else if(!sdcard_readblock(block, testblock)) {
-                        printf("some kind of block read failure\n");
-                        response_bytes[rl++] = PIC_FAILURE;
-                    } else {
-                        printf("read success:\n");
-                        // dump_buffer_hex(4, testblock, 512);
-                        response_bytes[rl++] = PIC_SUCCESS;
-                        for(u = 0; u < sector_size; u++)
-                            response_bytes[rl++] = testblock[sector_byte_offset + u];
+                        break;
                     }
+
+                    if(previous_block == block_number) {
+                        printf("Block already in cache.\n");
+                    } else {
+                        if(!sdcard_readblock(block_number, testblock)) {
+                            printf("some kind of block read failure\n");
+                            response_bytes[rl++] = PIC_FAILURE;
+                            break;
+                        }
+                        printf("New cached block\n");
+                        previous_block = block_number;
+                    }
+
+                    printf("read success:\n");
+                    // dump_buffer_hex(4, testblock, 512);
+                    response_bytes[rl++] = PIC_SUCCESS;
+                    for(u = 0; u < sector_size; u++)
+                        response_bytes[rl++] = testblock[sector_byte_offset + u];
                     break;
                 }
+
                 case PIC_CMD_WRITE: {
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
+                    unsigned int block_number = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
 
-                    printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block, sector_byte_offset);
+                    printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
                         printf("asked for disk out of range\n");
                         response_bytes[rl++] = PIC_FAILURE;
-                    } else if(!sdcard_readblock(block, testblock)) {
+                        break;
+                    }
+
+                    if(previous_block == block_number) {
+                        printf("Block already in cache.\n");
+                    } else {
+                        if(!sdcard_readblock(block_number, testblock)) {
+                            printf("some kind of block read failure\n");
+                            response_bytes[rl++] = PIC_FAILURE;
+                            break;
+                        }
+                        printf("New cached block\n");
+                        previous_block = block_number;
+                    }
+
+                    if(!sdcard_readblock(block_number, testblock)) {
+
                         printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
-                    } else {
-                        for(u = 0; u < sector_size; u++)
-                            testblock[sector_byte_offset + u] = command_bytes[6 + u];
-                        if(!sdcard_writeblock(block, testblock)) {
-                            printf("some kind of block write failure\n");
-                            response_bytes[rl++] = PIC_FAILURE;
-                        } else {
-                            printf("write success\n");
-                            response_bytes[rl++] = PIC_SUCCESS;
-                        }
+                        break;
+
                     }
+
+                    for(u = 0; u < sector_size; u++)
+                        testblock[sector_byte_offset + u] = command_bytes[6 + u];
+                    if(!sdcard_writeblock(block_number, testblock)) {
+                        printf("some kind of block write failure\n");
+                        response_bytes[rl++] = PIC_FAILURE;
+                        break;
+                    }
+
+                    printf("write success\n");
+                    response_bytes[rl++] = PIC_SUCCESS;
+
                     break;
                 }
+
                 case PIC_CMD_CONST: {
                     printf("CONST\n");
                     if(input_char_ready)
@@ -812,6 +860,7 @@ void main()
                         response_bytes[rl++] = PIC_NOT_READY;
                     break;
                 }
+
                 case PIC_CMD_CONIN: {
                     printf("CONIN\n");
                     if(input_char_ready) {

@@ -3,7 +3,9 @@ COMPILE_DEVICE  =       18f452
 BURN_DEVICE     =       pic18f452
 
 io_pic.hex: io_pic.c
-	/Applications/microchip/xc8/v1.35/bin/xc8 --chip=18F452 io_pic.c
+	"/Applications/microchip/xc8/v1.35/bin/xc8" --pass1  --chip=18C452 -Q -G  --double=24 --float=24 --emi=wordwrite --opt=default,+asm,+asmfile,-speed,+space,-debug --addrqual=ignore --mode=free -P -N255 --warn=0 --asmlist --summary=default,-psect,-class,+mem,-hex,-file --output=default,-inhx032 --runtime=default,+clear,+init,-keep,-no_startup,-download,+config,+clib,-plib --output=-mcof,+elf:multilocs --stack=compiled:auto:auto:auto "--errformat=%f:%l: error: (%n) %s" "--warnformat=%f:%l: warning: (%n) %s" "--msgformat=%f:%l: advisory: (%n) %s"    -oio_pic.p1  io_pic.c 
+	"/Applications/microchip/xc8/v1.35/bin/xc8"  --chip=18C452 -G -mio_pic.map  --double=24 --float=24 --emi=wordwrite --opt=default,+asm,+asmfile,-speed,+space,-debug --addrqual=ignore --mode=free -P -N255 --warn=0 --asmlist --summary=default,-psect,-class,+mem,-hex,-file --output=default,-inhx032 --runtime=default,+clear,+init,-keep,-no_startup,-download,+config,+clib,-plib --output=-mcof,+elf:multilocs --stack=compiled:auto:auto:auto "--errformat=%f:%l: error: (%n) %s" "--warnformat=%f:%l: warning: (%n) %s" "--msgformat=%f:%l: advisory: (%n) %s"    --memorysummary memoryfile.xml -oio_pic.elf  io_pic.p1     
+	# /Applications/microchip/xc8/v1.35/bin/xc8 --chip=18F452 io_pic.c
 
 # .c.o:
 	# sdcc --use-non-free -m$(FAMILY) -p$(COMPILE_DEVICE) -c $<
