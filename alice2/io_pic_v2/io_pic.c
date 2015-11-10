@@ -57,6 +57,69 @@ int isprint(unsigned char a)
 
 
 //----------------------------------------------------------------------------
+// Console input queue (could be from serial or from PS/2 keyboard)
+
+#define CON_QUEUE_LENGTH 32
+volatile unsigned char con_queue[CON_QUEUE_LENGTH];
+volatile short con_queue_next_head = 0;
+volatile short con_queue_tail = 0;
+
+// Caller must ensure only one call can proceed at a time; currently
+// called through isfull() and isempty(), so must protect those
+unsigned short con_queue_length()
+{
+    return (con_queue_next_head + CON_QUEUE_LENGTH - con_queue_tail) % CON_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call to isfull() or isempty() can
+// proceed at a time.
+
+// Currently called from main() or intr(), so must wrap with di(), ei()
+unsigned char con_queue_isfull()
+{
+    return con_queue_length() == CON_QUEUE_LENGTH - 1;
+}
+
+// Currently called from main(), so, wrap with di(), ei()
+unsigned char con_queue_isempty()
+{
+    return con_queue_length() == 0;
+}
+
+// Caller must ensure only one call can proceed at a time ; currently
+// called from main() and intr(), so wrap with di(), ei()
+void con_enqueue(unsigned char d)
+{
+    con_queue[con_queue_next_head] = d;
+    con_queue_next_head = (con_queue_next_head + 1) % CON_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call can proceed at a time; currently
+// called only from main() so already protected
+unsigned char con_dequeue()
+{
+    unsigned char d = con_queue[con_queue_tail];
+    con_queue_tail = (con_queue_tail + 1) % CON_QUEUE_LENGTH;
+    return d;
+}
+
+void console_enqueue_key(unsigned char d)
+{
+    unsigned char full;
+    di();
+    full = con_queue_isfull();
+    ei();
+    if(full) {
+        printf("Console queue overflow\n");
+    } else {
+        di();
+        con_enqueue(d);
+        ei();
+    }
+}
+
+
+//----------------------------------------------------------------------------
 // AT and PS/2 Keyboard processing
 
 // Keyboard I/O constants
@@ -92,20 +155,20 @@ unsigned short kbd_queue_length()
 // Caller must ensure only one call to isfull() or isempty() can
 // proceed at a time.
 
-// Currently called from main() so must wrap with di(), ei()
+// Currently called only from interrupt routine so already protected
 unsigned char kbd_queue_isfull()
 {
     return kbd_queue_length() == KBD_QUEUE_LENGTH - 1;
 }
 
-// Currently called from interrupt routine so already protected
+// Currently called from main() so must wrap with di(), ei()
 unsigned char kbd_queue_isempty()
 {
     return kbd_queue_length() == 0;
 }
 
 // Caller must ensure only one call can proceed at a time ; currently
-// typically called from interrupt routine so already protected
+// typically called only from interrupt routine so already protected
 void kbd_enqueue(unsigned char d)
 {
     kbd_queue[kbd_queue_next_head] = d;
@@ -113,7 +176,7 @@ void kbd_enqueue(unsigned char d)
 }
 
 // Caller must ensure only one call can proceed at a time; currently
-// called from main() so already protected
+// called only from main() so already protected
 unsigned char kbd_dequeue()
 {
     unsigned char d = kbd_queue[kbd_queue_tail];
@@ -281,9 +344,9 @@ void kbd_process_byte(unsigned char kbd_byte)
             default:
                 if(!up_key_flag)
                     if(!(kbd_byte & 0x80)) {
-                        input_char = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
+                        unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
                         printf("decoded keyboard 0x%02X ('%c')\n", input_char, isprint(input_char) ? input_char : '-');
-                        input_char_ready = 1;
+                        console_enqueue_key(c);
                     }
                 break;
         }
@@ -891,9 +954,8 @@ void interrupt intr()
     }
     
     if(RCIF) {
-        input_char = RCREG; // clears RCIF
-        // printf("serial: '%c'\n", input_char);
-        input_char_ready = 1;
+        unsigned char c = RCREG; // clears RCIF
+        console_enqueue_key(c);
     }
 
     if(INT0IF) {
@@ -1121,8 +1183,12 @@ void main()
                 }
 
                 case PIC_CMD_CONST: {
+                    unsigned char empty;
                     printf("CONST\n");
-                    if(input_char_ready)
+                    di();
+                    empty = con_queue_isempty();
+                    ei();
+                    if(!empty)
                         response_bytes[rl++] = PIC_READY;
                     else
                         response_bytes[rl++] = PIC_NOT_READY;
@@ -1130,15 +1196,23 @@ void main()
                 }
 
                 case PIC_CMD_CONIN: {
+                    unsigned char empty;
+                    unsigned char c;
                     printf("CONIN\n");
-                    if(input_char_ready) {
+                    di();
+                    empty = con_queue_isempty();
+                    ei();
+                    if(!empty) {
+                        di();
+                        c = con_dequeue();
+                        ei();
                         response_bytes[rl++] = PIC_SUCCESS;
-                        response_bytes[rl++] = input_char;
+                        response_bytes[rl++] = c;
                         input_char_ready = 0;
                     } else {
-                        printf("hm, char wasn't actually ready at CONIN\n");
+                        printf("Hm, char wasn't actually ready at CONIN\n");
                         response_bytes[rl++] = PIC_SUCCESS;
-                        response_bytes[rl++] = input_char;
+                        response_bytes[rl++] = 0;
                     }
                     break;
                 }
