@@ -30,9 +30,7 @@
 #pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
 
 #include <stdio.h>
-
-volatile int input_char_ready = 0;
-volatile unsigned char input_char;
+#include <string.h>
 
 void pause()
 {
@@ -345,7 +343,6 @@ void kbd_process_byte(unsigned char kbd_byte)
                 if(!up_key_flag)
                     if(!(kbd_byte & 0x80)) {
                         unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
-                        printf("decoded keyboard 0x%02X ('%c')\n", input_char, isprint(input_char) ? input_char : '-');
                         console_enqueue_key(c);
                     }
                 break;
@@ -399,6 +396,8 @@ void send_serial(unsigned char b)
 
 //----------------------------------------------------------------------------
 // Alice 3 Bus
+
+volatile unsigned char host_has_contacted = 0;
 
 #define PIC_POLL_AGAIN 0x00
 #define PIC_SUCCESS 0x01
@@ -926,6 +925,7 @@ void interrupt intr()
         // PSP interrupt
         if(TRISEbits.IBF) {
             // write from Z80
+            host_has_contacted = 1;
             command_bytes[command_length] = PORTD;
             if(command_length == 0 && command_bytes[0] == 0) {
                 // printf("got interrupt but 0 was command byte received\n");
@@ -961,7 +961,8 @@ void interrupt intr()
     if(INT0IF) {
         kbd_data = (kbd_data >> 1) | (PORTBbits.RB1 << 10);
         INT0IF = 0;
-        if(kbd_bits++ == kbd_bit_count) {
+        kbd_bits++;
+        if(kbd_bits == kbd_bit_count) {
             // printf("raw keyboard bits 0x%04X\n", kbd_data);
             if(kbd_queue_isfull()) {
                 printf("Keyboard queue overflow\n");
@@ -975,6 +976,36 @@ void interrupt intr()
     }
 }
 
+char local_command[80];
+unsigned char local_command_length = 0;
+
+void process_local_key(unsigned char c)
+{
+    if(c == '\r' || c == '\n') {
+        putch('\n');
+        local_command[local_command_length] = 0;
+
+        if(stricmp(local_command, "help") == 0)
+            printf("There is no help.\n");
+        else if(stricmp(local_command, "quit") == 0)
+            printf("You can't quit.\n");
+        else 
+            printf("Unknown command.\n");
+
+        printf("* ");
+        local_command_length = 0;
+    } else {
+        if(c == 127 || c == '\b') {
+            putch('\b');
+            if(local_command_length > 0)
+                local_command_length--;
+        } else {
+            putch(c);
+            if(local_command_length < sizeof(local_command) - 1)
+                local_command[local_command_length++] = c;
+        }
+    }
+}
 
 void main()
 {
@@ -1089,7 +1120,21 @@ void main()
 
     enable_interrupts();
 
+    printf("* ");
+
     for(;;) {
+        if(!host_has_contacted) {
+            unsigned char empty, c;
+            di();
+            empty = con_queue_isempty();
+            ei();
+            if(!empty) {
+                di();
+                c = con_dequeue();
+                ei();
+                process_local_key(c);
+            }
+        }
         CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
         PORTAbits.RA0 = 1; // LEDs *... means we got here
         PORTAbits.RA1 = 1; // LEDs **.. means we got here
@@ -1208,7 +1253,6 @@ void main()
                         ei();
                         response_bytes[rl++] = PIC_SUCCESS;
                         response_bytes[rl++] = c;
-                        input_char_ready = 0;
                     } else {
                         printf("Hm, char wasn't actually ready at CONIN\n");
                         response_bytes[rl++] = PIC_SUCCESS;
