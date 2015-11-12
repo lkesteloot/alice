@@ -20,7 +20,7 @@ io_pic.hex: io_pic.c
 clean:
 	rm io_pic.o io_pic.asm
 
-burn:
+burn: io_pic.hex
 	echo extracting binary chunks to write...
 	../emulator/hex2bin -r 256 0x300000 io_pic.hex io_pic.config.bin
 	../emulator/hex2bin -r 32768 0 io_pic.hex io_pic.code.bin

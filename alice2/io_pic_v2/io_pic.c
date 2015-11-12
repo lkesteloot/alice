@@ -30,6 +30,7 @@
 #pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void pause()
@@ -880,7 +881,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     } while(response[0] != 0xFF);
     printf("looped %d times waiting on write to complete.\n", count);
 
-    if(1 || debug) dump_more_spi_bytes("write completion");
+    if(debug) dump_more_spi_bytes("write completion");
 
     return 1;
 }
@@ -910,7 +911,7 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
 }
 
 int previous_block = 0xffff;
-unsigned char testblock[512];
+unsigned char block_buffer[512];
 
 #define sectors_per_block 4
 #define sectors_per_track 64
@@ -979,18 +980,40 @@ void interrupt intr()
 char local_command[80];
 unsigned char local_command_length = 0;
 
+void usage()
+{
+    printf("help - this help message\n");
+    printf("read N - read and dump block\n");
+}
+
 void process_local_key(unsigned char c)
 {
     if(c == '\r' || c == '\n') {
         putch('\n');
         local_command[local_command_length] = 0;
 
-        if(stricmp(local_command, "help") == 0)
-            printf("There is no help.\n");
-        else if(stricmp(local_command, "quit") == 0)
-            printf("You can't quit.\n");
-        else 
+        if((strcmp(local_command, "help") == 0) ||
+           (strcmp(local_command, "h") == 0) ||
+           (strcmp(local_command, "?") == 0)) {
+
+            usage();
+
+        } else if(strncmp(local_command, "read", 4) == 0) {
+
+            unsigned char *p = local_command + 4;
+            unsigned int block_number;
+            while(*p == ' ')
+                p++;
+            block_number = strtol(p, NULL, 0);
+            if(!sdcard_readblock(block_number, block_buffer)) {
+                dump_buffer_hex(0, block_buffer, 512);
+            }
+
+        } else {
+
             printf("Unknown command.\n");
+            usage();
+        }
 
         printf("* ");
         local_command_length = 0;
@@ -1052,30 +1075,30 @@ void main()
         // dump_buffer_hex(4, originalblock, 512);
 
         for(i = 0; i < 512; i++)
-            testblock[i] = (originalblock[i] + 0x55) % 256;
+            block_buffer[i] = (originalblock[i] + 0x55) % 256;
 
-        if(!sdcard_writeblock(block_number, testblock)) {
+        if(!sdcard_writeblock(block_number, block_buffer)) {
             printf("Failed writeblock\n");
             goto stop;
         }
         // printf("Wrote junk block\n");
 
         for(i = 0; i < 512; i++)
-            testblock[i] = 0;
-        if(!sdcard_readblock(block_number, testblock)) {
+            block_buffer[i] = 0;
+        if(!sdcard_readblock(block_number, block_buffer)) {
             printf("Failed readblock\n");
             goto stop;
         }
 
         success = 1;
         for(i = 0; i < 512; i++)
-            if(testblock[i] != (originalblock[i] + 0x55) % 256)
+            if(block_buffer[i] != (originalblock[i] + 0x55) % 256)
                 success = 0;
 
         if(!success) {
             printf("whoops, error verifying write of junk to block 0\n");
             printf("block read: %02X %02X %02X %02X\n",
-                testblock[0], testblock[1], testblock[2], testblock[3]);
+                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
         } else {
             printf("Verified junk block was written\n");
         }
@@ -1086,20 +1109,20 @@ void main()
         }
         // printf("Wrote original block\n");
 
-        if(!sdcard_readblock(block_number, testblock)) {
+        if(!sdcard_readblock(block_number, block_buffer)) {
             printf("Failed readblock\n");
             goto stop;
         }
 
         success = 1;
         for(i = 0; i < 512; i++)
-            if(originalblock[i] != testblock[i])
+            if(originalblock[i] != block_buffer[i])
                 success = 0;
 
         if(!success) {
             printf("whoops, error verifying write of original to block 0\n");
             printf("block read: %02X %02X %02X %02X\n",
-                testblock[0], testblock[1], testblock[2], testblock[3]);
+                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
         } else {
             printf("Verified original block was written\n");
         }
@@ -1161,7 +1184,7 @@ void main()
                     if(previous_block == block_number) {
                         printf("Block already in cache.\n");
                     } else {
-                        if(!sdcard_readblock(block_number, testblock)) {
+                        if(!sdcard_readblock(block_number, block_buffer)) {
                             printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
@@ -1171,10 +1194,10 @@ void main()
                     }
 
                     printf("read success:\n");
-                    // dump_buffer_hex(4, testblock, 512);
+                    // dump_buffer_hex(4, block_buffer, 512);
                     response_bytes[rl++] = PIC_SUCCESS;
                     for(u = 0; u < sector_size; u++)
-                        response_bytes[rl++] = testblock[sector_byte_offset + u];
+                        response_bytes[rl++] = block_buffer[sector_byte_offset + u];
                     break;
                 }
 
@@ -1196,7 +1219,7 @@ void main()
                     if(previous_block == block_number) {
                         printf("Block already in cache.\n");
                     } else {
-                        if(!sdcard_readblock(block_number, testblock)) {
+                        if(!sdcard_readblock(block_number, block_buffer)) {
                             printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
@@ -1205,7 +1228,7 @@ void main()
                         previous_block = block_number;
                     }
 
-                    if(!sdcard_readblock(block_number, testblock)) {
+                    if(!sdcard_readblock(block_number, block_buffer)) {
 
                         printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
@@ -1214,8 +1237,8 @@ void main()
                     }
 
                     for(u = 0; u < sector_size; u++)
-                        testblock[sector_byte_offset + u] = command_bytes[6 + u];
-                    if(!sdcard_writeblock(block_number, testblock)) {
+                        block_buffer[sector_byte_offset + u] = command_bytes[6 + u];
+                    if(!sdcard_writeblock(block_number, block_buffer)) {
                         printf("some kind of block write failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
                         break;
