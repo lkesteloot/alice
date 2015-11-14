@@ -1,33 +1,128 @@
-// PIC18C452 Configuration Bit Settings
-
 // 'C' source line config statements
 
 #include <xc.h>
 
+#if defined(__18F452)
+
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
 
-// CONFIG1L
-#pragma config CP = OFF         // Code Protection bits (Program memory code protection off)
-
 // CONFIG1H
-#pragma config OSC = RCIO       // Oscillator Selection bits (RC oscillator w/OSC2 configured as RA6)
+#pragma config OSC = RCIO       // Oscillator Selection bits (RC oscillator w/ OSC2 configured as RA6)
 #pragma config OSCS = OFF       // Oscillator System Clock Switch Enable bit (Oscillator system clock switch option is disabled (main oscillator is source))
 
 // CONFIG2L
 #pragma config PWRT = OFF       // Power-up Timer Enable bit (PWRT disabled)
 #pragma config BOR = ON         // Brown-out Reset Enable bit (Brown-out Reset enabled)
-#pragma config BORV = 25        // Brown-out Reset Voltage bits (VBOR set to 2.5V)
+#pragma config BORV = 20        // Brown-out Reset Voltage bits (VBOR set to 2.0V)
 
 // CONFIG2H
-#pragma config WDT = OFF        // Watchdog Timer Enable bit (WDT disabled (control is placed on the SWDTEN bit))
+#pragma config WDT = OFF         // Watchdog Timer Enable bit (WDT enabled)
 #pragma config WDTPS = 128      // Watchdog Timer Postscale Select bits (1:128)
 
 // CONFIG3H
-#pragma config CCP2MX = ON      // CCP2 Mux bit (CCP2 input/output is multiplexed with RC1)
+#pragma config CCP2MUX = ON     // CCP2 Mux bit (CCP2 input/output is multiplexed with RC1)
 
 // CONFIG4L
 #pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
+#pragma config LVP = OFF         // Low Voltage ICSP Enable bit (Low Voltage ICSP enabled)
+
+// CONFIG5L
+#pragma config CP0 = OFF        // Code Protection bit (Block 0 (000200-001FFFh) not code protected)
+#pragma config CP1 = OFF        // Code Protection bit (Block 1 (002000-003FFFh) not code protected)
+#pragma config CP2 = OFF        // Code Protection bit (Block 2 (004000-005FFFh) not code protected)
+#pragma config CP3 = OFF        // Code Protection bit (Block 3 (006000-007FFFh) not code protected)
+
+// CONFIG5H
+#pragma config CPB = OFF        // Boot Block Code Protection bit (Boot Block (000000-0001FFh) not code protected)
+#pragma config CPD = OFF        // Data EEPROM Code Protection bit (Data EEPROM not code protected)
+
+// CONFIG6L
+#pragma config WRT0 = OFF       // Write Protection bit (Block 0 (000200-001FFFh) not write protected)
+#pragma config WRT1 = OFF       // Write Protection bit (Block 1 (002000-003FFFh) not write protected)
+#pragma config WRT2 = OFF       // Write Protection bit (Block 2 (004000-005FFFh) not write protected)
+#pragma config WRT3 = OFF       // Write Protection bit (Block 3 (006000-007FFFh) not write protected)
+
+// CONFIG6H
+#pragma config WRTC = OFF       // Configuration Register Write Protection bit (Configuration registers (300000-3000FFh) not write protected)
+#pragma config WRTB = OFF       // Boot Block Write Protection bit (Boot Block (000000-0001FFh) not write protected)
+#pragma config WRTD = OFF       // Data EEPROM Write Protection bit (Data EEPROM not write protected)
+
+// CONFIG7L
+#pragma config EBTR0 = OFF      // Table Read Protection bit (Block 0 (000200-001FFFh) not protected from Table Reads executed in other blocks)
+#pragma config EBTR1 = OFF      // Table Read Protection bit (Block 1 (002000-003FFFh) not protected from Table Reads executed in other blocks)
+#pragma config EBTR2 = OFF      // Table Read Protection bit (Block 2 (004000-005FFFh) not protected from Table Reads executed in other blocks)
+#pragma config EBTR3 = OFF      // Table Read Protection bit (Block 3 (006000-007FFFh) not protected from Table Reads executed in other blocks)
+
+// CONFIG7H
+#pragma config EBTRB = OFF      // Boot Block Table Read Protection bit (Boot Block (000000-0001FFh) not protected from Table Reads executed in other blocks)
+
+
+
+#elif defined(__18F4620)
+
+// PIC18F4620 Configuration Bit Settings
+
+// #pragma config statements should precede project file includes.
+// Use project enums instead of #define for ON and OFF.
+
+// CONFIG1H
+#pragma config OSC = RCIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
+#pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (Fail-Safe Clock Monitor disabled)
+#pragma config IESO = OFF       // Internal/External Oscillator Switchover bit (Oscillator Switchover mode disabled)
+
+// CONFIG2L
+#pragma config PWRT = OFF       // Power-up Timer Enable bit (PWRT disabled)
+#pragma config BOREN = SBORDIS  // Brown-out Reset Enable bits (Brown-out Reset enabled in hardware only (SBOREN is disabled))
+#pragma config BORV = 3         // Brown Out Reset Voltage bits (Minimum setting)
+
+// CONFIG2H
+#pragma config WDT = OFF         // Watchdog Timer Enable bit (WDT enabled)
+#pragma config WDTPS = 32768    // Watchdog Timer Postscale Select bits (1:32768)
+
+// CONFIG3H
+#pragma config CCP2MX = PORTC   // CCP2 MUX bit (CCP2 input/output is multiplexed with RC1)
+#pragma config PBADEN = ON      // PORTB A/D Enable bit (PORTB<4:0> pins are configured as analog input channels on Reset)
+#pragma config LPT1OSC = OFF    // Low-Power Timer1 Oscillator Enable bit (Timer1 configured for higher power operation)
+#pragma config MCLRE = ON       // MCLR Pin Enable bit (MCLR pin enabled; RE3 input pin disabled)
+
+// CONFIG4L
+#pragma config STVREN = ON      // Stack Full/Underflow Reset Enable bit (Stack full/underflow will cause Reset)
+#pragma config LVP = OFF         // Single-Supply ICSP Enable bit (Single-Supply ICSP enabled)
+#pragma config XINST = OFF      // Extended Instruction Set Enable bit (Instruction set extension and Indexed Addressing mode disabled (Legacy mode))
+
+// CONFIG5L
+#pragma config CP0 = OFF        // Code Protection bit (Block 0 (000800-003FFFh) not code-protected)
+#pragma config CP1 = OFF        // Code Protection bit (Block 1 (004000-007FFFh) not code-protected)
+#pragma config CP2 = OFF        // Code Protection bit (Block 2 (008000-00BFFFh) not code-protected)
+#pragma config CP3 = OFF        // Code Protection bit (Block 3 (00C000-00FFFFh) not code-protected)
+
+// CONFIG5H
+#pragma config CPB = OFF        // Boot Block Code Protection bit (Boot block (000000-0007FFh) not code-protected)
+#pragma config CPD = OFF        // Data EEPROM Code Protection bit (Data EEPROM not code-protected)
+
+// CONFIG6L
+#pragma config WRT0 = OFF       // Write Protection bit (Block 0 (000800-003FFFh) not write-protected)
+#pragma config WRT1 = OFF       // Write Protection bit (Block 1 (004000-007FFFh) not write-protected)
+#pragma config WRT2 = OFF       // Write Protection bit (Block 2 (008000-00BFFFh) not write-protected)
+#pragma config WRT3 = OFF       // Write Protection bit (Block 3 (00C000-00FFFFh) not write-protected)
+
+// CONFIG6H
+#pragma config WRTC = OFF       // Configuration Register Write Protection bit (Configuration registers (300000-3000FFh) not write-protected)
+#pragma config WRTB = OFF       // Boot Block Write Protection bit (Boot Block (000000-0007FFh) not write-protected)
+#pragma config WRTD = OFF       // Data EEPROM Write Protection bit (Data EEPROM not write-protected)
+
+// CONFIG7L
+#pragma config EBTR0 = OFF      // Table Read Protection bit (Block 0 (000800-003FFFh) not protected from table reads executed in other blocks)
+#pragma config EBTR1 = OFF      // Table Read Protection bit (Block 1 (004000-007FFFh) not protected from table reads executed in other blocks)
+#pragma config EBTR2 = OFF      // Table Read Protection bit (Block 2 (008000-00BFFFh) not protected from table reads executed in other blocks)
+#pragma config EBTR3 = OFF      // Table Read Protection bit (Block 3 (00C000-00FFFFh) not protected from table reads executed in other blocks)
+
+// CONFIG7H
+#pragma config EBTRB = OFF      // Boot Block Table Read Protection bit (Boot Block (000000-0007FFh) not protected from table reads executed in other blocks)
+
+#endif
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -411,14 +506,15 @@ volatile unsigned char host_has_contacted = 0;
 #define PIC_CMD_WRITE 0x02
 #define PIC_CMD_CONST 0x03
 #define PIC_CMD_CONIN 0x04
+#define PIC_CMD_CONOUT 0x05
 
-volatile int command_request; /* set this after reading all the bytes */
+volatile unsigned char command_request; /* set this after reading all the bytes */
 volatile unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
-volatile int command_length = 0;
+volatile unsigned char command_length = 0;
 
 volatile unsigned char response_bytes[128];
-volatile int response_length;
-volatile int response_index;
+volatile unsigned char response_length;
+volatile unsigned char response_index;
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
 const int PIC_command_lengths[5] = {1, 6, 134, 1, 1};
@@ -477,8 +573,8 @@ void spi_config_for_sd()
     T2CONbits.TMR2ON = 1;       // enable timer 2
 
     // slave select for SD
-    TRISBbits.TRISB7 = 0;       // B7 is /SS for SD - set to output
-    PORTBbits.RB7 = 1;          // B7 is /SS for SD - disable
+    TRISBbits.TRISB4 = 0;       // B4 is /SS for SD - set to output
+    PORTBbits.RB4 = 1;          // B4 is /SS for SD - disable
 
     // SPI master mode
     SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
@@ -494,12 +590,12 @@ void spi_config_for_sd()
 
 void spi_enable_sd()
 {
-    PORTBbits.RB7 = 0;          // B7 is /SS for SD - enable
+    PORTBbits.RB4 = 0;          // B4 is /SS for SD - enable
 }
 
 void spi_disable_sd()
 {
-    PORTBbits.RB7 = 1;          // B7 is /SS for SD - disable
+    PORTBbits.RB4 = 1;          // B4 is /SS for SD - disable
 }
 
 
@@ -1247,6 +1343,12 @@ void main()
                     printf("write success\n");
                     response_bytes[rl++] = PIC_SUCCESS;
 
+                    break;
+                }
+
+                case PIC_CMD_CONOUT: {
+                    send_serial(command_bytes[1]);
+                    // There's no response from this call
                     break;
                 }
 
