@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     int offset = 0;     // At offset 0 within the SRECORDs
 
     if (argc < 2) {
-        fprintf(stderr, "usage: %s [-r OFFSET BYTES] in.hex out.bin\n", argv[0]);
+        fprintf(stderr, "usage: %s [-r BYTECOUNT OFFSET] in.hex out.bin\n", argv[0]);
         return 1;
     }
     
