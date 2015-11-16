@@ -197,6 +197,13 @@ unsigned char con_dequeue()
     return d;
 }
 
+unsigned char console_overflowed = 0;
+
+void console_queue_clear()
+{
+    con_queue_tail = con_queue_next_head;
+}
+
 void console_enqueue_key(unsigned char d)
 {
     unsigned char full;
@@ -204,11 +211,23 @@ void console_enqueue_key(unsigned char d)
     full = con_queue_isfull();
     ei();
     if(full) {
-        printf("Console queue overflow\n");
+        console_overflowed = 1;
     } else {
         di();
         con_enqueue(d);
         ei();
+    }
+}
+
+// Call this from ISR, so skip di/ei
+void console_enqueue_key_unsafe(unsigned char d)
+{
+    unsigned char full;
+    full = con_queue_isfull();
+    if(full) {
+        console_overflowed = 1;
+    } else {
+        con_enqueue(d);
     }
 }
 
@@ -217,7 +236,7 @@ void console_enqueue_key(unsigned char d)
 // AT and PS/2 Keyboard processing
 
 // Keyboard I/O constants
-const int kbd_bit_count = 11;
+#define KBD_BIT_COUNT 11
 
 volatile short kbd_bits = 0;
 volatile unsigned short kbd_data = 0;
@@ -236,8 +255,8 @@ volatile char kbd_ctrl_status = 0;
 
 #define KBD_QUEUE_LENGTH 16
 volatile unsigned char kbd_queue[KBD_QUEUE_LENGTH];
-volatile short kbd_queue_next_head = 0;
-volatile short kbd_queue_tail = 0;
+volatile unsigned char kbd_queue_next_head = 0;
+volatile unsigned char kbd_queue_tail = 0;
 
 // Caller must ensure only one call can proceed at a time; currently
 // called through isfull() and isempty(), so must protect those
@@ -493,7 +512,9 @@ void send_serial(unsigned char b)
 //----------------------------------------------------------------------------
 // Alice 3 Bus
 
-volatile unsigned char host_has_contacted = 0;
+volatile unsigned char host_has_contacted;
+volatile unsigned char in_pic_monitor;
+volatile unsigned char pic_monitor_latch;
 
 #define PIC_POLL_AGAIN 0x00
 #define PIC_SUCCESS 0x01
@@ -510,18 +531,23 @@ volatile unsigned char host_has_contacted = 0;
 
 volatile unsigned char command_request; /* set this after reading all the bytes */
 volatile unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
-volatile unsigned char command_length = 0;
+volatile unsigned char command_length;
 
 volatile unsigned char response_bytes[128];
 volatile unsigned char response_length;
 volatile unsigned char response_index;
+volatile unsigned char response_waiting;
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
-const int PIC_command_lengths[5] = {1, 6, 134, 1, 1};
+const unsigned char PIC_command_lengths[5] = {1, 6, 134, 1, 1};
 
 
 void setup_slave_port()
 {
+    // /WAIT back to host
+    TRISBbits.TRISB3 = 1;       // B3 is /WAIT asserted to Z80, but input until needed
+    LATBbits.LB3 = 0;          // latch the 0 wait value; this will be output on B3 when enabled
+
     PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
     TRISEbits.TRISE0 = 1;		// /RD is input
     TRISEbits.TRISE1 = 1;		// /WR is input
@@ -1018,22 +1044,30 @@ unsigned char block_buffer[512];
 
 void interrupt intr()
 {
+    //
+    // 3-4 instruction latency to interrupt handler, which is 12-16 OSC cycles.
+    // Then about another 
+    // So about .6us to .8us, then another .2 us to assert WAIT, so 1us max
+    // Z80 expects two cycles between I/O and WAIT, so that's max 2MHz.
+    // 
+    TRISBbits.TRISB3 = 0;       // put low /WAIT (assert WAIT) on B3
+
     if(PIR1bits.PSPIF) {
         // PSP interrupt
         if(TRISEbits.IBF) {
             // write from Z80
-            host_has_contacted = 1;
             command_bytes[command_length] = PORTD;
             if(command_length == 0 && command_bytes[0] == 0) {
                 // printf("got interrupt but 0 was command byte received\n");
             } else {
+                unsigned char command_byte = command_bytes[0];
                 // PORTA = command_length;
                 command_length++;
-                if(command_length == PIC_command_lengths[command_bytes[0]]) {
-                    // printf("command_request = %d\n", command_bytes[0]);
-                    command_request = command_bytes[0];
+                if(command_length == PIC_command_lengths[command_byte]) {
+                    command_request = command_byte;
                 }
             }
+            host_has_contacted = 1;
         } else {
             // byte was read from PIC; send next
             if(response_length > 0) {
@@ -1042,6 +1076,7 @@ void interrupt intr()
                 if(response_index >= response_length) {
                     response_index = 0;
                     response_length = 0;
+                    response_waiting = 0;
                 }
             } else {
                 PORTD = 0;
@@ -1049,18 +1084,28 @@ void interrupt intr()
         }
         PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
+    TRISBbits.TRISB3 = 1;       // high-impedance /WAIT (pullup will make high) (release WAIT)
     
     if(RCIF) {
-        unsigned char c = RCREG; // clears RCIF
-        console_enqueue_key(c);
+        static unsigned char c;
+        c = RCREG; // clears RCIF
+        if(pic_monitor_latch == 0 && c == 1)
+            pic_monitor_latch = 1;
+        else if(pic_monitor_latch == 1 && c == 2) {
+            pic_monitor_latch = 0;
+            in_pic_monitor = 1;
+            console_queue_clear();
+        } else {
+            pic_monitor_latch = 0;
+            console_enqueue_key_unsafe(c);
+        }
     }
 
     if(INT0IF) {
         kbd_data = (kbd_data >> 1) | (PORTBbits.RB1 << 10);
         INT0IF = 0;
         kbd_bits++;
-        if(kbd_bits == kbd_bit_count) {
-            // printf("raw keyboard bits 0x%04X\n", kbd_data);
+        if(kbd_bits == KBD_BIT_COUNT) {
             if(kbd_queue_isfull()) {
                 printf("Keyboard queue overflow\n");
             } else {
@@ -1068,7 +1113,6 @@ void interrupt intr()
             }
             kbd_data = 0;
             kbd_bits = 0;
-            // printf("raw keyboard byte 0x%02X\n", kbd_byte);
         }
     }
 }
@@ -1080,7 +1124,15 @@ void usage()
 {
     printf("help - this help message\n");
     printf("read N - read and dump block\n");
+    printf("exit - exit monitor (keys go to Z80)\n");
+    printf("version - print date of firmware build\n");
+    printf("cmd - print summary of command queue\n");
+    printf("resp - print summary of response queue\n");
 }
+
+#define xstr(x) str(x)
+#define str(x) # x
+#define PIC_FIRMWARE_VERSION_STRING xstr(PIC_FIRMWARE_VERSION)
 
 void process_local_key(unsigned char c)
 {
@@ -1094,15 +1146,40 @@ void process_local_key(unsigned char c)
 
             usage();
 
-        } else if(strncmp(local_command, "read", 4) == 0) {
+        } else if(strcmp(local_command, "exit") == 0) {
+
+            in_pic_monitor = 0;
+
+        } else if(strcmp(local_command, "resp") == 0) {
+
+            printf("response queue: %d bytes\n", response_length);
+            dump_buffer_hex(4, response_bytes, response_length);
+
+        } else if(strcmp(local_command, "cmd") == 0) {
+
+            printf("command queue: %d bytes\n", command_length);
+            dump_buffer_hex(4, command_bytes, command_length);
+            printf("command request: 0x%02X\n", command_request);
+            printf("command lengths: %d, %d, %d, %d, %d\n",
+                PIC_command_lengths[0],
+                PIC_command_lengths[1],
+                PIC_command_lengths[2],
+                PIC_command_lengths[3],
+                PIC_command_lengths[4]);
+
+        } else if(strcmp(local_command, "version") == 0) {
+
+            printf("%s\n", PIC_FIRMWARE_VERSION_STRING);
+
+        } else if(strncmp(local_command, "read ", 5) == 0) {
 
             unsigned char *p = local_command + 4;
             unsigned int block_number;
             while(*p == ' ')
                 p++;
             block_number = strtol(p, NULL, 0);
-            if(!sdcard_readblock(block_number, block_buffer)) {
-                dump_buffer_hex(0, block_buffer, 512);
+            if(sdcard_readblock(block_number, block_buffer)) {
+                dump_buffer_hex(4, block_buffer, 512);
             }
 
         } else {
@@ -1128,11 +1205,18 @@ void process_local_key(unsigned char c)
 
 void main()
 {
+    unsigned char was_in_monitor = 0;
+    unsigned char host_had_contacted = 0;
+    unsigned char was_response_waiting = 0;
     int rl;
     unsigned int u;
     int i;
     int success;
     int block_number;
+
+    host_has_contacted = 0;
+    in_pic_monitor = 1;
+    pic_monitor_latch = 0;
 
     setup();
     pause();
@@ -1239,10 +1323,15 @@ void main()
 
     enable_interrupts();
 
-    printf("* ");
-
     for(;;) {
-        if(!host_has_contacted) {
+        if(!host_had_contacted && host_has_contacted) 
+        {
+            in_pic_monitor = 0;
+        }
+
+        if(in_pic_monitor) {
+            if(!was_in_monitor)
+                printf("\n* ");
             unsigned char empty, c;
             di();
             empty = con_queue_isempty();
@@ -1253,7 +1342,14 @@ void main()
                 ei();
                 process_local_key(c);
             }
+        } else {
+            if(was_in_monitor)
+                printf("Press CTRL-A then CTRL-B to return to monitor.\n");
         }
+
+        was_in_monitor = in_pic_monitor;
+        host_had_contacted = host_has_contacted;
+
         CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
         PORTAbits.RA0 = 1; // LEDs *... means we got here
         PORTAbits.RA1 = 1; // LEDs **.. means we got here
@@ -1386,15 +1482,16 @@ void main()
                     break;
                 }
             }
+            command_request = PIC_CMD_NONE;
+            command_length = 0;
             if(rl > 0) {
                 printf("will respond with %d\n", rl);
                 di(); // critical section
                 response_index = 0;
                 response_length = rl;
+                was_response_waiting = response_waiting = 1;
                 ei(); // end critical section
             }
-            command_request = PIC_CMD_NONE;
-            command_length = 0;
         }
 
         {
@@ -1407,6 +1504,15 @@ void main()
             }
         }
 
+        if(console_overflowed) {
+            printf("Console queue overflow\n");
+            console_overflowed = 0;
+        }
+
+        if(was_response_waiting && !response_waiting) {
+            printf("response packet was read\n");
+            was_response_waiting = 0;
+        }
     }
 
 stop:
