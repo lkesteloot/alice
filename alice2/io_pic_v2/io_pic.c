@@ -150,6 +150,11 @@ int isprint(unsigned char a)
 }
 
 
+unsigned char console_overflowed = 0;
+unsigned char keyboard_overflowed = 0;
+unsigned char unknown_pic_command = 0;
+
+
 //----------------------------------------------------------------------------
 // Console input queue (could be from serial or from PS/2 keyboard)
 
@@ -196,8 +201,6 @@ unsigned char con_dequeue()
     con_queue_tail = (con_queue_tail + 1) % CON_QUEUE_LENGTH;
     return d;
 }
-
-unsigned char console_overflowed = 0;
 
 void console_queue_clear()
 {
@@ -523,11 +526,13 @@ volatile unsigned char pic_monitor_latch;
 #define PIC_NOT_READY 0xFF
 
 #define PIC_CMD_NONE  0x00
+#define PIC_CMD_MIN  0x01
 #define PIC_CMD_READ  0x01
 #define PIC_CMD_WRITE 0x02
 #define PIC_CMD_CONST 0x03
 #define PIC_CMD_CONIN 0x04
 #define PIC_CMD_CONOUT 0x05
+#define PIC_CMD_MAX 0x05
 
 volatile unsigned char command_request; /* set this after reading all the bytes */
 volatile unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
@@ -1057,8 +1062,8 @@ void interrupt intr()
         if(TRISEbits.IBF) {
             // write from Z80
             command_bytes[command_length] = PORTD;
-            if(command_length == 0 && command_bytes[0] == 0) {
-                // printf("got interrupt but 0 was command byte received\n");
+            if((command_bytes[0] < PIC_CMD_MIN) || (command_bytes[0] > PIC_CMD_MAX)) {
+                unknown_pic_command = 1;
             } else {
                 unsigned char command_byte = command_bytes[0];
                 // PORTA = command_length;
@@ -1107,7 +1112,7 @@ void interrupt intr()
         kbd_bits++;
         if(kbd_bits == KBD_BIT_COUNT) {
             if(kbd_queue_isfull()) {
-                printf("Keyboard queue overflow\n");
+                keyboard_overflowed = 1;
             } else {
                 kbd_enqueue((kbd_data >> 1) & 0xff);
             }
@@ -1481,6 +1486,11 @@ void main()
                     }
                     break;
                 }
+
+                default: {
+                    printf("unexpected command 0x%02X from host!\n", command_request);
+                    break;
+                }
             }
             command_request = PIC_CMD_NONE;
             command_length = 0;
@@ -1505,8 +1515,18 @@ void main()
         }
 
         if(console_overflowed) {
-            printf("Console queue overflow\n");
+            printf("Console input queue overflow\n");
             console_overflowed = 0;
+        }
+
+        if(keyboard_overflowed) {
+            printf("Keyboard data queue overflow\n");
+            keyboard_overflowed = 0;
+        }
+
+        if(unknown_pic_command) {
+            printf("Unknown PIC command received\n");
+            unknown_pic_command = 0;
         }
 
         if(was_response_waiting && !response_waiting) {
