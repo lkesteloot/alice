@@ -128,6 +128,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define XSTR(x) STR(x)
+#define STR(x) # x
+
 void pause()
 {
     int i;
@@ -154,6 +157,13 @@ unsigned char console_overflowed = 0;
 unsigned char keyboard_overflowed = 0;
 unsigned char unknown_pic_command = 0;
 
+enum debug_levels {
+    DEBUG_NONE = 0,
+    DEBUG_EVENTS,
+    DEBUG_DATA,
+    DEBUG_ALL,
+};
+int debug = DEBUG_EVENTS;
 
 //----------------------------------------------------------------------------
 // Console input queue (could be from serial or from PS/2 keyboard)
@@ -736,7 +746,6 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
 }
 
 
-int debug = 1;
 int timeout_count = 20000;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
@@ -759,7 +768,6 @@ void spi_bulk(unsigned char *buffer, unsigned int nlen)
 
     for(i = 0; i < nlen; i++) {
         buffer[i] = spi_exchange(buffer[i]);
-        // printf("%d: 0x%02X\n", i, buffer[i]);
     }
 }
 
@@ -779,7 +787,6 @@ void spi_readn(unsigned char *buffer, unsigned int nlen)
 
     for(i = 0; i < nlen; i++) {
         buffer[i] = spi_exchange(0xff);
-        // printf("%d: 0x%02X\n", i, buffer[i]);
     }
 }
 
@@ -796,12 +803,12 @@ int send_sdcard_command(enum sdcard_command command, unsigned long parameter, un
     command_buffer[4] = (parameter >> 0) & 0xff;
     command_buffer[5] = ((crc7_generate_bytes(command_buffer, 5) & 0x7f) << 1) | 0x01;
 
-    if(debug) printf("command constructed: %02X %02X %02X %02X %02X %02X\n",
+    if(debug >= DEBUG_DATA) printf("command constructed: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
     spi_bulk(command_buffer, sizeof(command_buffer));
-    if(debug) printf("returned in buffer: %02X %02X %02X %02X %02X %02X\n",
+    if(debug >= DEBUG_ALL) printf("returned in buffer: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
@@ -812,7 +819,7 @@ int send_sdcard_command(enum sdcard_command command, unsigned long parameter, un
             return 0;
         }
         spi_readn(response, 1);
-        if(debug) printf("response 0x%02X\n", response[0]);
+        if(debug >= DEBUG_ALL) printf("response 0x%02X\n", response[0]);
         count++;
     } while(response[0] & 0x80);
 
@@ -852,7 +859,7 @@ int sdcard_init()
     if(!send_sdcard_command(CMD8, 0x000001AA, response, 5))
         return 0;
     if(response[0] != sdcard_response_IDLE) {
-        printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
+        printf("sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
@@ -879,7 +886,7 @@ int sdcard_init()
             return 0;
         count++;
     } while(response[0] != sdcard_response_SUCCESS);
-    if(debug) printf("returned from ACMD41: %02X\n", response[0]);
+    if(debug >= DEBUG_ALL) printf("returned from ACMD41: %02X\n", response[0]);
 
     return 1;
 }
@@ -918,7 +925,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(debug) printf("readblock response 0x%02X\n", response[0]);
+        if(debug >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
         count++;
     } while(response[0] != sdcard_token_17_18_24);
 
@@ -927,7 +934,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
 
     // Read CRC
     spi_readn(response, 2);
-    if(debug) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
+    if(debug >= DEBUG_DATA) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
 
     unsigned short crc_theirs = response[0] * 256 + response[1];
 
@@ -938,7 +945,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
         printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
         return 0;
     } else {
-        printf("CRC matches\n");
+        if(debug >= DEBUG_DATA) printf("CRC matches\n");
     }
 
     // Wait for DO to go high. I don't think we need to do this for block reads,
@@ -950,11 +957,11 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(debug) printf("readblock response 0x%02X\n", response[0]);
+        if(debug >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
         count++;
     } while(response[0] != 0xFF);
 
-    if(debug) dump_more_spi_bytes("read completion");
+    if(debug >= DEBUG_ALL) dump_more_spi_bytes("read completion");
 
     return 1;
 }
@@ -989,7 +996,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
 
     // Get DATA_ACCEPTED response from WRITE
     spi_readn(response, 1);
-    if(debug) printf("writeblock response 0x%02X\n", response[0]);
+    if(debug >= DEBUG_DATA) printf("writeblock response 0x%02X\n", response[0]);
     if(response[0] != sdcard_response_DATA_ACCEPTED) {
         printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
         return 0;
@@ -1003,12 +1010,12 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(debug) printf("writeblock completion 0x%02X\n", response[0]);
+        if(debug >= DEBUG_ALL) printf("writeblock completion 0x%02X\n", response[0]);
         count++;
     } while(response[0] != 0xFF);
-    printf("looped %d times waiting on write to complete.\n", count);
+    if(debug >= DEBUG_DATA) printf("looped %d times waiting on write to complete.\n", count);
 
-    if(debug) dump_more_spi_bytes("write completion");
+    if(debug >= DEBUG_ALL) dump_more_spi_bytes("write completion");
 
     return 1;
 }
@@ -1133,11 +1140,10 @@ void usage()
     printf("version - print date of firmware build\n");
     printf("cmd - print summary of command queue\n");
     printf("resp - print summary of response queue\n");
+    printf("debug N - set debug level [default 0]\n");
 }
 
-#define xstr(x) str(x)
-#define str(x) # x
-#define PIC_FIRMWARE_VERSION_STRING xstr(PIC_FIRMWARE_VERSION)
+#define PIC_FIRMWARE_VERSION_STRING XSTR(PIC_FIRMWARE_VERSION)
 
 void process_local_key(unsigned char c)
 {
@@ -1165,16 +1171,18 @@ void process_local_key(unsigned char c)
             printf("command queue: %d bytes\n", command_length);
             dump_buffer_hex(4, command_bytes, command_length);
             printf("command request: 0x%02X\n", command_request);
-            printf("command lengths: %d, %d, %d, %d, %d\n",
-                PIC_command_lengths[0],
-                PIC_command_lengths[1],
-                PIC_command_lengths[2],
-                PIC_command_lengths[3],
-                PIC_command_lengths[4]);
 
         } else if(strcmp(local_command, "version") == 0) {
 
             printf("%s\n", PIC_FIRMWARE_VERSION_STRING);
+
+        } else if(strncmp(local_command, "debug ", 6) == 0) {
+
+            unsigned char *p = local_command + 5;
+            while(*p == ' ')
+                p++;
+            debug = strtol(p, NULL, 0);
+            printf("debug set to %d\n", debug);
 
         } else if(strncmp(local_command, "read ", 5) == 0) {
 
@@ -1229,7 +1237,7 @@ void main()
     // XXX MAX232 device
     setup_serial(); // transmit and receive but global interrupts disabled
 
-    printf("Everything is going to be fine.\n");
+    printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
 
     // Set up PS/2 keyboard?
     // Prompt
@@ -1329,7 +1337,7 @@ void main()
     enable_interrupts();
 
     for(;;) {
-        if(!host_had_contacted && host_has_contacted) 
+        if((!host_had_contacted) && host_has_contacted) 
         {
             in_pic_monitor = 0;
         }
@@ -1370,7 +1378,7 @@ void main()
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
                     PORTAbits.RA3 = 1; // LEDs **** means we got here
 
-                    printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    if(debug >= DEBUG_EVENTS) printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
                         printf("asked for disk out of range\n");
@@ -1379,19 +1387,17 @@ void main()
                     }
 
                     if(previous_block == block_number) {
-                        printf("Block already in cache.\n");
+                        if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
                             printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
                         }
-                        printf("New cached block\n");
+                        if(debug >= DEBUG_DATA) printf("New cached block\n");
+                        if(debug >= DEBUG_ALL) dump_buffer_hex(4, block_buffer, 512);
                         previous_block = block_number;
                     }
-
-                    printf("read success:\n");
-                    // dump_buffer_hex(4, block_buffer, 512);
                     response_bytes[rl++] = PIC_SUCCESS;
                     for(u = 0; u < sector_size; u++)
                         response_bytes[rl++] = block_buffer[sector_byte_offset + u];
@@ -1405,7 +1411,7 @@ void main()
                     unsigned int block_number = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
                     unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
 
-                    printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    if(debug >= DEBUG_EVENTS) printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
                         printf("asked for disk out of range\n");
@@ -1414,14 +1420,14 @@ void main()
                     }
 
                     if(previous_block == block_number) {
-                        printf("Block already in cache.\n");
+                        if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
                             printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
                         }
-                        printf("New cached block\n");
+                        if(debug >= DEBUG_DATA) printf("New cached block\n");
                         previous_block = block_number;
                     }
 
@@ -1441,7 +1447,6 @@ void main()
                         break;
                     }
 
-                    printf("write success\n");
                     response_bytes[rl++] = PIC_SUCCESS;
 
                     break;
@@ -1455,7 +1460,7 @@ void main()
 
                 case PIC_CMD_CONST: {
                     unsigned char empty;
-                    printf("CONST\n");
+                    if(debug >= DEBUG_EVENTS)printf("CONST\n");
                     di();
                     empty = con_queue_isempty();
                     ei();
@@ -1469,7 +1474,7 @@ void main()
                 case PIC_CMD_CONIN: {
                     unsigned char empty;
                     unsigned char c;
-                    printf("CONIN\n");
+                    if(debug >= DEBUG_EVENTS) printf("CONIN\n");
                     di();
                     empty = con_queue_isempty();
                     ei();
@@ -1495,7 +1500,7 @@ void main()
             command_request = PIC_CMD_NONE;
             command_length = 0;
             if(rl > 0) {
-                printf("will respond with %d\n", rl);
+                if(debug >= DEBUG_DATA) printf("will respond with %d\n", rl);
                 di(); // critical section
                 response_index = 0;
                 response_length = rl;
@@ -1530,7 +1535,7 @@ void main()
         }
 
         if(was_response_waiting && !response_waiting) {
-            printf("response packet was read\n");
+            if(debug >= DEBUG_EVENTS) printf("response packet was read\n");
             was_response_waiting = 0;
         }
     }
