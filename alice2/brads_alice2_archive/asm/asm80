@@ -1,5 +1,7 @@
 #!/bin/sh
 
+MYPID=$$
+
 if [ a$1 = a ]
 then
     echo Usage:
@@ -10,6 +12,7 @@ fi
 namebase=`echo $1 | sed 's/\..*$//'`
 # echo namebase is $namebase
 
-cc -x c -E -P $1 > /tmp/asm.cpp
+cc -x c -E -P $1 > /tmp/asm.$MYPID.cpp
 shift
-$(dirname $0)/az80/az80 /tmp/asm.cpp -o $namebase.hex -l $namebase.prn
+$(dirname $0)/az80/az80 /tmp/asm.$MYPID.cpp -o $namebase.hex -l $namebase.prn
+rm /tmp/asm.$MYPID.cpp
