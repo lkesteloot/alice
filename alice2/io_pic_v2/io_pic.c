@@ -21,7 +21,7 @@
 #pragma config WDTPS = 128      // Watchdog Timer Postscale Select bits (1:128)
 
 // CONFIG3H
-#pragma config CCP2MUX = ON     // CCP2 Mux bit (CCP2 input/output is multiplexed with RC1)
+#pragma config CCP2MUX = OFF     // CCP2 Mux bit (CCP2 input/output is multiplexed with RC1)
 
 // CONFIG4L
 #pragma config STVR = ON        // Stack Full/Underflow Reset Enable bit (Stack Full/Underflow will cause RESET)
@@ -56,8 +56,6 @@
 
 // CONFIG7H
 #pragma config EBTRB = OFF      // Boot Block Table Read Protection bit (Boot Block (000000-0001FFh) not protected from Table Reads executed in other blocks)
-
-
 
 #elif defined(__18F4620)
 
@@ -145,6 +143,8 @@ void setup()
 
     // debug LEDs
     TRISA = 0xF0;
+    TRISCbits.TRISC2 = 0;
+    TRISCbits.TRISC1 = 0;
 }
 
 int isprint(unsigned char a)
@@ -158,12 +158,14 @@ unsigned char keyboard_overflowed = 0;
 unsigned char unknown_pic_command = 0;
 
 enum debug_levels {
-    DEBUG_NONE = 0,
+    DEBUG_SILENT = 0,
+    DEBUG_ERRORS,
+    DEBUG_WARNINGS,
     DEBUG_EVENTS,
     DEBUG_DATA,
     DEBUG_ALL,
 };
-int debug = DEBUG_EVENTS;
+int debug = DEBUG_WARNINGS;
 
 //----------------------------------------------------------------------------
 // Console input queue (could be from serial or from PS/2 keyboard)
@@ -490,7 +492,13 @@ void setup_keyboard()
 /*--------------------------------------------------------------------------*/
 /* USART - serial comms ----------------------------------------------------*/
 
-const int baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+#if 0
+const unsigned char need_BRGH = 0;
+const unsigned char baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+#else
+const unsigned char need_BRGH = 1;
+const int baud_rate_code = 0xa; // 115200 baud at 20 MHz, BRGH=1, 10 decimal
+#endif
 
 void setup_serial()
 {
@@ -502,6 +510,7 @@ void setup_serial()
     TRISCbits.TRISC6 = 0;       // TX is output
     TRISCbits.TRISC7 = 1;       // RX is input
 
+    BRGH = need_BRGH;
     SPBRG = baud_rate_code;
 
     TXSTAbits.SYNC = 0;
@@ -554,8 +563,9 @@ volatile unsigned char response_index;
 volatile unsigned char response_waiting;
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
-const unsigned char PIC_command_lengths[5] = {1, 6, 134, 1, 1};
+const unsigned char PIC_command_lengths[6] = {1, 6, 134, 1, 1, 2};
 
+volatile unsigned char psp_read_nothing_pending = 0;
 
 void setup_slave_port()
 {
@@ -567,11 +577,11 @@ void setup_slave_port()
     TRISEbits.TRISE0 = 1;		// /RD is input
     TRISEbits.TRISE1 = 1;		// /WR is input
     TRISEbits.TRISE2 = 1;		// /CS is input
-    TRISEbits.PSPMODE = 1;		// port D is PSP
     ADCON1bits.PCFG2 = 1;               // ADCON has to be set for RE2:RE0 to be inputs
     ADCON1bits.PCFG1 = 1;
     ADCON1bits.PCFG0 = 1;
-    PORTD = 0;
+    LATD = 0;
+    TRISEbits.PSPMODE = 1;		// port D is PSP
     PIE1bits.PSPIE = 1; // enable interrupts on PSP
 
     command_length = 0;
@@ -1057,18 +1067,23 @@ unsigned char block_buffer[512];
 void interrupt intr()
 {
     //
-    // 3-4 instruction latency to interrupt handler, which is 12-16 OSC cycles.
-    // Then about another 
-    // So about .6us to .8us, then another .2 us to assert WAIT, so 1us max
-    // Z80 expects two cycles between I/O and WAIT, so that's max 2MHz.
+    // Can't enable this yet because this would occur MUCH later
+    // than completion of write from Z80.
     // 
-    TRISBbits.TRISB3 = 0;       // put low /WAIT (assert WAIT) on B3
+    // TRISBbits.TRISB3 = 0;       // put low /WAIT (assert WAIT) on B3
 
     if(PIR1bits.PSPIF) {
-        // PSP interrupt
+
+        // http://ww1.microchip.com/downloads/en/DeviceDoc/31010a.pdf
+        // PSPIF means /RD or /WR transitioned.  So either read or write.
+
+        PIR1bits.PSPIF = 0; // clear PSP interrupt
+
         if(TRISEbits.IBF) {
-            // write from Z80
+            // IBF set when master has written to PSP and PIC has not yet read
+
             command_bytes[command_length] = PORTD;
+            PORTCbits.RC2 = 1; // RC2 on means receipt in progress
             if((command_bytes[0] < PIC_CMD_MIN) || (command_bytes[0] > PIC_CMD_MAX)) {
                 unknown_pic_command = 1;
             } else {
@@ -1077,26 +1092,36 @@ void interrupt intr()
                 command_length++;
                 if(command_length == PIC_command_lengths[command_byte]) {
                     command_request = command_byte;
+                    PORTCbits.RC2 = 0; // RC2 off means receipt completed
                 }
             }
             host_has_contacted = 1;
-        } else {
-            // byte was read from PIC; send next
-            if(response_length > 0) {
-                PORTD = response_bytes[response_index];
-                response_index++;
-                if(response_index >= response_length) {
-                    response_index = 0;
-                    response_length = 0;
-                    response_waiting = 0;
-                }
-            } else {
-                PORTD = 0;
-            }
+
         }
-        PIR1bits.PSPIF = 0; // clear PSP interrupt
+
+        if(response_length > 0 && !TRISEbits.OBF) {
+
+            PORTCbits.RC1 = 1; // RC1 on means transmission in progress
+            LATD = response_bytes[response_index];
+            response_index++;
+
+            if(response_index >= response_length) {
+                response_index = 0;
+                response_length = 0;
+                response_waiting = 0;
+                LATD = 0;
+                PORTCbits.RC1 = 0; // RC1 off means transmission completed
+            }
+
+        }
+
     }
-    TRISBbits.TRISB3 = 1;       // high-impedance /WAIT (pullup will make high) (release WAIT)
+
+    //
+    // Can't enable this yet because this would occur MUCH later
+    // than completion of write from Z80.
+    // 
+    // TRISBbits.TRISB3 = 1;       // make /WAIT high-impedance (pullup will make high) (release WAIT)
     
     if(RCIF) {
         static unsigned char c;
@@ -1221,6 +1246,7 @@ void main()
     unsigned char was_in_monitor = 0;
     unsigned char host_had_contacted = 0;
     unsigned char was_response_waiting = 0;
+    unsigned char isempty;
     int rl;
     unsigned int u;
     int i;
@@ -1337,25 +1363,30 @@ void main()
     enable_interrupts();
 
     for(;;) {
-        if((!host_had_contacted) && host_has_contacted) 
-        {
+
+        if(!host_had_contacted && host_has_contacted) {
             in_pic_monitor = 0;
         }
 
         if(in_pic_monitor) {
+            unsigned char c;
+
             if(!was_in_monitor)
                 printf("\n* ");
-            unsigned char empty, c;
+
             di();
-            empty = con_queue_isempty();
+            isempty = con_queue_isempty();
             ei();
-            if(!empty) {
+
+            if(!isempty) {
                 di();
                 c = con_dequeue();
                 ei();
                 process_local_key(c);
             }
+
         } else {
+
             if(was_in_monitor)
                 printf("Press CTRL-A then CTRL-B to return to monitor.\n");
         }
@@ -1381,7 +1412,7 @@ void main()
                     if(debug >= DEBUG_EVENTS) printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        printf("asked for disk out of range\n");
+                        if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
                         response_bytes[rl++] = PIC_FAILURE;
                         break;
                     }
@@ -1390,7 +1421,7 @@ void main()
                         if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
-                            printf("some kind of block read failure\n");
+                            if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
                         }
@@ -1414,7 +1445,7 @@ void main()
                     if(debug >= DEBUG_EVENTS) printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        printf("asked for disk out of range\n");
+                        if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
                         response_bytes[rl++] = PIC_FAILURE;
                         break;
                     }
@@ -1423,7 +1454,7 @@ void main()
                         if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
-                            printf("some kind of block read failure\n");
+                            if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
                             response_bytes[rl++] = PIC_FAILURE;
                             break;
                         }
@@ -1433,7 +1464,7 @@ void main()
 
                     if(!sdcard_readblock(block_number, block_buffer)) {
 
-                        printf("some kind of block read failure\n");
+                        if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
                         response_bytes[rl++] = PIC_FAILURE;
                         break;
 
@@ -1459,12 +1490,11 @@ void main()
                 }
 
                 case PIC_CMD_CONST: {
-                    unsigned char empty;
                     if(debug >= DEBUG_EVENTS)printf("CONST\n");
                     di();
-                    empty = con_queue_isempty();
+                    isempty = con_queue_isempty();
                     ei();
-                    if(!empty)
+                    if(!isempty)
                         response_bytes[rl++] = PIC_READY;
                     else
                         response_bytes[rl++] = PIC_NOT_READY;
@@ -1472,13 +1502,12 @@ void main()
                 }
 
                 case PIC_CMD_CONIN: {
-                    unsigned char empty;
                     unsigned char c;
                     if(debug >= DEBUG_EVENTS) printf("CONIN\n");
                     di();
-                    empty = con_queue_isempty();
+                    isempty = con_queue_isempty();
                     ei();
-                    if(!empty) {
+                    if(!isempty) {
                         di();
                         c = con_dequeue();
                         ei();
@@ -1511,27 +1540,37 @@ void main()
 
         {
             di();
-            unsigned char empty = kbd_queue_isempty();
+            isempty = kbd_queue_isempty();
             ei();
-            if(!empty) {
+            if(!isempty) {
                 unsigned kb = kbd_dequeue();
                 kbd_process_byte(kb);
             }
         }
 
         if(console_overflowed) {
-            printf("Console input queue overflow\n");
+            if(debug >= DEBUG_WARNINGS) printf("WARNING: Console input queue overflow\n");
             console_overflowed = 0;
         }
 
         if(keyboard_overflowed) {
-            printf("Keyboard data queue overflow\n");
+            if(debug >= DEBUG_WARNINGS) printf("WARNING: Keyboard data queue overflow\n");
             keyboard_overflowed = 0;
         }
 
         if(unknown_pic_command) {
-            printf("Unknown PIC command received\n");
+            if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command received\n");
             unknown_pic_command = 0;
+        }
+
+        if(TRISEbits.IBOV)  {
+            if(debug >= DEBUG_ERRORS) printf("ERROR: Missed a write from Z-80\n");
+            TRISEbits.IBOV = 0;
+        }
+
+        if(psp_read_nothing_pending) {
+            if(debug >= DEBUG_ERRORS) printf("ERROR: Read from Z-80 but no command pending...\n");
+            psp_read_nothing_pending = 0;
         }
 
         if(was_response_waiting && !response_waiting) {
@@ -1549,3 +1588,12 @@ stop:
         pause();
     }
 }
+
+#asm
+	psect	temp
+blarg:
+	; opt stack 0
+	; dw	65535	; assembler added errata NOP
+	ds	1
+
+#endasm
