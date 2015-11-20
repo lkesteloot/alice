@@ -156,6 +156,7 @@ int isprint(unsigned char a)
 unsigned char console_overflowed = 0;
 unsigned char keyboard_overflowed = 0;
 unsigned char unknown_pic_command = 0;
+unsigned char unknown_pic_command_value = 0;
 
 enum debug_levels {
     DEBUG_SILENT = 0,
@@ -564,8 +565,6 @@ volatile unsigned char response_waiting;
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
 const unsigned char PIC_command_lengths[6] = {1, 6, 134, 1, 1, 2};
-
-volatile unsigned char psp_read_nothing_pending = 0;
 
 void setup_slave_port()
 {
@@ -1077,22 +1076,21 @@ void interrupt intr()
         // http://ww1.microchip.com/downloads/en/DeviceDoc/31010a.pdf
         // PSPIF means /RD or /WR transitioned.  So either read or write.
 
-        PIR1bits.PSPIF = 0; // clear PSP interrupt
-
         if(TRISEbits.IBF) {
             // IBF set when master has written to PSP and PIC has not yet read
 
             command_bytes[command_length] = PORTD;
-            PORTCbits.RC2 = 1; // RC2 on means receipt in progress
+            // reading PORTD clears IBF
+            PORTCbits.RC2 = 1; // debug LED: RC2 on means receipt in progress
             if((command_bytes[0] < PIC_CMD_MIN) || (command_bytes[0] > PIC_CMD_MAX)) {
                 unknown_pic_command = 1;
+                unknown_pic_command_value = command_bytes[0];
             } else {
                 unsigned char command_byte = command_bytes[0];
-                // PORTA = command_length;
                 command_length++;
                 if(command_length == PIC_command_lengths[command_byte]) {
                     command_request = command_byte;
-                    PORTCbits.RC2 = 0; // RC2 off means receipt completed
+                    PORTCbits.RC2 = 0; // debug LED: RC2 off means receipt completed
                 }
             }
             host_has_contacted = 1;
@@ -1101,20 +1099,24 @@ void interrupt intr()
 
         if(response_length > 0 && !TRISEbits.OBF) {
 
-            PORTCbits.RC1 = 1; // RC1 on means transmission in progress
-            LATD = response_bytes[response_index];
-            response_index++;
+            if(response_index < response_length) {
 
-            if(response_index >= response_length) {
+                LATD = response_bytes[response_index];
+                response_index++;
+                PORTCbits.RC1 = 1; // debug LED: RC1 on means transmission in progress
+
+            } else  {
+
                 response_index = 0;
                 response_length = 0;
                 response_waiting = 0;
                 LATD = 0;
-                PORTCbits.RC1 = 0; // RC1 off means transmission completed
+                PORTCbits.RC1 = 0; // debug LED: RC1 off means transmission completed
             }
-
         }
 
+        // We cleared PSP last in old ASM code
+        PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
 
     //
@@ -1128,7 +1130,7 @@ void interrupt intr()
         c = RCREG; // clears RCIF
         if(pic_monitor_latch == 0 && c == 1)
             pic_monitor_latch = 1;
-        else if(pic_monitor_latch == 1 && c == 2) {
+        else if(pic_monitor_latch != 0 && c == 2) {
             pic_monitor_latch = 0;
             in_pic_monitor = 1;
             console_queue_clear();
@@ -1526,11 +1528,11 @@ void main()
                     break;
                 }
             }
-            command_request = PIC_CMD_NONE;
-            command_length = 0;
             if(rl > 0) {
                 if(debug >= DEBUG_DATA) printf("will respond with %d\n", rl);
                 di(); // critical section
+                command_request = PIC_CMD_NONE;
+                command_length = 0;
                 response_index = 0;
                 response_length = rl;
                 was_response_waiting = response_waiting = 1;
@@ -1559,7 +1561,7 @@ void main()
         }
 
         if(unknown_pic_command) {
-            if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command received\n");
+            if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command 0x%02X received\n", unknown_pic_command_value);
             unknown_pic_command = 0;
         }
 
@@ -1568,14 +1570,13 @@ void main()
             TRISEbits.IBOV = 0;
         }
 
-        if(psp_read_nothing_pending) {
-            if(debug >= DEBUG_ERRORS) printf("ERROR: Read from Z-80 but no command pending...\n");
-            psp_read_nothing_pending = 0;
-        }
-
         if(was_response_waiting && !response_waiting) {
             if(debug >= DEBUG_EVENTS) printf("response packet was read\n");
             was_response_waiting = 0;
+        }
+        if(pic_monitor_latch == 1) {
+            pic_monitor_latch = 2;
+            printf("first char received for break into monitor\n");
         }
     }
 
