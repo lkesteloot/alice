@@ -8,7 +8,7 @@
 // Use project enums instead of #define for ON and OFF.
 
 // CONFIG1H
-#pragma config OSC = RCIO       // Oscillator Selection bits (RC oscillator w/ OSC2 configured as RA6)
+#pragma config OSC = ECIO       // Oscillator Selection bits (EC oscillator w/ OSC2 configured as RA6)
 #pragma config OSCS = OFF       // Oscillator System Clock Switch Enable bit (Oscillator system clock switch option is disabled (main oscillator is source))
 
 // CONFIG2L
@@ -493,10 +493,11 @@ void setup_keyboard()
 
 #if 0
 const unsigned char need_BRGH = 0;
-const unsigned char baud_rate_code = 0xf; // 19200 baud at 20 MHz, BRGH=0, 15 decimal
+const unsigned char baud_rate_code = 15; // 19200 baud at 20 MHz, BRGH=0
 #else
 const unsigned char need_BRGH = 1;
-const int baud_rate_code = 0xa; // 115200 baud at 20 MHz, BRGH=1, 10 decimal
+// const int baud_rate_code = 10; // 115200 baud at 20 MHz, BRGH=1
+const int baud_rate_code = 21; // 115200 baud at 40 MHz, BRGH=1
 #endif
 
 void setup_serial()
@@ -749,7 +750,7 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
 }
 
 
-int timeout_count = 20000;
+int timeout_count = 32000;
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
 enum sdcard_command {
@@ -1237,11 +1238,6 @@ void main()
     setup_serial(); // transmit and receive but global interrupts disabled
 
     printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
-
-    // Set up PS/2 keyboard?
-    // Prompt
-    // Get string
-    // Print string
 
     pause();
 
