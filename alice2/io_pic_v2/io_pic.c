@@ -1233,6 +1233,7 @@ void main()
 
     setup();
     pause();
+    pause();
 
     // XXX MAX232 device
     setup_serial(); // transmit and receive but global interrupts disabled
@@ -1563,8 +1564,10 @@ stop:
     for(;;) {
         PORTA = 0x05;
         pause();
+        pause();
 
         PORTA = 0x0a;
+        pause();
         pause();
     }
 }
