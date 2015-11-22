@@ -155,8 +155,6 @@ int isprint(unsigned char a)
 
 unsigned char console_overflowed = 0;
 unsigned char keyboard_overflowed = 0;
-unsigned char unknown_pic_command = 0;
-unsigned char unknown_pic_command_value = 0;
 
 enum debug_levels {
     DEBUG_SILENT = 0,
@@ -568,10 +566,6 @@ const unsigned char PIC_command_lengths[6] = {1, 6, 134, 1, 1, 2};
 
 void setup_slave_port()
 {
-    // /WAIT back to host
-    TRISBbits.TRISB3 = 1;       // B3 is /WAIT asserted to Z80, but input until needed
-    LATBbits.LB3 = 0;          // latch the 0 wait value; this will be output on B3 when enabled
-
     PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
     TRISEbits.TRISE0 = 1;		// /RD is input
     TRISEbits.TRISE1 = 1;		// /WR is input
@@ -1065,66 +1059,43 @@ unsigned char block_buffer[512];
 
 void interrupt intr()
 {
-    //
-    // Can't enable this yet because this would occur MUCH later
-    // than completion of write from Z80.
-    // 
-    // TRISBbits.TRISB3 = 0;       // put low /WAIT (assert WAIT) on B3
-
     if(PIR1bits.PSPIF) {
 
         // http://ww1.microchip.com/downloads/en/DeviceDoc/31010a.pdf
-        // PSPIF means /RD or /WR transitioned.  So either read or write.
+        // PSPIF means /RD or /WR transitioned.  So read or write or both
 
         if(TRISEbits.IBF) {
             // IBF set when master has written to PSP and PIC has not yet read
 
-            command_bytes[command_length] = PORTD;
+            // XXX command_length++ could overflow command_bytes[]
+            command_bytes[command_length++] = PORTD;
             // reading PORTD clears IBF
-            PORTCbits.RC2 = 1; // debug LED: RC2 on means receipt in progress
-            if((command_bytes[0] < PIC_CMD_MIN) || (command_bytes[0] > PIC_CMD_MAX)) {
-                unknown_pic_command = 1;
-                unknown_pic_command_value = command_bytes[0];
-            } else {
-                unsigned char command_byte = command_bytes[0];
-                command_length++;
-                if(command_length == PIC_command_lengths[command_byte]) {
-                    command_request = command_byte;
-                    PORTCbits.RC2 = 0; // debug LED: RC2 off means receipt completed
-                }
-            }
-            host_has_contacted = 1;
-
         }
-
+        
         if(response_length > 0 && !TRISEbits.OBF) {
 
             if(response_index < response_length) {
 
                 LATD = response_bytes[response_index];
+                // writing LATD sets OBF
                 response_index++;
-                PORTCbits.RC1 = 1; // debug LED: RC1 on means transmission in progress
 
             } else  {
 
                 response_index = 0;
                 response_length = 0;
                 response_waiting = 0;
+                // writing LATD sets OBF
                 LATD = 0;
-                PORTCbits.RC1 = 0; // debug LED: RC1 off means transmission completed
             }
         }
 
         // We cleared PSP last in old ASM code
+        // XXX - probably PSPIF = (RD || WR), so must clear RD and WR
+        // interrupts before clearing PSPIF...
         PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
 
-    //
-    // Can't enable this yet because this would occur MUCH later
-    // than completion of write from Z80.
-    // 
-    // TRISBbits.TRISB3 = 1;       // make /WAIT high-impedance (pullup will make high) (release WAIT)
-    
     if(RCIF) {
         static unsigned char c;
         c = RCREG; // clears RCIF
@@ -1396,6 +1367,25 @@ void main()
         was_in_monitor = in_pic_monitor;
         host_had_contacted = host_has_contacted;
 
+        if(command_length > 0) {
+            unsigned char command_byte = command_bytes[0];
+
+            PORTCbits.RC2 = 1; // debug LED: RC2 on means receipt in progress
+
+            if((command_byte < PIC_CMD_MIN) || (command_byte > PIC_CMD_MAX)) {
+
+                if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command 0x%02X received\n", command_byte);
+
+            } else {
+
+                if(command_length == PIC_command_lengths[command_byte]) {
+                    command_request = command_byte;
+                    PORTCbits.RC2 = 0; // debug LED: RC2 off means receipt completed
+                }
+            }
+            host_has_contacted = 1;
+        }
+
         CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
         PORTAbits.RA0 = 1; // LEDs *... means we got here
         PORTAbits.RA1 = 1; // LEDs **.. means we got here
@@ -1537,6 +1527,7 @@ void main()
                 response_length = rl;
                 was_response_waiting = response_waiting = 1;
                 ei(); // end critical section
+                PORTCbits.RC1 = 1; // debug LED: RC1 on means transmission in progress
             }
         }
 
@@ -1560,11 +1551,6 @@ void main()
             keyboard_overflowed = 0;
         }
 
-        if(unknown_pic_command) {
-            if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command 0x%02X received\n", unknown_pic_command_value);
-            unknown_pic_command = 0;
-        }
-
         if(TRISEbits.IBOV)  {
             if(debug >= DEBUG_ERRORS) printf("ERROR: Missed a write from Z-80\n");
             TRISEbits.IBOV = 0;
@@ -1573,10 +1559,7 @@ void main()
         if(was_response_waiting && !response_waiting) {
             if(debug >= DEBUG_EVENTS) printf("response packet was read\n");
             was_response_waiting = 0;
-        }
-        if(pic_monitor_latch == 1) {
-            pic_monitor_latch = 2;
-            printf("first char received for break into monitor\n");
+            PORTCbits.RC1 = 0; // debug LED: RC1 off means transmission completed
         }
     }
 
