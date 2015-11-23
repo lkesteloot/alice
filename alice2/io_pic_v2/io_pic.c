@@ -137,6 +137,19 @@ void pause()
         for (i=0;i<30000;i++) ;
 }
 
+void panic()
+{
+    for(;;) {
+        PORTA = 0x05;
+        pause();
+        pause();
+
+        PORTA = 0x0a;
+        pause();
+        pause();
+    }
+}
+
 void setup()
 {
     SWDTEN = 0;
@@ -560,12 +573,53 @@ volatile unsigned char command_bytes[1 + 5 + 128 + 2]; // largest is status + wr
 volatile unsigned char command_length;
 
 volatile unsigned char response_bytes[1 + 128 + 2]; // largest is status + sector + 16-bit checksum
+volatile unsigned char response_staging_length;
 volatile unsigned char response_length;
 volatile unsigned char response_index;
 volatile unsigned char response_waiting;
 
+void response_start()
+{
+    response_staging_length = 0;
+}
+
+void response_append(unsigned char r)
+{
+    if(response_staging_length >= sizeof(response_bytes)) {
+        printf("PANIC: overflowed response buffer\n");
+        panic();
+    }
+    response_bytes[response_staging_length++] = r;
+}
+
+// Caller must protect with di() / ei()
+void response_finish()
+{
+    response_index = 0;
+    response_length = response_staging_length;
+    response_waiting = 1;
+}
+
 // Element 0 is 1 here to force stoppage on receiving a bad command
 const unsigned char PIC_command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
+
+void command_clear()
+{
+    di();
+    command_request = PIC_CMD_NONE;
+    command_length = 0;
+    ei();
+}
+
+void response_clear()
+{
+    di();
+    response_length = 0;
+    response_index = 0;
+    response_waiting = 0;
+    LATD = 0;
+    ei();
+}
 
 void setup_slave_port()
 {
@@ -576,20 +630,18 @@ void setup_slave_port()
     ADCON1bits.PCFG2 = 1;               // ADCON has to be set for RE2:RE0 to be inputs
     ADCON1bits.PCFG1 = 1;
     ADCON1bits.PCFG0 = 1;
-    LATD = 0;
     TRISEbits.PSPMODE = 1;		// port D is PSP
     PIE1bits.PSPIE = 1; // enable interrupts on PSP
 
-    command_length = 0;
-    command_request = PIC_CMD_NONE;
-    response_length = 0;
+    command_clear();
+    response_clear();
 }
 
 void enable_interrupts()
 {
     INTCONbits.PEIE = 1; // enable peripheral interrupts
     INTCONbits.GIE = 1; // enable interrupts
-    ei();
+    ei(); // XXX does this just do the above?
 }
 
 
@@ -1077,6 +1129,9 @@ void interrupt intr()
         
         if(response_length > 0 && !TRISEbits.OBF) {
 
+            // Wait until RD is released
+            // while(PORTEbits.RE0);
+
             if(response_index < response_length) {
 
                 LATD = response_bytes[response_index];
@@ -1158,18 +1213,27 @@ void process_local_key(unsigned char c)
 
             usage();
 
+        } else if(strcmp(local_command, "clear") == 0) {
+
+            response_clear();
+            command_clear();
+            printf("command and response data cleared\n");
+
         } else if(strcmp(local_command, "exit") == 0) {
 
             in_pic_monitor = 0;
 
         } else if(strcmp(local_command, "resp") == 0) {
 
-            printf("response queue: %d bytes\n", response_length);
+            printf("response length: %d bytes\n", response_length);
+            printf("response next byte to put on bus: %d\n", response_index);
+            printf("response buffer:\n");
             dump_buffer_hex(4, response_bytes, response_length);
 
         } else if(strcmp(local_command, "cmd") == 0) {
 
-            printf("command queue: %d bytes\n", command_length);
+            printf("command length: %d bytes\n", command_length);
+            printf("command buffer:\n");
             dump_buffer_hex(4, command_bytes, command_length);
             printf("command request: 0x%02X\n", command_request);
 
@@ -1223,11 +1287,12 @@ void main()
     unsigned char host_had_contacted = 0;
     unsigned char was_response_waiting = 0;
     unsigned char isempty;
-    int rl;
     unsigned int u;
     int i;
     int success;
     int block_number;
+
+    PORTAbits.RA0 = 1; // LEDs *... means we got here
 
     host_has_contacted = 0;
     in_pic_monitor = 1;
@@ -1236,18 +1301,22 @@ void main()
     setup();
     pause();
     pause();
+    pause();
+    pause();
 
-    // XXX MAX232 device
     setup_serial(); // transmit and receive but global interrupts disabled
 
     printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
 
     pause();
+    pause();
+    pause();
+    pause();
 
     spi_config_for_sd();
     if(!sdcard_init()) {
-        printf("failed to start access to SD card as SPI\n");
-        goto stop;
+        printf("PANIC: failed to start access to SD card as SPI\n");
+        panic();
     }
     printf("SD Card interface is initialized for SPI\n");
 
@@ -1260,7 +1329,7 @@ void main()
         printf("block %d\n", block_number);
         // printf("Reading a block\n");
         if(!sdcard_readblock(block_number, originalblock)) {
-            goto stop;
+            panic();
         }
         // printf("Original block:\n");
         // dump_buffer_hex(4, originalblock, 512);
@@ -1269,16 +1338,16 @@ void main()
             block_buffer[i] = (originalblock[i] + 0x55) % 256;
 
         if(!sdcard_writeblock(block_number, block_buffer)) {
-            printf("Failed writeblock\n");
-            goto stop;
+            printf("PANIC: Failed writeblock\n");
+            panic();
         }
         // printf("Wrote junk block\n");
 
         for(i = 0; i < 512; i++)
             block_buffer[i] = 0;
         if(!sdcard_readblock(block_number, block_buffer)) {
-            printf("Failed readblock\n");
-            goto stop;
+            printf("PANIC: Failed readblock\n");
+            panic();
         }
 
         success = 1;
@@ -1295,14 +1364,14 @@ void main()
         }
 
         if(!sdcard_writeblock(block_number, originalblock)) {
-            printf("Failed writeblock\n");
-            goto stop;
+            printf("PANIC: Failed writeblock\n");
+            panic();
         }
         // printf("Wrote original block\n");
 
         if(!sdcard_readblock(block_number, block_buffer)) {
-            printf("Failed readblock\n");
-            goto stop;
+            printf("PANIC: Failed readblock\n");
+            panic();
         }
 
         success = 1;
@@ -1386,11 +1455,10 @@ void main()
         }
 
         CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
-        PORTAbits.RA0 = 1; // LEDs *... means we got here
         PORTAbits.RA1 = 1; // LEDs **.. means we got here
         if(command_request != PIC_CMD_NONE) {
             PORTAbits.RA2 = 1; // LEDs ***. means we got here
-            rl = 0;
+            response_start();
             switch(command_request) {
                 case PIC_CMD_READ:
                 case PIC_CMD_READ_SUM:
@@ -1406,7 +1474,7 @@ void main()
 
                     if(disk > 3) { 
                         if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
-                        response_bytes[rl++] = PIC_FAILURE;
+                        response_append(PIC_FAILURE);
                         break;
                     }
 
@@ -1415,23 +1483,27 @@ void main()
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
                             if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
-                            response_bytes[rl++] = PIC_FAILURE;
+                            response_append(PIC_FAILURE);
                             break;
                         }
                         if(debug >= DEBUG_DATA) printf("New cached block\n");
                         if(debug >= DEBUG_ALL) dump_buffer_hex(4, block_buffer, 512);
                         previous_block = block_number;
                     }
-                    response_bytes[rl++] = PIC_SUCCESS;
+
+                    response_append(PIC_SUCCESS);
+
                     for(u = 0; u < sector_size; u++)
-                        response_bytes[rl++] = block_buffer[sector_byte_offset + u];
+                        response_append(block_buffer[sector_byte_offset + u]);
+
                     if(command_request == PIC_CMD_READ_SUM) {
                         unsigned short sum = 0;
-                        unsigned char offset = rl - sector_size;
+
                         for(u = 0; u < sector_size; u++)
-                            sum += response_bytes[offset + u];
-                        response_bytes[rl++] = sum & 0xff;
-                        response_bytes[rl++] = (sum >> 8) & 0xff;
+                            sum += block_buffer[sector_byte_offset + u];
+
+                        response_append(sum & 0xff);
+                        response_append((sum >> 8) & 0xff);
                     }
                     break;
                 }
@@ -1449,7 +1521,7 @@ void main()
 
                     if(disk > 3) { 
                         if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
-                        response_bytes[rl++] = PIC_FAILURE;
+                        response_append(PIC_FAILURE);
                         break;
                     }
 
@@ -1462,7 +1534,7 @@ void main()
                         if(sum != theirs) {
                             if(debug) printf("PIC_CMD_WRITE_SUM checksum does not match\n");
                             // XXX retry?
-                            response_bytes[rl++] = PIC_FAILURE;
+                            response_append(PIC_FAILURE);
                             break;
                         }
                     }
@@ -1472,7 +1544,7 @@ void main()
                     } else {
                         if(!sdcard_readblock(block_number, block_buffer)) {
                             if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
-                            response_bytes[rl++] = PIC_FAILURE;
+                            response_append(PIC_FAILURE);
                             break;
                         }
                         if(debug >= DEBUG_DATA) printf("New cached block\n");
@@ -1483,18 +1555,18 @@ void main()
                         block_buffer[sector_byte_offset + u] = command_bytes[6 + u];
                     if(!sdcard_writeblock(block_number, block_buffer)) {
                         printf("some kind of block write failure\n");
-                        response_bytes[rl++] = PIC_FAILURE;
+                        response_append(PIC_FAILURE);
                         break;
                     }
 
-                    response_bytes[rl++] = PIC_SUCCESS;
+                    response_append(PIC_SUCCESS);
 
                     break;
                 }
 
                 case PIC_CMD_SEROUT: {
                     send_serial(command_bytes[1]);
-                    // There's no response from this call
+                    response_append(PIC_SUCCESS);
                     break;
                 }
 
@@ -1504,9 +1576,9 @@ void main()
                     isempty = con_queue_isempty();
                     ei();
                     if(!isempty)
-                        response_bytes[rl++] = PIC_READY;
+                        response_append(PIC_READY);
                     else
-                        response_bytes[rl++] = PIC_NOT_READY;
+                        response_append(PIC_NOT_READY);
                     break;
                 }
 
@@ -1520,12 +1592,12 @@ void main()
                         di();
                         c = con_dequeue();
                         ei();
-                        response_bytes[rl++] = PIC_SUCCESS;
-                        response_bytes[rl++] = c;
+                        response_append(PIC_SUCCESS);
+                        response_append(c);
                     } else {
                         printf("Hm, char wasn't actually ready at CONIN\n");
-                        response_bytes[rl++] = PIC_SUCCESS;
-                        response_bytes[rl++] = 0;
+                        response_append(PIC_SUCCESS);
+                        response_append(0);
                     }
                     break;
                 }
@@ -1535,14 +1607,13 @@ void main()
                     break;
                 }
             }
-            if(rl > 0) {
-                if(debug >= DEBUG_DATA) printf("will respond with %d\n", rl);
+
+            if(response_staging_length > 0) {
+                if(debug >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
                 di(); // critical section
-                command_request = PIC_CMD_NONE;
-                command_length = 0;
-                response_index = 0;
-                response_length = rl;
-                was_response_waiting = response_waiting = 1;
+                command_clear();
+                response_finish();
+                was_response_waiting = 1;
                 ei(); // end critical section
                 PORTCbits.RC1 = 1; // debug LED: RC1 on means transmission in progress
             }
@@ -1580,16 +1651,8 @@ void main()
         }
     }
 
-stop:
-    for(;;) {
-        PORTA = 0x05;
-        pause();
-        pause();
-
-        PORTA = 0x0a;
-        pause();
-        pause();
-    }
+    // should not reach
+    panic();
 }
 
 #asm
