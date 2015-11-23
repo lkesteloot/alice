@@ -31,6 +31,9 @@ pic_cmd_read:           equ     1       ; READ sector
 pic_cmd_write:          equ     2       ; WRITE sector
 pic_cmd_const:          equ     3       ; CONST
 pic_cmd_conin:          equ     4       ; CONIN - DOES NOT BLOCK, POLL CONST
+pic_cmd_serout:         equ     5       ; SEROUT
+pic_cmd_read_sum:       equ     6       ; READ sector and give checksum
+pic_cmd_write_sum:      equ     7       ; WRITE sector but verify sum first
 
 
 	org	bios		;origin of this program
@@ -84,7 +87,7 @@ dpbase:	defw	0000h, 0000h
 ;
 dpblk:	;disk parameter block for all disks.
 	defw	64		;SPT - sectors per track
-	defm	6		;BSH - block shift factor
+        defm	6		;BSH - block shift factor
 	defm	0x3f		;BLM - block mask
 	defm	3		;EXM - extent mask
 	defw	1023		;DSM - disk size-1 in blocks
@@ -99,6 +102,10 @@ dpblk:	;disk parameter block for all disks.
 ;
 SIGNON: DEFM    '64K CP/M 2.2 for the Alice 3'
         DEFB    13,10,0
+GOCCPMSG: DEFM    'GOCCP!'
+        DEFB    13,10,0
+BADSUM: DEFM    'SECTOR SUM MISMATCH!'
+        DEFB    13,10,0
 
 
 ;	end of fixed tables
@@ -109,13 +116,21 @@ SIGNON: DEFM    '64K CP/M 2.2 for the Alice 3'
 ;       print a 0 terminated string to console device
 ;       pointer to string in HL
 ;
-PRTMSG: LD      A,(HL)
+PRTMSG: 
+        PUSH    AF
+        PUSH    BC
+PRTMSGLOOP:
+        LD      A,(HL)
         OR      A
-        RET     Z
+        JP      Z, PRTMSGRET
         LD      C,A
         CALL    conout
         INC     HL
-        JP      PRTMSG
+        JP      PRTMSGLOOP
+PRTMSGRET:
+        POP     BC
+        POP     AF
+        RET
 
 ;	individual subroutines to perform each function
 boot:	;simplest case is to just perform parameter initialization
@@ -199,12 +214,17 @@ gocpm:
 	LD	BC, 80h		;default dma address is 80h
 	call	setdma
 ;
-	ei			;enable the interrupt system
+	; ei			;enable the interrupt system
 	LD	A,(cdisk)	;get current disk number
 	cp	disks		;see if valid disk number
 	jp	c,diskok	;disk valid, go to ccp
 	ld	a,0		;invalid disk, change to disk 0
-diskok:	LD 	c, a		;send to the ccp
+diskok:	
+        ; PUSH    HL
+        ; LD      HL,GOCCPMSG       ;print message
+        ; CALL    PRTMSG
+        ; POP     HL
+        LD 	c, a		;send to the ccp
 	JP	ccp		;go to cp/m for further processing
 
 ; wait until PIC is ready
@@ -241,6 +261,10 @@ conin:	;console character into register a
 conout:	;console character output from register c
 	ld	a,c		;get the char
 	out	(propeller_port),a		;out to port
+	; ld	a,pic_cmd_conout
+	; out	(pic_port),a		;out to port
+	; ld	a,c		;get the char
+	; out	(pic_port),a		;out to port
 	ret
 
 list:	;list character from register c
@@ -318,21 +342,28 @@ setdma:	;set	dma address given by registers b and c
 ;Dma address in 'dmaad' (0-65535)
 
 read:
-	ld	a,pic_cmd_read
+        push    bc
+        push    de
+        push    hl
+        push    ix
+
+read_again:
+
+	ld	a,pic_cmd_read_sum
 	out 	(pic_port), a   ; request read
 
         ld      a,(diskno)
 	out 	(pic_port), a   ; disk byte
 
         ld      a,(sector + 0)
-	out 	(pic_port), a   ; sector L
+	out 	(pic_port), a   ; sector lo
         ld      a,(sector + 1)
-	out 	(pic_port), a   ; sector H
+	out 	(pic_port), a   ; sector hi
 
         ld      a,(track + 0)
-	out 	(pic_port), a   ; track L
+	out 	(pic_port), a   ; track lo
         ld      a,(track + 1)
-	out 	(pic_port), a   ; track H
+	out 	(pic_port), a   ; track hi
 
         call    pic_poll
 	cp	pic_success	; compare with success
@@ -340,7 +371,7 @@ read:
 
         ; failure
         ld      a, 01H
-        ret
+        jp      read_return
 
 read_continue:
         
@@ -348,15 +379,44 @@ read_continue:
         ld	b,128		; size of CP/M sector
         ld	c,pic_port
 
-        ; inir                  ; magic Z80 looping IN instruction
-read_loop:      ; I think this whole loop could be an INIR instruction
+        ld      a,0
+        ld      ix, 0         ; set counter to 0
+        ld      de, 0         ; set addend to 0
+
+read_loop:
         in      a,(pic_port)    ; get sector byte
         ld	(hl),a		; put in memory
+        ld      e, a
+        add     ix, de          ; add to checksum
         inc     hl              ; increment hl to next buffer location
         djnz	read_loop
 
+        in      l, (c)          ; get packet checksum low
+        in      h, (c)          ; get packet checksum high
+        defm    0ddh, 05dh          ; ld      e,ixl
+        defm    0ddh, 054h          ; ld      d,ixh
+
+        scf                     ; set carry flag
+        ccf                     ; and complement, thus clearing carry flag
+        sbc     hl, de          ; hl -= de (and set Z flag if zero)
+        jp      z, read_success
+
+
+        PUSH    HL
+        LD      HL,BADSUM       ;print message
+        CALL    PRTMSG
+        POP     HL
+        JP      read_again
+
         ; success
+read_success:
         ld      a, 0
+
+read_return:
+        pop    ix
+        pop    hl
+        pop    de
+        pop    bc
         ret
 
 ;Write one CP/M sector to disk.

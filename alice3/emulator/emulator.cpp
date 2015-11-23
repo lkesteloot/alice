@@ -206,7 +206,7 @@ struct socket_connection
     }
 };
 
-const int PIC_command_lengths[5] = {0, 6, 134, 1, 1};
+const int PIC_command_lengths[] = {0, 6, 134, 1, 1, 2, 6, 136};
 
 struct Alice3HW : board_base
 {
@@ -225,6 +225,9 @@ struct Alice3HW : board_base
     static const int PIC_CMD_WRITE = 0x02;
     static const int PIC_CMD_CONST = 0x03;
     static const int PIC_CMD_CONIN = 0x04;
+    static const int PIC_CMD_SEROUT = 0x05;
+    static const int PIC_CMD_READ_SUM = 0x06;
+    static const int PIC_CMD_WRITE_SUM = 0x07;
 
     static const int sector_size = 128;
     static const int sectors_per_track = 64;
@@ -277,7 +280,9 @@ struct Alice3HW : board_base
         unsigned char *rp = response;
 
         switch(command[0]) {
-            case Alice3HW::PIC_CMD_READ: {
+            case Alice3HW::PIC_CMD_READ:
+            case Alice3HW::PIC_CMD_READ_SUM:
+            {
                 int disk = command[1];
                 int sector = command[2] + 256 * command[3];
                 int track = command[4] + 256 * command[5];
@@ -286,8 +291,9 @@ struct Alice3HW : board_base
                     long location = (track * sectors_per_track + sector) * sector_size;
                     if(debug) printf("Read track %d, sector %d (byte %ld)\n", track, sector, location);
                     if(location >= disk_size - sector_size) {
-                        fprintf(stderr, "read past end of disk ignored!!\n");
-                        return;
+                        fprintf(stderr, "PIC_CMD_READ[_SUM]: read past end of disk ignored!!\n");
+                        *rp++ = Alice3HW::PIC_FAILURE;
+                        break;
                     }
 
                     for(int i = 0; i < 3; i++) // to test polling
@@ -297,15 +303,26 @@ struct Alice3HW : board_base
                     fseek(disks[disk], location, SEEK_SET);
                     fread(rp, sector_size, 1, disks[disk]);
                     rp += sector_size;
+                    if(command[0] == Alice3HW::PIC_CMD_READ_SUM) {
+                        unsigned short sum = 0;
+                        unsigned char *buffer = rp - sector_size;
+                        for(int i = 0; i < sector_size; i++)
+                            sum += buffer[i];
+                        *rp++ = sum & 0xff;
+                        *rp++ = (sum >> 8) & 0xff;
+                        printf("wrote sum\n");
+                    }
                 } else {
-                    if(debug) printf("PIC_CMD_READ failure\n");
+                    if(debug) printf("PIC_CMD_READ[_SUM] nonexistent disk\n");
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
                 response_length = rp - response;
                 break;
             }
 
-            case Alice3HW::PIC_CMD_WRITE: {
+            case Alice3HW::PIC_CMD_WRITE:
+            case Alice3HW::PIC_CMD_WRITE_SUM:
+            {
                 int disk = command[1];
                 int sector = command[2] + 256 * command[3];
                 int track = command[4] + 256 * command[5];
@@ -313,9 +330,25 @@ struct Alice3HW : board_base
                     if(debug) printf("Write track %d, sector %d (%d)\n", track, sector, (track * sectors_per_track + sector) * sector_size);
                     long location = (track * sectors_per_track + sector) * sector_size;
                     if(location >= disk_size - sector_size) {
-                        fprintf(stderr, "write past end of disk ignored!!\n");
-                        return;
+                        fprintf(stderr, "PIC_CMD_WRITE[_SUM]: write past end of disk ignored!!\n");
+                        *rp++ = Alice3HW::PIC_FAILURE;
+                        break;
                     }
+
+                    if(command[0] == Alice3HW::PIC_CMD_WRITE_SUM) {
+                        unsigned short sum = 0;
+                        unsigned char *buffer = command + 6;
+                        for(int i = 0; i < sector_size; i++)
+                            sum += buffer[i];
+                        unsigned short theirs = command[134] | (command[135] << 8);
+                        if(sum != theirs) {
+                            if(debug) printf("PIC_CMD_WRITE_SUM checksum does not match\n");
+                            // Could retry here on real hardware
+                            *rp++ = Alice3HW::PIC_FAILURE;
+                            break;
+                        }
+                    }
+
                     fseek(disks[disk], location, SEEK_SET);
                     fwrite(command + 6, sector_size, 1, disks[disk]);
 
@@ -323,7 +356,7 @@ struct Alice3HW : board_base
                         *rp++ = 0;
                     *rp++ = Alice3HW::PIC_SUCCESS;
                 } else {
-                    if(debug) printf("PIC_CMD_WRITE failure\n");
+                    if(debug) printf("PIC_CMD_WRITE[_SUM] to nonexistent disk\n");
                     *rp++ = Alice3HW::PIC_FAILURE;
                 }
                 response_length = rp - response;
