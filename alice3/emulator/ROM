@@ -1,1 +1,1 @@
-(cd ../rom && make) && (cd ../cpm && make) && make && ./emulator -debugger "symbols ../rom/rom.prn;symbols ../rom/loader.prn;pc 0x0000" ../cpm/boot.dsk,../../alice2/emulator/wordstar.dsk ../rom/rom.hex
+(cd ../rom && make) && (cd ../cpm && make) && make && ./emulator -debugger "symbols ../rom/rom.prn;symbols ../rom/loader.prn;symbols ../cpm/cpm22.prn; symbols ../cpm/alice3_cbios.prn; pc 0x0000" ../cpm/boot.dsk,../../alice2/emulator/wordstar.dsk ../rom/rom.hex
