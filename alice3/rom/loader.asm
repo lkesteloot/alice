@@ -122,7 +122,9 @@ ramfail: ld      hl, rambadmsg
 
         ; ------------------------------------------
         ; Inform user that sector load failed and halt.
-ldfail: ld      hl, ldfailmsg
+        ; First print the contents of A.
+ldfail: call    printa
+        ld      hl, ldfailmsg
         call    print
         halt
 
@@ -140,6 +142,65 @@ prtlp:  ld      a, (hl)
 
 prtend: pop     hl
         pop     af
+        ret
+
+        ; ------------------------------------------
+        ; Print the value of A in hex, with a nice message
+        ; and a newline.
+printa: push    hl
+
+        ; Text before.
+        ld      hl, preprinta
+        call    print
+
+        ; Print A.
+        call    prbyte
+
+        ; Text after.
+        ld      hl, postprinta
+        call    print
+
+        pop     hl
+
+        ret
+
+        ; ------------------------------------------
+        ; Print an 8-bit value (register A) in hex.
+prbyte: push    af
+
+        ; High nybble.
+        srl     a
+        srl     a
+        srl     a
+        srl     a
+        call    prnyb
+        pop     af
+
+        ; Low nybble.
+        call    prnyb
+
+        ret
+
+        ; ------------------------------------------
+        ; Print a 4-bit value (register A) in hex. Ignores
+        ; the top nybble of A.
+prnyb:  push    hl
+        push    de
+        push    af
+
+        ; Look up in hex table.
+        and     0x0F
+        ld      hl, bin2hex
+        ld      d, 0
+        ld      e, a
+        add     hl, de
+        ld      a, (hl)
+        out     (128), a
+
+        pop     af
+        pop     de
+        pop     hl
+
         ret
 
         ; ------------------------------------------
@@ -161,6 +222,16 @@ rambadmsg:
 
 ldfailmsg:
         defm    'Sector load failed'
+        defb    13,10,0
+
+bin2hex:
+        defm    '0123456789ABCDEF'
+
+preprinta:
+        defm    'Value of A register: '
+        defb    0
+
+postprinta:
         defb    13,10,0
 
 	end
