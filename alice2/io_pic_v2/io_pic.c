@@ -1443,6 +1443,7 @@ void main()
             if((command_byte < PIC_CMD_MIN) || (command_byte > PIC_CMD_MAX)) {
 
                 if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command 0x%02X received\n", command_byte);
+                command_clear();
 
             } else {
 
