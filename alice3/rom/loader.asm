@@ -76,14 +76,20 @@ ldsector:
         push    af
         push    bc
         push    de
+        push    iy
+
+        push    hl
+        ld      hl, loadingmsg
+        call    print
+        pop     hl
 
         ; Send command to load sector.
         push    bc
         ld      c, PICPORT
 
         push    af
-        ld      a, 1
-        out     (c), a          ; "Read sector"
+        ld      a, 6
+        out     (c), a          ; "Read sector with checksum"
         pop     af
         out     (c), a          ; Disk
         out     (c), e          ; Sector (LSB)
@@ -93,8 +99,7 @@ ldsector:
         out     (c), d          ; Track (MSB)
 
         ; Poll until we get a non-zero result.
-ldwait:
-        in      a, (PICPORT)
+ldwait: in      a, (c)
         or      a
         jp      z, ldwait
 
@@ -105,14 +110,50 @@ ldwait:
 
         ; Load 128 bytes.
         ld      b, 128
-        ld      c, PICPORT
-        inir                        ; Read B bytes from C into HL
+        inir                        ; Read B bytes from port C into (HL)
 
+        ; Read checksum into DE.
+        in      e, (c)
+        in      d, (c)
+
+        ; Compute checksum of the sector we got into IY.
+        ld      iy, 0
+
+        ; Reset HL to start of buffer.
+        ld      bc, 128
+        scf
+        ccf
+        sbc     hl, bc
+
+        ; Checksum loop.
+        push    de
+        ld      b, 128
+        ld      d, 0
+xsum:
+        ld      e, (hl)
+        add     iy, de
+        inc     hl
+        djnz    xsum
+        pop     de
+
+        ; Compare checksum.
+        defb    0FDh, 07Dh      ; ld a, iyl
+        cp      e
+        jp      nz, xsum_fail
+        defb    0FDh, 07Ch      ; ld a, iyh
+        cp      d
+        jp      nz, xsum_fail
+
+        pop     iy
         pop     de
         pop     bc
         pop     af
 
         ret
+
+xsum_fail: ld   hl, badxsummsg
+        call    print
+        halt
 
         ; ------------------------------------------
         ; Inform user that RAM failed and halt.
@@ -220,6 +261,10 @@ rambadmsg:
         defm    'RAM failed to swap'
         defb    13,10,0
 
+loadingmsg:
+        defm    'Loading sector...'
+        defb    13,10,0
+
 ldfailmsg:
         defm    'Sector load failed'
         defb    13,10,0
@@ -232,6 +277,10 @@ preprinta:
         defb    0
 
 postprinta:
+        defb    13,10,0
+
+badxsummsg:
+        defm    'Bad sector xsum.'
         defb    13,10,0
 
 	end
