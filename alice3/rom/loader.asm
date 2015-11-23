@@ -114,7 +114,12 @@ ldwait: in      a, (c)
 
         ; Read checksum into DE.
         in      e, (c)
+        ld      a, e
+        call    prbyte
         in      d, (c)
+        ld      a, d
+        call    prbyte
+        call    preol
 
         ; Compute checksum of the sector we got into IY.
         ld      iy, 0
@@ -131,18 +136,24 @@ ldwait: in      a, (c)
         ld      d, 0
 xsum:
         ld      e, (hl)
+        ld      a, e
+        call    prbyte
         add     iy, de
         inc     hl
         djnz    xsum
         pop     de
+        call    preol
 
         ; Compare checksum.
         defb    0FDh, 07Dh      ; ld a, iyl
+        call    prbyte
         cp      e
         jp      nz, xsum_fail
         defb    0FDh, 07Ch      ; ld a, iyh
+        call    prbyte
         cp      d
         jp      nz, xsum_fail
+        call    preol
 
         pop     iy
         pop     de
@@ -198,7 +209,7 @@ printa: push    hl
         call    prbyte
 
         ; Text after.
-        ld      hl, postprinta
+        ld      hl, preol
         call    print
 
         pop     hl
@@ -245,6 +256,16 @@ prnyb:  push    hl
         ret
 
         ; ------------------------------------------
+        ; Print a newline.
+
+preol:
+        push    hl
+        ld      hl, eolmsg
+        call    print
+        pop     hl
+        ret
+
+        ; ------------------------------------------
         ; Constants.
 
 msg:    defm    'Alice 3 loader'
@@ -276,7 +297,7 @@ preprinta:
         defm    'Value of A register: '
         defb    0
 
-postprinta:
+eolmsg:
         defb    13,10,0
 
 badxsummsg:
