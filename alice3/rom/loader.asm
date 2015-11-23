@@ -105,7 +105,7 @@ ldwait:
         ld      a, 0
         cp      d
         jp      nz, cont
-        cp      d
+        cp      e
         jp      nz, cont
         call    prprog
 cont:
@@ -219,8 +219,7 @@ printa: push    hl
         call    prbyte
 
         ; Text after.
-        ld      hl, preol
-        call    print
+        call    preol
 
         pop     hl
 
