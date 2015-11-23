@@ -550,20 +550,22 @@ volatile unsigned char pic_monitor_latch;
 #define PIC_CMD_WRITE 0x02
 #define PIC_CMD_CONST 0x03
 #define PIC_CMD_CONIN 0x04
-#define PIC_CMD_CONOUT 0x05
-#define PIC_CMD_MAX 0x05
+#define PIC_CMD_SEROUT 0x05
+#define PIC_CMD_READ_SUM 0x06
+#define PIC_CMD_WRITE_SUM 0x07
+#define PIC_CMD_MAX 0x07
 
 volatile unsigned char command_request; /* set this after reading all the bytes */
-volatile unsigned char command_bytes[1 + 5 + 128]; /* largest is write plus sector */
+volatile unsigned char command_bytes[1 + 5 + 128 + 2]; // largest is status + write + sector + 16-bit checksum
 volatile unsigned char command_length;
 
-volatile unsigned char response_bytes[128];
+volatile unsigned char response_bytes[1 + 128 + 2]; // largest is status + sector + 16-bit checksum
 volatile unsigned char response_length;
 volatile unsigned char response_index;
 volatile unsigned char response_waiting;
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
-const unsigned char PIC_command_lengths[6] = {1, 6, 134, 1, 1, 2};
+const unsigned char PIC_command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
 
 void setup_slave_port()
 {
@@ -1390,7 +1392,9 @@ void main()
             PORTAbits.RA2 = 1; // LEDs ***. means we got here
             rl = 0;
             switch(command_request) {
-                case PIC_CMD_READ: {
+                case PIC_CMD_READ:
+                case PIC_CMD_READ_SUM:
+                {
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
@@ -1421,10 +1425,20 @@ void main()
                     response_bytes[rl++] = PIC_SUCCESS;
                     for(u = 0; u < sector_size; u++)
                         response_bytes[rl++] = block_buffer[sector_byte_offset + u];
+                    if(command_request == PIC_CMD_READ_SUM) {
+                        unsigned short sum = 0;
+                        unsigned char offset = rl - sector_size;
+                        for(u = 0; u < sector_size; u++)
+                            sum += response_bytes[offset + u];
+                        response_bytes[rl++] = sum & 0xff;
+                        response_bytes[rl++] = (sum >> 8) & 0xff;
+                    }
                     break;
                 }
 
-                case PIC_CMD_WRITE: {
+                case PIC_CMD_WRITE:
+                case PIC_CMD_WRITE_SUM:
+                {
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
@@ -1439,6 +1453,20 @@ void main()
                         break;
                     }
 
+                    if(command_request == PIC_CMD_WRITE_SUM) {
+                        unsigned short sum = 0;
+                        unsigned char offset = 6;
+                        for(u = 0; u < sector_size; u++)
+                            sum += command_bytes[offset + u];
+                        unsigned short theirs = command_bytes[134] | (command_bytes[135] << 8);
+                        if(sum != theirs) {
+                            if(debug) printf("PIC_CMD_WRITE_SUM checksum does not match\n");
+                            // XXX retry?
+                            response_bytes[rl++] = PIC_FAILURE;
+                            break;
+                        }
+                    }
+
                     if(previous_block == block_number) {
                         if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
@@ -1449,14 +1477,6 @@ void main()
                         }
                         if(debug >= DEBUG_DATA) printf("New cached block\n");
                         previous_block = block_number;
-                    }
-
-                    if(!sdcard_readblock(block_number, block_buffer)) {
-
-                        if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
-                        response_bytes[rl++] = PIC_FAILURE;
-                        break;
-
                     }
 
                     for(u = 0; u < sector_size; u++)
@@ -1472,7 +1492,7 @@ void main()
                     break;
                 }
 
-                case PIC_CMD_CONOUT: {
+                case PIC_CMD_SEROUT: {
                     send_serial(command_bytes[1]);
                     // There's no response from this call
                     break;
