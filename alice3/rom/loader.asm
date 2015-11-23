@@ -99,7 +99,17 @@ ldsector:
         out     (c), d          ; Track (MSB)
 
         ; Poll until we get a non-zero result.
-ldwait: in      a, (c)
+        ld      de, 0
+ldwait:
+        inc     de
+        ld      a, 0
+        cp      d
+        jp      nz, cont
+        cp      d
+        jp      nz, cont
+        call    prprog
+cont:
+        in      a, (c)
         or      a
         jp      z, ldwait
 
@@ -266,6 +276,16 @@ preol:
         ret
 
         ; ------------------------------------------
+        ; Print a progress dot.
+
+prprog:
+        push    hl
+        ld      hl, progmsg
+        call    print
+        pop     hl
+        ret
+
+        ; ------------------------------------------
         ; Constants.
 
 msg:    defm    'Alice 3 loader'
@@ -299,6 +319,10 @@ preprinta:
 
 eolmsg:
         defb    13,10,0
+
+progmsg:
+        defm    '.'
+        defb    0
 
 badxsummsg:
         defm    'Bad sector xsum.'
