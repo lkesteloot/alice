@@ -310,7 +310,7 @@ struct Alice3HW : board_base
                             sum += buffer[i];
                         *rp++ = sum & 0xff;
                         *rp++ = (sum >> 8) & 0xff;
-                        printf("wrote sum\n");
+                        printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
                     }
                 } else {
                     if(debug) printf("PIC_CMD_READ[_SUM] nonexistent disk\n");
@@ -474,6 +474,7 @@ struct MEMORYboard : board_base
         loram(false)
     {
         memcpy(rom_bytes, rom, sizeof(rom_bytes));
+        memset(ram_bytes, 0x76, sizeof(ram_bytes));
     }
     virtual bool memory_read(int addr, unsigned char &data)
     {
