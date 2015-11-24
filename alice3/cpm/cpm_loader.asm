@@ -74,14 +74,15 @@ ldsector:
         push    af
         push    bc
         push    de
+        push    ix
 
         ; Send command to load sector.
         push    bc
         ld      c, PICPORT
 
         push    af
-        ld      a, 1
-        out     (c), a          ; "Read sector"
+        ld      a, 6
+        out     (c), a          ; "Read sector with 2-byte checksum"
         pop     af
         out     (c), a          ; Disk
         out     (c), e          ; Sector (LSB)
@@ -101,11 +102,42 @@ ldwait:
         cp      b
         jp      nz, ldfail
 
+        ; Save buffer pointer
+        push    hl
+
         ; Load 128 bytes.
         ld      b, 128
         ld      c, PICPORT
         inir                        ; Read B bytes from C into HL
 
+        ; Restore buffer pointer
+        pop    hl
+
+        ; Loop over buffer to calculate checksum
+        ld      b, 128          ; 128 bytes
+        ld      ix, 0           ; set 16-bit counter to 0
+        ld      de, 0           ; set temp byte to 0
+
+sumlp:
+        ld      e, (hl)         ; e = next byte
+        add     ix, de          ; add to checksum
+        inc     hl              ; increment hl to next buffer location
+        djnz	sumlp
+
+        push    hl
+
+        in      l, (c)          ; get packet checksum low
+        in      h, (c)          ; get packet checksum high
+        defm    0ddh, 05dh      ; ld      e,ixl
+        defm    0ddh, 054h      ; ld      d,ixh
+
+        scf                     ; set carry flag
+        ccf                     ; and complement, thus clearing carry flag
+        sbc     hl, de          ; hl -= de (and set Z flag if zero)
+        jp      nz, ldfailsum   ; so if hl != de, fail.
+
+        pop     hl
+        pop     ix
         pop     de
         pop     bc
         pop     af
@@ -115,6 +147,13 @@ ldwait:
         ; ------------------------------------------
         ; Inform user that sector load failed and halt.
 ldfail: ld      hl, ldfailmsg
+        call    print
+        halt
+
+        ; ------------------------------------------
+        ; Inform user that sector load failed and halt.
+ldfailsum:
+        ld      hl, ldfailsummsg
         call    print
         halt
 
@@ -145,6 +184,10 @@ jmpmsg: defm    'About to jump to CP/M'
 
 ldfailmsg:
         defm    'Sector load failed'
+        defb    13,10,0
+
+ldfailsummsg:
+        defm    'Sector sum!'
         defb    13,10,0
 
 	end
