@@ -158,6 +158,8 @@ void setup()
     TRISA = 0xF0;
     TRISCbits.TRISC2 = 0;
     TRISCbits.TRISC1 = 0;
+    TRISCbits.TRISC0 = 0;
+    LATCbits.LC0 = 0;
 }
 
 int isprint(unsigned char a)
@@ -416,7 +418,7 @@ const unsigned char kbd_table[] = {
    '?', '?', '?', '?',
    '?', '?', '?', '?',
    '?', '?', '?', '?',
-   10,  10,  10,  10,
+   13,  13,  13,  13,
    ']', '}', ']', ']',
    '?', '?', '?', '?',
    92, '|',  92,  92,
@@ -1151,6 +1153,7 @@ void interrupt intr()
         // We cleared PSP last in old ASM code
         // XXX - probably PSPIF = (RD || WR), so must clear RD and WR
         // interrupts before clearing PSPIF...
+        LATCbits.LC0 = !LATCbits.LC0; // debug LED: toggles if PSPIF
         PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
 
@@ -1505,6 +1508,7 @@ void main()
 
                         response_append(sum & 0xff);
                         response_append((sum >> 8) & 0xff);
+                        if(debug >= DEBUG_ALL) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
                     }
                     break;
                 }
