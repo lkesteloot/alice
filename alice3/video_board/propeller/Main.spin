@@ -17,7 +17,7 @@ CON
   cols = vgatext#cols
   rows = vgatext#rows
   chrs = cols * rows
-  queue_capacity = 16
+  queue_capacity = 128
 
 OBJ
  
