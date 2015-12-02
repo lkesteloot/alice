@@ -65,8 +65,7 @@
 // Use project enums instead of #define for ON and OFF.
 
 // CONFIG1H
-#pragma config OSC = ECIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
-
+#pragma config OSC = RCIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (Fail-Safe Clock Monitor disabled)
 #pragma config IESO = OFF       // Internal/External Oscillator Switchover bit (Oscillator Switchover mode disabled)
 
@@ -347,6 +346,8 @@ volatile char kbd_shift_status = 0;
 volatile char kbd_alt_status = 0;
 volatile char kbd_ctrl_status = 0;
 
+volatile unsigned char dump_keyboard_data = 0;
+
 #define LSHIFT_KEY 0x12
 #define RSHIFT_KEY 0x59
 #define CTRL_KEY 0x14
@@ -544,22 +545,37 @@ void kbd_process_byte(unsigned char kbd_byte)
 {
     if(kbd_byte == UP_KEY) {
         up_key_flag = 1;
+        if(dump_keyboard_data) 
+            printf("keyboard key up\n");
     } else {
         switch(kbd_byte) {
             case LSHIFT_KEY:
             case RSHIFT_KEY:
                 kbd_shift_status = !up_key_flag;
+                if(dump_keyboard_data) 
+                    printf("shift status is now %d\n", kbd_shift_status);
                 break;
             case ALT_KEY:
                 kbd_alt_status = !up_key_flag;
+                if(dump_keyboard_data) 
+                    printf("alt status is now %d\n", kbd_alt_status);
                 break;
             case CTRL_KEY:
                 kbd_ctrl_status = !up_key_flag;
+                if(dump_keyboard_data) 
+                    printf("ctrl status is now %d\n", kbd_ctrl_status);
                 break;
             default:
                 if(!up_key_flag)
                     if(!(kbd_byte & 0x80)) {
                         unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
+                        if(dump_keyboard_data) {
+                            printf("keyboard ASCII: %02X", c);
+                            if(isprint(c))
+                                printf("(%c)\n", c);
+                            else 
+                                putch('\n');
+                        }
                         console_enqueue_key(c);
                     }
                 break;
@@ -749,6 +765,11 @@ void spi_config_for_sd()
     TRISBbits.TRISB4 = 0;       // B4 is /SS for SD - set to output
     PORTBbits.RB4 = 1;          // B4 is /SS for SD - disable
 
+    // SD power control
+
+    LATBbits.LB2 = 0;           // turn power off
+    TRISBbits.TRISB2 = 0;       // B2 is power to SD card - set to input (disabled)
+
     // SPI master mode
     SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
     TRISCbits.TRISC5 = 0;       // SDO is output
@@ -759,6 +780,26 @@ void spi_config_for_sd()
     SSPSTATbits.CKE = 1;        // Output valid by active(low) to idle(high)
     SSPSTATbits.SMP = 1;        // Sample at middle
     SSPCON1bits.SSPEN = 1;      // Enable SPI
+}
+
+void sdcard_power_on()
+{
+    LATBbits.LB2 = 1;           // turn power off
+}
+
+void sdcard_power_off()
+{
+    LATBbits.LB2 = 0;           // turn power off
+}
+
+void sdcard_reset()
+{
+    sdcard_power_off();
+    pause();
+    pause();
+    pause();
+    pause();
+    sdcard_power_on();
 }
 
 void spi_enable_sd()
@@ -1341,6 +1382,8 @@ void usage()
     printf("debug N - set debug level\n");
     printf("buffers - print summary of command and response buffers\n");
     printf("reset - reset Z80 and clear communication buffers\n");
+    printf("sdreset - reset SD\n");
+    printf("dumpkbd - toggle dumping keyboard\n");
     printf("clear - clear command and response buffer\n");
     printf("pass - pass monitor keys to Z80\n");
     printf("version - print firmware build version\n");
@@ -1361,6 +1404,24 @@ void process_local_key(unsigned char c)
 
             usage();
 
+        } else if(strcmp(local_command, "sdreset") == 0) {
+
+            printf("Resetting SD card...\n");
+
+            sdcard_reset();
+            if(!sdcard_init()) {
+                printf("PANIC: failed to start access to SD card as SPI\n");
+                panic();
+            }
+
+        } else if(strcmp(local_command, "dumpkbd") == 0) {
+
+            dump_keyboard_data = !dump_keyboard_data;
+            if(dump_keyboard_data)
+                printf("Dumping keyboard data...\n");
+            else
+                printf("Not dumping keyboard data...\n");
+
         } else if(strcmp(local_command, "reset") == 0) {
 
             master_reset_start();
@@ -1368,13 +1429,12 @@ void process_local_key(unsigned char c)
             response_clear();
             command_clear();
             master_reset_finish();
-            printf("Reset.\n");
 
         } else if(strcmp(local_command, "clear") == 0) {
 
             response_clear();
             command_clear();
-            printf("command and response data cleared\n");
+            printf("Command and response data cleared\n");
 
         } else if(strcmp(local_command, "pass") == 0) {
 
@@ -1383,17 +1443,17 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(local_command, "buffers") == 0) {
 
-            printf("command request: 0x%02X\n", command_request);
-            printf("command length: %d bytes\n", command_length);
+            printf("Command request: 0x%02X\n", command_request);
+            printf("Command length: %d bytes\n", command_length);
             if(command_length > 0) {
-                printf("command buffer:\n");
+                printf("Command buffer:\n");
                 dump_buffer_hex(4, command_bytes, command_length);
             }
 
-            printf("response length: %d bytes\n", response_length);
-            printf("response next byte to put on bus: %d\n", response_index);
+            printf("Response length: %d bytes\n", response_length);
+            printf("Response next byte to put on bus: %d\n", response_index);
             if(response_length > 0) {
-                printf("response buffer:\n");
+                printf("Response buffer:\n");
                 dump_buffer_hex(4, response_bytes, response_length);
             }
 
@@ -1471,12 +1531,8 @@ void main()
 
     printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
 
-    pause();
-    pause();
-    pause();
-    pause();
-    pause();
-    pause();
+    // Toggle SD power in case PIC was warm reset
+    sdcard_reset();
 
     spi_config_for_sd();
     if(!sdcard_init()) {
@@ -1713,7 +1769,9 @@ void main()
             isempty = kbd_queue_isempty();
             ei();
             if(!isempty) {
-                unsigned kb = kbd_dequeue();
+                unsigned char kb = kbd_dequeue();
+                if(dump_keyboard_data)
+                    printf("keyboard scan code: %02X\n", kb);
                 kbd_process_byte(kb);
             }
         }
