@@ -65,7 +65,8 @@
 // Use project enums instead of #define for ON and OFF.
 
 // CONFIG1H
-#pragma config OSC = RCIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
+#pragma config OSC = ECIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
+
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (Fail-Safe Clock Monitor disabled)
 #pragma config IESO = OFF       // Internal/External Oscillator Switchover bit (Oscillator Switchover mode disabled)
 
@@ -150,6 +151,11 @@ void panic()
     }
 }
 
+void bell()
+{
+    putch('\a');
+}
+
 void setup()
 {
     SWDTEN = 0;
@@ -160,6 +166,22 @@ void setup()
     TRISCbits.TRISC1 = 0;
     TRISCbits.TRISC0 = 0;
     LATCbits.LC0 = 0;
+
+    // /RESET control
+    TRISBbits.TRISB3 = 1;       // B3 is /RESET to Z-80 - set to input (disabled)
+    LATBbits.LB3 = 0;           // When B3 is enabled, it will be 0
+}
+
+void master_reset_start()
+{
+    LATBbits.LB3 = 0;           // When B3 is enabled, it will be 0
+    TRISBbits.TRISB3 = 0;       // B3 is /RESET to Z-80 - set to output
+    pause();
+}
+
+void master_reset_finish()
+{
+    TRISBbits.TRISB3 = 1;       // B3 is /RESET to Z-80 - set to output
 }
 
 int isprint(unsigned char a)
@@ -182,9 +204,65 @@ enum debug_levels {
 int debug = DEBUG_WARNINGS;
 
 //----------------------------------------------------------------------------
-// Console input queue (could be from serial or from PS/2 keyboard)
+// Monitor input queue
 
-#define CON_QUEUE_LENGTH 32
+#define MON_QUEUE_LENGTH 32
+volatile unsigned char mon_queue[MON_QUEUE_LENGTH];
+volatile short mon_queue_next_head = 0;
+volatile short mon_queue_tail = 0;
+
+// Caller must ensure only one call can proceed at a time; currently
+// called through isfull() and isempty(), so must protect those
+unsigned short mon_queue_length()
+{
+    return (mon_queue_next_head + MON_QUEUE_LENGTH - mon_queue_tail) % MON_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call to isfull() or isempty() can
+// proceed at a time.
+
+// Currently called from main() or intr(), so must wrap with di(), ei()
+unsigned char mon_queue_isfull()
+{
+    return mon_queue_length() == MON_QUEUE_LENGTH - 1;
+}
+
+// Currently called from main(), so, wrap with di(), ei()
+unsigned char mon_queue_isempty()
+{
+    return mon_queue_length() == 0;
+}
+
+// Caller must ensure only one call can proceed at a time ; currently
+// called from main() and intr(), so wrap with di(), ei()
+void mon_enqueue(unsigned char d)
+{
+    mon_queue[mon_queue_next_head] = d;
+    mon_queue_next_head = (mon_queue_next_head + 1) % MON_QUEUE_LENGTH;
+}
+
+// Caller must ensure only one call can proceed at a time; currently
+// called only from main() so already protected
+unsigned char mon_dequeue()
+{
+    unsigned char d = mon_queue[mon_queue_tail];
+    mon_queue_tail = (mon_queue_tail + 1) % MON_QUEUE_LENGTH;
+    return d;
+}
+
+// Call this from ISR, so skip di/ei
+void monitor_enqueue_key_unsafe(unsigned char d)
+{
+    if(!mon_queue_isfull()) {
+        mon_enqueue(d);
+    }
+}
+
+
+//----------------------------------------------------------------------------
+// Console input queue
+
+#define CON_QUEUE_LENGTH 64
 volatile unsigned char con_queue[CON_QUEUE_LENGTH];
 volatile short con_queue_next_head = 0;
 volatile short con_queue_tail = 0;
@@ -226,11 +304,6 @@ unsigned char con_dequeue()
     unsigned char d = con_queue[con_queue_tail];
     con_queue_tail = (con_queue_tail + 1) % CON_QUEUE_LENGTH;
     return d;
-}
-
-void console_queue_clear()
-{
-    con_queue_tail = con_queue_next_head;
 }
 
 void console_enqueue_key(unsigned char d)
@@ -549,8 +622,7 @@ void send_serial(unsigned char b)
 //----------------------------------------------------------------------------
 // Alice 3 Bus
 
-volatile unsigned char host_has_contacted;
-volatile unsigned char in_pic_monitor;
+volatile unsigned char serial_is_monitor;
 volatile unsigned char pic_monitor_latch;
 
 #define PIC_POLL_AGAIN 0x00
@@ -667,7 +739,7 @@ void spi_config_for_sd()
 {
     // Set up SPI for SD card
     // Set TMR2 to /16 pre, /1 comparator, source is Fosc/4,
-    // 20Mhz / 4 / 16 / 5 / 2 = 31.25KHz,  Max out later
+    // 40Mhz / 4 / 16 / 1 / 2 = 312.5KHz
 
     T2CONbits.T2CKPS = 0b11;    // 1:16 prescale
     PR2 = 1;                    // TMR2 PR2 trigger on 8
@@ -807,6 +879,10 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
 
 
 int timeout_count = 32000;
+
+#define BLOCK_SIZE 512
+
+unsigned char block_buffer[BLOCK_SIZE];
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
 enum sdcard_command {
@@ -951,8 +1027,6 @@ int sdcard_init()
     return 1;
 }
 
-const unsigned int block_size = 512;
-
 void dump_more_spi_bytes(const char *why)
 {
     unsigned char response[8];
@@ -990,7 +1064,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     } while(response[0] != sdcard_token_17_18_24);
 
     // Read data.
-    spi_readn(block, block_size);
+    spi_readn(block, BLOCK_SIZE);
 
     // Read CRC
     spi_readn(response, 2);
@@ -999,7 +1073,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     unsigned short crc_theirs = response[0] * 256 + response[1];
 
     // calculate our version of CRC and compare
-    unsigned short crc_ours = crc_itu_t(0, block, block_size);
+    unsigned short crc_ours = crc_itu_t(0, block, BLOCK_SIZE);
 
     if(crc_theirs != crc_ours) {
         printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
@@ -1047,7 +1121,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     spi_writen(response, 1);
 
     // Send data.
-    spi_writen(block, block_size);
+    spi_writen(block, BLOCK_SIZE);
 
     // junk CRC
     response[0] = 0xff;
@@ -1104,8 +1178,89 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
     }
 }
 
+void test_sd_card()
+{
+#if 0 // XXX original_block cannot be allocated on 18F452 with all other stuff
+    unsigned int u;
+    int i;
+    int success;
+    int block_number;
+    static unsigned char original_block[BLOCK_SIZE];
+
+    // test SD card
+    block_number = 0;
+
+    for(;;) {
+        printf("block %d\n", block_number);
+        // printf("Reading a block\n");
+        if(!sdcard_readblock(block_number, original_block)) {
+            panic();
+        }
+        // printf("Original block:\n");
+        // dump_buffer_hex(4, original_block, BLOCK_SIZE);
+
+        for(i = 0; i < BLOCK_SIZE; i++)
+            block_buffer[i] = (original_block[i] + 0x55) % 256;
+
+        if(!sdcard_writeblock(block_number, block_buffer)) {
+            printf("PANIC: Failed writeblock\n");
+            panic();
+        }
+        // printf("Wrote junk block\n");
+
+        for(i = 0; i < BLOCK_SIZE; i++)
+            block_buffer[i] = 0;
+        if(!sdcard_readblock(block_number, block_buffer)) {
+            printf("PANIC: Failed readblock\n");
+            panic();
+        }
+
+        success = 1;
+        for(i = 0; i < BLOCK_SIZE; i++)
+            if(block_buffer[i] != (original_block[i] + 0x55) % 256)
+                success = 0;
+
+        if(!success) {
+            printf("whoops, error verifying write of junk to block 0\n");
+            printf("block read: %02X %02X %02X %02X\n",
+                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
+        } else {
+            printf("Verified junk block was written\n");
+        }
+
+        if(!sdcard_writeblock(block_number, original_block)) {
+            printf("PANIC: Failed writeblock\n");
+            panic();
+        }
+        // printf("Wrote original block\n");
+
+        if(!sdcard_readblock(block_number, block_buffer)) {
+            printf("PANIC: Failed readblock\n");
+            panic();
+        }
+
+        success = 1;
+        for(i = 0; i < BLOCK_SIZE; i++)
+            if(original_block[i] != block_buffer[i])
+                success = 0;
+
+        if(!success) {
+            printf("whoops, error verifying write of original to block 0\n");
+            printf("block read: %02X %02X %02X %02X\n",
+                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
+        } else {
+            printf("Verified original block was written\n");
+        }
+        block_number ++;
+        if(block_number % 2 == 0)
+            PORTA = 0x0f;
+        else
+            PORTA = 0x00;
+    }
+#endif
+}
+
 int previous_block = 0xffff;
-unsigned char block_buffer[512];
 
 #define sectors_per_block 4
 #define sectors_per_track 64
@@ -1158,18 +1313,7 @@ void interrupt intr()
     }
 
     if(RCIF) {
-        static unsigned char c;
-        c = RCREG; // clears RCIF
-        if(pic_monitor_latch == 0 && c == 1)
-            pic_monitor_latch = 1;
-        else if(pic_monitor_latch != 0 && c == 2) {
-            pic_monitor_latch = 0;
-            in_pic_monitor = 1;
-            console_queue_clear();
-        } else {
-            pic_monitor_latch = 0;
-            console_enqueue_key_unsafe(c);
-        }
+        monitor_enqueue_key_unsafe(RCREG); // reading RCREG clears RCIF
     }
 
     if(INT0IF) {
@@ -1194,12 +1338,13 @@ unsigned char local_command_length = 0;
 void usage()
 {
     printf("help - this help message\n");
+    printf("debug N - set debug level\n");
+    printf("buffers - print summary of command and response buffers\n");
+    printf("reset - reset Z80 and clear communication buffers\n");
+    printf("clear - clear command and response buffer\n");
+    printf("pass - pass monitor keys to Z80\n");
+    printf("version - print firmware build version\n");
     printf("read N - read and dump block\n");
-    printf("exit - exit monitor (keys go to Z80)\n");
-    printf("version - print date of firmware build\n");
-    printf("cmd - print summary of command queue\n");
-    printf("resp - print summary of response queue\n");
-    printf("debug N - set debug level [default 0]\n");
 }
 
 #define PIC_FIRMWARE_VERSION_STRING XSTR(PIC_FIRMWARE_VERSION)
@@ -1216,29 +1361,41 @@ void process_local_key(unsigned char c)
 
             usage();
 
+        } else if(strcmp(local_command, "reset") == 0) {
+
+            master_reset_start();
+            printf("Resetting Z-80 and communication buffers...\n");
+            response_clear();
+            command_clear();
+            master_reset_finish();
+            printf("Reset.\n");
+
         } else if(strcmp(local_command, "clear") == 0) {
 
             response_clear();
             command_clear();
             printf("command and response data cleared\n");
 
-        } else if(strcmp(local_command, "exit") == 0) {
+        } else if(strcmp(local_command, "pass") == 0) {
 
-            in_pic_monitor = 0;
+            serial_is_monitor = 0;
+            printf("Press CTRL-A then CTRL-B to return to monitor.\n");
 
-        } else if(strcmp(local_command, "resp") == 0) {
+        } else if(strcmp(local_command, "buffers") == 0) {
+
+            printf("command request: 0x%02X\n", command_request);
+            printf("command length: %d bytes\n", command_length);
+            if(command_length > 0) {
+                printf("command buffer:\n");
+                dump_buffer_hex(4, command_bytes, command_length);
+            }
 
             printf("response length: %d bytes\n", response_length);
             printf("response next byte to put on bus: %d\n", response_index);
-            printf("response buffer:\n");
-            dump_buffer_hex(4, response_bytes, response_length);
-
-        } else if(strcmp(local_command, "cmd") == 0) {
-
-            printf("command length: %d bytes\n", command_length);
-            printf("command buffer:\n");
-            dump_buffer_hex(4, command_bytes, command_length);
-            printf("command request: 0x%02X\n", command_request);
+            if(response_length > 0) {
+                printf("response buffer:\n");
+                dump_buffer_hex(4, response_bytes, response_length);
+            }
 
         } else if(strcmp(local_command, "version") == 0) {
 
@@ -1260,7 +1417,7 @@ void process_local_key(unsigned char c)
                 p++;
             block_number = strtol(p, NULL, 0);
             if(sdcard_readblock(block_number, block_buffer)) {
-                dump_buffer_hex(4, block_buffer, 512);
+                dump_buffer_hex(4, block_buffer, BLOCK_SIZE);
             }
 
         } else {
@@ -1271,23 +1428,31 @@ void process_local_key(unsigned char c)
 
         printf("* ");
         local_command_length = 0;
+
     } else {
+
         if(c == 127 || c == '\b') {
-            putch('\b');
-            if(local_command_length > 0)
+            if(local_command_length > 0) {
+                putch('\b');
+                putch(' ');
+                putch('\b');
                 local_command_length--;
+            } else {
+                bell();
+            }
         } else {
-            putch(c);
-            if(local_command_length < sizeof(local_command) - 1)
+            if(local_command_length < sizeof(local_command) - 1) {
+                putch(c);
                 local_command[local_command_length++] = c;
+            } else {
+                bell();
+            }
         }
     }
 }
 
 void main()
 {
-    unsigned char was_in_monitor = 0;
-    unsigned char host_had_contacted = 0;
     unsigned char was_response_waiting = 0;
     unsigned char isempty;
     unsigned int u;
@@ -1297,20 +1462,17 @@ void main()
 
     PORTAbits.RA0 = 1; // LEDs *... means we got here
 
-    host_has_contacted = 0;
-    in_pic_monitor = 1;
+    serial_is_monitor = 1;
     pic_monitor_latch = 0;
 
     setup();
-    pause();
-    pause();
-    pause();
-    pause();
 
     setup_serial(); // transmit and receive but global interrupts disabled
 
     printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
 
+    pause();
+    pause();
     pause();
     pause();
     pause();
@@ -1323,82 +1485,7 @@ void main()
     }
     printf("SD Card interface is initialized for SPI\n");
 
-#if 0
-    // test SD card
-    block_number = 0;
-
-    for(;;) {
-        unsigned char originalblock[512];
-        printf("block %d\n", block_number);
-        // printf("Reading a block\n");
-        if(!sdcard_readblock(block_number, originalblock)) {
-            panic();
-        }
-        // printf("Original block:\n");
-        // dump_buffer_hex(4, originalblock, 512);
-
-        for(i = 0; i < 512; i++)
-            block_buffer[i] = (originalblock[i] + 0x55) % 256;
-
-        if(!sdcard_writeblock(block_number, block_buffer)) {
-            printf("PANIC: Failed writeblock\n");
-            panic();
-        }
-        // printf("Wrote junk block\n");
-
-        for(i = 0; i < 512; i++)
-            block_buffer[i] = 0;
-        if(!sdcard_readblock(block_number, block_buffer)) {
-            printf("PANIC: Failed readblock\n");
-            panic();
-        }
-
-        success = 1;
-        for(i = 0; i < 512; i++)
-            if(block_buffer[i] != (originalblock[i] + 0x55) % 256)
-                success = 0;
-
-        if(!success) {
-            printf("whoops, error verifying write of junk to block 0\n");
-            printf("block read: %02X %02X %02X %02X\n",
-                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
-        } else {
-            printf("Verified junk block was written\n");
-        }
-
-        if(!sdcard_writeblock(block_number, originalblock)) {
-            printf("PANIC: Failed writeblock\n");
-            panic();
-        }
-        // printf("Wrote original block\n");
-
-        if(!sdcard_readblock(block_number, block_buffer)) {
-            printf("PANIC: Failed readblock\n");
-            panic();
-        }
-
-        success = 1;
-        for(i = 0; i < 512; i++)
-            if(originalblock[i] != block_buffer[i])
-                success = 0;
-
-        if(!success) {
-            printf("whoops, error verifying write of original to block 0\n");
-            printf("block read: %02X %02X %02X %02X\n",
-                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
-        } else {
-            printf("Verified original block was written\n");
-        }
-        block_number ++;
-        if(block_number % 2 == 0)
-            PORTA = 0x0f;
-        else
-            PORTA = 0x00;
-    }
-    spi_disable_sd();
-#endif
-
-    PORTA = 0x0;
+    if(0) test_sd_card();
 
     setup_slave_port();
 
@@ -1406,37 +1493,35 @@ void main()
 
     enable_interrupts();
 
+    printf("* ");
+
     for(;;) {
 
-        if(!host_had_contacted && host_has_contacted) {
-            in_pic_monitor = 0;
-        }
+        unsigned char c;
 
-        if(in_pic_monitor) {
-            unsigned char c;
+        di();
+        isempty = mon_queue_isempty();
+        ei();
 
-            if(!was_in_monitor)
-                printf("\n* ");
-
+        if(!isempty) {
             di();
-            isempty = con_queue_isempty();
+            c = mon_dequeue();
             ei();
-
-            if(!isempty) {
-                di();
-                c = con_dequeue();
-                ei();
+            if(serial_is_monitor)
                 process_local_key(c);
+            else {
+                if(pic_monitor_latch == 0 && c == 1)
+                    pic_monitor_latch = 1;
+                else if(pic_monitor_latch != 0 && c == 2) {
+                    pic_monitor_latch = 0;
+                    serial_is_monitor = 1;
+                    printf("Serial input returned to monitor\n");
+                } else {
+                    pic_monitor_latch = 0;
+                    console_enqueue_key(c);
+                }
             }
-
-        } else {
-
-            if(was_in_monitor)
-                printf("Press CTRL-A then CTRL-B to return to monitor.\n");
         }
-
-        was_in_monitor = in_pic_monitor;
-        host_had_contacted = host_has_contacted;
 
         if(command_length > 0) {
             unsigned char command_byte = command_bytes[0];
@@ -1455,7 +1540,6 @@ void main()
                     PORTCbits.RC2 = 0; // debug LED: RC2 off means receipt completed
                 }
             }
-            host_has_contacted = 1;
         }
 
         CLRWDT(); // XXX Why?  SWDTEN and WDTEN are 0!
@@ -1491,7 +1575,7 @@ void main()
                             break;
                         }
                         if(debug >= DEBUG_DATA) printf("New cached block\n");
-                        if(debug >= DEBUG_ALL) dump_buffer_hex(4, block_buffer, 512);
+                        if(debug >= DEBUG_ALL) dump_buffer_hex(4, block_buffer, BLOCK_SIZE);
                         previous_block = block_number;
                     }
 
