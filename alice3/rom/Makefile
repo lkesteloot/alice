@@ -1,7 +1,7 @@
 ASM =	../../alice2/brads_alice2_archive/asm/asm80
 HEX2BIN =	../../alice2/emulator/hex2bin
 .SUFFIXES: .hex .asm
-.PHONY: all
+.PHONY: all burn
 
 .asm.hex:
 	@echo 'Assembling "$<" because of "$?"'

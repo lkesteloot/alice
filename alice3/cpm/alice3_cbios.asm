@@ -106,6 +106,8 @@ GOCCPMSG: DEFM    'GOCCP!'
         DEFB    13,10,0
 BADSUM: DEFM    'SECTOR SUM MISMATCH!'
         DEFB    13,10,0
+bin2hex:
+        defm    '0123456789ABCDEF'
 
 
 ;	end of fixed tables
@@ -137,6 +139,17 @@ boot:	;simplest case is to just perform parameter initialization
         LD      SP,80H          ;use space below buffer for stack
         LD      HL,SIGNON       ;print message
         CALL    PRTMSG
+
+        ; Set up INT handler for debugger.
+        im      1               ;int mode 1 (jump to 0x38)
+        ld      hl, 038H        ;where INT (mode 1) jumps to
+        ld      (hl), 0C3H      ;op code for JP **
+        ld      bc, debugger    ;address of debugger
+        inc     hl
+        ld      (hl), c         ;low byte of debugger address
+        inc     hl
+        ld      (hl), b         ;high byte of debugger address
+
 	XOR	a		;zero in the accum
 	LD	(iobyte),A	;clear the iobyte
 	LD	(cdisk),A	;select disk zero
@@ -214,7 +227,7 @@ gocpm:
 	LD	BC, 80h		;default dma address is 80h
 	call	setdma
 ;
-	; ei			;enable the interrupt system
+	ei			;enable the interrupt system
 	LD	A,(cdisk)	;get current disk number
 	cp	disks		;see if valid disk number
 	jp	c,diskok	;disk valid, go to ccp
@@ -464,6 +477,73 @@ write_loop: ; I think this whole loop could be an OUTIR instruction
 write_success:
         ; success
         ld      a, 0
+        ret
+
+; Routine called when we get an interrupt.
+debugger:
+        ; Print the PC.
+        push    af
+        push    hl
+
+        ld      hl, 0
+        add     hl, sp          ;move SP into HL
+        inc     hl              ;skip over L
+        inc     hl              ;skip over H
+        inc     hl              ;skip over F
+        inc     hl              ;skip over A
+        inc     hl              ;skip over low byte of PC
+
+        ld      a, (hl)
+        call    prbyte          ;print high byte of PC
+        dec     hl
+        ld      a, (hl)
+        call    prbyte          ;print low byte of PC
+        ld      a, 32
+        out     (128), a        ;print space
+
+        pop     hl
+        pop     af
+
+        ei                      ;enable interrupts before returning
+        ret
+
+        ; ------------------------------------------
+        ; Print an 8-bit value (register A) in hex.
+prbyte: push    af
+
+        ; High nybble.
+        srl     a
+        srl     a
+        srl     a
+        srl     a
+        call    prnyb
+        pop     af
+
+        ; Low nybble.
+        call    prnyb
+
+        ret
+
+        ; ------------------------------------------
+        ; Print a 4-bit value (register A) in hex. Ignores
+        ; the top nybble of A.
+prnyb:  push    hl
+        push    de
+        push    af
+
+        ; Look up in hex table.
+        and     0x0F
+        ld      hl, bin2hex
+        ld      d, 0
+        ld      e, a
+        add     hl, de
+        ld      a, (hl)
+        out     (128), a
+
+        pop     af
+        pop     de
+        pop     hl
+
         ret
 
 ;	the remainder of the cbios is reserved uninitialized
