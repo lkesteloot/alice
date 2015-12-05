@@ -1,5 +1,7 @@
 // 'C' source line config statements
 
+#define _XTAL_FREQ 40000000
+
 #include <xc.h>
 
 #if defined(__18F452)
@@ -59,28 +61,33 @@
 
 #elif defined(__18F4620)
 
+
 // PIC18F4620 Configuration Bit Settings
+
+// 'C' source line config statements
+
+#include <xc.h>
 
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
 
 // CONFIG1H
-#pragma config OSC = RCIO6      // Oscillator Selection bits (External RC oscillator, port function on RA6)
+#pragma config OSC = ECIO6    // Oscillator Selection bits (Internal oscillator block, port function on RA6 and RA7)
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (Fail-Safe Clock Monitor disabled)
 #pragma config IESO = OFF       // Internal/External Oscillator Switchover bit (Oscillator Switchover mode disabled)
 
 // CONFIG2L
 #pragma config PWRT = OFF       // Power-up Timer Enable bit (PWRT disabled)
-#pragma config BOREN = SBORDIS  // Brown-out Reset Enable bits (Brown-out Reset enabled in hardware only (SBOREN is disabled))
+#pragma config BOREN = ON       // Brown-out Reset Enable bits (Brown-out Reset enabled and controlled by software (SBOREN is enabled))
 #pragma config BORV = 3         // Brown Out Reset Voltage bits (Minimum setting)
 
 // CONFIG2H
-#pragma config WDT = OFF         // Watchdog Timer Enable bit (WDT enabled)
+#pragma config WDT = OFF        // Watchdog Timer Enable bit (WDT disabled (control is placed on the SWDTEN bit))
 #pragma config WDTPS = 32768    // Watchdog Timer Postscale Select bits (1:32768)
 
 // CONFIG3H
 #pragma config CCP2MX = PORTC   // CCP2 MUX bit (CCP2 input/output is multiplexed with RC1)
-#pragma config PBADEN = ON      // PORTB A/D Enable bit (PORTB<4:0> pins are configured as analog input channels on Reset)
+#pragma config PBADEN = OFF     // PORTB A/D Enable bit (PORTB<4:0> pins are configured as digital I/O on Reset)
 #pragma config LPT1OSC = OFF    // Low-Power Timer1 Oscillator Enable bit (Timer1 configured for higher power operation)
 #pragma config MCLRE = ON       // MCLR Pin Enable bit (MCLR pin enabled; RE3 input pin disabled)
 
@@ -119,6 +126,10 @@
 // CONFIG7H
 #pragma config EBTRB = OFF      // Boot Block Table Read Protection bit (Boot Block (000000-0007FFh) not protected from table reads executed in other blocks)
 
+#else
+
+#error Chip type not handled in code 
+
 #endif
 
 
@@ -129,24 +140,21 @@
 #define XSTR(x) STR(x)
 #define STR(x) # x
 
-void pause()
+void delay_100ms(unsigned char count)
 {
-    int i;
-    int j;
-    for(j = 0; j < 8; j++)
-        for (i=0;i<30000;i++) ;
+    unsigned char i;
+    for(i = 0; i < count * 10; i++) 
+        __delay_ms(10);
 }
 
 void panic()
 {
     for(;;) {
         PORTA = 0x05;
-        pause();
-        pause();
+        delay_100ms(5);
 
         PORTA = 0x0a;
-        pause();
-        pause();
+        delay_100ms(5);
     }
 }
 
@@ -169,18 +177,34 @@ void setup()
     // /RESET control
     TRISBbits.TRISB3 = 1;       // B3 is /RESET to Z-80 - set to input (disabled)
     LATBbits.LB3 = 0;           // When B3 is enabled, it will be 0
+
+    // /INT control
+    TRISAbits.TRISA6 = 1;       // A6 is /INT to Z-80 - set to input (disabled)
+    LATAbits.LA6 = 0;           // When A6 is enabled, it will be 0
 }
 
 void master_reset_start()
 {
     LATBbits.LB3 = 0;           // When B3 is enabled, it will be 0
     TRISBbits.TRISB3 = 0;       // B3 is /RESET to Z-80 - set to output
-    pause();
+    __delay_ms(1);
 }
 
 void master_reset_finish()
 {
     TRISBbits.TRISB3 = 1;       // B3 is /RESET to Z-80 - set to output
+}
+
+void master_interrupt_start()
+{
+    LATAbits.LA6 = 0;           // When A6 is enabled, it will be 0
+    TRISAbits.TRISA6 = 0;       // A6 is /RESET to Z-80 - set to output
+    __delay_ms(1);
+}
+
+void master_interrupt_finish()
+{
+    TRISAbits.TRISA6 = 1;       // B3 is /RESET to Z-80 - set to output
 }
 
 int isprint(unsigned char a)
@@ -595,14 +619,27 @@ void setup_keyboard()
 /*--------------------------------------------------------------------------*/
 /* USART - serial comms ----------------------------------------------------*/
 
-#if 0
-const unsigned char need_BRGH = 0;
-const unsigned char baud_rate_code = 15; // 19200 baud at 20 MHz, BRGH=0
-#else
-const unsigned char need_BRGH = 1;
-// const int baud_rate_code = 10; // 115200 baud at 20 MHz, BRGH=1
+#if defined(__18F452)
+
 const int baud_rate_code = 21; // 115200 baud at 40 MHz, BRGH=1
-#endif
+
+#elif defined(__18F4620)
+
+#if _XTAL_FREQ == 40000000
+
+const int baud_rate_code = 86; // 115200 baud at 40 MHz, BRG16=1, BRGH=1
+
+#elif _XTAL_FREQ == 32000000
+
+const int baud_rate_code = 68; // 115200 baud at 32 MHz, BRG16=1, BRGH=1
+
+#else /* Other frequency */
+
+#error Crystal frequency not handled in code
+
+#endif /* XTAL_FREQ */
+
+#endif /* CHIP type */
 
 void setup_serial()
 {
@@ -614,8 +651,19 @@ void setup_serial()
     TRISCbits.TRISC6 = 0;       // TX is output
     TRISCbits.TRISC7 = 1;       // RX is input
 
-    BRGH = need_BRGH;
+#if defined(__18F452)
+
+    BRGH = 1;
     SPBRG = baud_rate_code;
+
+#elif defined(__18F4620)
+
+    BRG16 = 1;
+    BRGH = 1;
+    SPBRG = baud_rate_code & 0xff;
+    SPBRGH = (baud_rate_code >> 8) & 0xff;
+
+#endif /* CHIP type */
 
     TXSTAbits.SYNC = 0;
     RCSTAbits.SPEN = 1;
@@ -707,24 +755,32 @@ void response_clear()
     response_length = 0;
     response_index = 0;
     response_waiting = 0;
-    LATD = 0;
     ei();
 }
 
 void setup_slave_port()
 {
-    PIR1bits.PSPIF = 0; // clear the interrupt flag for PSP
-    TRISEbits.TRISE0 = 1;		// /RD is input
-    TRISEbits.TRISE1 = 1;		// /WR is input
-    TRISEbits.TRISE2 = 1;		// /CS is input
-    ADCON1bits.PCFG2 = 1;               // ADCON has to be set for RE2:RE0 to be inputs
+    // ADCON has to be set for RE2:RE0 to be inputs
+#if defined(__18F4620)
+    ADCON1bits.PCFG3 = 1;              
+#endif
+    ADCON1bits.PCFG2 = 1;               
     ADCON1bits.PCFG1 = 1;
     ADCON1bits.PCFG0 = 1;
-    TRISEbits.PSPMODE = 1;		// port D is PSP
-    PIE1bits.PSPIE = 1; // enable interrupts on PSP
 
-    command_clear();
-    response_clear();
+    TRISEbits.TRISE0 = 1;		// E0,/RD is input
+    TRISEbits.TRISE1 = 1;		// E1,/WR is input
+    TRISEbits.TRISE2 = 1;		// E2,/CS is input
+
+    LATD = 0;                           // clear PORTD
+
+    TRISEbits.PSPMODE = 1;		// port D is PSP
+
+                                        // read PORTD and maybe clear IBF
+    command_bytes[sizeof(command_bytes) - 1] = PORTD;
+
+    PIR1bits.PSPIF = 0;                 // clear the interrupt flag for PSP
+    PIE1bits.PSPIE = 1;                 // enable interrupts on PSP
 }
 
 void enable_interrupts()
@@ -768,7 +824,7 @@ void spi_config_for_sd()
     // SD power control
 
     LATBbits.LB2 = 0;           // turn power off
-    TRISBbits.TRISB2 = 0;       // B2 is power to SD card - set to input (disabled)
+    TRISBbits.TRISB2 = 1;       // B2 is power to SD card - set to input (disabled)
 
     // SPI master mode
     SSPCON1bits.SSPEN = 0;      // Disable and reset SPI
@@ -784,22 +840,21 @@ void spi_config_for_sd()
 
 void sdcard_power_on()
 {
-    LATBbits.LB2 = 1;           // turn power off
+    TRISBbits.TRISB2 = 0;       // B2 is power to SD card - set to output
+    LATBbits.LB2 = 0;           // turn power off
 }
 
 void sdcard_power_off()
 {
-    LATBbits.LB2 = 0;           // turn power off
+    TRISBbits.TRISB2 = 1;       // B2 is power to SD card - set to input (disabled)
 }
 
 void sdcard_reset()
 {
     sdcard_power_off();
-    pause();
-    pause();
-    pause();
-    pause();
+    delay_100ms(10);
     sdcard_power_on();
+    delay_100ms(20);
 }
 
 void spi_enable_sd()
@@ -1310,6 +1365,8 @@ int previous_block = 0xffff;
 /* disk is 8MB, so 16384 512-byte blocks per disk */
 #define blocks_per_disk 16384
 
+volatile unsigned char pspif_but_rd_asserted_count = 0;
+
 void interrupt intr()
 {
     if(PIR1bits.PSPIF) {
@@ -1327,29 +1384,36 @@ void interrupt intr()
         
         if(response_length > 0 && !TRISEbits.OBF) {
 
-            // Wait until RD is released
-            // while(PORTEbits.RE0);
+            if(PORTEbits.RE0 == 0 && PORTEbits.RE1 == 0) {
 
-            if(response_index < response_length) {
+                pspif_but_rd_asserted_count++;
 
-                LATD = response_bytes[response_index];
-                // writing LATD sets OBF
-                response_index++;
+            } else {
 
-            } else  {
+                LATCbits.LC0 = 1; // debug LED: 1 if read
 
-                response_index = 0;
-                response_length = 0;
-                response_waiting = 0;
-                // writing LATD sets OBF
-                LATD = 0;
+                if(response_index < response_length) {
+
+                    LATD = response_bytes[response_index];
+                    // writing LATD sets OBF
+                    response_index++;
+
+                } else  {
+
+                    response_index = 0;
+                    response_length = 0;
+                    response_waiting = 0;
+                    // writing LATD sets OBF
+                    LATD = 0;
+                }
+
+                LATCbits.LC0 = 0; // debug LED
             }
         }
 
         // We cleared PSP last in old ASM code
         // XXX - probably PSPIF = (RD || WR), so must clear RD and WR
         // interrupts before clearing PSPIF...
-        LATCbits.LC0 = !LATCbits.LC0; // debug LED: toggles if PSPIF
         PIR1bits.PSPIF = 0; // clear PSP interrupt
     }
 
@@ -1382,12 +1446,14 @@ void usage()
     printf("debug N - set debug level\n");
     printf("buffers - print summary of command and response buffers\n");
     printf("reset - reset Z80 and clear communication buffers\n");
+    printf("int - send /INT to Z80\n");
     printf("sdreset - reset SD\n");
     printf("dumpkbd - toggle dumping keyboard\n");
     printf("clear - clear command and response buffer\n");
     printf("pass - pass monitor keys to Z80\n");
     printf("version - print firmware build version\n");
     printf("read N - read and dump block\n");
+    printf("panic - force panic\n");
 }
 
 #define PIC_FIRMWARE_VERSION_STRING XSTR(PIC_FIRMWARE_VERSION)
@@ -1422,6 +1488,10 @@ void process_local_key(unsigned char c)
             else
                 printf("Not dumping keyboard data...\n");
 
+        } else if(strcmp(local_command, "panic") == 0) {
+
+            panic();
+
         } else if(strcmp(local_command, "reset") == 0) {
 
             master_reset_start();
@@ -1429,6 +1499,13 @@ void process_local_key(unsigned char c)
             response_clear();
             command_clear();
             master_reset_finish();
+
+        } else if(strcmp(local_command, "int") == 0) {
+
+            master_interrupt_start();
+            printf("Interupting Z-80...");
+            putch('\n');
+            master_interrupt_finish();
 
         } else if(strcmp(local_command, "clear") == 0) {
 
@@ -1513,6 +1590,8 @@ void process_local_key(unsigned char c)
 
 void main()
 {
+    unsigned char bad_read_count = 0;
+    unsigned char tmp = 0;
     unsigned char was_response_waiting = 0;
     unsigned char isempty;
     unsigned int u;
@@ -1531,10 +1610,11 @@ void main()
 
     printf("Alice 3 I/O PIC firmware, %s\n", PIC_FIRMWARE_VERSION_STRING);
 
+    spi_config_for_sd();
+
     // Toggle SD power in case PIC was warm reset
     sdcard_reset();
 
-    spi_config_for_sd();
     if(!sdcard_init()) {
         printf("PANIC: failed to start access to SD card as SPI\n");
         panic();
@@ -1795,6 +1875,12 @@ void main()
             if(debug >= DEBUG_EVENTS) printf("response packet was read\n");
             was_response_waiting = 0;
             PORTCbits.RC1 = 0; // debug LED: RC1 off means transmission completed
+        }
+
+        tmp = pspif_but_rd_asserted_count;
+        if(bad_read_count != tmp) {
+            if(debug >= DEBUG_WARNINGS) printf("%d PSP interrupts when RD was still asserted.\n", tmp - bad_read_count);
+            bad_read_count = tmp;
         }
     }
 
