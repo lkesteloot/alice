@@ -20,6 +20,7 @@ OBJECTS = \
         stm32f4xx_hal_gpio.o \
         stm32f4xx_hal_rcc.o \
         stm32f4xx_hal_uart.o \
+        stm32f4xx_hal_spi.o \
         stm32f4xx_hal.o \
         syscalls.o \
         $(NULL)

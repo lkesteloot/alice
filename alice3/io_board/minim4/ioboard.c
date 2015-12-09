@@ -834,26 +834,125 @@ void setup_slave_port()
 /*--------------------------------------------------------------------------*/
 /* SPI commands ------------------------------------------------------------*/
 
+SPI_HandleTypeDef SpiHandle;
+
 unsigned char spi_exchange(unsigned char b)
 {
-    // TODO
+    unsigned char tmp;
+    int result = HAL_SPI_TransmitReceive(&SpiHandle, (uint8_t*)&b, (uint8_t *)&tmp, 1, 1000);
+    if(result != HAL_OK){
+        printf("SPI error 0x%04X\n", result);
+        panic();
+    }
+    return tmp;
 }
 
 
 /*--------------------------------------------------------------------------*/
 /* SD-card-specific SPI commands -------------------------------------------*/
 
+#define SPIx                             SPI2
+#define SPIx_CLK_ENABLE()                __HAL_RCC_SPI2_CLK_ENABLE()
+#define SPIx_SCK_GPIO_CLK_ENABLE()       __HAL_RCC_GPIOB_CLK_ENABLE()
+#define SPIx_MISO_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
+#define SPIx_MOSI_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
+
+#define SPIx_FORCE_RESET()               __HAL_RCC_SPI2_FORCE_RESET()
+#define SPIx_RELEASE_RESET()             __HAL_RCC_SPI2_RELEASE_RESET()
+
+/* Definition for SPIx Pins */
+#define SPIx_SCK_PIN                     GPIO_PIN_13
+#define SPIx_SCK_GPIO_PORT               GPIOB
+#define SPIx_SCK_AF                      GPIO_AF5_SPI2
+#define SPIx_MISO_PIN                    GPIO_PIN_14
+#define SPIx_MISO_GPIO_PORT              GPIOB
+#define SPIx_MISO_AF                     GPIO_AF5_SPI2
+#define SPIx_MOSI_PIN                    GPIO_PIN_15
+#define SPIx_MOSI_GPIO_PORT              GPIOB
+#define SPIx_MOSI_AF                     GPIO_AF5_SPI2
+
+void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    /* Enable GPIO CK/TX/RX clocks */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    /* Enable SPI clock */
+    __HAL_RCC_SPI2_CLK_ENABLE();
+
+    /*##-2- Configure peripheral GPIO ##########################################*/
+    /* SPI SCK GPIO pin configuration  */
+    GPIO_InitStruct.Pin       = GPIO_PIN_13;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
+    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* SPI MISO GPIO pin configuration  */
+    GPIO_InitStruct.Pin = GPIO_PIN_14;
+
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* SPI MOSI GPIO pin configuration  */
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
+{
+    /*##-1- Reset peripherals ##################################################*/
+    __HAL_RCC_SPI2_FORCE_RESET();
+    __HAL_RCC_SPI2_RELEASE_RESET();
+
+    /*##-2- Disable peripherals and GPIO Clocks ################################*/
+    /* Configure SPI SCK as alternate function  */
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_13);
+    /* Configure SPI MISO as alternate function  */
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_14);
+    /* Configure SPI MOSI as alternate function  */
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_15);
+}
+
 // Postcondition: SPI configured for SD, SS high (false)
 void spi_config_for_sd()
 {
-    // TODO
-    // Set up SPI for SD card
+    GPIO_InitTypeDef  GPIO_InitStruct;
 
-    // slave select for SD
+    SpiHandle.Instance               = SPI2;
 
+    // SPI2 is APB1, which is 1/4 system clock, or at 168MHz, APB1 is
+    // 42MHz.  So to initialize at 200KHz, prescaler must be 210ish; 256 will work
+    SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+    SpiHandle.Init.Direction         = SPI_DIRECTION_2LINES;
+    SpiHandle.Init.CLKPhase          = SPI_PHASE_1EDGE; // XXX
+    SpiHandle.Init.CLKPolarity       = SPI_POLARITY_HIGH; // XXX
+    SpiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    SpiHandle.Init.CRCPolynomial     = 7;
+    SpiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
+    SpiHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    SpiHandle.Init.NSS               = SPI_NSS_SOFT;
+    SpiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
+    SpiHandle.Init.Mode              = SPI_MODE_MASTER;
+
+    if(HAL_SPI_Init(&SpiHandle) != HAL_OK)
+    {
+        printf("failed to initialize SPI\n");
+        panic();
+    }
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW; // XXX change to match high SPI rate
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 1);     // SS false
+    
     // SD power control
-
-    // SPI master mode
 }
 
 void sdcard_power_on()
@@ -876,12 +975,12 @@ void sdcard_reset()
 
 void spi_enable_sd()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 0);     // SS false
 }
 
 void spi_disable_sd()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 1);     // SS false
 }
 
 
