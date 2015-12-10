@@ -1129,8 +1129,7 @@ void spi_writen(unsigned char *buffer, unsigned int nlen)
 
 void spi_readn(unsigned char *buffer, unsigned int nlen)
 {
-    for(int i = 0; i < nlen; i++)
-        buffer[i] = 0xff;
+    memset(buffer, 0xff, nlen);
     int result = HAL_SPI_TransmitReceive(&SpiHandle, buffer, buffer, nlen, 1000);
     if(result != HAL_OK){
         printf("spi_readn: SPI error 0x%04X\n", result);
@@ -1146,6 +1145,9 @@ void spi_readn(unsigned char *buffer, unsigned int nlen)
 int sdcard_send_command(enum sdcard_command command, unsigned long parameter, unsigned char *response, int response_length)
 {
     unsigned char command_buffer[6];
+
+    command_buffer[0] = 0xff;
+    spi_bulk(command_buffer, 1);
 
     command_buffer[0] = 0x40 | command;
     command_buffer[1] = (parameter >> 24) & 0xff;
@@ -1170,7 +1172,8 @@ int sdcard_send_command(enum sdcard_command command, unsigned long parameter, un
             printf("sdcard_send_command: timed out waiting on response\n");
             return 0;
         }
-        spi_readn(response, 1);
+        response[0] = 0xff;
+        spi_bulk(response, 1);
         if(debug >= DEBUG_ALL) printf("response 0x%02X\n", response[0]);
     } while(response[0] & 0x80);
 
