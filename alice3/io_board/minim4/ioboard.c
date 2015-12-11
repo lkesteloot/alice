@@ -25,15 +25,16 @@ void LED_set_panic(int on)
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 }
 
-static int pulse_level = 1;
-static unsigned int previous_pulse_tick = 0;
+static int heartbeat_level = 1;
+static unsigned int previous_heartbeat_tick = 0;
 void LED_heartbeat()
 {
     // TODO green heartbeat toggling .5Hz
     unsigned int now = HAL_GetTick();
-    if(now - previous_pulse_tick > 500) {
-        pulse_level = pulse_level ? 1 : 0;
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, pulse_level);
+    if(now - previous_heartbeat_tick > 800) {
+        heartbeat_level = heartbeat_level ? 0 : 1;
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, heartbeat_level);
+        previous_heartbeat_tick = now;
     }
 }
 
@@ -1696,16 +1697,13 @@ int main()
     spi_config_for_sd();
     LED_heartbeat();
 
-#if 0
-    if(!sdcard_init()) {
-        printf("PANIC: failed to start access to SD card as SPI\n");
-        panic();
-    }
-    printf("SD Card interface is initialized for SPI\n");
+    if(!sdcard_init())
+        printf("Failed to start access to SD card as SPI!!\n");
+    else 
+        printf("SD Card interface is initialized for SPI\n");
     LED_heartbeat();
 
     if(0) test_sd_card();
-#endif
 
     setup_slave_port();
 
