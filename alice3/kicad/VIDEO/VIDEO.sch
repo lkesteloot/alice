@@ -1,0 +1,231 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:propeller_p8x32a-d40
+LIBS:VIDEO-cache
+EELAYER 25 0
+EELAYER END
+$Descr USLetter 11000 8500
+encoding utf-8
+Sheet 1 1
+Title "Alice 3 Video board"
+Date "2000-12-31"
+Rev ""
+Comp "Earwig, Inc."
+Comment1 "Lawrence Kesteloot"
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Propeller_P8X32A-D40 U1
+U 1 1 566E498F
+P 5400 3500
+F 0 "U1" H 5100 4800 60  0000 C CNN
+F 1 "Propeller_P8X32A-D40" H 5400 2200 60  0000 C CNN
+F 2 "Housings_DIP:DIP-40_W25.4mm" H 5400 3300 60  0001 C CNN
+F 3 "" H 5400 3300 60  0000 C CNN
+	1    5400 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR01
+U 1 1 566E4A0D
+P 4700 4800
+F 0 "#PWR01" H 4700 4550 50  0001 C CNN
+F 1 "GND" H 4700 4650 50  0000 C CNN
+F 2 "" H 4700 4800 50  0000 C CNN
+F 3 "" H 4700 4800 50  0000 C CNN
+	1    4700 4800
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4800 4500 4700 4500
+Wire Wire Line
+	4700 4500 4700 4800
+Wire Wire Line
+	4800 4600 4700 4600
+Connection ~ 4700 4600
+$Comp
+L +3.3V #PWR02
+U 1 1 566E4A37
+P 4700 2200
+F 0 "#PWR02" H 4700 2050 50  0001 C CNN
+F 1 "+3.3V" H 4700 2340 50  0000 C CNN
+F 2 "" H 4700 2200 50  0000 C CNN
+F 3 "" H 4700 2200 50  0000 C CNN
+	1    4700 2200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4700 2500 4800 2500
+Wire Wire Line
+	4700 2200 4700 2500
+Wire Wire Line
+	4800 2400 4700 2400
+Connection ~ 4700 2400
+$Comp
+L Crystal Y1
+U 1 1 566E4A7D
+P 6350 4550
+F 0 "Y1" H 6350 4700 50  0000 C CNN
+F 1 "5 MHz" H 6350 4400 50  0000 C CNN
+F 2 "Crystals:Crystal_HC48-U_Vertical" H 6350 4550 50  0001 C CNN
+F 3 "" H 6350 4550 50  0000 C CNN
+	1    6350 4550
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	6000 4500 6100 4500
+Wire Wire Line
+	6100 4500 6100 4400
+Wire Wire Line
+	6100 4400 6350 4400
+Wire Wire Line
+	6000 4600 6100 4600
+Wire Wire Line
+	6100 4600 6100 4700
+Wire Wire Line
+	6100 4700 6350 4700
+$Comp
+L GND #PWR03
+U 1 1 566E4B37
+P 6300 2500
+F 0 "#PWR03" H 6300 2250 50  0001 C CNN
+F 1 "GND" H 6300 2350 50  0000 C CNN
+F 2 "" H 6300 2500 50  0000 C CNN
+F 3 "" H 6300 2500 50  0000 C CNN
+	1    6300 2500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6000 2500 6300 2500
+$Comp
+L +3.3V #PWR04
+U 1 1 566E4B67
+P 6500 1800
+F 0 "#PWR04" H 6500 1650 50  0001 C CNN
+F 1 "+3.3V" H 6500 1940 50  0000 C CNN
+F 2 "" H 6500 1800 50  0000 C CNN
+F 3 "" H 6500 1800 50  0000 C CNN
+	1    6500 1800
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R1
+U 1 1 566E4B83
+P 6500 2050
+F 0 "R1" V 6580 2050 50  0000 C CNN
+F 1 "10K" V 6500 2050 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM10mm" V 6430 2050 50  0001 C CNN
+F 3 "" H 6500 2050 50  0000 C CNN
+	1    6500 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L SW_PUSH SW1
+U 1 1 566E4BAC
+P 6900 2400
+F 0 "SW1" H 7050 2510 50  0000 C CNN
+F 1 "SW_PUSH" H 6900 2320 50  0000 C CNN
+F 2 "Buttons_Switches_ThroughHole:SW_PUSH_SMALL" H 6900 2400 50  0001 C CNN
+F 3 "" H 6900 2400 50  0000 C CNN
+	1    6900 2400
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR05
+U 1 1 566E4C07
+P 7200 2500
+F 0 "#PWR05" H 7200 2250 50  0001 C CNN
+F 1 "GND" H 7200 2350 50  0000 C CNN
+F 2 "" H 7200 2500 50  0000 C CNN
+F 3 "" H 7200 2500 50  0000 C CNN
+	1    7200 2500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6500 1900 6500 1800
+Wire Wire Line
+	6000 2400 6600 2400
+Wire Wire Line
+	6500 2400 6500 2200
+Connection ~ 6500 2400
+Wire Wire Line
+	7200 2400 7200 2500
+$Comp
+L PWR_FLAG #FLG06
+U 1 1 566E4C94
+P 1000 1200
+F 0 "#FLG06" H 1000 1295 50  0001 C CNN
+F 1 "PWR_FLAG" H 1000 1380 50  0000 C CNN
+F 2 "" H 1000 1200 50  0000 C CNN
+F 3 "" H 1000 1200 50  0000 C CNN
+	1    1000 1200
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG07
+U 1 1 566E4CCE
+P 1500 1200
+F 0 "#FLG07" H 1500 1295 50  0001 C CNN
+F 1 "PWR_FLAG" H 1500 1380 50  0000 C CNN
+F 2 "" H 1500 1200 50  0000 C CNN
+F 3 "" H 1500 1200 50  0000 C CNN
+	1    1500 1200
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR08
+U 1 1 566E4D29
+P 1000 1500
+F 0 "#PWR08" H 1000 1350 50  0001 C CNN
+F 1 "+3.3V" H 1000 1640 50  0000 C CNN
+F 2 "" H 1000 1500 50  0000 C CNN
+F 3 "" H 1000 1500 50  0000 C CNN
+	1    1000 1500
+	-1   0    0    1   
+$EndComp
+$Comp
+L GND #PWR09
+U 1 1 566E4D40
+P 1500 1500
+F 0 "#PWR09" H 1500 1250 50  0001 C CNN
+F 1 "GND" H 1500 1350 50  0000 C CNN
+F 2 "" H 1500 1500 50  0000 C CNN
+F 3 "" H 1500 1500 50  0000 C CNN
+	1    1500 1500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1500 1200 1500 1500
+Wire Wire Line
+	1000 1200 1000 1500
+$EndSCHEMATC
