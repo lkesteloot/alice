@@ -1207,7 +1207,7 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
     return crc;
 }
 
-int timeout_ms = 100;
+int sdcard_timeout_ms = 100;
 
 #define BLOCK_SIZE 512
 
@@ -1298,7 +1298,7 @@ int sdcard_send_command(enum sdcard_command command, unsigned long parameter, un
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > timeout_ms) {
+        if(now - then > sdcard_timeout_ms) {
             printf("sdcard_send_command: timed out waiting on response\n");
             return 0;
         }
@@ -1347,7 +1347,7 @@ int sdcard_init()
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
+    if(debug >= DEBUG_DATA) printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
 
     // should get CSD, CID, print information about them
 
@@ -1355,7 +1355,7 @@ int sdcard_init()
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > timeout_ms) {
+        if(now - then > sdcard_timeout_ms) {
             printf("sdcard_init: timed out waiting on transition to ACMD41\n");
             return 0;
         }
@@ -1402,7 +1402,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > timeout_ms) {
+        if(now - then > sdcard_timeout_ms) {
             printf("sdcard_readblock: timed out waiting for data token\n");
             return 0;
         }
@@ -1434,7 +1434,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > timeout_ms) {
+        if(now - then > sdcard_timeout_ms) {
             printf("sdcard_readblock: timed out waiting on completion\n");
             return 0;
         }
@@ -1487,7 +1487,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     count = 0;
     do {
         int now = HAL_GetTick();
-        if(now - then > timeout_ms) {
+        if(now - then > sdcard_timeout_ms) {
             printf("sdcard_writeblock: timed out waiting on completion\n");
             return 0;
         }
