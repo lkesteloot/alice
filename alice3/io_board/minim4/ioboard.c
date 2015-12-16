@@ -749,34 +749,50 @@ void setup_serial()
 
 void z80_reset_init(void)
 {
-    // TODO /RESET control
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); 
 }
 
 void z80_reset_start()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, 0);
     delay_ms(1);
 }
 
 void z80_reset_finish()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, 1);
 }
 
 void z80_interrupt_init(void)
 {
-    // TODO
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin = GPIO_PIN_1;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); 
 }
 
 void z80_interrupt_start()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
     delay_ms(1);
 }
 
 void z80_interrupt_finish()
 {
-    // TODO
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
 }
 
 
@@ -852,27 +868,16 @@ void response_clear()
     enable_interrupts();
 }
 
-unsigned int bus_signals = 0x0;
-// Had defined these as const ints, but need to do math with them
-// below and that gave "initializer not a constant value"
-#define bus_signal_IORQ 0x01      // C 0
-#define BUS_PIN_IORQ 0 
-#define bus_signal_RD 0x02        // C 1
-#define BUS_PIN_RD 1 
-#define bus_signal_WR 0x04        // C 2
-#define BUS_PIN_WR 2 
-#define bus_signal_A7 0x08        // C 4
-#define BUS_PIN_A7 4
+#define PIN_IORQ GPIO_PIN_0
+#define PIN_RD GPIO_PIN_1
+#define PIN_WR GPIO_PIN_2
+#define PIN_A7 GPIO_PIN_4
 
-const unsigned int bus_requires_read_mask =
-    bus_signal_IORQ |
-    bus_signal_RD |
-    bus_signal_A7;
+#define BUS_PIN_MASK (PIN_IORQ | PIN_RD | PIN_WR | PIN_A7)
 
-const unsigned int bus_requires_write_mask =
-    bus_signal_IORQ |
-    bus_signal_WR |
-    bus_signal_A7;
+const unsigned int bus_request_RD = PIN_A7; // IORQ and RD 0
+
+const unsigned int bus_request_WR = PIN_A7; // IORQ and RD 0
 
 void set_GPIOA_0_7_as_input()
 {
@@ -895,13 +900,13 @@ void set_GPIOA_0_7_value(unsigned char data)
     GPIOA->BSRR = (~data) & 0xff << 16;
 }
 
-void handle_bus_request()
+void EXTI1_IRQHandler(void)
 {
-    if(bus_signals == bus_requires_read_mask) {
+    if((GPIOC->IDR & BUS_PIN_MASK) == bus_request_RD) {
 
         unsigned char data;
 
-        if(response_length > 0 || response_index >= response_length) {
+        if(response_index >= response_length) {
 
             response_index = 0;
             response_length = 0;
@@ -917,70 +922,23 @@ void handle_bus_request()
         set_GPIOA_0_7_as_output();
         set_GPIOA_0_7_value(data);
 
-    } else if(bus_signals == bus_requires_write_mask) {
-
-        unsigned char data;
-
-        data = get_GPIOA_0_7_value();
-
-        command_bytes[command_length++] = data;
-        
-    }
-}
-
-void handle_bus_release()
-{
-    set_GPIOA_0_7_as_input();
-}
-
-//
-// XXX probably could go more optimized below by actually storing
-// (GPIOC->IDR & 0b10111) and comparing directly, but then code would be
-// bound to GPIOC.
-//
-// XXX alternate implementation 
-//
-
-void EXTI0_IRQHandler(void)
-{
-    if(GPIOC->IDR & BUS_PIN_IORQ) { // IORQ is active low
-        bus_signals &= ~bus_signal_IORQ; 
-        handle_bus_release();
     } else {
-        bus_signals |= bus_signal_IORQ; 
-        handle_bus_request();
-    }
-}
 
-void EXTI1_IRQHandler(void)
-{
-    if(GPIOC->IDR & BUS_PIN_RD) { // RD is active low
-        bus_signals &= ~bus_signal_RD; 
-        handle_bus_release();
-    } else {
-        bus_signals |= bus_signal_RD; 
-        handle_bus_request();
+        set_GPIOA_0_7_as_input();
     }
 }
 
 void EXTI2_IRQHandler(void)
 {
-    if(GPIOC->IDR & BUS_PIN_WR) { // WR is active low
-        bus_signals &= ~bus_signal_WR; 
-        handle_bus_release();
-    } else {
-        bus_signals |= bus_signal_WR; 
-        handle_bus_request();
-    }
-}
+    if((GPIOC->IDR & BUS_PIN_MASK) == bus_request_WR) {
 
-// XXX Should I just read A7 directly in handle_bus_request()?
-void EXTI4_IRQHandler(void)
-{
-    if(GPIOC->IDR & BUS_PIN_A7) {
-        bus_signals |= bus_signal_A7; 
+        unsigned char data;
+        data = get_GPIOA_0_7_value();
+        command_bytes[command_length++] = data;
+
     } else {
-        bus_signals &= ~bus_signal_A7; 
+
+        set_GPIOA_0_7_as_input();
     }
 }
 
@@ -998,10 +956,16 @@ void setup_host()
 
     set_GPIOA_0_7_as_input();
 
-    // port C pins as inputs driving interrupts
-    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_4;
+    // port C pins 1, 2 as inputs driving interrupts
+    GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_2;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+
+    // port C pins 0, 4, as inputs
+    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_4;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
 
     /* Enable and set EXTI Line0 Interrupt to the highest? priority */
