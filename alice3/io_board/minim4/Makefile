@@ -12,16 +12,16 @@ STM32F4XX_CMSIS_INC_PATH        = $(STM32FCUBEROOT)/Drivers/CMSIS/Include/
 CORTEX_M4_HWFP_LIB_PATH = $(GCC_LIB)/armv7e-m/fpu
 
 OBJECTS = \
-        startup_stm32f417xx.o \
-        system_stm32f4xx.o \
-        stm32f4xx_it.o \
-        stm32f4xx_hal_cortex.o \
-        stm32f4xx_hal_dma.o \
-        stm32f4xx_hal_gpio.o \
-        stm32f4xx_hal_rcc.o \
-        stm32f4xx_hal_uart.o \
-        stm32f4xx_hal_spi.o \
-        stm32f4xx_hal.o \
+        STM32Cube4/startup_stm32f417xx.o \
+        STM32Cube4/system_stm32f4xx.o \
+        STM32Cube4/stm32f4xx_it.o \
+        STM32Cube4/stm32f4xx_hal_cortex.o \
+        STM32Cube4/stm32f4xx_hal_dma.o \
+        STM32Cube4/stm32f4xx_hal_gpio.o \
+        STM32Cube4/stm32f4xx_hal_rcc.o \
+        STM32Cube4/stm32f4xx_hal_uart.o \
+        STM32Cube4/stm32f4xx_hal_spi.o \
+        STM32Cube4/stm32f4xx_hal.o \
         syscalls.o \
         $(NULL)
 
@@ -31,11 +31,11 @@ ioboard.hex: ioboard.elf
 ioboard.elf:  $(OBJECTS) ioboard.o
 	$(TOOLROOT)/bin/arm-none-eabi-gcc $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS) -DSTM32F415xx -L$(CORTEX_M4_HWFP_LIB_PATH) -TSTM32F415RG_FLASH.ld -lm -specs=nosys.specs -Wl,--gc-sections $^ -o $@
 
-startup_stm32f417xx.o: startup_stm32f417xx.s
+STM32Cube4/startup_stm32f417xx.o: STM32Cube4/startup_stm32f417xx.s
 	$(TOOLROOT)/bin/arm-none-eabi-gcc -Wall $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
 
 %.o: %.c
-	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
+	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
 
 clean:
 	rm *.hex *.elf *.o

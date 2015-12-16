@@ -5,7 +5,7 @@
 #define XSTR(x) STR(x)
 #define STR(x) # x
 
-#include "stm32f4xx_hal.h"
+#include <stm32f4xx_hal.h>
 
 #define enable_interrupts() __enable_irq()
 #define disable_interrupts() __disable_irq()
