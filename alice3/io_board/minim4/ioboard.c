@@ -876,30 +876,12 @@ const unsigned int bus_requires_write_mask =
 
 void set_GPIOA_0_7_as_input()
 {
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    // port A pins as inputs
-    GPIO_InitStruct.Pin =
-        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
-        GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // XXX Can interpolate HAL_GPIO_Init here and hardcode
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+    GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x0;          // INPUT
 }
 
 void set_GPIOA_0_7_as_output()
 {
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    // port A pins as inputs
-    GPIO_InitStruct.Pin =
-        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
-        GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    // XXX Can interpolate HAL_GPIO_Init here and hardcode
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+    GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x5555;       // OUTPUT
 }
 
 unsigned char get_GPIOA_0_7_value()
@@ -913,7 +895,7 @@ void set_GPIOA_0_7_value(unsigned char data)
     GPIOA->BSRR = (~data) & 0xff << 16;
 }
 
-void handle_bus()
+void handle_bus_request()
 {
     if(bus_signals == bus_requires_read_mask) {
 
@@ -943,56 +925,63 @@ void handle_bus()
 
         command_bytes[command_length++] = data;
         
-    } else {
-
-        set_GPIOA_0_7_as_input();
     }
 }
 
+void handle_bus_release()
+{
+    set_GPIOA_0_7_as_input();
+}
+
 //
-// XXX probably could go more optimized below by actually storing GPIOC->IDR & masks and comparing directly
+// XXX probably could go more optimized below by actually storing
+// (GPIOC->IDR & 0b10111) and comparing directly, but then code would be
+// bound to GPIOC.
+//
+// XXX alternate implementation 
 //
 
 void EXTI0_IRQHandler(void)
 {
-    if(GPIOC->IDR & BUS_PIN_IORQ)
+    if(GPIOC->IDR & BUS_PIN_IORQ) { // IORQ is active low
         bus_signals &= ~bus_signal_IORQ; 
-    else
+        handle_bus_release();
+    } else {
         bus_signals |= bus_signal_IORQ; 
-
-    handle_bus();
+        handle_bus_request();
+    }
 }
 
 void EXTI1_IRQHandler(void)
 {
-    if(GPIOC->IDR & BUS_PIN_RD)
+    if(GPIOC->IDR & BUS_PIN_RD) { // RD is active low
         bus_signals &= ~bus_signal_RD; 
-    else
+        handle_bus_release();
+    } else {
         bus_signals |= bus_signal_RD; 
-
-    handle_bus();
+        handle_bus_request();
+    }
 }
 
 void EXTI2_IRQHandler(void)
 {
-    if(GPIOC->IDR & BUS_PIN_WR)
+    if(GPIOC->IDR & BUS_PIN_WR) { // WR is active low
         bus_signals &= ~bus_signal_WR; 
-    else
+        handle_bus_release();
+    } else {
         bus_signals |= bus_signal_WR; 
-
-    handle_bus();
+        handle_bus_request();
+    }
 }
- 
+
+// XXX Should I just read A7 directly in handle_bus_request()?
 void EXTI4_IRQHandler(void)
 {
-    if(GPIOC->IDR & BUS_PIN_A7)
-        bus_signals &= ~bus_signal_A7; 
-    else
+    if(GPIOC->IDR & BUS_PIN_A7) {
         bus_signals |= bus_signal_A7; 
-
-    // XXX we know A7 settles before Z80 asserts IORQ, RD, or WR,
-    // so skip checking bus flags
-    // handle_bus();
+    } else {
+        bus_signals &= ~bus_signal_A7; 
+    }
 }
 
 void setup_host()
@@ -1001,6 +990,11 @@ void setup_host()
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    // configure PORTA outputs for later
+    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;    // LOW
+    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
+    GPIOA->PUPDR = 0x0000;                                  // no PUPD
 
     set_GPIOA_0_7_as_input();
 
