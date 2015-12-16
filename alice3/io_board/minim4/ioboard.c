@@ -746,41 +746,42 @@ void setup_serial()
 //----------------------------------------------------------------------------
 // Alice 3 Bus
 
-void master_reset_init(void)
+
+void z80_reset_init(void)
 {
     // TODO /RESET control
 }
 
-void master_reset_start()
+void z80_reset_start()
 {
     // TODO
     delay_ms(1);
 }
 
-void master_reset_finish()
+void z80_reset_finish()
 {
     // TODO
 }
 
-void master_interrupt_init(void)
+void z80_interrupt_init(void)
 {
     // TODO
 }
 
-void master_interrupt_start()
+void z80_interrupt_start()
 {
     // TODO
     delay_ms(1);
 }
 
-void master_interrupt_finish()
+void z80_interrupt_finish()
 {
     // TODO
 }
 
 
-volatile unsigned char serial_is_monitor;
-volatile unsigned char ioboard_monitor_latch;
+volatile unsigned char serial_is_monitor = 1;
+volatile unsigned char ioboard_monitor_latch = 0;
 
 #define IOBOARD_POLL_AGAIN 0x00
 #define IOBOARD_SUCCESS 0x01
@@ -832,7 +833,7 @@ void response_finish()
 }
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
-const unsigned char PIC_command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
+const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
 
 void command_clear()
 {
@@ -851,9 +852,179 @@ void response_clear()
     enable_interrupts();
 }
 
-void setup_slave_port()
+unsigned int bus_signals = 0x0;
+// Had defined these as const ints, but need to do math with them
+// below and that gave "initializer not a constant value"
+#define bus_signal_IORQ 0x01      // C 0
+#define BUS_PIN_IORQ 0 
+#define bus_signal_RD 0x02        // C 1
+#define BUS_PIN_RD 1 
+#define bus_signal_WR 0x04        // C 2
+#define BUS_PIN_WR 2 
+#define bus_signal_A7 0x08        // C 4
+#define BUS_PIN_A7 4
+
+const unsigned int bus_requires_read_mask =
+    bus_signal_IORQ |
+    bus_signal_RD |
+    bus_signal_A7;
+
+const unsigned int bus_requires_write_mask =
+    bus_signal_IORQ |
+    bus_signal_WR |
+    bus_signal_A7;
+
+void set_GPIOA_0_7_as_input()
 {
-    // TODO
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    // port A pins as inputs
+    GPIO_InitStruct.Pin =
+        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+        GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    // XXX Can interpolate HAL_GPIO_Init here and hardcode
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+}
+
+void set_GPIOA_0_7_as_output()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    // port A pins as inputs
+    GPIO_InitStruct.Pin =
+        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 |
+        GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    // XXX Can interpolate HAL_GPIO_Init here and hardcode
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+}
+
+unsigned char get_GPIOA_0_7_value()
+{
+    return GPIOA->IDR & 0xff;
+}
+
+void set_GPIOA_0_7_value(unsigned char data)
+{
+    GPIOA->BSRR = data;
+    GPIOA->BSRR = (~data) & 0xff << 16;
+}
+
+void handle_bus()
+{
+    if(bus_signals == bus_requires_read_mask) {
+
+        unsigned char data;
+
+        if(response_length > 0 || response_index >= response_length) {
+
+            response_index = 0;
+            response_length = 0;
+            response_waiting = 0;
+            data = 0;
+
+        } else  {
+
+            data = response_bytes[response_index];
+            response_index++;
+        }
+
+        set_GPIOA_0_7_as_output();
+        set_GPIOA_0_7_value(data);
+
+    } else if(bus_signals == bus_requires_write_mask) {
+
+        unsigned char data;
+
+        data = get_GPIOA_0_7_value();
+
+        command_bytes[command_length++] = data;
+        
+    } else {
+
+        set_GPIOA_0_7_as_input();
+    }
+}
+
+//
+// XXX probably could go more optimized below by actually storing GPIOC->IDR & masks and comparing directly
+//
+
+void EXTI0_IRQHandler(void)
+{
+    if(GPIOC->IDR & BUS_PIN_IORQ)
+        bus_signals &= ~bus_signal_IORQ; 
+    else
+        bus_signals |= bus_signal_IORQ; 
+
+    handle_bus();
+}
+
+void EXTI1_IRQHandler(void)
+{
+    if(GPIOC->IDR & BUS_PIN_RD)
+        bus_signals &= ~bus_signal_RD; 
+    else
+        bus_signals |= bus_signal_RD; 
+
+    handle_bus();
+}
+
+void EXTI2_IRQHandler(void)
+{
+    if(GPIOC->IDR & BUS_PIN_WR)
+        bus_signals &= ~bus_signal_WR; 
+    else
+        bus_signals |= bus_signal_WR; 
+
+    handle_bus();
+}
+ 
+void EXTI4_IRQHandler(void)
+{
+    if(GPIOC->IDR & BUS_PIN_A7)
+        bus_signals &= ~bus_signal_A7; 
+    else
+        bus_signals |= bus_signal_A7; 
+
+    // XXX we know A7 settles before Z80 asserts IORQ, RD, or WR,
+    // so skip checking bus flags
+    // handle_bus();
+}
+
+void setup_host()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    set_GPIOA_0_7_as_input();
+
+    // port C pins as inputs driving interrupts
+    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_4;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+
+    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
+    HAL_NVIC_SetPriority(EXTI0_IRQn, 16, 0);
+    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
+    HAL_NVIC_SetPriority(EXTI1_IRQn, 16, 0);
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
+    HAL_NVIC_SetPriority(EXTI2_IRQn, 16, 0);
+    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
+    HAL_NVIC_SetPriority(EXTI4_IRQn, 16, 0);
+    HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 
@@ -1517,18 +1688,18 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(local_command, "reset") == 0) {
 
-            master_reset_start();
+            z80_reset_start();
             printf("Resetting Z-80 and communication buffers...\n");
             response_clear();
             command_clear();
-            master_reset_finish();
+            z80_reset_finish();
 
         } else if(strcmp(local_command, "int") == 0) {
 
-            master_interrupt_start();
+            z80_interrupt_start();
             printf("Interupting Z-80...");
             putchar('\n');
-            master_interrupt_finish();
+            z80_interrupt_finish();
 
         } else if(strcmp(local_command, "clear") == 0) {
 
@@ -1681,17 +1852,13 @@ int main()
 
     LED_heartbeat();
 
-    serial_is_monitor = 1;
-    ioboard_monitor_latch = 0;
-
-    master_reset_init();
-
-    master_interrupt_init();
+    z80_reset_init();
+    z80_interrupt_init();
 
     setbuf(stdout, NULL);
     setup_serial(); // transmit and receive but global interrupts disabled
 
-    printf("\n\nAlice 3 I/O PIC firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
+    printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     LED_heartbeat();
 
     spi_config_for_sd();
@@ -1705,7 +1872,7 @@ int main()
 
     if(0) test_sd_card();
 
-    setup_slave_port();
+    setup_host();
 
     setup_keyboard();
 
@@ -1749,12 +1916,12 @@ int main()
 
             if((command_byte < IOBOARD_CMD_MIN) || (command_byte > IOBOARD_CMD_MAX)) {
 
-                if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown PIC command 0x%02X received\n", command_byte);
+                if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown command 0x%02X received\n", command_byte);
                 command_clear();
 
             } else {
 
-                if(command_length == PIC_command_lengths[command_byte]) {
+                if(command_length == command_lengths[command_byte]) {
                     command_request = command_byte;
                     if(debug >= DEBUG_EVENTS) printf("complete command received.\n");
                 }
@@ -1907,7 +2074,7 @@ int main()
                 }
 
                 default: {
-                    printf("unexpected command 0x%02X from host!\n", command_request);
+                    printf("unexpected command 0x%02X from z80!\n", command_request);
                     break;
                 }
             }
