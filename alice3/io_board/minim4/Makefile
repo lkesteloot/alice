@@ -38,4 +38,4 @@ STM32Cube4/startup_stm32f417xx.o: STM32Cube4/startup_stm32f417xx.s
 	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
 
 clean:
-	rm *.hex *.elf *.o
+	rm -f *.hex *.elf *.o $(OBJECTS)
