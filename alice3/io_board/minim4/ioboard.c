@@ -898,10 +898,12 @@ void response_clear()
 #define PIN_A7 GPIO_PIN_4
 
 #define BUS_PIN_MASK (PIN_IORQ | PIN_RD | PIN_WR | PIN_A7)
+#define IO_BOARD_ADDR   0
+#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & PIN_A7)
 
-const unsigned int bus_request_RD = PIN_WR | PIN_A7; // IORQ and RD 0
+const unsigned int bus_request_RD = PIN_WR | IO_BOARD_ADDR_PINS; // IORQ and RD 0
 
-const unsigned int bus_request_WR = PIN_RD | PIN_A7; // IORQ and WR 0
+const unsigned int bus_request_WR = PIN_RD | IO_BOARD_ADDR_PINS; // IORQ and WR 0
 
 void set_GPIOA_0_7_as_input()
 {
@@ -1913,6 +1915,7 @@ int main()
 
         if(command_request != IOBOARD_CMD_NONE) {
             response_start();
+            LED_set_info(1);
             switch(command_request) {
                 case IOBOARD_CMD_READ:
                 case IOBOARD_CMD_READ_SUM:
@@ -2061,6 +2064,7 @@ int main()
                     break;
                 }
             }
+            LED_set_info(0);
 
             if(response_staging_length > 0) {
                 if(debug >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
