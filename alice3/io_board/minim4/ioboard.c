@@ -40,16 +40,24 @@ void LED_heartbeat()
 {
     // TODO green heartbeat toggling .5Hz
     unsigned int now = HAL_GetTick();
-    if(now - previous_heartbeat_tick > 800) {
-        heartbeat_level = heartbeat_level ? 0 : 1;
-        HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
-        previous_heartbeat_tick = now;
+    if(heartbeat_level == 1) {
+        if(now - previous_heartbeat_tick > 350) {
+            heartbeat_level = 0;
+            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
+            previous_heartbeat_tick = now;
+        }
+    } else {
+        if(now - previous_heartbeat_tick > 650) {
+            heartbeat_level = 1;
+            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
+            previous_heartbeat_tick = now;
+        }
     }
 }
 
-void LED_set_command(int on)
+void LED_set_info(int on)
 {
-    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN, 1);
+    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN, on);
 }
 
 void LED_setup()
@@ -642,7 +650,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   
   /*##-1- Enable peripherals and GPIO Clocks #################################*/
   /* Enable GPIO TX/RX clock */
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+  // __HAL_RCC_GPIOB_CLK_ENABLE();
   
   /* Enable USART clock */
   __HAL_RCC_USART1_CLK_ENABLE(); 
@@ -891,9 +899,9 @@ void response_clear()
 
 #define BUS_PIN_MASK (PIN_IORQ | PIN_RD | PIN_WR | PIN_A7)
 
-const unsigned int bus_request_RD = PIN_A7; // IORQ and RD 0
+const unsigned int bus_request_RD = PIN_WR | PIN_A7; // IORQ and RD 0
 
-const unsigned int bus_request_WR = PIN_A7; // IORQ and RD 0
+const unsigned int bus_request_WR = PIN_RD | PIN_A7; // IORQ and WR 0
 
 void set_GPIOA_0_7_as_input()
 {
@@ -912,8 +920,7 @@ unsigned char get_GPIOA_0_7_value()
 
 void set_GPIOA_0_7_value(unsigned char data)
 {
-    GPIOA->BSRR = data;
-    GPIOA->BSRR = (~data) & 0xff << 16;
+    GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
 void EXTI1_IRQHandler(void)
@@ -922,17 +929,20 @@ void EXTI1_IRQHandler(void)
 
         unsigned char data;
 
-        if(response_index >= response_length) {
+        if(response_length == 0) {
 
-            response_index = 0;
-            response_length = 0;
-            response_waiting = 0;
             data = 0;
 
         } else  {
 
             data = response_bytes[response_index];
             response_index++;
+
+            if(response_index >= response_length) {
+                response_index = 0;
+                response_length = 0;
+                response_waiting = 0;
+            }
         }
 
         set_GPIOA_0_7_as_output();
@@ -942,6 +952,9 @@ void EXTI1_IRQHandler(void)
 
         set_GPIOA_0_7_as_input();
     }
+
+    __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+    HAL_NVIC_ClearPendingIRQ(EXTI1_IRQn);
 }
 
 void EXTI2_IRQHandler(void)
@@ -956,16 +969,21 @@ void EXTI2_IRQHandler(void)
 
         set_GPIOA_0_7_as_input();
     }
+
+    __HAL_GPIO_EXTI_CLEAR_IT(PIN_WR);
+    HAL_NVIC_ClearPendingIRQ(EXTI2_IRQn);
 }
 
 void setup_host()
 {
+    command_clear();
+    response_clear();
+
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
+    // __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    // configure PORTA outputs for later
+    // configure PORT A0:A7 outputs for later
     GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;    // LOW
     GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
     GPIOA->PUPDR = 0x0000;                                  // no PUPD
@@ -1006,7 +1024,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     /* Enable GPIO CK/TX/RX clocks */
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    // __HAL_RCC_GPIOB_CLK_ENABLE();
     /* Enable SPI clock */
     __HAL_RCC_SPI2_CLK_ENABLE();
 
@@ -1596,6 +1614,7 @@ void usage()
     printf("pass       - pass monitor keys to Z80\n");
     printf("version    - print firmware build version\n");
     printf("read N     - read and dump block\n");
+    printf("bus        - print bus line status\n");
     printf("panic      - force panic\n");
 }
 
@@ -1613,6 +1632,23 @@ void process_local_key(unsigned char c)
            (strcmp(local_command, "?") == 0)) {
 
             usage();
+
+        } else if(strcmp(local_command, "bus") == 0) {
+
+            unsigned char control = GPIOC->IDR & BUS_PIN_MASK;
+            printf("control = 0x%02X\n", control);
+            printf("    ");
+            if(!(control & PIN_IORQ))
+                printf("IORQ ");
+            if(!(control & PIN_RD))
+                printf("RD ");
+            if(!(control & PIN_WR))
+                printf("WR ");
+            printf("\n");
+            printf("    A7 = %d\n", control & PIN_A7 ? 1 : 0);
+
+            unsigned char data = get_GPIOA_0_7_value();
+            printf("data = 0x%02X\n", data);
 
         } else if(strcmp(local_command, "sdreset") == 0) {
 
