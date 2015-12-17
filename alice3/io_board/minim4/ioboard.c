@@ -20,9 +20,18 @@ void delay_100ms(unsigned char count)
     HAL_Delay(count * 100);
 }
 
+#define PANIC_LED_PIN GPIO_PIN_13 
+#define PANIC_LED_PORT GPIOC
+
+#define INFO_LED_PIN GPIO_PIN_12 
+#define INFO_LED_PORT GPIOC
+
+#define HEARTBEAT_LED_PIN GPIO_PIN_15 
+#define HEARTBEAT_LED_PORT GPIOA
+
 void LED_set_panic(int on)
 {
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+    HAL_GPIO_WritePin(PANIC_LED_PORT, PANIC_LED_PIN, on);
 }
 
 static int heartbeat_level = 1;
@@ -33,47 +42,51 @@ void LED_heartbeat()
     unsigned int now = HAL_GetTick();
     if(now - previous_heartbeat_tick > 800) {
         heartbeat_level = heartbeat_level ? 0 : 1;
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, heartbeat_level);
+        HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
         previous_heartbeat_tick = now;
     }
 }
 
 void LED_set_command(int on)
 {
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, 1);
+    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN, 1);
 }
 
 void LED_setup()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-
-    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
+    GPIO_InitStruct.Pin = HEARTBEAT_LED_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+    HAL_GPIO_Init(HEARTBEAT_LED_PORT, &GPIO_InitStruct); 
 
-    __HAL_RCC_GPIOC_CLK_ENABLE();
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 1);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_13 | GPIO_PIN_12;
+    GPIO_InitStruct.Pin = PANIC_LED_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+    HAL_GPIO_Init(PANIC_LED_PORT, &GPIO_InitStruct); 
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+    GPIO_InitStruct.Pin = INFO_LED_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+    HAL_GPIO_Init(INFO_LED_PORT, &GPIO_InitStruct); 
 }
 
 void panic_worse()
 {
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 0);
     LED_set_panic(1);
     for(;;);
 }
 
 static void panic(void)
 {
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 0);
     int pin = 0;
     for(;;) {
         LED_set_panic(pin);
@@ -202,6 +215,10 @@ void system_setup()
 
     /* Configure the system clock to 100 MHz */
     SystemClock_Config();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
 }
 
 
@@ -705,8 +722,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     if((result = HAL_UART_Receive_IT(&UartHandle, (uint8_t *)&serial_char, 1)) != HAL_OK)
         error_code = UartHandle.State;
     mon_enqueue(tmp);
-
-    // HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_1); // toggles on callback, not on success
 }
 
 void setup_serial()
@@ -746,53 +761,54 @@ void setup_serial()
 //----------------------------------------------------------------------------
 // Alice 3 Bus
 
+#define Z80_RESET_PIN GPIO_PIN_0
+#define Z80_RESET_PORT GPIOB
+
+#define Z80_INT_PIN GPIO_PIN_1
+#define Z80_INT_PORT GPIOB
 
 void z80_reset_init(void)
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Pin = Z80_RESET_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); 
+    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
 }
 
 void z80_reset_start()
 {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 0);
     delay_ms(1);
 }
 
 void z80_reset_finish()
 {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, 1);
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 1);
 }
 
 void z80_interrupt_init(void)
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    GPIO_InitStruct.Pin = GPIO_PIN_1;
+    GPIO_InitStruct.Pin = Z80_INT_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); 
+    HAL_GPIO_Init(Z80_INT_PORT, &GPIO_InitStruct); 
 }
 
 void z80_interrupt_start()
 {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 0);
     delay_ms(1);
 }
 
 void z80_interrupt_finish()
 {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 1);
 }
 
 
@@ -957,32 +973,24 @@ void setup_host()
     set_GPIOA_0_7_as_input();
 
     // port C pins 1, 2 as inputs driving interrupts
-    GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_2;
+    GPIO_InitStruct.Pin = PIN_RD | PIN_WR;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
 
     // port C pins 0, 4, as inputs
-    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_4;
+    GPIO_InitStruct.Pin = PIN_IORQ | PIN_A7;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
 
     /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI0_IRQn, 16, 0);
-    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-
-    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI1_IRQn, 16, 0);
+    HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
     /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI2_IRQn, 16, 0);
+    HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI4_IRQn, 16, 0);
-    HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 
@@ -992,26 +1000,6 @@ void setup_host()
 /* SD card -----------------------------------------------------------------*/
 
 SPI_HandleTypeDef SpiHandle;
-
-#define SPIx                             SPI2
-#define SPIx_CLK_ENABLE()                __HAL_RCC_SPI2_CLK_ENABLE()
-#define SPIx_SCK_GPIO_CLK_ENABLE()       __HAL_RCC_GPIOB_CLK_ENABLE()
-#define SPIx_MISO_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
-#define SPIx_MOSI_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOB_CLK_ENABLE()
-
-#define SPIx_FORCE_RESET()               __HAL_RCC_SPI2_FORCE_RESET()
-#define SPIx_RELEASE_RESET()             __HAL_RCC_SPI2_RELEASE_RESET()
-
-/* Definition for SPIx Pins */
-#define SPIx_SCK_PIN                     GPIO_PIN_13
-#define SPIx_SCK_GPIO_PORT               GPIOB
-#define SPIx_SCK_AF                      GPIO_AF5_SPI2
-#define SPIx_MISO_PIN                    GPIO_PIN_14
-#define SPIx_MISO_GPIO_PORT              GPIOB
-#define SPIx_MISO_AF                     GPIO_AF5_SPI2
-#define SPIx_MOSI_PIN                    GPIO_PIN_15
-#define SPIx_MOSI_GPIO_PORT              GPIOB
-#define SPIx_MOSI_AF                     GPIO_AF5_SPI2
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
@@ -1062,15 +1050,18 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_15);
 }
 
+#define SPI_SD_PIN      GPIO_PIN_8
+#define SPI_SD_PORT     GPIOA
+
 void spi_enable_sd()
 {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 0);     // SS true
+    HAL_GPIO_WritePin(SPI_SD_PORT, SPI_SD_PIN, 0);     // SS true
     delay_ms(100);
 }
 
 void spi_disable_sd()
 {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, 1);     // SS false
+    HAL_GPIO_WritePin(SPI_SD_PORT, SPI_SD_PIN, 1);     // SS false
     delay_ms(100);
 }
 
@@ -1101,14 +1092,12 @@ void spi_config_for_sd()
         panic();
     }
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-
     // SD /CS card select, slave select /SS
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    GPIO_InitStruct.Pin = SPI_SD_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match high SPI rate
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct); 
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match SPI rate?
+    HAL_GPIO_Init(SPI_SD_PORT, &GPIO_InitStruct); 
     spi_disable_sd();
 }
 
