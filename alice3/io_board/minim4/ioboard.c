@@ -34,10 +34,11 @@ void LED_set_panic(int on)
     HAL_GPIO_WritePin(PANIC_LED_PORT, PANIC_LED_PIN, on);
 }
 
-static int heartbeat_level = 1;
-static unsigned int previous_heartbeat_tick = 0;
 void LED_heartbeat()
 {
+    static int heartbeat_level = 1;
+    static unsigned int previous_heartbeat_tick = 0;
+
     // TODO green heartbeat toggling .5Hz
     unsigned int now = HAL_GetTick();
     if(heartbeat_level == 1) {
@@ -113,10 +114,10 @@ int isprint(unsigned char a)
     return (a >= ' ') && (a <= '~');
 }
 
-unsigned char console_overflowed = 0;
-unsigned char keyboard_overflowed = 0;
+unsigned char gConsoleOverflowed = 0;
+unsigned char gKeyboardOverflowed = 0;
 
-enum debug_levels {
+enum DebugLevels {
     DEBUG_SILENT = 0,
     DEBUG_ERRORS,
     DEBUG_WARNINGS,
@@ -125,7 +126,7 @@ enum debug_levels {
     DEBUG_ALL,
     DEBUG_INSANE = 99,
 };
-int debug = DEBUG_WARNINGS;
+int gDebugLevel = DEBUG_WARNINGS;
 
 void dump_buffer_hex(int indent, unsigned char *data, int size)
 {
@@ -340,7 +341,7 @@ void console_enqueue_key(unsigned char d)
     full = con_queue_isfull();
     enable_interrupts();
     if(full) {
-        console_overflowed = 1;
+        gConsoleOverflowed = 1;
     } else {
         disable_interrupts();
         con_enqueue(d);
@@ -354,7 +355,7 @@ void console_enqueue_key_unsafe(unsigned char d)
     unsigned char full;
     full = con_queue_isfull();
     if(full) {
-        console_overflowed = 1;
+        gConsoleOverflowed = 1;
     } else {
         con_enqueue(d);
     }
@@ -624,7 +625,7 @@ void setup_keyboard()
         kbd_bits++;
         if(kbd_bits == KBD_BIT_COUNT) {
             if(kbd_queue_isfull()) {
-                keyboard_overflowed = 1;
+                gKeyboardOverflowed = 1;
             } else {
                 kbd_enqueue((kbd_data >> 1) & 0xff);
             }
@@ -637,11 +638,11 @@ void setup_keyboard()
 /*--------------------------------------------------------------------------*/
 /* USART - serial comms ----------------------------------------------------*/
 
-static UART_HandleTypeDef UartHandle;
+static UART_HandleTypeDef gUARTHandle;
 
 void USART1_IRQHandler(void)
 {
-  HAL_UART_IRQHandler(&UartHandle);
+  HAL_UART_IRQHandler(&gUARTHandle);
 }
 
 void HAL_UART_MspInit(UART_HandleTypeDef *huart)
@@ -705,30 +706,28 @@ void __io_putchar( char c )
 
     uint32_t tmp1 = 0;
     do {
-        tmp1 = UartHandle.State;
+        tmp1 = gUARTHandle.State;
     } while ((tmp1 == HAL_UART_STATE_BUSY_TX) || (tmp1 == HAL_UART_STATE_BUSY_TX_RX));
 
-    if(HAL_UART_Transmit_IT(&UartHandle, (uint8_t *)&tmp, 1) != HAL_OK) {
+    if(HAL_UART_Transmit_IT(&gUARTHandle, (uint8_t *)&tmp, 1) != HAL_OK) {
         panic();
     }
 }
 
-volatile char serial_char;
-volatile unsigned int error_code = 0;
+volatile char gSerialCharBuffer;
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
-    error_code = UartHandle.ErrorCode;
+    panic();
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     int result;
-    unsigned char tmp = serial_char;
-    if(UartHandle.ErrorCode != HAL_UART_ERROR_NONE)
-        error_code = UartHandle.ErrorCode;
-    if((result = HAL_UART_Receive_IT(&UartHandle, (uint8_t *)&serial_char, 1)) != HAL_OK)
-        error_code = UartHandle.State;
+    unsigned char tmp = gSerialCharBuffer;
+    if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
+        /* error_code = gUARTHandle.State; */
+    }
     mon_enqueue(tmp);
 }
 
@@ -742,23 +741,23 @@ void setup_serial()
         - Parity = ODD parity
         - BaudRate = 115200 baud
         - Hardware flow control disabled (RTS and CTS signals) */
-    UartHandle.Instance          = USART1;
+    gUARTHandle.Instance          = USART1;
     
-    UartHandle.Init.BaudRate     = 115200;
-    UartHandle.Init.WordLength   = UART_WORDLENGTH_8B;
-    UartHandle.Init.StopBits     = UART_STOPBITS_1;
-    UartHandle.Init.Parity       = UART_PARITY_NONE;
-    UartHandle.Init.HwFlowCtl    = UART_HWCONTROL_RTS_CTS;
-    UartHandle.Init.Mode         = UART_MODE_TX_RX;
-    UartHandle.Init.OverSampling = UART_OVERSAMPLING_16;
+    gUARTHandle.Init.BaudRate     = 115200;
+    gUARTHandle.Init.WordLength   = UART_WORDLENGTH_8B;
+    gUARTHandle.Init.StopBits     = UART_STOPBITS_1;
+    gUARTHandle.Init.Parity       = UART_PARITY_NONE;
+    gUARTHandle.Init.HwFlowCtl    = UART_HWCONTROL_RTS_CTS;
+    gUARTHandle.Init.Mode         = UART_MODE_TX_RX;
+    gUARTHandle.Init.OverSampling = UART_OVERSAMPLING_16;
       
-    if(HAL_UART_Init(&UartHandle) != HAL_OK)
+    if(HAL_UART_Init(&gUARTHandle) != HAL_OK)
     {
       /* Initialization Error */
       panic(); 
     }
 
-    if(HAL_UART_Receive_IT(&UartHandle, (uint8_t *)&serial_char, 1) != HAL_OK)
+    if(HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1) != HAL_OK)
     {
       /* Transfer error in reception process */
       panic();
@@ -820,8 +819,8 @@ void z80_interrupt_finish()
 }
 
 
-volatile unsigned char serial_is_monitor = 1;
-volatile unsigned char ioboard_monitor_latch = 0;
+volatile unsigned char gSerialInputToMonitor = 1;
+volatile unsigned char gEscapeBackToMonitor = 0;
 
 #define IOBOARD_POLL_AGAIN 0x00
 #define IOBOARD_SUCCESS 0x01
@@ -901,9 +900,8 @@ void response_clear()
 #define IO_BOARD_ADDR   0
 #define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & PIN_A7)
 
-const unsigned int bus_request_RD = PIN_WR | IO_BOARD_ADDR_PINS; // IORQ and RD 0
-
-const unsigned int bus_request_WR = PIN_RD | IO_BOARD_ADDR_PINS; // IORQ and WR 0
+const unsigned int gREADSignals = PIN_WR | IO_BOARD_ADDR_PINS; // IORQ and RD 0
+const unsigned int gWRITESignals = PIN_RD | IO_BOARD_ADDR_PINS; // IORQ and WR 0
 
 void set_GPIOA_0_7_as_input()
 {
@@ -927,18 +925,16 @@ void set_GPIOA_0_7_value(unsigned char data)
 
 void EXTI1_IRQHandler(void)
 {
-    if((GPIOC->IDR & BUS_PIN_MASK) == bus_request_RD) {
+    __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+    NVIC_ClearPendingIRQ(EXTI1_IRQn);
 
-        unsigned char data;
+    if((GPIOC->IDR & BUS_PIN_MASK) == gREADSignals) {
 
-        if(response_length == 0) {
+        unsigned char data = IOBOARD_POLL_AGAIN;
 
-            data = 0;
+        if(response_length > 0) {
 
-        } else  {
-
-            data = response_bytes[response_index];
-            response_index++;
+            data = response_bytes[response_index++];
 
             if(response_index >= response_length) {
                 response_index = 0;
@@ -947,33 +943,25 @@ void EXTI1_IRQHandler(void)
             }
         }
 
-        set_GPIOA_0_7_as_output();
         set_GPIOA_0_7_value(data);
+        set_GPIOA_0_7_as_output();
 
     } else {
 
         set_GPIOA_0_7_as_input();
     }
-
-    __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
-    HAL_NVIC_ClearPendingIRQ(EXTI1_IRQn);
 }
 
 void EXTI2_IRQHandler(void)
 {
-    if((GPIOC->IDR & BUS_PIN_MASK) == bus_request_WR) {
-
-        unsigned char data;
-        data = get_GPIOA_0_7_value();
-        command_bytes[command_length++] = data;
-
-    } else {
-
-        set_GPIOA_0_7_as_input();
-    }
-
     __HAL_GPIO_EXTI_CLEAR_IT(PIN_WR);
-    HAL_NVIC_ClearPendingIRQ(EXTI2_IRQn);
+    NVIC_ClearPendingIRQ(EXTI2_IRQn);
+
+    if((GPIOC->IDR & BUS_PIN_MASK) == gWRITESignals) {
+
+        command_bytes[command_length++] = get_GPIOA_0_7_value();
+
+    }
 }
 
 void setup_host()
@@ -1014,12 +1002,10 @@ void setup_host()
 }
 
 
-
-
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
 
-SPI_HandleTypeDef SpiHandle;
+SPI_HandleTypeDef gSPIHandle;
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
@@ -1090,23 +1076,23 @@ void spi_config_for_sd()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    SpiHandle.Instance               = SPI2;
+    gSPIHandle.Instance               = SPI2;
 
     // SPI2 is APB1, which is 1/4 system clock, or at 168MHz, APB1 is
     // 42MHz.  INit should be at  100KHz - 400 KHz, 128 will be 328.124Khz
-    SpiHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
-    SpiHandle.Init.Direction         = SPI_DIRECTION_2LINES;
-    SpiHandle.Init.CLKPhase          = SPI_PHASE_2EDGE;
-    SpiHandle.Init.CLKPolarity       = SPI_POLARITY_HIGH;
-    SpiHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
-    SpiHandle.Init.CRCPolynomial     = 7;
-    SpiHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
-    SpiHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
-    SpiHandle.Init.NSS               = SPI_NSS_SOFT;
-    SpiHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
-    SpiHandle.Init.Mode              = SPI_MODE_MASTER;
+    gSPIHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+    gSPIHandle.Init.Direction         = SPI_DIRECTION_2LINES;
+    gSPIHandle.Init.CLKPhase          = SPI_PHASE_2EDGE;
+    gSPIHandle.Init.CLKPolarity       = SPI_POLARITY_HIGH;
+    gSPIHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    gSPIHandle.Init.CRCPolynomial     = 7;
+    gSPIHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
+    gSPIHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    gSPIHandle.Init.NSS               = SPI_NSS_SOFT;
+    gSPIHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
+    gSPIHandle.Init.Mode              = SPI_MODE_MASTER;
 
-    if(HAL_SPI_Init(&SpiHandle) != HAL_OK)
+    if(HAL_SPI_Init(&gSPIHandle) != HAL_OK)
     {
         printf("failed to initialize SPI\n");
         panic();
@@ -1216,14 +1202,15 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
     return crc;
 }
 
-int sdcard_timeout_ms = 100;
+int gSDCardTimeoutMillis = 100;
 
 #define BLOCK_SIZE 512
 
-unsigned char block_buffer[BLOCK_SIZE];
+int gCachedBlockNumber = 0xffff;
+unsigned char gCachedBlock[BLOCK_SIZE];
 
 // cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
-enum sdcard_command {
+enum SDCardCommand {
     CMD0 = 0,    // init; go to idle state
     CMD8 = 8,    // send interface condition
     CMD17 = 17,  // read single block
@@ -1231,23 +1218,23 @@ enum sdcard_command {
     CMD55 = 55,  // prefix command for application command
     ACMD41 = 41, // application command to send operating condition
 };
-unsigned char sdcard_response_IDLE = 0x01;
-unsigned char sdcard_response_SUCCESS = 0x00;
-unsigned char sdcard_response_DATA_ACCEPTED = 0xE5;
-unsigned char sdcard_token_17_18_24 = 0xFE;
+const unsigned char gSDCardResponseIDLE = 0x01;
+const unsigned char gSDCardResponseSUCCESS = 0x00;
+const unsigned char gSDCardResponseDATA_ACCEPTED = 0xE5;
+const unsigned char gSDCardToken_17_18_24 = 0xFE;
 
 void spi_bulk(unsigned char *buffer, unsigned int nlen)
 {
-    if(debug >= DEBUG_INSANE) {
+    if(gDebugLevel >= DEBUG_INSANE) {
         printf("spi_bulk write:\n");
         dump_buffer_hex(4, buffer, nlen);
     }
-    int result = HAL_SPI_TransmitReceive(&SpiHandle, buffer, buffer, nlen, 1000);
+    int result = HAL_SPI_TransmitReceive(&gSPIHandle, buffer, buffer, nlen, 1000);
     if(result != HAL_OK){
         printf("spi_bulk: SPI error 0x%04X\n", result);
         panic();
     }
-    if(debug >= DEBUG_INSANE) {
+    if(gDebugLevel >= DEBUG_INSANE) {
         printf("spi_bulk read:\n");
         dump_buffer_hex(4, buffer, nlen);
     }
@@ -1255,11 +1242,11 @@ void spi_bulk(unsigned char *buffer, unsigned int nlen)
 
 void spi_writen(unsigned char *buffer, unsigned int nlen)
 {
-    if(debug >= DEBUG_INSANE) {
+    if(gDebugLevel >= DEBUG_INSANE) {
         printf("spi_writen write:\n");
         dump_buffer_hex(4, buffer, nlen);
     }
-    int result = HAL_SPI_Transmit(&SpiHandle, buffer, nlen, 1000);
+    int result = HAL_SPI_Transmit(&gSPIHandle, buffer, nlen, 1000);
     if(result != HAL_OK){
         printf("spi_writen: SPI error 0x%04X\n", result);
         panic();
@@ -1269,19 +1256,19 @@ void spi_writen(unsigned char *buffer, unsigned int nlen)
 void spi_readn(unsigned char *buffer, unsigned int nlen)
 {
     memset(buffer, 0xff, nlen);
-    int result = HAL_SPI_TransmitReceive(&SpiHandle, buffer, buffer, nlen, 1000);
+    int result = HAL_SPI_TransmitReceive(&gSPIHandle, buffer, buffer, nlen, 1000);
     if(result != HAL_OK){
         printf("spi_readn: SPI error 0x%04X\n", result);
         panic();
     }
-    if(debug >= DEBUG_INSANE) {
+    if(gDebugLevel >= DEBUG_INSANE) {
         printf("spi_readn read:\n");
         dump_buffer_hex(4, buffer, nlen);
     }
 }
 
 // response length must include initial R1, so 1 for CMD0
-int sdcard_send_command(enum sdcard_command command, unsigned long parameter, unsigned char *response, int response_length)
+int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, unsigned char *response, int response_length)
 {
     unsigned char command_buffer[6];
 
@@ -1295,25 +1282,25 @@ int sdcard_send_command(enum sdcard_command command, unsigned long parameter, un
     command_buffer[4] = (parameter >> 0) & 0xff;
     command_buffer[5] = ((crc7_generate_bytes(command_buffer, 5) & 0x7f) << 1) | 0x01;
 
-    if(debug >= DEBUG_DATA) printf("command constructed: %02X %02X %02X %02X %02X %02X\n",
+    if(gDebugLevel >= DEBUG_DATA) printf("command constructed: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
     spi_bulk(command_buffer, sizeof(command_buffer));
-    if(debug >= DEBUG_ALL) printf("returned in buffer: %02X %02X %02X %02X %02X %02X\n",
+    if(gDebugLevel >= DEBUG_ALL) printf("returned in buffer: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > sdcard_timeout_ms) {
+        if(now - then > gSDCardTimeoutMillis) {
             printf("sdcard_send_command: timed out waiting on response\n");
             return 0;
         }
         response[0] = 0xff;
         spi_bulk(response, 1);
-        if(debug >= DEBUG_ALL) printf("response 0x%02X\n", response[0]);
+        if(gDebugLevel >= DEBUG_ALL) printf("response 0x%02X\n", response[0]);
     } while(response[0] & 0x80);
 
     if(response_length > 1) {
@@ -1329,11 +1316,10 @@ int sdcard_init()
 {
     unsigned char response[8];
     unsigned long OCR;
-    unsigned int u;
 
     /* CS false, 80 clk pulses (read 10 bytes) */
     unsigned char buffer[10];
-    for(u = 0; u < sizeof(buffer); u++)
+    for(unsigned int u = 0; u < sizeof(buffer); u++)
         buffer[u] = 0xff;
     spi_writen(buffer, sizeof(buffer));
 
@@ -1342,7 +1328,7 @@ int sdcard_init()
     /* interface init */
     if(!sdcard_send_command(CMD0, 0, response, 1))
         return 0;
-    if(response[0] != sdcard_response_IDLE) {
+    if(response[0] != gSDCardResponseIDLE) {
         printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
         return 0;
     }
@@ -1351,12 +1337,12 @@ int sdcard_init()
     /* check voltage */
     if(!sdcard_send_command(CMD8, 0x000001AA, response, 5))
         return 0;
-    if(response[0] != sdcard_response_IDLE) {
+    if(response[0] != gSDCardResponseIDLE) {
         printf("sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    if(debug >= DEBUG_DATA) printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
+    if(gDebugLevel >= DEBUG_DATA) printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
 
     // should get CSD, CID, print information about them
 
@@ -1364,22 +1350,22 @@ int sdcard_init()
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > sdcard_timeout_ms) {
+        if(now - then > gSDCardTimeoutMillis) {
             printf("sdcard_init: timed out waiting on transition to ACMD41\n");
             return 0;
         }
         /* leading command to the ACMD41 command */
         if(!sdcard_send_command(CMD55, 0x00000000, response, 1))
             return 0;
-        if(response[0] != sdcard_response_IDLE) {
+        if(response[0] != gSDCardResponseIDLE) {
             printf("sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
             return 0;
         }
         /* start initialization process, set HCS (high-capacity) */
         if(!sdcard_send_command(ACMD41, 0x40000000, response, 1))
             return 0;
-    } while(response[0] != sdcard_response_SUCCESS);
-    if(debug >= DEBUG_ALL) printf("returned from ACMD41: %02X\n", response[0]);
+    } while(response[0] != gSDCardResponseSUCCESS);
+    if(gDebugLevel >= DEBUG_ALL) printf("returned from ACMD41: %02X\n", response[0]);
 
     return 1;
 }
@@ -1402,7 +1388,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     response[0] = 0xff;
     if(!sdcard_send_command(CMD17, blocknum, response, 1))
         return 0;
-    if(response[0] != sdcard_response_SUCCESS) {
+    if(response[0] != gSDCardResponseSUCCESS) {
         printf("sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
@@ -1411,20 +1397,20 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     int then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > sdcard_timeout_ms) {
+        if(now - then > gSDCardTimeoutMillis) {
             printf("sdcard_readblock: timed out waiting for data token\n");
             return 0;
         }
         spi_readn(response, 1);
-        if(debug >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
-    } while(response[0] != sdcard_token_17_18_24);
+        if(gDebugLevel >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
+    } while(response[0] != gSDCardToken_17_18_24);
 
     // Read data.
     spi_readn(block, BLOCK_SIZE);
 
     // Read CRC
     spi_readn(response, 2);
-    if(debug >= DEBUG_DATA) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
+    if(gDebugLevel >= DEBUG_DATA) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
 
     unsigned short crc_theirs = response[0] * 256 + response[1];
 
@@ -1435,7 +1421,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
         printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
         return 0;
     } else {
-        if(debug >= DEBUG_DATA) printf("CRC matches\n");
+        if(gDebugLevel >= DEBUG_DATA) printf("CRC matches\n");
     }
 
     // Wait for DO to go high. I don't think we need to do this for block reads,
@@ -1443,15 +1429,15 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     then = HAL_GetTick();
     do {
         int now = HAL_GetTick();
-        if(now - then > sdcard_timeout_ms) {
+        if(now - then > gSDCardTimeoutMillis) {
             printf("sdcard_readblock: timed out waiting on completion\n");
             return 0;
         }
         spi_readn(response, 1);
-        if(debug >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
+        if(gDebugLevel >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
     } while(response[0] != 0xFF);
 
-    if(debug >= DEBUG_ALL) dump_more_spi_bytes("read completion");
+    if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("read completion");
 
     return 1;
 }
@@ -1465,14 +1451,14 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     // Send write block command.
     if(!sdcard_send_command(CMD24, blocknum, response, 1))
         return 0;
-    if(response[0] != sdcard_response_SUCCESS) {
+    if(response[0] != gSDCardResponseSUCCESS) {
         printf("sdcard_writeblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
     // XXX - elm-chan.org says I should be waiting >= 1byte here
 
     // Data token.
-    response[0] = sdcard_token_17_18_24;
+    response[0] = gSDCardToken_17_18_24;
     spi_writen(response, 1);
 
     // Send data.
@@ -1485,8 +1471,8 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
 
     // Get DATA_ACCEPTED response from WRITE
     spi_readn(response, 1);
-    if(debug >= DEBUG_DATA) printf("writeblock response 0x%02X\n", response[0]);
-    if(response[0] != sdcard_response_DATA_ACCEPTED) {
+    if(gDebugLevel >= DEBUG_DATA) printf("writeblock response 0x%02X\n", response[0]);
+    if(response[0] != gSDCardResponseDATA_ACCEPTED) {
         printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
         return 0;
     }
@@ -1496,17 +1482,17 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
     count = 0;
     do {
         int now = HAL_GetTick();
-        if(now - then > sdcard_timeout_ms) {
+        if(now - then > gSDCardTimeoutMillis) {
             printf("sdcard_writeblock: timed out waiting on completion\n");
             return 0;
         }
         spi_readn(response, 1);
-        if(debug >= DEBUG_ALL) printf("writeblock completion 0x%02X\n", response[0]);
+        if(gDebugLevel >= DEBUG_ALL) printf("writeblock completion 0x%02X\n", response[0]);
         count++;
     } while(response[0] != 0xFF);
-    if(debug >= DEBUG_DATA) printf("read %d SPI bytes waiting on write to complete.\n", count);
+    if(gDebugLevel >= DEBUG_DATA) printf("read %d SPI bytes waiting on write to complete.\n", count);
 
-    if(debug >= DEBUG_ALL) dump_more_spi_bytes("write completion");
+    if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("write completion");
 
     return 1;
 }
@@ -1531,30 +1517,30 @@ void test_sd_card()
         // dump_buffer_hex(4, original_block, BLOCK_SIZE);
 
         for(i = 0; i < BLOCK_SIZE; i++)
-            block_buffer[i] = (original_block[i] + 0x55) % 256;
+            gCachedBlock[i] = (original_block[i] + 0x55) % 256;
 
-        if(!sdcard_writeblock(block_number, block_buffer)) {
+        if(!sdcard_writeblock(block_number, gCachedBlock)) {
             printf("PANIC: Failed writeblock\n");
             panic();
         }
         // printf("Wrote junk block\n");
 
         for(i = 0; i < BLOCK_SIZE; i++)
-            block_buffer[i] = 0;
-        if(!sdcard_readblock(block_number, block_buffer)) {
+            gCachedBlock[i] = 0;
+        if(!sdcard_readblock(block_number, gCachedBlock)) {
             printf("PANIC: Failed readblock\n");
             panic();
         }
 
         success = 1;
         for(i = 0; i < BLOCK_SIZE; i++)
-            if(block_buffer[i] != (original_block[i] + 0x55) % 256)
+            if(gCachedBlock[i] != (original_block[i] + 0x55) % 256)
                 success = 0;
 
         if(!success) {
             printf("whoops, error verifying write of junk to block 0\n");
             printf("block read: %02X %02X %02X %02X\n",
-                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
+                gCachedBlock[0], gCachedBlock[1], gCachedBlock[2], gCachedBlock[3]);
         } else {
             printf("Verified junk block was written\n");
         }
@@ -1565,20 +1551,20 @@ void test_sd_card()
         }
         // printf("Wrote original block\n");
 
-        if(!sdcard_readblock(block_number, block_buffer)) {
+        if(!sdcard_readblock(block_number, gCachedBlock)) {
             printf("PANIC: Failed readblock\n");
             panic();
         }
 
         success = 1;
         for(i = 0; i < BLOCK_SIZE; i++)
-            if(original_block[i] != block_buffer[i])
+            if(original_block[i] != gCachedBlock[i])
                 success = 0;
 
         if(!success) {
             printf("whoops, error verifying write of original to block 0\n");
             printf("block read: %02X %02X %02X %02X\n",
-                block_buffer[0], block_buffer[1], block_buffer[2], block_buffer[3]);
+                gCachedBlock[0], gCachedBlock[1], gCachedBlock[2], gCachedBlock[3]);
         } else {
             printf("Verified original block was written\n");
         }
@@ -1586,18 +1572,16 @@ void test_sd_card()
     }
 }
 
-int previous_block = 0xffff;
-
-#define sectors_per_block 4
-#define sectors_per_track 64
-#define tracks_per_disk 1024
-#define sector_size 128
+#define SECTORS_PER_BLOCK 4
+#define SECTORS_PER_TRACK 64
+#define TRACKS_PER_DISK 1024
+#define SECTOR_SIZE 128
 /* disk is 8MB, so 16384 512-byte blocks per disk */
-#define blocks_per_disk 16384
+#define BLOCKS_PER_DISK 16384
 
 
-char local_command[80];
-unsigned char local_command_length = 0;
+char gMonitorCommandLine[80];
+unsigned char gMonitorCommandLineLength = 0;
 
 void usage()
 {
@@ -1627,15 +1611,15 @@ void process_local_key(unsigned char c)
     // XXX make this table driven, break into lots smaller functions
     if(c == '\r' || c == '\n') {
         putchar('\n');
-        local_command[local_command_length] = 0;
+        gMonitorCommandLine[gMonitorCommandLineLength] = 0;
 
-        if((strcmp(local_command, "help") == 0) ||
-           (strcmp(local_command, "h") == 0) ||
-           (strcmp(local_command, "?") == 0)) {
+        if((strcmp(gMonitorCommandLine, "help") == 0) ||
+           (strcmp(gMonitorCommandLine, "h") == 0) ||
+           (strcmp(gMonitorCommandLine, "?") == 0)) {
 
             usage();
 
-        } else if(strcmp(local_command, "bus") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
 
             unsigned char control = GPIOC->IDR & BUS_PIN_MASK;
             printf("control = 0x%02X\n", control);
@@ -1652,14 +1636,14 @@ void process_local_key(unsigned char c)
             unsigned char data = get_GPIOA_0_7_value();
             printf("data = 0x%02X\n", data);
 
-        } else if(strcmp(local_command, "sdreset") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "sdreset") == 0) {
 
             printf("Resetting SD card...\n");
 
             if(!sdcard_init())
                 printf("Failed to start access to SD card as SPI\n");
 
-        } else if(strcmp(local_command, "dumpkbd") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "dumpkbd") == 0) {
 
             dump_keyboard_data = !dump_keyboard_data;
             if(dump_keyboard_data)
@@ -1667,11 +1651,11 @@ void process_local_key(unsigned char c)
             else
                 printf("Not dumping keyboard data...\n");
 
-        } else if(strcmp(local_command, "panic") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "panic") == 0) {
 
             panic();
 
-        } else if(strcmp(local_command, "reset") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
             z80_reset_start();
             printf("Resetting Z-80 and communication buffers...\n");
@@ -1679,25 +1663,25 @@ void process_local_key(unsigned char c)
             command_clear();
             z80_reset_finish();
 
-        } else if(strcmp(local_command, "int") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "int") == 0) {
 
             z80_interrupt_start();
             printf("Interupting Z-80...");
             putchar('\n');
             z80_interrupt_finish();
 
-        } else if(strcmp(local_command, "clear") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "clear") == 0) {
 
             response_clear();
             command_clear();
             printf("Command and response data cleared\n");
 
-        } else if(strcmp(local_command, "pass") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "pass") == 0) {
 
-            serial_is_monitor = 0;
+            gSerialInputToMonitor = 0;
             printf("Press CTRL-A then CTRL-B to return to monitor.\n");
 
-        } else if(strcmp(local_command, "buffers") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "buffers") == 0) {
 
             printf("Command request: 0x%02X\n", command_request);
             printf("Command length: %d bytes\n", command_length);
@@ -1713,21 +1697,21 @@ void process_local_key(unsigned char c)
                 dump_buffer_hex(4, (unsigned char *)response_bytes, response_length);
             }
 
-        } else if(strcmp(local_command, "version") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "version") == 0) {
 
             printf("%s\n", IOBOARD_FIRMWARE_VERSION_STRING);
 
-        } else if(strncmp(local_command, "debug ", 6) == 0) {
+        } else if(strncmp(gMonitorCommandLine, "debug ", 6) == 0) {
 
-            char *p = local_command + 5;
+            char *p = gMonitorCommandLine + 5;
             while(*p == ' ')
                 p++;
-            debug = strtol(p, NULL, 0);
-            printf("Debug level set to %d\n", debug);
+            gDebugLevel = strtol(p, NULL, 0);
+            printf("Debug level set to %d\n", gDebugLevel);
 
-        } else if(strncmp(local_command, "spiwrite ", 9) == 0) {
+        } else if(strncmp(gMonitorCommandLine, "spiwrite ", 9) == 0) {
 
-            char *endptr = local_command + 9;
+            char *endptr = gMonitorCommandLine + 9;
             char *p;
             int count = 0;
             unsigned char buffer[16];
@@ -1749,9 +1733,9 @@ void process_local_key(unsigned char c)
                 dump_buffer_hex(4, buffer, count);
             }
 
-        } else if(strncmp(local_command, "spiread ", 8) == 0) {
+        } else if(strncmp(gMonitorCommandLine, "spiread ", 8) == 0) {
 
-            char *p = local_command + 8;
+            char *p = gMonitorCommandLine + 8;
             while(*p == ' ')
                 p++;
             int count = strtol(p, NULL, 0);
@@ -1768,9 +1752,9 @@ void process_local_key(unsigned char c)
                 dump_buffer_hex(4, buffer, count);
             }
 
-        } else if(strncmp(local_command, "sdss ", 5) == 0) {
+        } else if(strncmp(gMonitorCommandLine, "sdss ", 5) == 0) {
 
-            char *p = local_command + 4;
+            char *p = gMonitorCommandLine + 4;
             while(*p == ' ')
                 p++;
             int ss = strtol(p, NULL, 0);
@@ -1782,15 +1766,14 @@ void process_local_key(unsigned char c)
                 printf("/SS to SD card is disabled (+3.3V)\n");
             }
 
-        } else if(strncmp(local_command, "read ", 5) == 0) {
+        } else if(strncmp(gMonitorCommandLine, "read ", 5) == 0) {
 
-            char *p = local_command + 4;
-            unsigned int block_number;
+            char *p = gMonitorCommandLine + 4;
             while(*p == ' ')
                 p++;
-            block_number = strtol(p, NULL, 0);
-            if(sdcard_readblock(block_number, block_buffer)) {
-                dump_buffer_hex(4, block_buffer, BLOCK_SIZE);
+            gCachedBlockNumber = strtol(p, NULL, 0);
+            if(sdcard_readblock(gCachedBlockNumber, gCachedBlock)) {
+                dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
             }
 
         } else {
@@ -1800,23 +1783,23 @@ void process_local_key(unsigned char c)
         }
 
         printf("* ");
-        local_command_length = 0;
+        gMonitorCommandLineLength = 0;
 
     } else {
 
         if(c == 127 || c == '\b') {
-            if(local_command_length > 0) {
+            if(gMonitorCommandLineLength > 0) {
                 putchar('\b');
                 putchar(' ');
                 putchar('\b');
-                local_command_length--;
+                gMonitorCommandLineLength--;
             } else {
                 bell();
             }
         } else {
-            if(local_command_length < sizeof(local_command) - 1) {
+            if(gMonitorCommandLineLength < sizeof(gMonitorCommandLine) - 1) {
                 putchar(c);
-                local_command[local_command_length++] = c;
+                gMonitorCommandLine[gMonitorCommandLineLength++] = c;
             } else {
                 bell();
             }
@@ -1827,21 +1810,20 @@ void process_local_key(unsigned char c)
 
 int main()
 {
-    unsigned char was_response_waiting = 0;
-    unsigned char isempty;
-    unsigned int u;
+    unsigned char responseWasWaiting = 0;
 
     system_setup();
 
     LED_setup();
-
     LED_heartbeat();
 
     z80_reset_init();
     z80_interrupt_init();
+    LED_heartbeat();
 
     setbuf(stdout, NULL);
     setup_serial(); // transmit and receive but global interrupts disabled
+    LED_heartbeat();
 
     printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     LED_heartbeat();
@@ -1855,12 +1837,15 @@ int main()
         printf("SD Card interface is initialized for SPI\n");
     LED_heartbeat();
 
-    if(0) test_sd_card();
+    if(0) {
+        test_sd_card();
+        LED_heartbeat();
+    }
 
     setup_host();
+    LED_heartbeat();
 
     setup_keyboard();
-
     LED_heartbeat();
 
     printf("* ");
@@ -1869,27 +1854,25 @@ int main()
 
         LED_heartbeat();
 
-        unsigned char c;
-
         disable_interrupts();
-        isempty = mon_queue_isempty();
+        unsigned char isEmpty = mon_queue_isempty();
         enable_interrupts();
 
-        if(!isempty) {
+        if(!isEmpty) {
             disable_interrupts();
-            c = mon_dequeue();
+            unsigned char c = mon_dequeue();
             enable_interrupts();
-            if(serial_is_monitor)
+            if(gSerialInputToMonitor)
                 process_local_key(c);
             else {
-                if(ioboard_monitor_latch == 0 && c == 1)
-                    ioboard_monitor_latch = 1;
-                else if(ioboard_monitor_latch != 0 && c == 2) {
-                    ioboard_monitor_latch = 0;
-                    serial_is_monitor = 1;
+                if(gEscapeBackToMonitor == 0 && c == 1)
+                    gEscapeBackToMonitor = 1;
+                else if(gEscapeBackToMonitor != 0 && c == 2) {
+                    gEscapeBackToMonitor = 0;
+                    gSerialInputToMonitor = 1;
                     printf("Serial input returned to monitor\n");
                 } else {
-                    ioboard_monitor_latch = 0;
+                    gEscapeBackToMonitor = 0;
                     console_enqueue_key(c);
                 }
             }
@@ -1897,18 +1880,18 @@ int main()
 
         if(command_length > 0) {
             unsigned char command_byte = command_bytes[0];
-            if(debug >= DEBUG_EVENTS) printf("receiving command...\n");
+            if(gDebugLevel >= DEBUG_DATA) printf("receiving command...\n");
 
             if((command_byte < IOBOARD_CMD_MIN) || (command_byte > IOBOARD_CMD_MAX)) {
 
-                if(debug >= DEBUG_ERRORS) printf("ERROR: Unknown command 0x%02X received\n", command_byte);
+                if(gDebugLevel >= DEBUG_ERRORS) printf("ERROR: Unknown command 0x%02X received\n", command_byte);
                 command_clear();
 
-            } else {
-
-                if(command_length == command_lengths[command_byte]) {
-                    command_request = command_byte;
-                    if(debug >= DEBUG_EVENTS) printf("complete command received.\n");
+            } else if(command_length >= command_lengths[command_byte]) {
+                command_request = command_byte;
+                if(gDebugLevel >= DEBUG_EVENTS) printf("complete command received.\n");
+                if(command_length > command_lengths[command_byte]) {
+                    if(gDebugLevel >= DEBUG_ERRORS) printf("ERROR: command buffer longer than expected for command.\n");
                 }
             }
         }
@@ -1923,44 +1906,44 @@ int main()
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block_number = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
-                    unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
+                    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
+                    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
 
-                    if(debug >= DEBUG_EVENTS) printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    if(gDebugLevel >= DEBUG_EVENTS) printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
+                        if(gDebugLevel >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
                         response_append(IOBOARD_FAILURE);
                         break;
                     }
 
-                    if(previous_block == block_number) {
-                        if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
+                    if(gCachedBlockNumber == block_number) {
+                        if(gDebugLevel >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
-                        if(!sdcard_readblock(block_number, block_buffer)) {
-                            if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
+                        if(!sdcard_readblock(block_number, gCachedBlock)) {
+                            if(gDebugLevel >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
                             response_append(IOBOARD_FAILURE);
                             break;
                         }
-                        if(debug >= DEBUG_DATA) printf("New cached block\n");
-                        if(debug >= DEBUG_ALL) dump_buffer_hex(4, block_buffer, BLOCK_SIZE);
-                        previous_block = block_number;
+                        if(gDebugLevel >= DEBUG_DATA) printf("New cached block\n");
+                        if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
+                        gCachedBlockNumber = block_number;
                     }
 
                     response_append(IOBOARD_SUCCESS);
 
-                    for(u = 0; u < sector_size; u++)
-                        response_append(block_buffer[sector_byte_offset + u]);
+                    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+                        response_append(gCachedBlock[sector_byte_offset + u]);
 
                     if(command_request == IOBOARD_CMD_READ_SUM) {
                         unsigned short sum = 0;
 
-                        for(u = 0; u < sector_size; u++)
-                            sum += block_buffer[sector_byte_offset + u];
+                        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+                            sum += gCachedBlock[sector_byte_offset + u];
 
                         response_append(sum & 0xff);
                         response_append((sum >> 8) & 0xff);
-                        if(debug >= DEBUG_ALL) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+                        if(gDebugLevel >= DEBUG_ALL) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
                     }
                     break;
                 }
@@ -1971,13 +1954,13 @@ int main()
                     unsigned int disk = command_bytes[1];
                     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
                     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block_number = disk * blocks_per_disk + (track * sectors_per_track + sector) / sectors_per_block;
-                    unsigned int sector_byte_offset = 128 * ((track * sectors_per_track + sector) % sectors_per_block);
+                    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
+                    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
 
-                    if(debug >= DEBUG_EVENTS) printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    if(gDebugLevel >= DEBUG_EVENTS) printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        if(debug >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
+                        if(gDebugLevel >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
                         response_append(IOBOARD_FAILURE);
                         break;
                     }
@@ -1985,32 +1968,32 @@ int main()
                     if(command_request == IOBOARD_CMD_WRITE_SUM) {
                         unsigned short sum = 0;
                         unsigned char offset = 6;
-                        for(u = 0; u < sector_size; u++)
+                        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
                             sum += command_bytes[offset + u];
                         unsigned short theirs = command_bytes[134] | (command_bytes[135] << 8);
                         if(sum != theirs) {
-                            if(debug) printf("IOBOARD_CMD_WRITE_SUM checksum does not match\n");
+                            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
                             // XXX retry?
                             response_append(IOBOARD_FAILURE);
                             break;
                         }
                     }
 
-                    if(previous_block == block_number) {
-                        if(debug >= DEBUG_DATA) printf("Block already in cache.\n");
+                    if(gCachedBlockNumber == block_number) {
+                        if(gDebugLevel >= DEBUG_DATA) printf("Block already in cache.\n");
                     } else {
-                        if(!sdcard_readblock(block_number, block_buffer)) {
-                            if(debug >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
+                        if(!sdcard_readblock(block_number, gCachedBlock)) {
+                            if(gDebugLevel >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
                             response_append(IOBOARD_FAILURE);
                             break;
                         }
-                        if(debug >= DEBUG_DATA) printf("New cached block\n");
-                        previous_block = block_number;
+                        if(gDebugLevel >= DEBUG_DATA) printf("New cached block\n");
+                        gCachedBlockNumber = block_number;
                     }
 
-                    for(u = 0; u < sector_size; u++)
-                        block_buffer[sector_byte_offset + u] = command_bytes[6 + u];
-                    if(!sdcard_writeblock(block_number, block_buffer)) {
+                    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+                        gCachedBlock[sector_byte_offset + u] = command_bytes[6 + u];
+                    if(!sdcard_writeblock(block_number, gCachedBlock)) {
                         printf("some kind of block write failure\n");
                         response_append(IOBOARD_FAILURE);
                         break;
@@ -2028,11 +2011,11 @@ int main()
                 }
 
                 case IOBOARD_CMD_CONST: {
-                    if(debug >= DEBUG_EVENTS)printf("CONST\n");
+                    if(gDebugLevel >= DEBUG_EVENTS)printf("CONST\n");
                     disable_interrupts();
-                    isempty = con_queue_isempty();
+                    isEmpty = con_queue_isempty();
                     enable_interrupts();
-                    if(!isempty)
+                    if(!isEmpty)
                         response_append(IOBOARD_READY);
                     else
                         response_append(IOBOARD_NOT_READY);
@@ -2041,11 +2024,11 @@ int main()
 
                 case IOBOARD_CMD_CONIN: {
                     unsigned char c;
-                    if(debug >= DEBUG_EVENTS) printf("CONIN\n");
+                    if(gDebugLevel >= DEBUG_EVENTS) printf("CONIN\n");
                     disable_interrupts();
-                    isempty = con_queue_isempty();
+                    isEmpty = con_queue_isempty();
                     enable_interrupts();
-                    if(!isempty) {
+                    if(!isEmpty) {
                         disable_interrupts();
                         c = con_dequeue();
                         enable_interrupts();
@@ -2067,20 +2050,20 @@ int main()
             LED_set_info(0);
 
             if(response_staging_length > 0) {
-                if(debug >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
+                if(gDebugLevel >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
                 disable_interrupts();
                 command_clear();
                 response_finish();
-                was_response_waiting = 1;
+                responseWasWaiting = 1;
                 enable_interrupts();
             }
         }
 
         {
             disable_interrupts();
-            isempty = kbd_queue_isempty();
+            isEmpty = kbd_queue_isempty();
             enable_interrupts();
-            if(!isempty) {
+            if(!isEmpty) {
                 unsigned char kb = kbd_dequeue();
                 if(dump_keyboard_data)
                     printf("keyboard scan code: %02X\n", kb);
@@ -2088,19 +2071,19 @@ int main()
             }
         }
 
-        if(console_overflowed) {
-            if(debug >= DEBUG_WARNINGS) printf("WARNING: Console input queue overflow\n");
-            console_overflowed = 0;
+        if(gConsoleOverflowed) {
+            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: Console input queue overflow\n");
+            gConsoleOverflowed = 0;
         }
 
-        if(keyboard_overflowed) {
-            if(debug >= DEBUG_WARNINGS) printf("WARNING: Keyboard data queue overflow\n");
-            keyboard_overflowed = 0;
+        if(gKeyboardOverflowed) {
+            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: Keyboard data queue overflow\n");
+            gKeyboardOverflowed = 0;
         }
 
-        if(was_response_waiting && !response_waiting) {
-            if(debug >= DEBUG_EVENTS) printf("response packet was read\n");
-            was_response_waiting = 0;
+        if(responseWasWaiting && !response_waiting) {
+            if(gDebugLevel >= DEBUG_EVENTS) printf("response packet was read\n");
+            responseWasWaiting = 0;
         }
     }
 
