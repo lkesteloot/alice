@@ -232,57 +232,66 @@ void system_setup()
 
 
 //----------------------------------------------------------------------------
-// Monitor input queue
+// Byte consumer-producer queue
 
-#define MON_QUEUE_LENGTH 32
-volatile unsigned char mon_queue[MON_QUEUE_LENGTH];
-volatile short mon_queue_next_head = 0;
-volatile short mon_queue_tail = 0;
+struct queue {
+    short next_head;
+    short tail;
+    unsigned short capacity;
+    unsigned char queue[];
+};
 
-// Caller must ensure only one call can proceed at a time; currently
-// called through isfull() and isempty(), so must protect those
-unsigned short mon_queue_length()
+void queue_init(volatile struct queue *q, unsigned short capacity)
 {
-    return (mon_queue_next_head + MON_QUEUE_LENGTH - mon_queue_tail) % MON_QUEUE_LENGTH;
+    q->next_head = 0;
+    q->tail = 0;
+    q->capacity = capacity;
 }
 
-// Caller must ensure only one call to isfull() or isempty() can
-// proceed at a time.
-
-// Currently called from main() or intr(), so must wrap with disable_interrupts(), enable_interrupts();
-unsigned char mon_queue_isfull()
+// Protect with critical section if not called from producer
+int queue_isfull(volatile struct queue *q)
 {
-    return mon_queue_length() == MON_QUEUE_LENGTH - 1;
+    int length = (q->next_head + q->capacity - q->tail) % q->capacity;
+    return length == q->capacity - 1;
 }
 
-// Currently called from main(), so, wrap with disable_interrupts(), enable_interrupts();
-unsigned char mon_queue_isempty()
+// Protect with critical section if not called from consumer
+int queue_isempty(volatile struct queue *q)
 {
-    return mon_queue_length() == 0;
+    return q->next_head == q->tail;
 }
 
-// Caller must ensure only one call can proceed at a time ; currently
-// called from main() and intr(), so wrap with disable_interrupts(), enable_interrupts();
-void mon_enqueue(unsigned char d)
+// Protect with critical section if not called from producer
+void queue_enq(volatile struct queue *q, unsigned char d)
 {
-    mon_queue[mon_queue_next_head] = d;
-    mon_queue_next_head = (mon_queue_next_head + 1) % MON_QUEUE_LENGTH;
+    q->queue[q->next_head] = d;
+    q->next_head = (q->next_head + 1) % q->capacity;
 }
 
-// Caller must ensure only one call can proceed at a time; currently
-// called only from main() so already protected
-unsigned char mon_dequeue()
+// Protect with critical section if not called from consumer
+unsigned char queue_deq(volatile struct queue *q)
 {
-    unsigned char d = mon_queue[mon_queue_tail];
-    mon_queue_tail = (mon_queue_tail + 1) % MON_QUEUE_LENGTH;
+    unsigned char d = q->queue[q->tail];
+    q->tail = (q->tail + 1) % q->capacity;
     return d;
 }
+
+
+//----------------------------------------------------------------------------
+// Monitor input queue
+
+#define MON_QUEUE_CAPACITY 32
+struct mon_queue_struct {
+    struct queue q;
+    unsigned char queue[MON_QUEUE_CAPACITY];
+};
+volatile struct mon_queue_struct mon_queue;
 
 // Call this from ISR, so skip di/ei
 void monitor_enqueue_key_unsafe(unsigned char d)
 {
-    if(!mon_queue_isfull()) {
-        mon_enqueue(d);
+    if(!queue_isfull(&mon_queue.q)) {
+        queue_enq(&mon_queue.q, d);
     }
 }
 
@@ -290,80 +299,48 @@ void monitor_enqueue_key_unsafe(unsigned char d)
 //----------------------------------------------------------------------------
 // Console input queue
 
-#define CON_QUEUE_LENGTH 64
-volatile unsigned char con_queue[CON_QUEUE_LENGTH];
-volatile short con_queue_next_head = 0;
-volatile short con_queue_tail = 0;
-
-// Caller must ensure only one call can proceed at a time; currently
-// called through isfull() and isempty(), so must protect those
-unsigned short con_queue_length()
-{
-    return (con_queue_next_head + CON_QUEUE_LENGTH - con_queue_tail) % CON_QUEUE_LENGTH;
-}
-
-// Caller must ensure only one call to isfull() or isempty() can
-// proceed at a time.
-
-// Currently called from main() or intr(), so must wrap with disable_interrupts(), enable_interrupts();
-unsigned char con_queue_isfull()
-{
-    return con_queue_length() == CON_QUEUE_LENGTH - 1;
-}
-
-// Currently called from main(), so, wrap with disable_interrupts(), enable_interrupts();
-unsigned char con_queue_isempty()
-{
-    return con_queue_length() == 0;
-}
-
-// Caller must ensure only one call can proceed at a time ; currently
-// called from main() and intr(), so wrap with disable_interrupts(), enable_interrupts();
-void con_enqueue(unsigned char d)
-{
-    con_queue[con_queue_next_head] = d;
-    con_queue_next_head = (con_queue_next_head + 1) % CON_QUEUE_LENGTH;
-}
-
-// Caller must ensure only one call can proceed at a time; currently
-// called only from main() so already protected
-unsigned char con_dequeue()
-{
-    unsigned char d = con_queue[con_queue_tail];
-    con_queue_tail = (con_queue_tail + 1) % CON_QUEUE_LENGTH;
-    return d;
-}
+#define CON_QUEUE_CAPACITY 64
+struct con_queue_struct {
+    struct queue q;
+    unsigned char queue[CON_QUEUE_CAPACITY];
+};
+volatile struct con_queue_struct con_queue;
 
 void console_enqueue_key(unsigned char d)
 {
     unsigned char full;
     disable_interrupts();
-    full = con_queue_isfull();
-    enable_interrupts();
+    full = queue_isfull(&con_queue.q);
     if(full) {
         gConsoleOverflowed = 1;
     } else {
-        disable_interrupts();
-        con_enqueue(d);
-        enable_interrupts();
+        queue_enq(&con_queue.q, d);
     }
+    enable_interrupts();
 }
 
 // Call this from ISR, so skip di/ei
 void console_enqueue_key_unsafe(unsigned char d)
 {
     unsigned char full;
-    full = con_queue_isfull();
+    full = queue_isfull(&con_queue.q);
     if(full) {
         gConsoleOverflowed = 1;
     } else {
-        con_enqueue(d);
+        queue_enq(&con_queue.q, d);
     }
 }
 
 
 //----------------------------------------------------------------------------
 // AT and PS/2 Keyboard processing
+
+#define KBD_QUEUE_CAPACITY 16
+struct kbd_queue_struct {
+    struct queue q;
+    unsigned char queue[KBD_QUEUE_CAPACITY];
+};
+volatile struct kbd_queue_struct kbd_queue;
 
 // Keyboard I/O constants
 #define KBD_BIT_COUNT 11
@@ -384,50 +361,6 @@ volatile unsigned char dump_keyboard_data = 0;
 #define UP_KEY 0xF0
 #define EXT_KEY 0xE0
 #define EXT2_KEY 0xE1
-
-#define KBD_QUEUE_LENGTH 16
-volatile unsigned char kbd_queue[KBD_QUEUE_LENGTH];
-volatile unsigned char kbd_queue_next_head = 0;
-volatile unsigned char kbd_queue_tail = 0;
-
-// Caller must ensure only one call can proceed at a time; currently
-// called through isfull() and isempty(), so must protect those
-unsigned short kbd_queue_length()
-{
-    return (kbd_queue_next_head + KBD_QUEUE_LENGTH - kbd_queue_tail) % KBD_QUEUE_LENGTH;
-}
-
-// Caller must ensure only one call to isfull() or isempty() can
-// proceed at a time.
-
-// Currently called only from interrupt routine so already protected
-unsigned char kbd_queue_isfull()
-{
-    return kbd_queue_length() == KBD_QUEUE_LENGTH - 1;
-}
-
-// Currently called from main() so must wrap with disable_interrupts(), enable_interrupts();
-unsigned char kbd_queue_isempty()
-{
-    return kbd_queue_length() == 0;
-}
-
-// Caller must ensure only one call can proceed at a time ; currently
-// typically called only from interrupt routine so already protected
-void kbd_enqueue(unsigned char d)
-{
-    kbd_queue[kbd_queue_next_head] = d;
-    kbd_queue_next_head = (kbd_queue_next_head + 1) % KBD_QUEUE_LENGTH;
-}
-
-// Caller must ensure only one call can proceed at a time; currently
-// called only from main() so already protected
-unsigned char kbd_dequeue()
-{
-    unsigned char d = kbd_queue[kbd_queue_tail];
-    kbd_queue_tail = (kbd_queue_tail + 1) % KBD_QUEUE_LENGTH;
-    return d;
-}
 
 // Normal, shift, ctrl, alt
 const unsigned char kbd_table[] = {
@@ -714,21 +647,18 @@ void __io_putchar( char c )
     }
 }
 
-volatile char gSerialCharBuffer;
-
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     panic();
 }
 
+volatile char gSerialCharBuffer;
+volatile char gStartAnotherUARTReceive = 1;
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    int result;
-    unsigned char tmp = gSerialCharBuffer;
-    if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
-        /* error_code = gUARTHandle.State; */
-    }
-    mon_enqueue(tmp);
+    queue_enq(&mon_queue.q, gSerialCharBuffer);
+    gStartAnotherUARTReceive = 1;
 }
 
 void setup_serial()
@@ -874,21 +804,18 @@ void response_finish()
 // Element 0 is 1 here to force stoppage on receiving a bad command
 const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
 
+// Caller must protect with disable_interrupts()/enable_interrupts() if necessary
 void command_clear()
 {
-    disable_interrupts();
     command_request = IOBOARD_CMD_NONE;
     command_length = 0;
-    enable_interrupts();
 }
 
 void response_clear()
 {
-    disable_interrupts();
     response_length = 0;
     response_index = 0;
     response_waiting = 0;
-    enable_interrupts();
 }
 
 #define PIN_IORQ GPIO_PIN_0
@@ -923,6 +850,10 @@ void set_GPIOA_0_7_value(unsigned char data)
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
+int gBusReadNoResponse = 0;
+int gBusReadGaveResponse = 0;
+int gBusWrites = 0;
+
 void EXTI1_IRQHandler(void)
 {
     __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
@@ -933,6 +864,7 @@ void EXTI1_IRQHandler(void)
         unsigned char data = IOBOARD_POLL_AGAIN;
 
         if(response_length > 0) {
+            gBusReadGaveResponse++;
 
             data = response_bytes[response_index++];
 
@@ -941,7 +873,8 @@ void EXTI1_IRQHandler(void)
                 response_length = 0;
                 response_waiting = 0;
             }
-        }
+        } else
+            gBusReadNoResponse++;
 
         set_GPIOA_0_7_value(data);
         set_GPIOA_0_7_as_output();
@@ -959,8 +892,8 @@ void EXTI2_IRQHandler(void)
 
     if((GPIOC->IDR & BUS_PIN_MASK) == gWRITESignals) {
 
+        gBusWrites++;
         command_bytes[command_length++] = get_GPIOA_0_7_value();
-
     }
 }
 
@@ -971,12 +904,10 @@ void setup_host()
 
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    // __HAL_RCC_GPIOC_CLK_ENABLE();
-
     // configure PORT A0:A7 outputs for later
-    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;    // LOW
+    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;   // LOW
     GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
-    GPIOA->PUPDR = 0x0000;                                  // no PUPD
+    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;        // no PUPD
 
     set_GPIOA_0_7_as_input();
 
@@ -1636,6 +1567,10 @@ void process_local_key(unsigned char c)
             unsigned char data = get_GPIOA_0_7_value();
             printf("data = 0x%02X\n", data);
 
+            printf("Z80 reads without response waiting: %d\n", gBusReadNoResponse);
+            printf("Z80 reads with response waiting: %d\n", gBusReadGaveResponse);
+            printf("Z80 writes: %d\n", gBusWrites);
+
         } else if(strcmp(gMonitorCommandLine, "sdreset") == 0) {
 
             printf("Resetting SD card...\n");
@@ -1812,6 +1747,10 @@ int main()
 {
     unsigned char responseWasWaiting = 0;
 
+    queue_init(&mon_queue.q, MON_QUEUE_SIZE);
+    queue_init(&kbd_queue.q, KBD_QUEUE_SIZE);
+    queue_init(&con_queue.q, CON_QUEUE_SIZE);
+
     system_setup();
 
     LED_setup();
@@ -1854,14 +1793,19 @@ int main()
 
         LED_heartbeat();
 
-        disable_interrupts();
-        unsigned char isEmpty = mon_queue_isempty();
-        enable_interrupts();
+        // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
+        if(gStartAnotherUARTReceive) {
+            gStartAnotherUARTReceive = 0;
+            int result;
+            if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
+                /* error_code = gUARTHandle.State; */
+            }
+        }
+
+        unsigned char isEmpty = queue_isempty(&mon_queue.q);
 
         if(!isEmpty) {
-            disable_interrupts();
-            unsigned char c = mon_dequeue();
-            enable_interrupts();
+            unsigned char c = queue_deq(&mon_queue.q);
             if(gSerialInputToMonitor)
                 process_local_key(c);
             else {
@@ -2012,9 +1956,7 @@ int main()
 
                 case IOBOARD_CMD_CONST: {
                     if(gDebugLevel >= DEBUG_EVENTS)printf("CONST\n");
-                    disable_interrupts();
-                    isEmpty = con_queue_isempty();
-                    enable_interrupts();
+                    isEmpty = queue_isempty(&con_queue.q);
                     if(!isEmpty)
                         response_append(IOBOARD_READY);
                     else
@@ -2025,13 +1967,9 @@ int main()
                 case IOBOARD_CMD_CONIN: {
                     unsigned char c;
                     if(gDebugLevel >= DEBUG_EVENTS) printf("CONIN\n");
-                    disable_interrupts();
-                    isEmpty = con_queue_isempty();
-                    enable_interrupts();
+                    isEmpty = queue_isempty(&con_queue.q);
                     if(!isEmpty) {
-                        disable_interrupts();
-                        c = con_dequeue();
-                        enable_interrupts();
+                        c = queue_deq(&con_queue.q);
                         response_append(IOBOARD_SUCCESS);
                         response_append(c);
                     } else {
@@ -2051,8 +1989,8 @@ int main()
 
             if(response_staging_length > 0) {
                 if(gDebugLevel >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
-                disable_interrupts();
                 command_clear();
+                disable_interrupts();
                 response_finish();
                 responseWasWaiting = 1;
                 enable_interrupts();
@@ -2060,11 +1998,9 @@ int main()
         }
 
         {
-            disable_interrupts();
-            isEmpty = kbd_queue_isempty();
-            enable_interrupts();
+            isEmpty = queue_isempty(&kbd_queue.q);
             if(!isEmpty) {
-                unsigned char kb = kbd_dequeue();
+                unsigned char kb = queue_deq(&kbd_queue.q);
                 if(dump_keyboard_data)
                     printf("keyboard scan code: %02X\n", kb);
                 kbd_process_byte(kb);
