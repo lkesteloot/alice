@@ -1747,9 +1747,9 @@ int main()
 {
     unsigned char responseWasWaiting = 0;
 
-    queue_init(&mon_queue.q, MON_QUEUE_SIZE);
-    queue_init(&kbd_queue.q, KBD_QUEUE_SIZE);
-    queue_init(&con_queue.q, CON_QUEUE_SIZE);
+    queue_init(&mon_queue.q, MON_QUEUE_CAPACITY);
+    queue_init(&kbd_queue.q, KBD_QUEUE_CAPACITY);
+    queue_init(&con_queue.q, CON_QUEUE_CAPACITY);
 
     system_setup();
 
