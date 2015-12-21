@@ -1,6 +1,6 @@
 FIRMWARE_VERSION    := $(shell date)
 
-OPT             =       -O2
+OPT             =       -O2 -g
 
 TOOLROOT        =       $(HOME)/trees/gcc-arm-none-eabi-4_9-2015q3
 STM32FCUBEROOT  =       $(HOME)/trees/STM32Cube_FW_F4_V1.9.0
