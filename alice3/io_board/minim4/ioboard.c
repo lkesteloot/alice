@@ -546,27 +546,52 @@ void kbd_process_byte(unsigned char kbd_byte)
     }
 }
 
+#define KEYBOARD_CLOCK_PIN GPIO_PIN_11
+#define KEYBOARD_CLOCK_PORT GPIOB
+
+#define KEYBOARD_DATA_PIN GPIO_PIN_12
+#define KEYBOARD_DATA_PORT GPIOB
+
 void setup_keyboard()
 {
-    // TODO
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    // XXX There's a possibility we could use USART for this
+    // and remove some CPU work
+
+    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
+
+    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
+
+    /* Enable and set EXTI Line15-10 interrupt */
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
-#if 0
-    {
-    // KBD clock TODO
-        kbd_data = (kbd_data >> 1) | (?? << 10);
-        kbd_bits++;
-        if(kbd_bits == KBD_BIT_COUNT) {
-            if(kbd_queue_isfull()) {
-                gKeyboardOverflowed = 1;
-            } else {
-                kbd_enqueue((kbd_data >> 1) & 0xff);
-            }
-            kbd_data = 0;
-            kbd_bits = 0;
+void EXTI15_10_IRQHandler(void)
+{
+    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN;
+    unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
+
+    kbd_data = (kbd_data >> 1) | (keyboard_data << 10);
+    kbd_bits++;
+    if(kbd_bits == KBD_BIT_COUNT) {
+        if(queue_isfull(&kbd_queue.q)) {
+            gKeyboardOverflowed = 1;
+        } else {
+            queue_enq(&kbd_queue.q, (kbd_data >> 1) & 0xff);
         }
+        kbd_data = 0;
+        kbd_bits = 0;
     }
-#endif
+}
+
 
 /*--------------------------------------------------------------------------*/
 /* USART - serial comms ----------------------------------------------------*/
