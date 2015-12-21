@@ -576,6 +576,9 @@ void setup_keyboard()
 
 void EXTI15_10_IRQHandler(void)
 {
+    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN);
+    NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+
     unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN;
     unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
 
