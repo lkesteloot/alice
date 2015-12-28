@@ -20,13 +20,13 @@ void delay_100ms(unsigned char count)
     HAL_Delay(count * 100);
 }
 
-#define PANIC_LED_PIN GPIO_PIN_13 
-#define PANIC_LED_PORT GPIOC
+#define PANIC_LED_PIN GPIO_PIN_5
+#define PANIC_LED_PORT GPIOB
 
-#define INFO_LED_PIN GPIO_PIN_12 
-#define INFO_LED_PORT GPIOC
+#define INFO_LED_PIN GPIO_PIN_4 
+#define INFO_LED_PORT GPIOB
 
-#define HEARTBEAT_LED_PIN GPIO_PIN_15 
+#define HEARTBEAT_LED_PIN GPIO_PIN_15
 #define HEARTBEAT_LED_PORT GPIOA
 
 void LED_set_panic(int on)
@@ -601,6 +601,12 @@ void EXTI15_10_IRQHandler(void)
 
 static UART_HandleTypeDef gUARTHandle;
 
+#define TRANSMIT_BUFFER_SIZE 512
+volatile unsigned char gTransmitBuffers[2][TRANSMIT_BUFFER_SIZE];
+volatile int gNextTransmitBuffer = 0;
+volatile int gTransmitBufferLengths[2] = {0, 0};
+volatile int gUARTTransmitBusy = 0;
+
 void USART1_IRQHandler(void)
 {
   HAL_UART_IRQHandler(&gUARTHandle);
@@ -659,20 +665,38 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
   HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
 }
 
-// XXX Really need to enqueue and drain in interrupt handler
-// Or double-buffer two arrays for DMA
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    gUARTTransmitBusy = 0;
+}
+
+void serial_try_to_transmit_buffers()
+{
+    if(!gUARTTransmitBusy && gTransmitBufferLengths[gNextTransmitBuffer] > 0) {
+        gUARTTransmitBusy = 1;
+
+        if(HAL_UART_Transmit_IT(&gUARTHandle, (uint8_t *)&gTransmitBuffers[gNextTransmitBuffer][0], gTransmitBufferLengths[gNextTransmitBuffer]) != HAL_OK) {
+            panic();
+        }
+
+        gNextTransmitBuffer ^= 1;
+        gTransmitBufferLengths[gNextTransmitBuffer] = 0;
+    }
+}
+
 void __io_putchar( char c )
 {
-    char tmp = c;
-
-    uint32_t tmp1 = 0;
     do {
-        tmp1 = gUARTHandle.State;
-    } while ((tmp1 == HAL_UART_STATE_BUSY_TX) || (tmp1 == HAL_UART_STATE_BUSY_TX_RX));
+        // Transmit the current buffer if there is one and serial
+        // port is not busy
+        serial_try_to_transmit_buffers();
 
-    if(HAL_UART_Transmit_IT(&gUARTHandle, (uint8_t *)&tmp, 1) != HAL_OK) {
-        panic();
-    }
+        // While there's no room in the current buffer, repeat until buffer becomes available
+    } while(gTransmitBufferLengths[gNextTransmitBuffer] >= TRANSMIT_BUFFER_SIZE);
+
+    int length = gTransmitBufferLengths[gNextTransmitBuffer];
+    gTransmitBuffers[gNextTransmitBuffer][length] = c;
+    gTransmitBufferLengths[gNextTransmitBuffer]++;
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -801,6 +825,7 @@ volatile unsigned char command_request; /* set this after reading all the bytes 
 volatile unsigned char command_bytes[1 + 5 + 128 + 2]; // largest is status + write + sector + 16-bit checksum
 volatile unsigned char command_length;
 
+unsigned char gNextByteForReading = IOBOARD_POLL_AGAIN;
 volatile unsigned char response_bytes[1 + 128 + 2]; // largest is status + sector + 16-bit checksum
 volatile unsigned char response_staging_length;
 volatile unsigned char response_length;
@@ -821,10 +846,11 @@ void response_append(unsigned char r)
     response_bytes[response_staging_length++] = r;
 }
 
-// Caller must protect with disable_interrupts() / enable_interrupts();
+// Caller must protect with disable_interrupts() / enable_interrupts()
 void response_finish()
 {
-    response_index = 0;
+    gNextByteForReading = response_bytes[0];
+    response_index = 1;
     response_length = response_staging_length;
     response_waiting = 1;
 }
@@ -878,51 +904,47 @@ void set_GPIOA_0_7_value(unsigned char data)
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
-int gBusReadNoResponse = 0;
-int gBusReadGaveResponse = 0;
-int gBusWrites = 0;
-
 void EXTI1_IRQHandler(void)
 {
-    __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
-    NVIC_ClearPendingIRQ(EXTI1_IRQn);
-
     if((GPIOC->IDR & BUS_PIN_MASK) == gREADSignals) {
 
-        unsigned char data = IOBOARD_POLL_AGAIN;
-
-        if(response_length > 0) {
-            gBusReadGaveResponse++;
-
-            data = response_bytes[response_index++];
-
-            if(response_index >= response_length) {
-                response_index = 0;
-                response_length = 0;
-                response_waiting = 0;
-            }
-        } else
-            gBusReadNoResponse++;
-
-        set_GPIOA_0_7_value(data);
+        // Put this here even before clearing interrupt so it happens
+        // as soon as possible.
+        set_GPIOA_0_7_value(gNextByteForReading);
         set_GPIOA_0_7_as_output();
+
+        __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+        NVIC_ClearPendingIRQ(EXTI1_IRQn);
+
+        if(response_index >= response_length) {
+            response_index = 0;
+            response_length = 0;
+            response_waiting = 0;
+            gNextByteForReading = IOBOARD_POLL_AGAIN;
+        } else if(response_length > 0) {
+            gNextByteForReading = response_bytes[response_index++];
+        } 
 
     } else {
 
+        // Put this here even before clearing interrupt so it happens
+        // as soon as possible.
         set_GPIOA_0_7_as_input();
+
+        __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+        NVIC_ClearPendingIRQ(EXTI1_IRQn);
     }
 }
 
 void EXTI2_IRQHandler(void)
 {
-    __HAL_GPIO_EXTI_CLEAR_IT(PIN_WR);
-    NVIC_ClearPendingIRQ(EXTI2_IRQn);
-
     if((GPIOC->IDR & BUS_PIN_MASK) == gWRITESignals) {
 
-        gBusWrites++;
         command_bytes[command_length++] = get_GPIOA_0_7_value();
     }
+
+    __HAL_GPIO_EXTI_CLEAR_IT(PIN_WR);
+    NVIC_ClearPendingIRQ(EXTI2_IRQn);
 }
 
 void setup_host()
@@ -1595,10 +1617,6 @@ void process_local_key(unsigned char c)
             unsigned char data = get_GPIOA_0_7_value();
             printf("data = 0x%02X\n", data);
 
-            printf("Z80 reads without response waiting: %d\n", gBusReadNoResponse);
-            printf("Z80 reads with response waiting: %d\n", gBusReadGaveResponse);
-            printf("Z80 writes: %d\n", gBusWrites);
-
         } else if(strcmp(gMonitorCommandLine, "sdreset") == 0) {
 
             printf("Resetting SD card...\n");
@@ -1819,6 +1837,7 @@ int main()
 
     for(;;) {
 
+        serial_try_to_transmit_buffers();
         LED_heartbeat();
 
         // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
