@@ -573,7 +573,7 @@ F 3 "" H 3100 6550 50  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Alice_3_bus-RESCUE-VIDEO U8
+L Alice_3_bus U8
 U 1 1 56826E73
 P 1850 5350
 F 0 "U8" H 1650 5900 60  0000 C CNN
