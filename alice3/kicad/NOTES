@@ -1,0 +1,18 @@
+
+To make new library component:
+
+- From schematic editor, click Library Editor on top (looks like a book with a pencil).
+    - Click "Create a new component" (looks like an op-amp).
+    - Make the new component.
+    - Click "Save current component to new library" (looks like an open book).
+- Go back to schematic.
+- Click Preferences -> Component Libraries.
+    - Click "Add" in "Component library files".
+    - Select new library, then OK.
+    - Can now add component to schematic.
+
+Hints:
+
+- Right-click on item to get actions on it (e.g., move edge of rectangle).
+
+

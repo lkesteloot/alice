@@ -29,6 +29,7 @@ LIBS:atmel
 LIBS:contrib
 LIBS:valves
 LIBS:propeller_p8x32a-d40
+LIBS:vga_daughter_board
 LIBS:VIDEO-cache
 EELAYER 25 0
 EELAYER END
@@ -228,4 +229,31 @@ Wire Wire Line
 	1500 1200 1500 1500
 Wire Wire Line
 	1000 1200 1000 1500
+$Comp
+L VGA_daughter_board U?
+U 1 1 5681E1A9
+P 3800 3950
+F 0 "U?" H 3550 4450 60  0000 C CNN
+F 1 "VGA_daughter_board" H 3700 3400 60  0000 C CNN
+F 2 "" H 3800 4000 60  0000 C CNN
+F 3 "" H 3800 4000 60  0000 C CNN
+	1    3800 3950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4100 3600 4800 3600
+Wire Wire Line
+	4100 3700 4800 3700
+Wire Wire Line
+	4100 3800 4800 3800
+Wire Wire Line
+	4100 3900 4800 3900
+Wire Wire Line
+	4100 4000 4800 4000
+Wire Wire Line
+	4100 4100 4800 4100
+Wire Wire Line
+	4100 4200 4800 4200
+Wire Wire Line
+	4100 4300 4800 4300
 $EndSCHEMATC
