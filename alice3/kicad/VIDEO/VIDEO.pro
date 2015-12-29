@@ -1,4 +1,4 @@
-update=Monday, December 28, 2015 'PMt' 06:33:03 PM
+update=Monday, December 28, 2015 'PMt' 06:47:18 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -61,3 +61,4 @@ LibName29=valves
 LibName30=propeller_p8x32a-d40
 LibName31=vga_daughter_board
 LibName32=24lc256
+LibName33=propeller_plug

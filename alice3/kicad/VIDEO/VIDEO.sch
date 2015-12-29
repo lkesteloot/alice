@@ -31,6 +31,7 @@ LIBS:valves
 LIBS:propeller_p8x32a-d40
 LIBS:vga_daughter_board
 LIBS:24lc256
+LIBS:propeller_plug
 LIBS:VIDEO-cache
 EELAYER 25 0
 EELAYER END
@@ -68,13 +69,6 @@ F 3 "" H 4700 4800 50  0000 C CNN
 	1    4700 4800
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	4800 4500 4700 4500
-Wire Wire Line
-	4700 4500 4700 4800
-Wire Wire Line
-	4800 4600 4700 4600
-Connection ~ 4700 4600
 $Comp
 L +3.3V #PWR3
 U 1 1 566E4A37
@@ -86,13 +80,6 @@ F 3 "" H 4700 2200 50  0000 C CNN
 	1    4700 2200
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	4700 2500 4800 2500
-Wire Wire Line
-	4700 2200 4700 2500
-Wire Wire Line
-	4800 2400 4700 2400
-Connection ~ 4700 2400
 $Comp
 L Crystal Y1
 U 1 1 566E4A7D
@@ -104,18 +91,6 @@ F 3 "" H 6350 4550 50  0000 C CNN
 	1    6350 4550
 	0    1    1    0   
 $EndComp
-Wire Wire Line
-	6000 4500 6100 4500
-Wire Wire Line
-	6100 4500 6100 4400
-Wire Wire Line
-	6100 4400 6350 4400
-Wire Wire Line
-	6000 4600 6100 4600
-Wire Wire Line
-	6100 4600 6100 4700
-Wire Wire Line
-	6100 4700 6350 4700
 $Comp
 L GND #PWR5
 U 1 1 566E4B37
@@ -127,8 +102,6 @@ F 3 "" H 6300 2500 50  0000 C CNN
 	1    6300 2500
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	6000 2500 6300 2500
 $Comp
 L +3.3V #PWR6
 U 1 1 566E4B67
@@ -165,23 +138,14 @@ $EndComp
 $Comp
 L GND #PWR9
 U 1 1 566E4C07
-P 7200 2500
-F 0 "#PWR9" H 7200 2250 50  0001 C CNN
-F 1 "GND" H 7200 2350 50  0000 C CNN
-F 2 "" H 7200 2500 50  0000 C CNN
-F 3 "" H 7200 2500 50  0000 C CNN
-	1    7200 2500
+P 7250 2500
+F 0 "#PWR9" H 7250 2250 50  0001 C CNN
+F 1 "GND" H 7250 2350 50  0000 C CNN
+F 2 "" H 7250 2500 50  0000 C CNN
+F 3 "" H 7250 2500 50  0000 C CNN
+	1    7250 2500
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	6500 1900 6500 1800
-Wire Wire Line
-	6000 2400 6600 2400
-Wire Wire Line
-	6500 2400 6500 2200
-Connection ~ 6500 2400
-Wire Wire Line
-	7200 2400 7200 2500
 $Comp
 L PWR_FLAG #FLG1
 U 1 1 566E4C94
@@ -226,10 +190,6 @@ F 3 "" H 1500 1500 50  0000 C CNN
 	1    1500 1500
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	1500 1200 1500 1500
-Wire Wire Line
-	1000 1200 1000 1500
 $Comp
 L VGA_daughter_board U2
 U 1 1 5681E1A9
@@ -241,22 +201,6 @@ F 3 "" H 3800 4000 60  0000 C CNN
 	1    3800 3950
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	4100 3600 4800 3600
-Wire Wire Line
-	4100 3700 4800 3700
-Wire Wire Line
-	4100 3800 4800 3800
-Wire Wire Line
-	4100 3900 4800 3900
-Wire Wire Line
-	4100 4000 4800 4000
-Wire Wire Line
-	4100 4100 4800 4100
-Wire Wire Line
-	4100 4200 4800 4200
-Wire Wire Line
-	4100 4300 4800 4300
 $Comp
 L 24LC256 U3
 U 1 1 5681F117
@@ -279,19 +223,6 @@ F 3 "" H 6950 4500 50  0000 C CNN
 	1    6950 4500
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	7000 4100 6950 4100
-Wire Wire Line
-	6950 4100 6950 4500
-Wire Wire Line
-	7000 4200 6950 4200
-Connection ~ 6950 4200
-Wire Wire Line
-	7000 4300 6950 4300
-Connection ~ 6950 4300
-Wire Wire Line
-	7000 4400 6950 4400
-Connection ~ 6950 4400
 $Comp
 L +3.3V #PWR10
 U 1 1 5681F2C2
@@ -314,6 +245,107 @@ F 3 "" H 8300 4250 50  0000 C CNN
 	1    8300 4250
 	1    0    0    -1  
 $EndComp
+$Comp
+L +3.3V #PWR7
+U 1 1 5681F435
+P 6700 3700
+F 0 "#PWR7" H 6700 3550 50  0001 C CNN
+F 1 "+3.3V" H 6700 3840 50  0000 C CNN
+F 2 "" H 6700 3700 50  0000 C CNN
+F 3 "" H 6700 3700 50  0000 C CNN
+	1    6700 3700
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R2
+U 1 1 5681F454
+P 6700 3900
+F 0 "R2" V 6780 3900 50  0000 C CNN
+F 1 "10k" V 6700 3900 50  0000 C CNN
+F 2 "" V 6630 3900 50  0000 C CNN
+F 3 "" H 6700 3900 50  0000 C CNN
+	1    6700 3900
+	1    0    0    -1  
+$EndComp
+$Comp
+L Propeller_Plug U4
+U 1 1 5681F4AC
+P 8200 2950
+F 0 "U4" H 8100 3250 60  0000 C CNN
+F 1 "Propeller_Plug" H 8250 2600 60  0000 C CNN
+F 2 "" H 8200 2950 60  0000 C CNN
+F 3 "" H 8200 2950 60  0000 C CNN
+	1    8200 2950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4800 4500 4700 4500
+Wire Wire Line
+	4700 4500 4700 4800
+Wire Wire Line
+	4800 4600 4700 4600
+Connection ~ 4700 4600
+Wire Wire Line
+	4700 2500 4800 2500
+Wire Wire Line
+	4700 2200 4700 2500
+Wire Wire Line
+	4800 2400 4700 2400
+Connection ~ 4700 2400
+Wire Wire Line
+	6000 4500 6100 4500
+Wire Wire Line
+	6100 4500 6100 4400
+Wire Wire Line
+	6100 4400 6350 4400
+Wire Wire Line
+	6000 4600 6100 4600
+Wire Wire Line
+	6100 4600 6100 4700
+Wire Wire Line
+	6100 4700 6350 4700
+Wire Wire Line
+	6000 2500 6300 2500
+Wire Wire Line
+	6500 1900 6500 1800
+Wire Wire Line
+	6000 2400 6600 2400
+Wire Wire Line
+	6500 2400 6500 2200
+Connection ~ 6500 2400
+Wire Wire Line
+	1500 1200 1500 1500
+Wire Wire Line
+	1000 1200 1000 1500
+Wire Wire Line
+	4100 3600 4800 3600
+Wire Wire Line
+	4100 3700 4800 3700
+Wire Wire Line
+	4100 3800 4800 3800
+Wire Wire Line
+	4100 3900 4800 3900
+Wire Wire Line
+	4100 4000 4800 4000
+Wire Wire Line
+	4100 4100 4800 4100
+Wire Wire Line
+	4100 4200 4800 4200
+Wire Wire Line
+	4100 4300 4800 4300
+Wire Wire Line
+	7000 4100 6950 4100
+Wire Wire Line
+	6950 4100 6950 4500
+Wire Wire Line
+	7000 4200 6950 4200
+Connection ~ 6950 4200
+Wire Wire Line
+	7000 4300 6950 4300
+Connection ~ 6950 4300
+Wire Wire Line
+	7000 4400 6950 4400
+Connection ~ 6950 4400
 Wire Wire Line
 	8000 4100 8050 4100
 Wire Wire Line
@@ -342,29 +374,31 @@ Wire Wire Line
 	6700 4800 6700 4050
 Wire Wire Line
 	6700 4100 6000 4100
-$Comp
-L +3.3V #PWR7
-U 1 1 5681F435
-P 6700 3700
-F 0 "#PWR7" H 6700 3550 50  0001 C CNN
-F 1 "+3.3V" H 6700 3840 50  0000 C CNN
-F 2 "" H 6700 3700 50  0000 C CNN
-F 3 "" H 6700 3700 50  0000 C CNN
-	1    6700 3700
-	1    0    0    -1  
-$EndComp
-$Comp
-L R R2
-U 1 1 5681F454
-P 6700 3900
-F 0 "R2" V 6780 3900 50  0000 C CNN
-F 1 "10k" V 6700 3900 50  0000 C CNN
-F 2 "" V 6630 3900 50  0000 C CNN
-F 3 "" H 6700 3900 50  0000 C CNN
-	1    6700 3900
-	1    0    0    -1  
-$EndComp
 Connection ~ 6700 4100
 Wire Wire Line
 	6700 3750 6700 3700
+Wire Wire Line
+	7850 2900 6450 2900
+Wire Wire Line
+	6450 2900 6450 2400
+Connection ~ 6450 2400
+Wire Wire Line
+	7850 3000 6300 3000
+Wire Wire Line
+	6300 3000 6300 4300
+Wire Wire Line
+	6300 4300 6000 4300
+Wire Wire Line
+	7850 3100 6400 3100
+Wire Wire Line
+	6400 3100 6400 4200
+Wire Wire Line
+	6400 4200 6000 4200
+Wire Wire Line
+	7850 2400 7850 2800
+Wire Wire Line
+	7200 2400 7850 2400
+Wire Wire Line
+	7250 2400 7250 2500
+Connection ~ 7250 2400
 $EndSCHEMATC
