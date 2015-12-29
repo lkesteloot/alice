@@ -1,4 +1,4 @@
-update=Monday, December 28, 2015 'PMt' 07:06:14 PM
+update=Monday, December 28, 2015 'PMt' 11:21:58 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -63,3 +63,4 @@ LibName31=vga_daughter_board
 LibName32=24lc256
 LibName33=propeller_plug
 LibName34=lm2937-3-3
+LibName35=74hc4050
