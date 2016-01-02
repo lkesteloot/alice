@@ -97,6 +97,8 @@
 #define HAL_SPDIFRX_MODULE_ENABLED
 #define HAL_LPTIM_MODULE_ENABLED
 
+#define HSE_VALUE    ((uint32_t)16000000) /*!< Value of the External oscillator in Hz */
+
 /* ########################## HSE/HSI Values adaptation ##################### */
 /**
   * @brief Adjust the value of External High Speed oscillator (HSE) used in your application.
