@@ -742,12 +742,13 @@ void z80_reset_init(void)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 0); // Reset starts active, Z80 held in reset until first reset
 }
 
 void z80_reset_start()
 {
     HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 0);
-    delay_ms(1);
+    delay_ms(10);
 }
 
 void z80_reset_finish()
@@ -764,6 +765,7 @@ void z80_interrupt_init(void)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(Z80_INT_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 1); // INT starts inactive
 }
 
 void z80_interrupt_start()
