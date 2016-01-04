@@ -56,6 +56,7 @@ To hide values (like 220 ohms):
 
 - Hover over text and hit "E".
 - Select "Invisible".
+- You can also hide all of these at once when creating Gerber files.
 
 To make Gerber files for OSHPark:
 
