@@ -1,4 +1,4 @@
-update=Sunday, January 03, 2016 'PMt' 06:47:24 PM
+update=Sunday, January 03, 2016 'PMt' 10:20:41 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -71,3 +71,6 @@ LibName29=valves
 LibName30=minim4-d40
 LibName31=levelconverter
 LibName32=alice_3_bus
+LibName33=mini_din
+LibName34=dfrobot_ftdi_basic
+LibName35=lm2937-3-3
