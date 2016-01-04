@@ -308,7 +308,7 @@ Entry Wire Line
 	1950 4050 2050 3950
 Entry Wire Line
 	1950 4150 2050 4050
-Text Label 2000 4050 0    60   ~ 0
+Text Label 2050 4050 0    60   ~ 0
 SCK
 Text Label 2050 3950 0    60   ~ 0
 CS
@@ -387,7 +387,7 @@ D5
 Text Label 4200 3800 0    60   ~ 0
 D7
 Text Label 4200 3900 0    60   ~ 0
-D8
+D6
 Text GLabel 2250 2400 0    60   Input ~ 0
 BUS3.3
 Text GLabel 4450 3200 2    60   Input ~ 0
@@ -1372,8 +1372,6 @@ $EndComp
 Wire Wire Line
 	6050 1150 6200 1150
 Wire Wire Line
-	6200 1000 6200 1250
-Wire Wire Line
 	6200 1550 5550 1550
 Wire Wire Line
 	5550 1550 5550 1750
@@ -1391,4 +1389,6 @@ F 3 "" H 6200 1050 60  0000 C CNN
 	1    6200 1050
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	6200 1050 6200 1250
 $EndSCHEMATC
