@@ -1,4 +1,4 @@
-update=Sunday, January 03, 2016 'PMt' 01:36:35 PM
+update=Sunday, January 03, 2016 'PMt' 06:47:24 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -70,3 +70,4 @@ LibName28=contrib
 LibName29=valves
 LibName30=minim4-d40
 LibName31=levelconverter
+LibName32=alice_3_bus
