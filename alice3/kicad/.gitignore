@@ -1,0 +1,9 @@
+# KiCad
+*.bak
+*.bck
+*cache.lib
+*.kicad_pcb-bak
+_autosave-*.kicad_pcb
+_saved_*.sch
+gerber
+*.zip
