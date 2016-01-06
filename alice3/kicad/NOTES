@@ -98,6 +98,11 @@ To make Gerber files for OSHPark:
     - File -> Load Gerber File
         - Select all Gerber files.
     - Check each one.
+    - May have to combine drill files.
+        - New project
+        - Click '+' to add *.drl
+        - File -> Export -> Excellon Drill Merge
+        - *Make sure to add only merged drl file to .ZIP in next step*
 - Zip all files:
     % cd gerber
     % zip ../board.zip *
