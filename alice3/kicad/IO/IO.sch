@@ -658,37 +658,37 @@ Entry Wire Line
 Text GLabel 10050 850  2    60   Input ~ 0
 BUS5
 Text Label 9600 1050 0    60   ~ 0
-D0
+D0.5v
 Text Label 9600 1150 0    60   ~ 0
-D1
+D1.5v
 Text Label 9600 1450 0    60   ~ 0
-D2
+D2.5v
 Text Label 9600 1550 0    60   ~ 0
-D3
+D3.5v
 Text Label 9600 2100 0    60   ~ 0
-D4
+D4.5v
 Text Label 9600 2200 0    60   ~ 0
-D5
+D5.5v
 Text Label 9600 2500 0    60   ~ 0
-D6
+D6.5v
 Text Label 9600 2600 0    60   ~ 0
-D7
+D7.5v
 Text Label 9500 3150 0    60   ~ 0
-/IORQ
+/IORQ.5v
 Text Label 9500 3250 0    60   ~ 0
-/RD
+/RD.5v
 Text Label 9500 3550 0    60   ~ 0
-/WR
+/WR.5v
 Text Label 9500 3650 0    60   ~ 0
-A7
+A7.5v
 Text Label 9500 4200 0    60   ~ 0
-/INT
+/INT.5v
 Text Label 9500 4300 0    60   ~ 0
-/RESET
+/RESET.5v
 Text Label 9550 4600 0    60   ~ 0
-/WAIT
+/WAIT.5v
 Text Label 9550 4700 0    60   ~ 0
-/M1
+/M1.5v
 Entry Wire Line
 	9700 5450 9800 5550
 Entry Wire Line
@@ -726,37 +726,37 @@ BUS5
 Text GLabel 8200 5650 0    60   Input ~ 0
 BUS5
 Text Label 8400 5650 0    60   ~ 0
-/INT
+/INT.5v
 Text Label 8400 5750 0    60   ~ 0
-/RESET
+/RESET.5v
 Text Label 8400 5850 0    60   ~ 0
-/WAIT
+/WAIT.5v
 Text Label 8400 5950 0    60   ~ 0
-/M1
+/M1.5v
 Text Label 8400 6050 0    60   ~ 0
-/RD
+/RD.5v
 Text Label 8400 6150 0    60   ~ 0
-/WR
+/WR.5v
 Text Label 8400 6250 0    60   ~ 0
-/IORQ
+/IORQ.5v
 Text Label 9550 5450 0    60   ~ 0
-D0
+D0.5v
 Text Label 9550 5550 0    60   ~ 0
-D1
+D1.5v
 Text Label 9550 5650 0    60   ~ 0
-D2
+D2.5v
 Text Label 9550 5750 0    60   ~ 0
-D3
+D3.5v
 Text Label 9550 5850 0    60   ~ 0
-D4
+D4.5v
 Text Label 9550 5950 0    60   ~ 0
-D5
+D5.5v
 Text Label 9550 6050 0    60   ~ 0
-D6
+D6.5v
 Text Label 9550 6150 0    60   ~ 0
-D7
+D7.5v
 Text Label 9550 6250 0    60   ~ 0
-A7
+A7.5v
 $Comp
 L +5V #PWR026
 U 1 1 568A6822
