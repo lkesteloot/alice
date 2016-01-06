@@ -617,7 +617,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* NVIC for USART */
-  HAL_NVIC_SetPriority(USART1_IRQn, 0, 1);
+  HAL_NVIC_SetPriority(USART1_IRQn, 1, 1);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
 }
 
