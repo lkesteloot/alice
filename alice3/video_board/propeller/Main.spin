@@ -18,6 +18,8 @@ CON
   rows = vgatext#rows
   chrs = cols * rows
   queue_capacity = 512
+  
+  CLK_PIN = 5
 
 OBJ
  
@@ -78,6 +80,9 @@ PUB start | i, j, addr, data
   queue_tail += 1
   queue[queue_tail] := 10
   queue_tail += 1
+  
+  ' Start Z-80 clock.
+  cognew(@z80clock, 0)
 
   if false ' Testing
     colors[0] := %%3000_3330
@@ -103,3 +108,22 @@ PUB start | i, j, addr, data
         cy0 += 1
         if cy0 == 40
           cy0 := 0
+
+DAT
+
+                        org 0
+                        
+z80clock                ' We write the clock.
+                        mov     dira, #|<CLK_PIN
+
+:loop
+                        mov     outa, #|<CLK_PIN
+                        nop
+                        nop
+                        nop
+                        nop
+                        mov     outa, #0
+                        nop
+                        nop
+                        nop
+                        jmp     #:loop

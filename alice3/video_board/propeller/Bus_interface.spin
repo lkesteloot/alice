@@ -28,10 +28,6 @@ busread                 ' We don't do any writes.
                         mov     dira, #%0
                         
                         ' We want IORQ and RW low and A7 high.
-                        mov     State, #|<0
-                        mov     Mask, #|<0
-                        mov     State, #0
-                        mov     Mask, #|<1
                         mov     State, #|<Z_A7
                         mov     Mask, #(|<Z_IORQ | |<Z_WR | |<Z_A7)
 
