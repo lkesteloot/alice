@@ -1,4 +1,4 @@
-update=Wednesday, January 06, 2016 'PMt' 04:52:35 PM
+update=Wednesday, January 06, 2016 'PMt' 04:59:02 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -66,3 +66,4 @@ LibName34=propeller_p8x32a-d40
 LibName35=dfrobot_ftdi_basic
 LibName36=levelconverter
 LibName37=minim4-d40
+LibName38=vga_daughter_board

@@ -36,6 +36,7 @@ LIBS:propeller_p8x32a-d40
 LIBS:dfrobot_ftdi_basic
 LIBS:levelconverter
 LIBS:minim4-d40
+LIBS:vga_daughter_board
 LIBS:MOBO-cache
 EELAYER 25 0
 EELAYER END
