@@ -1,4 +1,4 @@
-update=Wednesday, January 06, 2016 'PMt' 04:59:02 PM
+update=Wednesday, January 06, 2016 'PMt' 06:24:28 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -67,3 +67,4 @@ LibName35=dfrobot_ftdi_basic
 LibName36=levelconverter
 LibName37=minim4-d40
 LibName38=vga_daughter_board
+LibName39=Zilog
