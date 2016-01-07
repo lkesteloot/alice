@@ -7,3 +7,4 @@ _autosave-*.kicad_pcb
 _saved_*.sch
 gerber
 *.zip
+*.dsn
