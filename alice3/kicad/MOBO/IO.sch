@@ -37,12 +37,13 @@ LIBS:dfrobot_ftdi_basic
 LIBS:levelconverter
 LIBS:minim4-d40
 LIBS:vga_daughter_board
+LIBS:Zilog
 LIBS:MOBO-cache
 EELAYER 25 0
 EELAYER END
 $Descr USLetter 11000 8500
 encoding utf-8
-Sheet 3 3
+Sheet 3 4
 Title "Alice 3 IO Board"
 Date "2016-01-03"
 Rev "1"
