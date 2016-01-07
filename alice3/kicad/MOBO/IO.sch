@@ -56,17 +56,6 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L MiniM4-D40 U6
-U 1 1 568996B3
-P 3350 3100
-F 0 "U6" H 3000 4550 60  0000 C CNN
-F 1 "MiniM4-D40" H 3350 1650 60  0000 C CNN
-F 2 "Housings_DIP:DIP-40_W15.24mm" H 3200 1600 60  0001 C CNN
-F 3 "" H 3200 1600 60  0000 C CNN
-	1    3350 3100
-	1    0    0    -1  
-$EndComp
-$Comp
 L +3.3V #PWR018
 U 1 1 5689970E
 P 2400 1700
@@ -580,8 +569,6 @@ NoConn ~ 4000 3500
 NoConn ~ 4000 3400
 NoConn ~ 4000 3000
 NoConn ~ 4000 2900
-NoConn ~ 4000 2300
-NoConn ~ 4000 2200
 $Comp
 L CP1 C3
 U 1 1 568A9C8C
@@ -623,14 +610,10 @@ Text GLabel 2450 3000 0    60   BiDi ~ 0
 /RD
 Text GLabel 2450 3100 0    60   BiDi ~ 0
 /WR
-Text GLabel 2450 3500 0    60   Output ~ 0
-/WAIT
 Text GLabel 2450 3900 0    60   BiDi ~ 0
 /RESET
 Text GLabel 2450 4000 0    60   Output ~ 0
 /INT
-Text GLabel 4300 3200 2    60   Input ~ 0
-/M1
 Text GLabel 4300 3300 2    60   BiDi ~ 0
 A7
 Text GLabel 4300 3600 2    60   BiDi ~ 0
@@ -669,8 +652,6 @@ Text GLabel 8050 4200 0    60   Input ~ 0
 /INT
 Text GLabel 8050 4300 0    60   BiDi ~ 0
 /RESET
-Text GLabel 8050 4600 0    60   Input ~ 0
-/WAIT
 Text GLabel 9750 1050 2    60   BiDi ~ 0
 D0_5v
 Text GLabel 9750 1150 2    60   BiDi ~ 0
@@ -699,71 +680,14 @@ Text GLabel 9750 4200 2    60   Output ~ 0
 /INT_5v
 Text GLabel 9750 4300 2    60   BiDi ~ 0
 /RESET_5v
-Text GLabel 9750 4600 2    60   Output ~ 0
-/WAIT_5v
-$Comp
-L LEVELCONVERTER U12
-U 1 1 568DD592
-P 8850 5500
-F 0 "U12" H 8700 5950 60  0000 C CNN
-F 1 "LEVELCONVERTER" H 8950 5050 60  0000 C CNN
-F 2 "level converter:LEVELCONV" H 8850 4650 60  0001 C CNN
-F 3 "" H 8850 4650 60  0000 C CNN
-	1    8850 5500
-	1    0    0    -1  
-$EndComp
-Text GLabel 8050 5250 0    60   Input ~ 0
+Text GLabel 8050 4600 0    60   Input ~ 0
 /BUSRQ
-Text GLabel 8050 5350 0    60   Output ~ 0
+Text GLabel 8050 4700 0    60   Output ~ 0
 /BUSACK
-Text GLabel 9750 5250 2    60   Output ~ 0
+Text GLabel 9700 4600 2    60   Output ~ 0
 /BUSRQ_5v
-Text GLabel 9750 5350 2    60   Input ~ 0
+Text GLabel 9700 4700 2    60   Input ~ 0
 /BUSACK_5v
-$Comp
-L +3.3V #PWR044
-U 1 1 568DDB7F
-P 8300 5450
-F 0 "#PWR044" H 8300 5300 50  0001 C CNN
-F 1 "+3.3V" H 8300 5590 50  0000 C CNN
-F 2 "" H 8300 5450 60  0000 C CNN
-F 3 "" H 8300 5450 60  0000 C CNN
-	1    8300 5450
-	0    -1   -1   0   
-$EndComp
-$Comp
-L GND #PWR045
-U 1 1 568DDBC3
-P 8400 5550
-F 0 "#PWR045" H 8400 5300 50  0001 C CNN
-F 1 "GND" H 8400 5400 50  0000 C CNN
-F 2 "" H 8400 5550 60  0000 C CNN
-F 3 "" H 8400 5550 60  0000 C CNN
-	1    8400 5550
-	0    1    1    0   
-$EndComp
-$Comp
-L GND #PWR046
-U 1 1 568DDD13
-P 9300 5550
-F 0 "#PWR046" H 9300 5300 50  0001 C CNN
-F 1 "GND" H 9300 5400 50  0000 C CNN
-F 2 "" H 9300 5550 60  0000 C CNN
-F 3 "" H 9300 5550 60  0000 C CNN
-	1    9300 5550
-	0    -1   -1   0   
-$EndComp
-$Comp
-L +5V #PWR047
-U 1 1 568DDD57
-P 9400 5450
-F 0 "#PWR047" H 9400 5300 50  0001 C CNN
-F 1 "+5V" H 9400 5590 50  0000 C CNN
-F 2 "" H 9400 5450 60  0000 C CNN
-F 3 "" H 9400 5450 60  0000 C CNN
-	1    9400 5450
-	0    1    1    0   
-$EndComp
 Connection ~ 3800 7000
 Wire Wire Line
 	3800 6700 3800 7700
@@ -861,8 +785,6 @@ Wire Wire Line
 Wire Wire Line
 	2700 3100 2450 3100
 Wire Wire Line
-	2450 3500 2700 3500
-Wire Wire Line
 	2700 3900 2450 3900
 Wire Wire Line
 	2450 4000 2700 4000
@@ -870,8 +792,6 @@ Wire Wire Line
 	1650 3200 2700 3200
 Wire Wire Line
 	1650 3300 1850 3300
-Wire Wire Line
-	4000 3200 4300 3200
 Wire Wire Line
 	4000 3300 4300 3300
 Wire Wire Line
@@ -910,8 +830,6 @@ Wire Wire Line
 	8050 4200 8400 4200
 Wire Wire Line
 	8050 4300 8400 4300
-Wire Wire Line
-	8050 4600 8400 4600
 Wire Wire Line
 	8400 1250 8300 1250
 Wire Wire Line
@@ -956,8 +874,6 @@ Wire Wire Line
 	9300 4200 9750 4200
 Wire Wire Line
 	9750 4300 9300 4300
-Wire Wire Line
-	9300 4600 9750 4600
 Wire Wire Line
 	1850 3800 2700 3800
 Wire Wire Line
@@ -1016,22 +932,29 @@ Wire Wire Line
 	2400 1700 2400 2000
 Wire Wire Line
 	1850 3300 1850 3800
+Text GLabel 4000 2300 2    60   Output ~ 0
+/BUSRQ
+$Comp
+L MiniM4-D40 U6
+U 1 1 568996B3
+P 3350 3100
+F 0 "U6" H 3000 4550 60  0000 C CNN
+F 1 "MiniM4-D40" H 3350 1650 60  0000 C CNN
+F 2 "Housings_DIP:DIP-40_W15.24mm" H 3200 1600 60  0001 C CNN
+F 3 "" H 3200 1600 60  0000 C CNN
+	1    3350 3100
+	1    0    0    -1  
+$EndComp
+Text GLabel 4000 2200 2    60   Input ~ 0
+/BUSACK
+NoConn ~ 4000 3200
 Wire Wire Line
-	9750 5250 9300 5250
+	9700 4600 9300 4600
 Wire Wire Line
-	9300 5350 9750 5350
+	9700 4700 9300 4700
 Wire Wire Line
-	8400 5250 8050 5250
+	8400 4700 8050 4700
 Wire Wire Line
-	8050 5350 8400 5350
-Wire Wire Line
-	8300 5450 8400 5450
-Wire Wire Line
-	9300 5450 9400 5450
-NoConn ~ 8400 5650
-NoConn ~ 8400 5750
-NoConn ~ 9300 5650
-NoConn ~ 9300 5750
-NoConn ~ 9300 4700
-NoConn ~ 8400 4700
+	8050 4600 8400 4600
+NoConn ~ 2700 3500
 $EndSCHEMATC
