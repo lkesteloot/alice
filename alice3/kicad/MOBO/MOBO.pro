@@ -1,4 +1,4 @@
-update=Wednesday, January 06, 2016 'PMt' 06:24:28 PM
+update=Wednesday, January 06, 2016 'PMt' 10:18:24 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -68,3 +68,5 @@ LibName36=levelconverter
 LibName37=minim4-d40
 LibName38=vga_daughter_board
 LibName39=Zilog
+LibName40=km681000blp-7
+LibName41=28f512

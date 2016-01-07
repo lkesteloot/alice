@@ -38,6 +38,8 @@ LIBS:levelconverter
 LIBS:minim4-d40
 LIBS:vga_daughter_board
 LIBS:Zilog
+LIBS:km681000blp-7
+LIBS:28f512
 LIBS:MOBO-cache
 EELAYER 25 0
 EELAYER END
