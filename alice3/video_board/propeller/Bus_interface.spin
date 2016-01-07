@@ -9,7 +9,8 @@ CON
   ' Control pins.
   Z_IORQ = 1  ' Active low.
   Z_WR = 2    ' Active low.
-  Z_A7 = 3    ' Active high.
+  Z_RD = 3    ' Active low.
+  Z_A7 = 4    ' Active high.
 
 PUB start(QueuePtrParam, HeadIndexPtrParam, TailIndexPtrParam, CapacityParam)
 
