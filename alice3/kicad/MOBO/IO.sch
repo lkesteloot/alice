@@ -569,6 +569,242 @@ F 3 "" H 5100 3850 60  0000 C CNN
 	1    5100 3850
 	1    0    0    -1  
 $EndComp
+$Comp
+L DFROBOT_FTDI_BASIC U7
+U 1 1 568A1F83
+P 6150 2750
+F 0 "U7" H 5900 3350 60  0000 C CNN
+F 1 "DFROBOT_FTDI_BASIC" H 6150 2150 60  0000 C CNN
+F 2 "ftdi basic breakout:FTDIBASIC" H 6150 2150 60  0001 C CNN
+F 3 "" H 6150 2150 60  0000 C CNN
+	1    6150 2750
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR047
+U 1 1 568A2172
+P 5650 2550
+F 0 "#PWR047" H 5650 2300 50  0001 C CNN
+F 1 "GND" H 5650 2400 50  0000 C CNN
+F 2 "" H 5650 2550 60  0000 C CNN
+F 3 "" H 5650 2550 60  0000 C CNN
+	1    5650 2550
+	0    1    1    0   
+$EndComp
+$Comp
+L GND #PWR048
+U 1 1 568A21B9
+P 6650 3150
+F 0 "#PWR048" H 6650 2900 50  0001 C CNN
+F 1 "GND" H 6650 3000 50  0000 C CNN
+F 2 "" H 6650 3150 60  0000 C CNN
+F 3 "" H 6650 3150 60  0000 C CNN
+	1    6650 3150
+	0    -1   -1   0   
+$EndComp
+NoConn ~ 6650 2350
+NoConn ~ 6650 2450
+NoConn ~ 6650 2550
+NoConn ~ 6650 2650
+NoConn ~ 6650 2750
+NoConn ~ 6650 2950
+NoConn ~ 6650 3050
+NoConn ~ 5650 2350
+NoConn ~ 5650 2450
+NoConn ~ 5650 2650
+NoConn ~ 5650 2850
+NoConn ~ 5650 2950
+NoConn ~ 5650 3050
+NoConn ~ 2700 3300
+NoConn ~ 2700 3400
+NoConn ~ 4000 3500
+NoConn ~ 4000 3400
+NoConn ~ 4000 3000
+NoConn ~ 4000 2900
+NoConn ~ 4000 2300
+NoConn ~ 4000 2200
+$Comp
+L CP1 C2
+U 1 1 568A9C8C
+P 3600 7600
+F 0 "C2" H 3625 7700 50  0000 L CNN
+F 1 "22µF" H 3625 7500 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Radial_D5_L11_P2" H 3600 7600 60  0001 C CNN
+F 3 "" H 3600 7600 60  0000 C CNN
+	1    3600 7600
+	0    -1   -1   0   
+$EndComp
+$Comp
+L +5V #PWR049
+U 1 1 568DC45F
+P 7000 2650
+F 0 "#PWR049" H 7000 2500 50  0001 C CNN
+F 1 "+5V" H 7000 2790 50  0000 C CNN
+F 2 "" H 7000 2650 60  0000 C CNN
+F 3 "" H 7000 2650 60  0000 C CNN
+	1    7000 2650
+	1    0    0    -1  
+$EndComp
+NoConn ~ 2700 2200
+Text GLabel 4400 1200 2    60   Input ~ 0
+KBD_DATA
+Text GLabel 4400 1400 2    60   Input ~ 0
+KBD_CLK
+Text GLabel 2450 2400 0    60   BiDi ~ 0
+D0
+Text GLabel 2450 2500 0    60   BiDi ~ 0
+D1
+Text GLabel 2450 2600 0    60   BiDi ~ 0
+D2
+Text GLabel 2450 2700 0    60   BiDi ~ 0
+D3
+Text GLabel 2450 2800 0    60   BiDi ~ 0
+/IORQ
+Text GLabel 2450 3000 0    60   BiDi ~ 0
+/RD
+Text GLabel 2450 3100 0    60   BiDi ~ 0
+/WR
+Text GLabel 2450 3500 0    60   Output ~ 0
+/WAIT
+Text GLabel 2450 3900 0    60   BiDi ~ 0
+/RESET
+Text GLabel 2450 4000 0    60   Output ~ 0
+/INT
+Text GLabel 4300 3200 2    60   Input ~ 0
+/M1
+Text GLabel 4300 3300 2    60   BiDi ~ 0
+A7
+Text GLabel 4300 3600 2    60   BiDi ~ 0
+D4
+Text GLabel 4300 3700 2    60   BiDi ~ 0
+D5
+Text GLabel 4300 3800 2    60   BiDi ~ 0
+D6
+Text GLabel 4300 3900 2    60   BiDi ~ 0
+D7
+Text GLabel 8050 1050 0    60   BiDi ~ 0
+D0
+Text GLabel 8050 1150 0    60   BiDi ~ 0
+D1
+Text GLabel 8050 1450 0    60   BiDi ~ 0
+D2
+Text GLabel 8050 1550 0    60   BiDi ~ 0
+D3
+Text GLabel 8050 2100 0    60   BiDi ~ 0
+D4
+Text GLabel 8050 2200 0    60   BiDi ~ 0
+D5
+Text GLabel 8050 2500 0    60   BiDi ~ 0
+D6
+Text GLabel 8050 2600 0    60   BiDi ~ 0
+D7
+Text GLabel 8050 3650 0    60   BiDi ~ 0
+A7
+Text GLabel 8050 3150 0    60   BiDi ~ 0
+/IORQ
+Text GLabel 8050 3250 0    60   BiDi ~ 0
+/RD
+Text GLabel 8050 3550 0    60   BiDi ~ 0
+/WR
+Text GLabel 8050 4200 0    60   Input ~ 0
+/INT
+Text GLabel 8050 4300 0    60   BiDi ~ 0
+/RESET
+Text GLabel 8050 4600 0    60   Input ~ 0
+/WAIT
+Text GLabel 9750 1050 2    60   BiDi ~ 0
+D0_5v
+Text GLabel 9750 1150 2    60   BiDi ~ 0
+D1_5v
+Text GLabel 9750 1450 2    60   BiDi ~ 0
+D2_5v
+Text GLabel 9750 1550 2    60   BiDi ~ 0
+D3_5v
+Text GLabel 9750 2100 2    60   BiDi ~ 0
+D4_5v
+Text GLabel 9750 2200 2    60   BiDi ~ 0
+D5_5v
+Text GLabel 9750 2500 2    60   BiDi ~ 0
+D6_5v
+Text GLabel 9750 2600 2    60   BiDi ~ 0
+D7_5v
+Text GLabel 9750 3150 2    60   BiDi ~ 0
+/IORQ_5v
+Text GLabel 9750 3250 2    60   BiDi ~ 0
+/RD_5v
+Text GLabel 9750 3550 2    60   BiDi ~ 0
+/WR_5v
+Text GLabel 9750 3650 2    60   BiDi ~ 0
+A7_5v
+Text GLabel 9750 4200 2    60   Output ~ 0
+/INT_5v
+Text GLabel 9750 4300 2    60   BiDi ~ 0
+/RESET_5v
+Text GLabel 9750 4600 2    60   Output ~ 0
+/WAIT_5v
+$Comp
+L LEVELCONVERTER U?
+U 1 1 568DD592
+P 8850 5500
+F 0 "U?" H 8700 5950 60  0000 C CNN
+F 1 "LEVELCONVERTER" H 8950 5050 60  0000 C CNN
+F 2 "level converter:LEVELCONV" H 8850 4650 60  0001 C CNN
+F 3 "" H 8850 4650 60  0000 C CNN
+	1    8850 5500
+	1    0    0    -1  
+$EndComp
+Text GLabel 8050 5250 0    60   Input ~ 0
+/BUSRQ
+Text GLabel 8050 5350 0    60   Output ~ 0
+/BUSACK
+Text GLabel 9750 5250 2    60   Output ~ 0
+/BUSRQ_5v
+Text GLabel 9750 5350 2    60   Input ~ 0
+/BUSACK_5v
+$Comp
+L +3.3V #PWR?
+U 1 1 568DDB7F
+P 8300 5450
+F 0 "#PWR?" H 8300 5300 50  0001 C CNN
+F 1 "+3.3V" H 8300 5590 50  0000 C CNN
+F 2 "" H 8300 5450 60  0000 C CNN
+F 3 "" H 8300 5450 60  0000 C CNN
+	1    8300 5450
+	0    -1   -1   0   
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 568DDBC3
+P 8400 5550
+F 0 "#PWR?" H 8400 5300 50  0001 C CNN
+F 1 "GND" H 8400 5400 50  0000 C CNN
+F 2 "" H 8400 5550 60  0000 C CNN
+F 3 "" H 8400 5550 60  0000 C CNN
+	1    8400 5550
+	0    1    1    0   
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 568DDD13
+P 9300 5550
+F 0 "#PWR?" H 9300 5300 50  0001 C CNN
+F 1 "GND" H 9300 5400 50  0000 C CNN
+F 2 "" H 9300 5550 60  0000 C CNN
+F 3 "" H 9300 5550 60  0000 C CNN
+	1    9300 5550
+	0    -1   -1   0   
+$EndComp
+$Comp
+L +5V #PWR?
+U 1 1 568DDD57
+P 9400 5450
+F 0 "#PWR?" H 9400 5300 50  0001 C CNN
+F 1 "+5V" H 9400 5590 50  0000 C CNN
+F 2 "" H 9400 5450 60  0000 C CNN
+F 3 "" H 9400 5450 60  0000 C CNN
+	1    9400 5450
+	0    1    1    0   
+$EndComp
 Connection ~ 3800 7000
 Wire Wire Line
 	3800 6700 3800 7700
@@ -722,8 +958,6 @@ Wire Wire Line
 Wire Wire Line
 	8050 4600 8400 4600
 Wire Wire Line
-	8050 4700 8400 4700
-Wire Wire Line
 	8400 1250 8300 1250
 Wire Wire Line
 	8400 2300 8300 2300
@@ -770,8 +1004,6 @@ Wire Wire Line
 Wire Wire Line
 	9300 4600 9750 4600
 Wire Wire Line
-	9750 4700 9300 4700
-Wire Wire Line
 	1850 3800 2700 3800
 Wire Wire Line
 	2700 3700 1250 3700
@@ -801,17 +1033,6 @@ Wire Wire Line
 	2450 2950 2450 2900
 Wire Wire Line
 	2450 2900 2700 2900
-$Comp
-L DFROBOT_FTDI_BASIC U7
-U 1 1 568A1F83
-P 6150 2750
-F 0 "U7" H 5900 3350 60  0000 C CNN
-F 1 "DFROBOT_FTDI_BASIC" H 6150 2150 60  0000 C CNN
-F 2 "ftdi basic breakout:FTDIBASIC" H 6150 2150 60  0001 C CNN
-F 3 "" H 6150 2150 60  0000 C CNN
-	1    6150 2750
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	5650 2750 4600 2750
 Wire Wire Line
@@ -828,60 +1049,6 @@ Wire Wire Line
 	5500 2900 5500 3150
 Wire Wire Line
 	5500 3150 5650 3150
-$Comp
-L GND #PWR047
-U 1 1 568A2172
-P 5650 2550
-F 0 "#PWR047" H 5650 2300 50  0001 C CNN
-F 1 "GND" H 5650 2400 50  0000 C CNN
-F 2 "" H 5650 2550 60  0000 C CNN
-F 3 "" H 5650 2550 60  0000 C CNN
-	1    5650 2550
-	0    1    1    0   
-$EndComp
-$Comp
-L GND #PWR048
-U 1 1 568A21B9
-P 6650 3150
-F 0 "#PWR048" H 6650 2900 50  0001 C CNN
-F 1 "GND" H 6650 3000 50  0000 C CNN
-F 2 "" H 6650 3150 60  0000 C CNN
-F 3 "" H 6650 3150 60  0000 C CNN
-	1    6650 3150
-	0    -1   -1   0   
-$EndComp
-NoConn ~ 6650 2350
-NoConn ~ 6650 2450
-NoConn ~ 6650 2550
-NoConn ~ 6650 2650
-NoConn ~ 6650 2750
-NoConn ~ 6650 2950
-NoConn ~ 6650 3050
-NoConn ~ 5650 2350
-NoConn ~ 5650 2450
-NoConn ~ 5650 2650
-NoConn ~ 5650 2850
-NoConn ~ 5650 2950
-NoConn ~ 5650 3050
-NoConn ~ 2700 3300
-NoConn ~ 2700 3400
-NoConn ~ 4000 3500
-NoConn ~ 4000 3400
-NoConn ~ 4000 3000
-NoConn ~ 4000 2900
-NoConn ~ 4000 2300
-NoConn ~ 4000 2200
-$Comp
-L CP1 C2
-U 1 1 568A9C8C
-P 3600 7600
-F 0 "C2" H 3625 7700 50  0000 L CNN
-F 1 "22µF" H 3625 7500 50  0000 L CNN
-F 2 "Capacitors_ThroughHole:C_Radial_D5_L11_P2" H 3600 7600 60  0001 C CNN
-F 3 "" H 3600 7600 60  0000 C CNN
-	1    3600 7600
-	0    -1   -1   0   
-$EndComp
 Wire Wire Line
 	1750 1200 4400 1200
 Wire Wire Line
@@ -890,120 +1057,20 @@ Wire Wire Line
 	6650 2850 7000 2850
 Wire Wire Line
 	7000 2850 7000 2650
-$Comp
-L +5V #PWR049
-U 1 1 568DC45F
-P 7000 2650
-F 0 "#PWR049" H 7000 2500 50  0001 C CNN
-F 1 "+5V" H 7000 2790 50  0000 C CNN
-F 2 "" H 7000 2650 60  0000 C CNN
-F 3 "" H 7000 2650 60  0000 C CNN
-	1    7000 2650
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	2400 1700 2400 2000
-NoConn ~ 2700 2200
-Text GLabel 4400 1200 2    60   Input ~ 0
-KBD_DATA
-Text GLabel 4400 1400 2    60   Input ~ 0
-KBD_CLK
-Text GLabel 2450 2400 0    60   BiDi ~ 0
-D0
-Text GLabel 2450 2500 0    60   BiDi ~ 0
-D1
-Text GLabel 2450 2600 0    60   BiDi ~ 0
-D2
-Text GLabel 2450 2700 0    60   BiDi ~ 0
-D3
-Text GLabel 2450 2800 0    60   BiDi ~ 0
-/IORQ
-Text GLabel 2450 3000 0    60   BiDi ~ 0
-/RD
-Text GLabel 2450 3100 0    60   BiDi ~ 0
-/WR
-Text GLabel 2450 3500 0    60   Output ~ 0
-/WAIT
-Text GLabel 2450 3900 0    60   BiDi ~ 0
-/RESET
-Text GLabel 2450 4000 0    60   Output ~ 0
-/INT
 Wire Wire Line
 	1850 3300 1850 3800
-Text GLabel 4300 3200 2    60   Input ~ 0
-/M1
-Text GLabel 4300 3300 2    60   BiDi ~ 0
-A7
-Text GLabel 4300 3600 2    60   BiDi ~ 0
-D4
-Text GLabel 4300 3700 2    60   BiDi ~ 0
-D5
-Text GLabel 4300 3800 2    60   BiDi ~ 0
-D6
-Text GLabel 4300 3900 2    60   BiDi ~ 0
-D7
-Text GLabel 8050 1050 0    60   BiDi ~ 0
-D0
-Text GLabel 8050 1150 0    60   BiDi ~ 0
-D1
-Text GLabel 8050 1450 0    60   BiDi ~ 0
-D2
-Text GLabel 8050 1550 0    60   BiDi ~ 0
-D3
-Text GLabel 8050 2100 0    60   BiDi ~ 0
-D4
-Text GLabel 8050 2200 0    60   BiDi ~ 0
-D5
-Text GLabel 8050 2500 0    60   BiDi ~ 0
-D6
-Text GLabel 8050 2600 0    60   BiDi ~ 0
-D7
-Text GLabel 8050 4700 0    60   Input ~ 0
-/M1
-Text GLabel 8050 3650 0    60   BiDi ~ 0
-A7
-Text GLabel 8050 3150 0    60   BiDi ~ 0
-/IORQ
-Text GLabel 8050 3250 0    60   BiDi ~ 0
-/RD
-Text GLabel 8050 3550 0    60   BiDi ~ 0
-/WR
-Text GLabel 8050 4200 0    60   Input ~ 0
-/INT
-Text GLabel 8050 4300 0    60   BiDi ~ 0
-/RESET
-Text GLabel 8050 4600 0    60   Input ~ 0
-/WAIT
-Text GLabel 9750 1050 2    60   BiDi ~ 0
-D0_5v
-Text GLabel 9750 1150 2    60   BiDi ~ 0
-D1_5v
-Text GLabel 9750 1450 2    60   BiDi ~ 0
-D2_5v
-Text GLabel 9750 1550 2    60   BiDi ~ 0
-D3_5v
-Text GLabel 9750 2100 2    60   BiDi ~ 0
-D4_5v
-Text GLabel 9750 2200 2    60   BiDi ~ 0
-D5_5v
-Text GLabel 9750 2500 2    60   BiDi ~ 0
-D6_5v
-Text GLabel 9750 2600 2    60   BiDi ~ 0
-D7_5v
-Text GLabel 9750 3150 2    60   BiDi ~ 0
-/IORQ_5v
-Text GLabel 9750 3250 2    60   BiDi ~ 0
-/RD_5v
-Text GLabel 9750 3550 2    60   BiDi ~ 0
-/WR_5v
-Text GLabel 9750 3650 2    60   BiDi ~ 0
-A7_5v
-Text GLabel 9750 4200 2    60   Output ~ 0
-/INT_5v
-Text GLabel 9750 4300 2    60   BiDi ~ 0
-/RESET_5v
-Text GLabel 9750 4600 2    60   Output ~ 0
-/WAIT_5v
-Text GLabel 9750 4700 2    60   Output ~ 0
-/M1_5v
+Wire Wire Line
+	9750 5250 9300 5250
+Wire Wire Line
+	9300 5350 9750 5350
+Wire Wire Line
+	8400 5250 8050 5250
+Wire Wire Line
+	8050 5350 8400 5350
+Wire Wire Line
+	8300 5450 8400 5450
+Wire Wire Line
+	9300 5450 9400 5450
 $EndSCHEMATC
