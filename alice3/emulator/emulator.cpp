@@ -494,8 +494,7 @@ struct MEMORYboard : board_base
     {
         if(!loram && addr < sizeof(rom_bytes)) {
             loram = true;
-            ram_bytes[addr] = data;
-            return true;
+            printf("RAM swapped\n");
         }
         if(addr >= 0 && addr < sizeof(ram_bytes)) {
             ram_bytes[addr] = data;
