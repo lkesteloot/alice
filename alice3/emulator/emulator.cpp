@@ -246,7 +246,7 @@ struct Alice3HW : board_base
         command_length(0),
         conn(true)
     {
-        debug = true;
+        debug = false;
         char **ap, *disknames[10];
 
         for (ap = disknames; (*ap = strsep(&args, ",")) != NULL;)
@@ -310,7 +310,7 @@ struct Alice3HW : board_base
                             sum += buffer[i];
                         *rp++ = sum & 0xff;
                         *rp++ = (sum >> 8) & 0xff;
-                        printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+                        if(0) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
                     }
                 } else {
                     if(debug) printf("PIC_CMD_READ[_SUM] nonexistent disk\n");
@@ -342,7 +342,7 @@ struct Alice3HW : board_base
                             sum += buffer[i];
                         unsigned short theirs = command[134] | (command[135] << 8);
                         if(sum != theirs) {
-                            if(debug) printf("PIC_CMD_WRITE_SUM checksum does not match\n");
+                            printf("PIC_CMD_WRITE_SUM checksum does not match\n");
                             // Could retry here on real hardware
                             *rp++ = Alice3HW::PIC_FAILURE;
                             break;
@@ -426,7 +426,7 @@ struct Alice3HW : board_base
     virtual bool io_read(int addr, unsigned char &data)
     {
         if(!conn.cycle()) {
-            if(debug)fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
+            fprintf(stderr, "Unexpected failure polling for emulated serial port connection on port %d\n", server_port);
             exit(EXIT_FAILURE);
         }
 
