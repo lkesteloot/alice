@@ -20,11 +20,11 @@ void delay_100ms(unsigned char count)
     HAL_Delay(count * 100);
 }
 
-#define PANIC_LED_PIN GPIO_PIN_5
-#define PANIC_LED_PORT GPIOB
+#define PANIC_LED_PIN GPIO_PIN_13
+#define PANIC_LED_PORT GPIOC
 
-#define INFO_LED_PIN GPIO_PIN_4 
-#define INFO_LED_PORT GPIOB
+#define INFO_LED_PIN GPIO_PIN_12
+#define INFO_LED_PORT GPIOC
 
 #define HEARTBEAT_LED_PIN GPIO_PIN_15
 #define HEARTBEAT_LED_PORT GPIOA
@@ -1587,6 +1587,7 @@ void usage()
     printf("read N     - read and dump block\n");
     printf("bus        - print bus line status\n");
     printf("panic      - force panic\n");
+    printf("flashinfo  - force flashing the info LED\n");
 }
 
 #define IOBOARD_FIRMWARE_VERSION_STRING XSTR(IOBOARD_FIRMWARE_VERSION)
@@ -1635,6 +1636,15 @@ void process_local_key(unsigned char c)
                 printf("Dumping keyboard data...\n");
             else
                 printf("Not dumping keyboard data...\n");
+
+        } else if(strcmp(gMonitorCommandLine, "flashinfo") == 0) {
+
+            for(int i = 0; i < 8; i++) {
+                LED_set_info(1);
+                delay_ms(125);
+                LED_set_info(0);
+                delay_ms(125);
+            }
 
         } else if(strcmp(gMonitorCommandLine, "panic") == 0) {
 
