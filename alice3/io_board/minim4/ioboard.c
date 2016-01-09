@@ -1806,8 +1806,8 @@ int main()
     LED_setup();
     LED_heartbeat();
 
-    z80_reset_init();
     z80_interrupt_init();
+    z80_reset_init();
     LED_heartbeat();
 
     setbuf(stdout, NULL);
@@ -1837,6 +1837,9 @@ int main()
 
     setup_keyboard();
     LED_heartbeat();
+
+    z80_reset_start();
+    z80_reset_finish();
 
     printf("* ");
 
