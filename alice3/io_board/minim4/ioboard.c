@@ -735,13 +735,6 @@ void SERIAL_init()
 }
 
 //----------------------------------------------------------------------------
-// Alice 3 ROM (boot) image
-
-extern unsigned char romimage_bytes[];
-extern unsigned int romimage_length;
-
-
-//----------------------------------------------------------------------------
 // Alice 3 Bus /RESET
 
 #define Z80_RESET_PIN_MASK GPIO_PIN_0
@@ -1038,22 +1031,6 @@ unsigned char BUS_read_memory_byte(unsigned int a)
     return d;
 }
 
-void BUS_write_ROM_image()
-{
-    BUS_start();
-    unsigned char saved = BUS_get_DATA();
-    for(unsigned int a = 0; a < romimage_length; a++)
-        BUS_write_memory_byte(a, romimage_bytes[a]);
-    for(unsigned int a = 0; a < romimage_length; a++) {
-        unsigned char t = BUS_read_memory_byte(a);
-        if(t != romimage_bytes[a]) {
-            printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-            panic();
-        }
-    }
-    BUS_set_DATA(saved);
-    BUS_finish();
-}
 
 void BUS_init()
 {
@@ -1107,6 +1084,30 @@ void BUS_init()
     }
 
     BUS_reset_init();
+}
+
+
+//----------------------------------------------------------------------------
+// Alice 3 ROM (boot) image
+
+extern unsigned char romimage_bytes[];
+extern unsigned int romimage_length;
+
+void BUS_write_ROM_image()
+{
+    BUS_start();
+    unsigned char saved = BUS_get_DATA();
+    for(unsigned int a = 0; a < romimage_length; a++)
+        BUS_write_memory_byte(a, romimage_bytes[a]);
+    for(unsigned int a = 0; a < romimage_length; a++) {
+        unsigned char t = BUS_read_memory_byte(a);
+        if(t != romimage_bytes[a]) {
+            printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+            panic();
+        }
+    }
+    BUS_set_DATA(saved);
+    BUS_finish();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1166,13 +1167,13 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
 #define SPI_SS_PIN_MASK      GPIO_PIN_8
 #define SPI_SS_PORT     GPIOA
 
-void spi_enable_sd()
+void SPI_enable_sd()
 {
     HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 0);     // SS true
     delay_ms(100);
 }
 
-void spi_disable_sd()
+void SPI_disable_sd()
 {
     HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 1);     // SS false
     delay_ms(100);
@@ -1211,13 +1212,12 @@ void SPI_config_for_sd()
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match SPI rate?
     HAL_GPIO_Init(SPI_SS_PORT, &GPIO_InitStruct); 
-    spi_disable_sd();
+    SPI_disable_sd();
 }
+
 
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
-
-#define SDCARD_SUCCESS 1
 
 unsigned char crc7_add_byte(unsigned char data, unsigned char previous_crc)
 {
@@ -1431,7 +1431,7 @@ int sdcard_init()
     spi_writen(buffer, sizeof(buffer));
 
     delay_ms(100);
-    spi_enable_sd();
+    SPI_enable_sd();
     /* interface init */
     if(!sdcard_send_command(CMD0, 0, response, 1))
         return 0;
@@ -1871,10 +1871,10 @@ void process_local_key(unsigned char c)
                 p++;
             int ss = strtol(p, NULL, 0);
             if(ss) {
-                spi_enable_sd();
+                SPI_enable_sd();
                 printf("/SS to SD card is enabled (GND)\n");
             } else {
-                spi_disable_sd();
+                SPI_disable_sd();
                 printf("/SS to SD card is disabled (+3.3V)\n");
             }
 
