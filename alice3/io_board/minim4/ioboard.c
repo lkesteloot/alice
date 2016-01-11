@@ -1017,8 +1017,6 @@ unsigned char BUS_read_memory_byte(unsigned int a)
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
     delay_ms(1); /* XXX delay 1us */
-    printf("panicking in middle of reading one byte\n");
-    panic(); /* XXX */
     unsigned char d = BUS_get_DATA();
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
@@ -1028,7 +1026,6 @@ unsigned char BUS_read_memory_byte(unsigned int a)
 void BUS_start()
 {
     BUS_set_ADDRESS_as_output();
-    BUS_set_DATA_as_output();
     HAL_NVIC_DisableIRQ(EXTI1_IRQn);
     HAL_NVIC_DisableIRQ(EXTI2_IRQn);
     set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_OUTPUT_PP);
@@ -1043,7 +1040,6 @@ void BUS_finish()
     set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_INPUT);
     HAL_NVIC_EnableIRQ(EXTI2_IRQn);
     HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    BUS_set_DATA_as_input();
     BUS_set_ADDRESS_as_input();
 }
 
@@ -1114,10 +1110,12 @@ void BUS_write_ROM_image()
 {
     BUS_start();
     unsigned char saved = BUS_get_DATA();
+    BUS_set_DATA_as_output();
     for(unsigned int a = 0; a < romimage_length; a++) {
         BUS_write_memory_byte(a, romimage_bytes[a]);
         serial_try_to_transmit_buffers();
     }
+    BUS_set_DATA_as_input();
     serial_try_to_transmit_buffers();
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
