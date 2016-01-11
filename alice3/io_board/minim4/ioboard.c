@@ -20,37 +20,49 @@ void delay_100ms(unsigned char count)
     HAL_Delay(count * 100);
 }
 
-#define PANIC_LED_PIN GPIO_PIN_13
+void set_GPIO_value(GPIO_TypeDef* gpio, int mask, int value)
+{
+    unsigned long int data = value ? mask : 0;
+    GPIOA->ODR = (GPIOA->ODR & ~mask) | data;
+}
+
+void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
+{
+    long unsigned int mask = ~(3U << (pin * 2));
+    long unsigned int value = iotype << (pin * 2);
+    gpio->MODER = (gpio->MODER & mask) | value;
+}
+
+#define PANIC_LED_PIN_MASK GPIO_PIN_13
 #define PANIC_LED_PORT GPIOC
 
-#define INFO_LED_PIN GPIO_PIN_12
+#define INFO_LED_PIN_MASK GPIO_PIN_12
 #define INFO_LED_PORT GPIOC
 
-#define HEARTBEAT_LED_PIN GPIO_PIN_15
+#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_15
 #define HEARTBEAT_LED_PORT GPIOA
 
 void LED_set_panic(int on)
 {
-    HAL_GPIO_WritePin(PANIC_LED_PORT, PANIC_LED_PIN, on);
+    HAL_GPIO_WritePin(PANIC_LED_PORT, PANIC_LED_PIN_MASK, on);
 }
 
-void LED_heartbeat()
+void LED_beat_heart()
 {
     static int heartbeat_level = 1;
     static unsigned int previous_heartbeat_tick = 0;
 
-    // TODO green heartbeat toggling .5Hz
     unsigned int now = HAL_GetTick();
     if(heartbeat_level == 1) {
         if(now - previous_heartbeat_tick > 350) {
             heartbeat_level = 0;
-            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
+            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, heartbeat_level);
             previous_heartbeat_tick = now;
         }
     } else {
         if(now - previous_heartbeat_tick > 650) {
             heartbeat_level = 1;
-            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, heartbeat_level);
+            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, heartbeat_level);
             previous_heartbeat_tick = now;
         }
     }
@@ -58,44 +70,44 @@ void LED_heartbeat()
 
 void LED_set_info(int on)
 {
-    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN, on);
+    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN_MASK, on);
 }
 
-void LED_setup()
+void LED_init()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    GPIO_InitStruct.Pin = HEARTBEAT_LED_PIN;
+    GPIO_InitStruct.Pin = HEARTBEAT_LED_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(HEARTBEAT_LED_PORT, &GPIO_InitStruct); 
 
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 1);
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
 
-    GPIO_InitStruct.Pin = PANIC_LED_PIN;
+    GPIO_InitStruct.Pin = PANIC_LED_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(PANIC_LED_PORT, &GPIO_InitStruct); 
 
-    GPIO_InitStruct.Pin = INFO_LED_PIN;
+    GPIO_InitStruct.Pin = INFO_LED_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(INFO_LED_PORT, &GPIO_InitStruct); 
 }
 
 void panic_worse()
 {
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 0);
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 0);
     LED_set_panic(1);
     for(;;);
 }
 
 static void panic(void)
 {
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, 0);
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 0);
     int pin = 0;
     for(;;) {
         LED_set_panic(pin);
@@ -188,18 +200,17 @@ static void SystemClock_Config(void)
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4; // APB1 will be 42MHz
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2; // APB2 will be 84MHz
-  // 5 cycles for 168MHz is stated in Table 10 in the STM32F4 reference manual
+  // grantham - 5 cycles for 168MHz is stated in Table 10 in the STM32F4 reference manual
   if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     panic();
   }
 }
 
-void system_setup()
+void system_init()
 {
     HAL_Init();
 
-    /* Configure the system clock to 100 MHz */
     SystemClock_Config();
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -523,25 +534,25 @@ void kbd_process_byte(unsigned char kbd_byte)
     }
 }
 
-#define KEYBOARD_CLOCK_PIN GPIO_PIN_11
+#define KEYBOARD_CLOCK_PIN_MASK GPIO_PIN_11
 #define KEYBOARD_CLOCK_PORT GPIOB
 
-#define KEYBOARD_DATA_PIN GPIO_PIN_12
+#define KEYBOARD_DATA_PIN_MASK GPIO_PIN_12
 #define KEYBOARD_DATA_PORT GPIOB
 
-void setup_keyboard()
+void KBD_init()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    // XXX There's a possibility we could use USART for this
+    // There's a possibility we could use USART for this
     // and remove some CPU work
 
-    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN;
+    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
 
-    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN;
+    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
@@ -553,10 +564,10 @@ void setup_keyboard()
 
 void EXTI15_10_IRQHandler(void)
 {
-    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN);
+    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN_MASK);
     NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
 
-    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN;
+    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN_MASK;
     unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
 
     kbd_data = (kbd_data >> 1) | (keyboard_data << 10);
@@ -690,7 +701,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     gStartAnotherUARTReceive = 1;
 }
 
-void setup_serial()
+void SERIAL_init()
 {
     /*##-1- Configure the UART peripheral ######################################*/
     /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
@@ -723,65 +734,45 @@ void setup_serial()
     }
 }
 
+//----------------------------------------------------------------------------
+// Alice 3 ROM (boot) image
+
+extern unsigned char romimage_bytes[];
+extern unsigned int romimage_length;
+
 
 //----------------------------------------------------------------------------
-// Alice 3 Bus
+// Alice 3 Bus /RESET
 
-#define Z80_RESET_PIN GPIO_PIN_0
+#define Z80_RESET_PIN_MASK GPIO_PIN_0
 #define Z80_RESET_PORT GPIOB
 
-#define Z80_INT_PIN GPIO_PIN_1
-#define Z80_INT_PORT GPIOB
-
-void z80_reset_init(void)
+void BUS_reset_init(void)
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    GPIO_InitStruct.Pin = Z80_RESET_PIN;
+    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 0); // Reset starts active, Z80 held in reset until first reset
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 0); // Reset starts active
 }
 
-void z80_reset_start()
+void BUS_reset_start()
 {
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 0);
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 0);
     delay_ms(10);
 }
 
-void z80_reset_finish()
+void BUS_reset_finish()
 {
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN, 1);
-}
-
-void z80_interrupt_init(void)
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = Z80_INT_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(Z80_INT_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 1); // INT starts inactive
-}
-
-void z80_interrupt_start()
-{
-    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 0);
-    delay_ms(1);
-}
-
-void z80_interrupt_finish()
-{
-    HAL_GPIO_WritePin(Z80_INT_PORT, Z80_INT_PIN, 1);
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 1);
 }
 
 
-volatile unsigned char gSerialInputToMonitor = 1;
-volatile unsigned char gEscapeBackToMonitor = 0;
+//----------------------------------------------------------------------------
+// Alice 3 Bus IO communication protocol
 
 #define IOBOARD_POLL_AGAIN 0x00
 #define IOBOARD_SUCCESS 0x01
@@ -849,57 +840,91 @@ void response_clear()
     response_length = 0;
     response_index = 0;
     response_waiting = 0;
+    gNextByteForReading = IOBOARD_POLL_AGAIN;
 }
 
-#define ISR_ACTIVE_PIN GPIO_PIN_8
-#define ISR_ACTIVE_PORT GPIOB
 
-#define PIN_IORQ GPIO_PIN_0
-#define PIN_RD GPIO_PIN_1
-#define PIN_WR GPIO_PIN_2
-#define PIN_A7 GPIO_PIN_4
+//----------------------------------------------------------------------------
+// Alice 3 system bus
 
-#define BUS_PIN_MASK (PIN_IORQ | PIN_RD | PIN_WR | PIN_A7)
+// These are specially implemented to be on GPIOA in order to quickly
+// determine if IO is being read or written
+#define BUS_IORQ_PIN_MASK GPIO_PIN_0
+#define BUS_IORQ_PORT GPIOA
+
+#define BUS_RD_PIN_MASK GPIO_PIN_1
+#define BUS_RD_PIN 1
+#define BUS_RD_PORT GPIOA
+
+#define BUS_WR_PIN_MASK GPIO_PIN_2
+#define BUS_WR_PIN 2
+#define BUS_WR_PORT GPIOA
+
+#define BUS_A7_PIN_MASK GPIO_PIN_4
+#define BUS_A7_PORT GPIOA
+
+#define BUS_MREQ_PIN_MASK GPIO_PIN_1
+#define BUS_MREQ_PIN 1
+#define BUS_MREQ_PORT GPIOB
+
+typedef struct GPIOLine {
+    GPIO_TypeDef* gpio;
+    int pin; 
+} GPIOLine;
+
+GPIOLine address_lines[] = {
+    {GPIOA, 14}, // A0
+    {GPIOA, 13}, // A1
+    {GPIOC, 5}, // A2
+    {GPIOB, 3}, // A3
+    {GPIOB, 10}, // A4
+    {GPIOB, 9}, // A5
+    {GPIOB, 8}, // A6
+    {GPIOC, 4}, // A7
+    {GPIOC, 9}, // A8
+    {GPIOB, 4}, // A9
+    {GPIOB, 5}, // A10..A15
+};
+int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
+
+#define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 #define IO_BOARD_ADDR   0
-#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & PIN_A7)
+#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
-const unsigned int gREADSignals = PIN_WR | IO_BOARD_ADDR_PINS; // IORQ and RD 0
-const unsigned int gWRITESignals = PIN_RD | IO_BOARD_ADDR_PINS; // IORQ and WR 0
+const unsigned int gREADSignals = BUS_WR_PIN_MASK | IO_BOARD_ADDR_PINS; // IORQ and RD 0
+const unsigned int gWRITESignals = BUS_RD_PIN_MASK | IO_BOARD_ADDR_PINS; // IORQ and WR 0
 
-void set_GPIOA_0_7_as_input()
+void BUS_set_DATA_as_input()
 {
     GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x0;          // INPUT
 }
 
-void set_GPIOA_0_7_as_output()
+void BUS_set_DATA_as_output()
 {
     GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x5555;       // OUTPUT
 }
 
-unsigned char get_GPIOA_0_7_value()
+unsigned char BUS_get_DATA()
 {
     return GPIOA->IDR & 0xff;
 }
 
-void set_GPIOA_0_7_value(unsigned char data)
+void BUS_set_DATA(unsigned char data)
 {
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
 void EXTI1_IRQHandler(void)
 {
-    ISR_ACTIVE_PORT->BSRR = ISR_ACTIVE_PIN; // Set
-    __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
-
-    if((GPIOC->IDR & BUS_PIN_MASK) == gREADSignals) {
+    if((GPIOC->IDR & BUS_IO_MASK) == gREADSignals) {
 
         // Put this here even before clearing interrupt so it happens
         // as soon as possible.
-        set_GPIOA_0_7_as_output();
-        set_GPIOA_0_7_value(gNextByteForReading);
+        BUS_set_DATA(gNextByteForReading);
+        BUS_set_DATA_as_output();
         __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
 
-        __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+        __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
 
         if(response_index >= response_length) {
@@ -915,35 +940,122 @@ void EXTI1_IRQHandler(void)
 
         // Put this here even before clearing interrupt so it happens
         // as soon as possible.
-        set_GPIOA_0_7_as_input();
+        BUS_set_DATA_as_input();
         __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
 
-        __HAL_GPIO_EXTI_CLEAR_IT(PIN_RD);
+        __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
     }
-
-    __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
-    ISR_ACTIVE_PORT->BSRR = ISR_ACTIVE_PIN << 16; // Clear
 }
 
 void EXTI2_IRQHandler(void)
 {
-    ISR_ACTIVE_PORT->BSRR = ISR_ACTIVE_PIN; // Set
+    unsigned char d = BUS_get_DATA();
     __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
 
-    if((GPIOC->IDR & BUS_PIN_MASK) == gWRITESignals) {
-
-        command_bytes[command_length++] = get_GPIOA_0_7_value();
+    if((GPIOC->IDR & BUS_IO_MASK) == gWRITESignals) {
+        command_bytes[command_length++] = d;
     }
 
-    __HAL_GPIO_EXTI_CLEAR_IT(PIN_WR);
+    __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
     NVIC_ClearPendingIRQ(EXTI2_IRQn);
-
-    __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
-    ISR_ACTIVE_PORT->BSRR = ISR_ACTIVE_PIN << 16; // Clear
 }
 
-void setup_host()
+void BUS_set_ADDRESS_as_output()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
+    }
+}
+
+void BUS_set_ADDRESS_as_input()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
+    }
+}
+
+void BUS_set_ADDRESS(unsigned int a)
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        HAL_GPIO_WritePin(line->gpio, 1U << line->pin, (a >> i) & 0x01);
+    }
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral
+// Caller has to save and restore D if desired
+// Caller has to BUS_start() before and BUS_finish() after
+void BUS_write_memory_byte(unsigned int a, unsigned char d)
+{
+    BUS_set_ADDRESS(a);
+    BUS_set_DATA(d);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
+    delay_ms(1); /* XXX delay 1us */
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0);
+}
+
+void BUS_start()
+{
+    BUS_set_ADDRESS_as_output();
+    BUS_set_DATA_as_output();
+    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+    HAL_NVIC_DisableIRQ(EXTI2_IRQn);
+    set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_OUTPUT_PP);
+    set_GPIO_iotype(BUS_RD_PORT, BUS_RD_PIN, GPIO_MODE_OUTPUT_PP);
+    set_GPIO_iotype(BUS_WR_PORT, BUS_WR_PIN, GPIO_MODE_OUTPUT_PP);
+}
+
+void BUS_finish()
+{
+    set_GPIO_iotype(BUS_WR_PORT, BUS_WR_PIN, GPIO_MODE_INPUT);
+    set_GPIO_iotype(BUS_RD_PORT, BUS_RD_PIN, GPIO_MODE_INPUT);
+    set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_INPUT);
+    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+    BUS_set_DATA_as_input();
+    BUS_set_ADDRESS_as_input();
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral
+// Caller has to save and restore D if desired
+// Caller has to BUS_start() before and BUS_finish() after
+unsigned char BUS_read_memory_byte(unsigned int a)
+{
+    BUS_set_ADDRESS(a);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
+    delay_ms(1); /* XXX delay 1us */
+    unsigned char d = BUS_get_DATA();
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0);
+    return d;
+}
+
+void BUS_write_ROM_image()
+{
+    BUS_start();
+    unsigned char saved = BUS_get_DATA();
+    for(unsigned int a = 0; a < romimage_length; a++)
+        BUS_write_memory_byte(a, romimage_bytes[a]);
+    for(unsigned int a = 0; a < romimage_length; a++) {
+        unsigned char t = BUS_read_memory_byte(a);
+        if(t != romimage_bytes[a]) {
+            printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+            panic();
+        }
+    }
+    BUS_set_DATA(saved);
+    BUS_finish();
+}
+
+void BUS_init()
 {
     command_clear();
     response_clear();
@@ -955,37 +1067,47 @@ void setup_host()
     GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
     GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;        // no PUPD
 
-    set_GPIOA_0_7_as_input();
+    BUS_set_DATA_as_input();
 
-    // port C pins 1, 2 as inputs driving interrupts
-    GPIO_InitStruct.Pin = PIN_RD | PIN_WR;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+
+    // RD and WR are port C pins 1, 2 as inputs driving interrupts
+    GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
 
-    // port C pins 0, 4, as inputs
-    GPIO_InitStruct.Pin = PIN_IORQ | PIN_A7;
+    /* Enable and set EXTI Line0 Interrupt to the highest priority */
+    HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+    /* Enable and set EXTI Line0 Interrupt to the highest priority */
+    HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+    // IORQ and A7 are port C pins 0, 4, as inputs
+    GPIO_InitStruct.Pin = BUS_IORQ_PIN_MASK | BUS_A7_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
 
-    GPIO_InitStruct.Pin = ISR_ACTIVE_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    // MREQ
+    GPIO_InitStruct.Pin = BUS_MREQ_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-    HAL_GPIO_Init(ISR_ACTIVE_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
 
-    HAL_GPIO_WritePin(ISR_ACTIVE_PORT, ISR_ACTIVE_PIN, 0);
+    // Address bus pins
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        GPIO_InitStruct.Pin = 1U << line->pin;
+        HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
+    }
 
-    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
-    /* Enable and set EXTI Line0 Interrupt to the highest? priority */
-    HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+    BUS_reset_init();
 }
-
 
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
@@ -1041,23 +1163,23 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_15);
 }
 
-#define SPI_SD_PIN      GPIO_PIN_8
-#define SPI_SD_PORT     GPIOA
+#define SPI_SS_PIN_MASK      GPIO_PIN_8
+#define SPI_SS_PORT     GPIOA
 
 void spi_enable_sd()
 {
-    HAL_GPIO_WritePin(SPI_SD_PORT, SPI_SD_PIN, 0);     // SS true
+    HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 0);     // SS true
     delay_ms(100);
 }
 
 void spi_disable_sd()
 {
-    HAL_GPIO_WritePin(SPI_SD_PORT, SPI_SD_PIN, 1);     // SS false
+    HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 1);     // SS false
     delay_ms(100);
 }
 
 // Postcondition: SPI configured for SD, SS high (false)
-void spi_config_for_sd()
+void SPI_config_for_sd()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -1084,11 +1206,11 @@ void spi_config_for_sd()
     }
 
     // SD /CS card select, slave select /SS
-    GPIO_InitStruct.Pin = SPI_SD_PIN;
+    GPIO_InitStruct.Pin = SPI_SS_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match SPI rate?
-    HAL_GPIO_Init(SPI_SD_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_Init(SPI_SS_PORT, &GPIO_InitStruct); 
     spi_disable_sd();
 }
 
@@ -1592,6 +1714,8 @@ void usage()
 
 #define IOBOARD_FIRMWARE_VERSION_STRING XSTR(IOBOARD_FIRMWARE_VERSION)
 
+volatile unsigned char gSerialInputToMonitor = 1;
+
 void process_local_key(unsigned char c)
 {
     // XXX make this table driven, break into lots smaller functions
@@ -1607,19 +1731,19 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
 
-            unsigned char control = GPIOC->IDR & BUS_PIN_MASK;
+            unsigned char control = GPIOC->IDR & BUS_IO_MASK;
             printf("control = 0x%02X\n", control);
             printf("    ");
-            if(!(control & PIN_IORQ))
+            if(!(control & BUS_IORQ_PIN_MASK))
                 printf("IORQ ");
-            if(!(control & PIN_RD))
+            if(!(control & BUS_RD_PIN_MASK))
                 printf("RD ");
-            if(!(control & PIN_WR))
+            if(!(control & BUS_WR_PIN_MASK))
                 printf("WR ");
             printf("\n");
-            printf("    A7 = %d\n", control & PIN_A7 ? 1 : 0);
+            printf("    A7 = %d\n", control & BUS_A7_PIN_MASK ? 1 : 0);
 
-            unsigned char data = get_GPIOA_0_7_value();
+            unsigned char data = BUS_get_DATA();
             printf("data = 0x%02X\n", data);
 
         } else if(strcmp(gMonitorCommandLine, "sdreset") == 0) {
@@ -1652,18 +1776,11 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
-            z80_reset_start();
+            BUS_reset_start();
             printf("Resetting Z-80 and communication buffers...\n");
             response_clear();
             command_clear();
-            z80_reset_finish();
-
-        } else if(strcmp(gMonitorCommandLine, "int") == 0) {
-
-            z80_interrupt_start();
-            printf("Interupting Z-80...");
-            putchar('\n');
-            z80_interrupt_finish();
+            BUS_reset_finish();
 
         } else if(strcmp(gMonitorCommandLine, "clear") == 0) {
 
@@ -1806,57 +1923,59 @@ void process_local_key(unsigned char c)
 int main()
 {
     unsigned char responseWasWaiting = 0;
+    volatile unsigned char escapeBackToMonitor = 0;
+
+
+    system_init();
 
     queue_init(&mon_queue.q, MON_QUEUE_CAPACITY);
     queue_init(&kbd_queue.q, KBD_QUEUE_CAPACITY);
     queue_init(&con_queue.q, CON_QUEUE_CAPACITY);
 
-    system_setup();
+    LED_init();
+    LED_beat_heart();
 
-    LED_setup();
-    LED_heartbeat();
-
-    z80_interrupt_init();
-    z80_reset_init();
-    LED_heartbeat();
+    LED_beat_heart();
 
     setbuf(stdout, NULL);
-    setup_serial(); // transmit and receive but global interrupts disabled
-    LED_heartbeat();
+    SERIAL_init(); // transmit and receive but global interrupts disabled
+    LED_beat_heart();
 
     printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
-    LED_heartbeat();
+    LED_beat_heart();
 
-    spi_config_for_sd();
-    LED_heartbeat();
+    SPI_config_for_sd();
+    LED_beat_heart();
 
     if(!sdcard_init())
         printf("Failed to start access to SD card as SPI!!\n");
     else 
         printf("SD Card interface is initialized for SPI\n");
-    LED_heartbeat();
+    LED_beat_heart();
 
     if(0) {
         test_sd_card();
-        LED_heartbeat();
+        LED_beat_heart();
     }
 
-    setup_host();
-    LED_heartbeat();
+    LED_beat_heart();
 
-    setup_keyboard();
-    LED_heartbeat();
+    KBD_init();
+    LED_beat_heart();
 
-    z80_reset_start();
-    z80_reset_finish();
+    BUS_init();
+
+    BUS_reset_start();
+    BUS_write_ROM_image();
+    BUS_reset_finish();
 
     printf("* ");
 
     for(;;) {
 
         serial_try_to_transmit_buffers();
-        LED_heartbeat();
+        LED_beat_heart();
 
         // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
         if(gStartAnotherUARTReceive) {
@@ -1874,14 +1993,14 @@ int main()
             if(gSerialInputToMonitor)
                 process_local_key(c);
             else {
-                if(gEscapeBackToMonitor == 0 && c == 1)
-                    gEscapeBackToMonitor = 1;
-                else if(gEscapeBackToMonitor != 0 && c == 2) {
-                    gEscapeBackToMonitor = 0;
+                if(escapeBackToMonitor == 0 && c == 1)
+                    escapeBackToMonitor = 1;
+                else if(escapeBackToMonitor != 0 && c == 2) {
+                    escapeBackToMonitor = 0;
                     gSerialInputToMonitor = 1;
                     printf("Serial input returned to monitor\n");
                 } else {
-                    gEscapeBackToMonitor = 0;
+                    escapeBackToMonitor = 0;
                     console_enqueue_key(c);
                 }
             }
