@@ -23,7 +23,7 @@ void delay_100ms(unsigned char count)
 void set_GPIO_value(GPIO_TypeDef* gpio, int mask, int value)
 {
     unsigned long int data = value ? mask : 0;
-    GPIOA->ODR = (GPIOA->ODR & ~mask) | data;
+    gpio->ODR = (gpio->ODR & ~mask) | data;
 }
 
 void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
@@ -105,11 +105,25 @@ void panic_worse()
     for(;;);
 }
 
+void serial_try_to_transmit_buffers();
+
 static void panic(void)
 {
+    static int entered = 0;
+
+    LED_set_panic(1);
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
+
     HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 0);
+
     int pin = 0;
     for(;;) {
+        if(!entered) {
+            entered = 1;
+            serial_try_to_transmit_buffers();
+            entered = 0;
+        }
+
         LED_set_panic(pin);
         pin = pin ? 0 : 1;
         delay_ms(100);
@@ -843,18 +857,18 @@ void response_clear()
 // These are specially implemented to be on GPIOA in order to quickly
 // determine if IO is being read or written
 #define BUS_IORQ_PIN_MASK GPIO_PIN_0
-#define BUS_IORQ_PORT GPIOA
+#define BUS_IORQ_PORT GPIOC
 
 #define BUS_RD_PIN_MASK GPIO_PIN_1
 #define BUS_RD_PIN 1
-#define BUS_RD_PORT GPIOA
+#define BUS_RD_PORT GPIOC
 
 #define BUS_WR_PIN_MASK GPIO_PIN_2
 #define BUS_WR_PIN 2
-#define BUS_WR_PORT GPIOA
+#define BUS_WR_PORT GPIOC
 
 #define BUS_A7_PIN_MASK GPIO_PIN_4
-#define BUS_A7_PORT GPIOA
+#define BUS_A7_PORT GPIOC
 
 #define BUS_MREQ_PIN_MASK GPIO_PIN_1
 #define BUS_MREQ_PIN 1
@@ -974,7 +988,7 @@ void BUS_set_ADDRESS(unsigned int a)
 {
     for(int i = 0; i < address_line_count; i++) {
         GPIOLine* line = &address_lines[i];
-        HAL_GPIO_WritePin(line->gpio, 1U << line->pin, (a >> i) & 0x01);
+        set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
     }
 }
 
@@ -986,11 +1000,29 @@ void BUS_write_memory_byte(unsigned int a, unsigned char d)
 {
     BUS_set_ADDRESS(a);
     BUS_set_DATA(d);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0); // active low
     delay_ms(1); /* XXX delay 1us */
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral
+// Caller has to save and restore D if desired
+// Caller has to BUS_start() before and BUS_finish() after
+unsigned char BUS_read_memory_byte(unsigned int a)
+{
+    BUS_set_ADDRESS(a);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
+    delay_ms(1); /* XXX delay 1us */
+    printf("panicking in middle of reading one byte\n");
+    panic(); /* XXX */
+    unsigned char d = BUS_get_DATA();
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    return d;
 }
 
 void BUS_start()
@@ -1014,23 +1046,6 @@ void BUS_finish()
     BUS_set_DATA_as_input();
     BUS_set_ADDRESS_as_input();
 }
-
-// Caller has to guarantee A and D access will not collide with
-// another peripheral
-// Caller has to save and restore D if desired
-// Caller has to BUS_start() before and BUS_finish() after
-unsigned char BUS_read_memory_byte(unsigned int a)
-{
-    BUS_set_ADDRESS(a);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
-    delay_ms(1); /* XXX delay 1us */
-    unsigned char d = BUS_get_DATA();
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0);
-    return d;
-}
-
 
 void BUS_init()
 {
@@ -1093,14 +1108,20 @@ void BUS_init()
 extern unsigned char romimage_bytes[];
 extern unsigned int romimage_length;
 
+// Caller has to guarantee A and D access will not collide with
+// another peripheral; basically either Z80 BUSRQ or RESET
 void BUS_write_ROM_image()
 {
     BUS_start();
     unsigned char saved = BUS_get_DATA();
-    for(unsigned int a = 0; a < romimage_length; a++)
+    for(unsigned int a = 0; a < romimage_length; a++) {
         BUS_write_memory_byte(a, romimage_bytes[a]);
+        serial_try_to_transmit_buffers();
+    }
+    serial_try_to_transmit_buffers();
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
+        serial_try_to_transmit_buffers();
         if(t != romimage_bytes[a]) {
             printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
             panic();
@@ -1968,6 +1989,7 @@ int main()
 
     BUS_reset_start();
     BUS_write_ROM_image();
+    printf("Wrote boot image successfully\n"); 
     BUS_reset_finish();
 
     printf("* ");
