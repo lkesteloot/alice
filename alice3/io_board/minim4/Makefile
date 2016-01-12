@@ -46,4 +46,4 @@ bootrom.bin: ../../rom/rom.bin
 	dd bs=1024 count=1 if=../../rom/rom.bin of=bootrom.bin
 
 bootrom.c: bootrom.bin
-	python bin2c.py romimage romimage.bin > bootrom.c
+	python bin2c.py romimage bootrom.bin > bootrom.c
