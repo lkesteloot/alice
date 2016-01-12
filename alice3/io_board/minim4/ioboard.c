@@ -1113,17 +1113,29 @@ void BUS_write_ROM_image()
     BUS_set_DATA_as_output();
     for(unsigned int a = 0; a < romimage_length; a++) {
         BUS_write_memory_byte(a, romimage_bytes[a]);
-        serial_try_to_transmit_buffers();
     }
     BUS_set_DATA_as_input();
     serial_try_to_transmit_buffers();
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
-        serial_try_to_transmit_buffers();
         if(t != romimage_bytes[a]) {
             printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
             panic();
         }
+    }
+    BUS_set_DATA(saved);
+    BUS_finish();
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral; basically either Z80 BUSRQ or RESET
+void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
+{
+    BUS_start();
+    unsigned char saved = BUS_get_DATA();
+    BUS_set_DATA_as_input();
+    for(unsigned int u = a; u < a + l; u++) {
+        b[u - a] = BUS_read_memory_byte(u);
     }
     BUS_set_DATA(saved);
     BUS_finish();
@@ -1792,6 +1804,15 @@ void process_local_key(unsigned char c)
         } else if(strcmp(gMonitorCommandLine, "panic") == 0) {
 
             panic();
+
+        } else if(strcmp(gMonitorCommandLine, "1k") == 0) {
+
+            BUS_reset_start();
+            static unsigned char buf[1024];
+            BUS_read_memory_block(0, 1024, buf);
+            printf("RAM at 1K:\n");
+            dump_buffer_hex(4, buf, sizeof(buf));
+            BUS_reset_finish();
 
         } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
