@@ -10,10 +10,13 @@ CXXFLAGS=-Wall -I/opt/local/include -I$(BG80D_PATH) -DUSE_BG80D=$(USE_BG80D) -st
 
 VPATH=$(BG80D_PATH)
 
-all: emulator
+all: emulator hex2bin
 
 emulator: emulator.o z80emu.o readhex.o
 	$(CXX) $(LDFLAGS) $^   -o $@ $(LDLIBS)
+
+hex2bin: hex2bin.o readhex.o
+	$(CC) hex2bin.o readhex.o -o hex2bin
 
 clean:
 	rm emulator emulator.o z80emu.o readhex.o
@@ -26,6 +29,8 @@ emulator.o: emulator.h z80emu.h bg80d.h
 z80emu.o: z80emu.cpp z80emu.h instructions.h macros.h tables.h emulator.h
 
 readhex.o: readhex.c readhex.h
+
+hex2bin.o: hex2bin.c readhex.h
 
 tables.h: maketables.c
 	$(CC) -Wall $< -o maketables
