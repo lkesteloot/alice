@@ -1,5 +1,5 @@
 ASM =	../../alice2/brads_alice2_archive/asm/asm80
-HEX2BIN =	../../alice2/emulator/hex2bin
+HEX2BIN =	../../alice3/emulator/hex2bin
 .SUFFIXES: .hex .asm
 .PHONY: all burn
 
