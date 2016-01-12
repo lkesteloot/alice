@@ -124,12 +124,18 @@ void memory_desc_init(struct memory_desc *mi, unsigned char *p, off_t offset, si
     mi->p = p;
     mi->offset = offset;
     mi->size = size;
+    mi->size_written = 0;
 }
 
 void memory_desc_store(void *arg, int address, unsigned char c)
 {
     struct memory_desc *mi = (struct memory_desc *)arg;
-    if(address >= mi->offset && address <= mi->offset + mi->size)
-        mi->p[address - mi->offset] = c;
+    if(address >= mi->offset && address < mi->offset + mi->size) {
+        int offset = address - mi->offset;
+        mi->p[offset] = c;
+        if (offset + 1 > mi->size_written) {
+            mi->size_written = offset + 1;
+        }
+    }
 }
 

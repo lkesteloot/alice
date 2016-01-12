@@ -43,6 +43,10 @@ struct memory_desc
     unsigned char *p;
     off_t offset;
     size_t size;
+
+    // This is filled in by memory_desc_store to note the largest size written by
+    // the hex file:
+    size_t size_written;
 };
 
 void memory_desc_init(struct memory_desc *mi, unsigned char *p, off_t offset, size_t size);
