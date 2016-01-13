@@ -1888,18 +1888,15 @@ void usage()
     printf("debug N    - set debug level\n");
     printf("buffers    - print summary of command and response buffers\n");
     printf("reset      - reset Z80 and clear communication buffers\n");
-    printf("int        - send /INT to Z80\n");
     printf("sdreset    - reset SD\n");
     printf("sdss {0|1} - 1: enable SD (SS=GND), 0: disable SD (SS=3.3V)\n");
     printf("spiwrite B0 [B1 ...]\n");
     printf("           - send bytes to SD SPI port and print read bytes\n");
     printf("spiread N  - read N bytes from SD SPI port\n");
     printf("dumpkbd    - toggle dumping keyboard\n");
-    printf("clear      - clear command and response buffer\n");
     printf("pass       - pass monitor keys to Z80\n");
     printf("version    - print firmware build version\n");
-    printf("read N     - read and dump block\n");
-    printf("bus        - print bus line status\n");
+    printf("read N     - read and dump block N\n");
     printf("panic      - force panic\n");
     printf("flashinfo  - force flashing the info LED\n");
 }
@@ -1920,23 +1917,6 @@ void process_local_key(unsigned char c)
            (strcmp(gMonitorCommandLine, "?") == 0)) {
 
             usage();
-
-        } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
-
-            unsigned char control = BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK;
-            printf("control = 0x%02X\n", control);
-            printf("    ");
-            if(!(control & BUS_IORQ_PIN_MASK))
-                printf("IORQ ");
-            if(!(control & BUS_RD_PIN_MASK))
-                printf("RD ");
-            if(!(control & BUS_WR_PIN_MASK))
-                printf("WR ");
-            printf("\n");
-            printf("    A7 = %d\n", control & BUS_A7_PIN_MASK ? 1 : 0);
-
-            unsigned char data = BUS_get_DATA();
-            printf("data = 0x%02X\n", data);
 
         } else if(strcmp(gMonitorCommandLine, "sdreset") == 0) {
 
@@ -1964,6 +1944,7 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "panic") == 0) {
 
+            printf("panicking now\n");
             panic();
 
         } else if(strcmp(gMonitorCommandLine, "1k") == 0) {
@@ -1981,13 +1962,9 @@ void process_local_key(unsigned char c)
             printf("Resetting Z-80 and communication buffers...\n");
             response_clear();
             command_clear();
+            BUS_write_ROM_image();
+            VIDEO_start_clock();
             BUS_reset_finish();
-
-        } else if(strcmp(gMonitorCommandLine, "clear") == 0) {
-
-            response_clear();
-            command_clear();
-            printf("Command and response data cleared\n");
 
         } else if(strcmp(gMonitorCommandLine, "pass") == 0) {
 
