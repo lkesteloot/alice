@@ -112,13 +112,13 @@ static void panic(void)
     static int entered = 0;
 
     LED_set_panic(1);
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
 
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 0);
+    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
 
     int pin = 0;
     for(;;) {
         if(!entered) {
+            // serial_try_to_transmit_buffers() can itself panic(), so stop reentry here
             entered = 1;
             serial_try_to_transmit_buffers();
             entered = 0;
@@ -898,14 +898,20 @@ void response_clear()
 #define BUS_IORQ_PIN_MASK GPIO_PIN_0
 #define BUS_IORQ_PIN 0
 #define BUS_IORQ_PORT BUS_SIGNAL_CHECK_PORT
+#define BUS_IORQ_ACTIVE 0
+#define BUS_IORQ_INACTIVE BUS_IORQ_PIN_MASK
 
 #define BUS_RD_PIN_MASK GPIO_PIN_1
 #define BUS_RD_PIN 1
 #define BUS_RD_PORT BUS_SIGNAL_CHECK_PORT
+#define BUS_RD_ACTIVE 0
+#define BUS_RD_INACTIVE BUS_RD_PIN_MASK
 
 #define BUS_WR_PIN_MASK GPIO_PIN_2
 #define BUS_WR_PIN 2
 #define BUS_WR_PORT BUS_SIGNAL_CHECK_PORT
+#define BUS_WR_ACTIVE 0
+#define BUS_WR_INACTIVE BUS_WR_PIN_MASK
 
 #define BUS_A7_PIN_MASK GPIO_PIN_4
 #define BUS_A7_PORT BUS_SIGNAL_CHECK_PORT
@@ -913,6 +919,8 @@ void response_clear()
 #define BUS_MREQ_PIN_MASK GPIO_PIN_1
 #define BUS_MREQ_PIN 1
 #define BUS_MREQ_PORT GPIOB
+#define BUS_MREQ_ACTIVE 0
+#define BUS_MREQ_INACTIVE BUS_MREQ_PIN_MASK
 
 typedef struct GPIOLine {
     GPIO_TypeDef* gpio;
@@ -939,8 +947,8 @@ int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 #define IO_BOARD_ADDR   0
 #define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
-const unsigned int gREADSignals = BUS_WR_PIN_MASK | IO_BOARD_ADDR_PINS; // IORQ and RD 0
-const unsigned int gWRITESignals = BUS_RD_PIN_MASK | IO_BOARD_ADDR_PINS; // IORQ and WR 0
+const unsigned int gREADSignals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gWRITESignals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
 
 void BUS_set_DATA_as_input()
 {
@@ -970,6 +978,13 @@ void EXTI1_IRQHandler(void)
         // as soon as possible.
         BUS_set_DATA(gNextByteForReading);
         BUS_set_DATA_as_output();
+
+        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+
+        while((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_ACTIVE); /* busy wait for RD to rise */
+        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+        BUS_set_DATA_as_input();
+
         __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
@@ -1043,13 +1058,13 @@ void BUS_write_memory_byte(unsigned int a, unsigned char d)
     BUS_set_ADDRESS(a);
     BUS_set_DATA(d);
 
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_ACTIVE);
 
     DWT_Delay(MEMORY_DELAY_MICROS);
 
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1061,14 +1076,14 @@ unsigned char BUS_read_memory_byte(unsigned int a)
 {
     BUS_set_ADDRESS(a);
 
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
 
     DWT_Delay(MEMORY_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_WR_ACTIVE);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 
     return d;
 }
@@ -1083,13 +1098,13 @@ void BUS_write_io_byte(unsigned int a, unsigned char d)
     BUS_set_ADDRESS(a);
     BUS_set_DATA(d);
 
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 0); // active low
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_ACTIVE);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_ACTIVE);
 
     DWT_Delay(IO_DELAY_MICROS);
 
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1101,14 +1116,14 @@ unsigned char BUS_read_io_byte(unsigned int a)
 {
     BUS_set_ADDRESS(a);
 
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 0); // active low
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_ACTIVE);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
 
     DWT_Delay(IO_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
 
     return d;
 }
@@ -1157,11 +1172,11 @@ void BUS_init()
 
     // RD and WR are port C pins 1, 2 as inputs driving interrupts
     GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
 
     /* Enable and set EXTI Line0 Interrupt to the highest priority */
     HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
@@ -1176,14 +1191,14 @@ void BUS_init()
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
 
     // MREQ
     GPIO_InitStruct.Pin = BUS_MREQ_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 
     // Address bus pins
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -1207,6 +1222,20 @@ void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
     for(unsigned int u = a; u < a + l; u++)
         b[u - a] = BUS_read_memory_byte(u);
 
+    BUS_set_DATA(gNextByteForReading);
+    BUS_mastering_finish();
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral; basically either Z80 BUSRQ or RESET
+void BUS_write_IO(int io, unsigned char byte)
+{
+    BUS_mastering_start();
+    BUS_set_DATA_as_output();
+
+    BUS_write_io_byte(io, byte);
+
+    BUS_set_DATA_as_input();
     BUS_set_DATA(gNextByteForReading);
     BUS_mastering_finish();
 }
@@ -1248,20 +1277,6 @@ void BUS_write_ROM_image()
 #define VIDEO_BOARD_OUTPUT_ADDR   0x80
 #define VIDEO_BOARD_CONTROL_ADDR   0x81
 #define VIDEO_BOARD_START_CLOCK   0x01
-
-// Caller has to guarantee A and D access will not collide with
-// another peripheral; basically either Z80 BUSRQ or RESET
-void BUS_write_IO(int io, unsigned char byte)
-{
-    BUS_mastering_start();
-    BUS_set_DATA_as_output();
-
-    BUS_write_io_byte(io, byte);
-
-    BUS_set_DATA_as_input();
-    BUS_set_DATA(gNextByteForReading);
-    BUS_mastering_finish();
-}
 
 void VIDEO_output_string(char *c)
 {
