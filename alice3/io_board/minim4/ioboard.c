@@ -178,6 +178,35 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
     }
 }
 
+//----------------------------------------------------------------------------
+// From: https://kbiva.wordpress.com/2013/03/25/microsecond-delay-function-for-stm32/
+
+void DWT_Init(void) 
+{
+  if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) 
+  {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  }
+}
+ 
+uint32_t DWT_Get(void)
+{
+  return DWT->CYCCNT;
+}
+ 
+__inline
+uint8_t DWT_Compare(int32_t tp)
+{
+  return (((int32_t)DWT_Get() - tp) < 0);
+}
+ 
+void DWT_Delay(uint32_t us) // microseconds
+{
+  int32_t tp = DWT_Get() + us * (SystemCoreClock/1000000);
+  while (DWT_Compare(tp));
+}
 
 //----------------------------------------------------------------------------
 // System Initialization Goop
@@ -230,6 +259,8 @@ void system_init()
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+
+    DWT_Init();
 }
 
 
@@ -686,7 +717,7 @@ void serial_try_to_transmit_buffers()
     }
 }
 
-void __io_putchar( char c )
+void serial_enqueue_one_char(char c)
 {
     do {
         // Transmit the current buffer if there is one and serial
@@ -842,33 +873,42 @@ void command_clear()
     command_length = 0;
 }
 
+void BUS_set_DATA(unsigned char data);
 void response_clear()
 {
     response_length = 0;
     response_index = 0;
     response_waiting = 0;
     gNextByteForReading = IOBOARD_POLL_AGAIN;
+    BUS_set_DATA(gNextByteForReading);
 }
 
 
 //----------------------------------------------------------------------------
 // Alice 3 system bus
 
-// These are specially implemented to be on GPIOA in order to quickly
-// determine if IO is being read or written
+#define MEMORY_DELAY_MICROS     10
+#define IO_DELAY_MICROS     2
+
+// IORQ, RD, WR, and A7 are specially implemented to be on one GPIO register
+// in order to quickly determine if IO is being read or written
+
+#define BUS_SIGNAL_CHECK_PORT GPIOC
+
 #define BUS_IORQ_PIN_MASK GPIO_PIN_0
-#define BUS_IORQ_PORT GPIOC
+#define BUS_IORQ_PIN 0
+#define BUS_IORQ_PORT BUS_SIGNAL_CHECK_PORT
 
 #define BUS_RD_PIN_MASK GPIO_PIN_1
 #define BUS_RD_PIN 1
-#define BUS_RD_PORT GPIOC
+#define BUS_RD_PORT BUS_SIGNAL_CHECK_PORT
 
 #define BUS_WR_PIN_MASK GPIO_PIN_2
 #define BUS_WR_PIN 2
-#define BUS_WR_PORT GPIOC
+#define BUS_WR_PORT BUS_SIGNAL_CHECK_PORT
 
 #define BUS_A7_PIN_MASK GPIO_PIN_4
-#define BUS_A7_PORT GPIOC
+#define BUS_A7_PORT BUS_SIGNAL_CHECK_PORT
 
 #define BUS_MREQ_PIN_MASK GPIO_PIN_1
 #define BUS_MREQ_PIN 1
@@ -895,6 +935,7 @@ GPIOLine address_lines[] = {
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
+
 #define IO_BOARD_ADDR   0
 #define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
@@ -923,7 +964,7 @@ void BUS_set_DATA(unsigned char data)
 
 void EXTI1_IRQHandler(void)
 {
-    if((GPIOC->IDR & BUS_IO_MASK) == gREADSignals) {
+    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gREADSignals) {
 
         // Put this here even before clearing interrupt so it happens
         // as soon as possible.
@@ -960,7 +1001,7 @@ void EXTI2_IRQHandler(void)
     unsigned char d = BUS_get_DATA();
     __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
 
-    if((GPIOC->IDR & BUS_IO_MASK) == gWRITESignals) {
+    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITESignals) {
         command_bytes[command_length++] = d;
     }
 
@@ -996,13 +1037,17 @@ void BUS_set_ADDRESS(unsigned int a)
 // another peripheral
 // Caller has to save and restore D if desired
 // Caller has to BUS_start() before and BUS_finish() after
+// Caller has to set DATA as output
 void BUS_write_memory_byte(unsigned int a, unsigned char d)
 {
     BUS_set_ADDRESS(a);
     BUS_set_DATA(d);
+
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0); // active low
-    delay_ms(1); /* XXX delay 1us */
+
+    DWT_Delay(MEMORY_DELAY_MICROS);
+
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
 }
@@ -1011,35 +1056,86 @@ void BUS_write_memory_byte(unsigned int a, unsigned char d)
 // another peripheral
 // Caller has to save and restore D if desired
 // Caller has to BUS_start() before and BUS_finish() after
+// Caller has to set DATA as input
 unsigned char BUS_read_memory_byte(unsigned int a)
 {
     BUS_set_ADDRESS(a);
+
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 0); // active low
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
-    delay_ms(1); /* XXX delay 1us */
+
+    DWT_Delay(MEMORY_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
+
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
+
     return d;
 }
 
-void BUS_start()
+// Caller has to guarantee A and D access will not collide with
+// another peripheral
+// Caller has to save and restore D if desired
+// Caller has to BUS_start() before and BUS_finish() after
+// Caller has to set DATA as output
+void BUS_write_io_byte(unsigned int a, unsigned char d)
+{
+    BUS_set_ADDRESS(a);
+    BUS_set_DATA(d);
+
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 0); // active low
+
+    DWT_Delay(IO_DELAY_MICROS);
+
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
+}
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral
+// Caller has to save and restore D if desired
+// Caller has to BUS_start() before and BUS_finish() after
+// Caller has to set DATA as input
+unsigned char BUS_read_io_byte(unsigned int a)
+{
+    BUS_set_ADDRESS(a);
+
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 0); // active low
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 0); // active low
+
+    DWT_Delay(IO_DELAY_MICROS);
+    unsigned char d = BUS_get_DATA();
+
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
+
+    return d;
+}
+
+void BUS_mastering_start()
 {
     BUS_set_ADDRESS_as_output();
-    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
-    HAL_NVIC_DisableIRQ(EXTI2_IRQn);
+
+    HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Stop /RD from interrupting
+    HAL_NVIC_DisableIRQ(EXTI2_IRQn); // Stop /WR from interrupting
+
+    set_GPIO_iotype(BUS_IORQ_PORT, BUS_IORQ_PIN, GPIO_MODE_OUTPUT_PP);
     set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_OUTPUT_PP);
     set_GPIO_iotype(BUS_RD_PORT, BUS_RD_PIN, GPIO_MODE_OUTPUT_PP);
     set_GPIO_iotype(BUS_WR_PORT, BUS_WR_PIN, GPIO_MODE_OUTPUT_PP);
 }
 
-void BUS_finish()
+void BUS_mastering_finish()
 {
     set_GPIO_iotype(BUS_WR_PORT, BUS_WR_PIN, GPIO_MODE_INPUT);
     set_GPIO_iotype(BUS_RD_PORT, BUS_RD_PIN, GPIO_MODE_INPUT);
     set_GPIO_iotype(BUS_MREQ_PORT, BUS_MREQ_PIN, GPIO_MODE_INPUT);
-    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+    set_GPIO_iotype(BUS_IORQ_PORT, BUS_IORQ_PIN, GPIO_MODE_INPUT);
+
+    HAL_NVIC_EnableIRQ(EXTI2_IRQn); // /WR will interrupt
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn); // /RD will interrupt
+
     BUS_set_ADDRESS_as_input();
 }
 
@@ -1050,7 +1146,7 @@ void BUS_init()
 
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    // configure PORT A0:A7 outputs for later
+    // configure PORT A0:A7 (bus D0..D7) outputs for later
     GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;   // LOW
     GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
     GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;        // no PUPD
@@ -1063,7 +1159,9 @@ void BUS_init()
     GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, 1);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, 1);
 
     /* Enable and set EXTI Line0 Interrupt to the highest priority */
     HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
@@ -1077,13 +1175,15 @@ void BUS_init()
     GPIO_InitStruct.Pin = BUS_IORQ_PIN_MASK | BUS_A7_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, 1);
 
     // MREQ
     GPIO_InitStruct.Pin = BUS_MREQ_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, 1);
 
     // Address bus pins
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -1097,6 +1197,20 @@ void BUS_init()
     BUS_reset_init();
 }
 
+// Caller has to guarantee A and D access will not collide with
+// another peripheral; basically either Z80 BUSRQ or RESET
+void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
+{
+    BUS_mastering_start();
+    BUS_set_DATA_as_input();
+
+    for(unsigned int u = a; u < a + l; u++)
+        b[u - a] = BUS_read_memory_byte(u);
+
+    BUS_set_DATA(gNextByteForReading);
+    BUS_mastering_finish();
+}
+
 
 //----------------------------------------------------------------------------
 // Alice 3 ROM (boot) image
@@ -1108,14 +1222,14 @@ extern unsigned int romimage_length;
 // another peripheral; basically either Z80 BUSRQ or RESET
 void BUS_write_ROM_image()
 {
-    BUS_start();
-    unsigned char saved = BUS_get_DATA();
+    BUS_mastering_start();
     BUS_set_DATA_as_output();
-    for(unsigned int a = 0; a < romimage_length; a++) {
+
+    for(unsigned int a = 0; a < romimage_length; a++)
         BUS_write_memory_byte(a, romimage_bytes[a]);
-    }
+
     BUS_set_DATA_as_input();
-    serial_try_to_transmit_buffers();
+
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
         if(t != romimage_bytes[a]) {
@@ -1123,22 +1237,69 @@ void BUS_write_ROM_image()
             panic();
         }
     }
-    BUS_set_DATA(saved);
-    BUS_finish();
+    BUS_set_DATA(gNextByteForReading);
+    BUS_mastering_finish();
 }
+
+
+/*--------------------------------------------------------------------------*/
+// IO writes
+
+#define VIDEO_BOARD_OUTPUT_ADDR   0x80
+#define VIDEO_BOARD_CONTROL_ADDR   0x81
+#define VIDEO_BOARD_START_CLOCK   0x01
 
 // Caller has to guarantee A and D access will not collide with
 // another peripheral; basically either Z80 BUSRQ or RESET
-void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
+void BUS_write_IO(int io, unsigned char byte)
 {
-    BUS_start();
-    unsigned char saved = BUS_get_DATA();
+    BUS_mastering_start();
+    BUS_set_DATA_as_output();
+
+    BUS_write_io_byte(io, byte);
+
     BUS_set_DATA_as_input();
-    for(unsigned int u = a; u < a + l; u++) {
-        b[u - a] = BUS_read_memory_byte(u);
+    BUS_set_DATA(gNextByteForReading);
+    BUS_mastering_finish();
+}
+
+void VIDEO_output_string(char *c)
+{
+    while(*c) {
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, *c++);
     }
-    BUS_set_DATA(saved);
-    BUS_finish();
+}
+
+void VIDEO_start_clock()
+{
+    BUS_mastering_start();
+    BUS_set_DATA_as_output();
+
+    BUS_write_io_byte(VIDEO_BOARD_OUTPUT_ADDR, VIDEO_BOARD_START_CLOCK);
+
+    BUS_set_DATA_as_input();
+    BUS_set_DATA(gNextByteForReading);
+    BUS_mastering_finish();
+}
+
+
+//----------------------------------------------------------------------------
+// stdio
+
+#define OUTPUT_TO_SERIAL        0x01
+#define OUTPUT_TO_VIDEO         0x02
+
+int gOutputDevices = OUTPUT_TO_SERIAL;
+
+void __io_putchar( char c )
+{
+    if(gOutputDevices & OUTPUT_TO_SERIAL)
+        serial_enqueue_one_char(c);
+    if(gOutputDevices & OUTPUT_TO_VIDEO) {
+        if(c == '\n') // XXX
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
+    }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1762,7 +1923,7 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
 
-            unsigned char control = GPIOC->IDR & BUS_IO_MASK;
+            unsigned char control = BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK;
             printf("control = 0x%02X\n", control);
             printf("    ");
             if(!(control & BUS_IORQ_PIN_MASK))
@@ -1965,7 +2126,6 @@ int main()
     unsigned char responseWasWaiting = 0;
     volatile unsigned char escapeBackToMonitor = 0;
 
-
     system_init();
 
     queue_init(&mon_queue.q, MON_QUEUE_CAPACITY);
@@ -2008,7 +2168,12 @@ int main()
 
     BUS_reset_start();
     BUS_write_ROM_image();
-    printf("Wrote boot image successfully\n"); 
+    VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n");
+    gOutputDevices = OUTPUT_TO_VIDEO;
+    printf("Peripherals initialized\n");
+    gOutputDevices = OUTPUT_TO_SERIAL;
+    VIDEO_start_clock();
+    delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
     BUS_reset_finish();
 
     printf("* ");
