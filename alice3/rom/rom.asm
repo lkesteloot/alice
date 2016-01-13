@@ -74,7 +74,17 @@ memdone2:
         jp      ramok
 
 ramnotok:
-        ; RAM not okay. Print message and halt.
+	; RAM not okay. Store the offending address at 0 and 0x8000,
+	; store unexpected value at 2 and 0x8002, then print message
+	; and halt.  Debugger can examine those addresses.  Specifically,
+	; IO monitor "1k" command will dump the low 1K.
+        ;
+        ld      (0), hl
+        ld      (08000H), hl
+        ld      a, b
+        ld      (2), a
+        ld      (08002H), a
+
         ld      hl, ramfailmsg
 msglp2: ld      a, (hl)
         or      a               ; See if it is a nul (\0).
