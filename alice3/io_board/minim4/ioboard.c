@@ -979,13 +979,13 @@ void EXTI1_IRQHandler(void)
         BUS_set_DATA(gNextByteForReading);
         BUS_set_DATA_as_output();
 
-        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
         while((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_ACTIVE); /* busy wait for RD to rise */
-        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
         BUS_set_DATA_as_input();
 
-        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -1004,7 +1004,7 @@ void EXTI1_IRQHandler(void)
         // Put this here even before clearing interrupt so it happens
         // as soon as possible.
         BUS_set_DATA_as_input();
-        __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -1014,7 +1014,7 @@ void EXTI1_IRQHandler(void)
 void EXTI2_IRQHandler(void)
 {
     unsigned char d = BUS_get_DATA();
-    __asm__ volatile("" ::: "memory"); // Force all statements before to come before and all after to come after.
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
     if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITESignals) {
         command_bytes[command_length++] = d;
