@@ -94,17 +94,18 @@ To make Gerber files for OSHPark:
         - Drill origin:
             - Absolute
         - Click "Drill File"
+	- May have to combine drill files.  (Brad's board attempt
+	    did not show drill holes correctly until merged.)
+            - New project
+            - Click '+' to add *.drl
+            - File -> Export -> Excellon Drill Merge
 - From main KiCAD window, click "GerbView".
     - File -> Load Gerber File
         - Select all Gerber files.
     - Check each one.
-    - May have to combine drill files.
-        - New project
-        - Click '+' to add *.drl
-        - File -> Export -> Excellon Drill Merge
-        - *Make sure to add only merged drl file to .ZIP in next step*
 - Zip all files:
     % cd gerber
+    % # *Make sure to add only merged DRL to .ZIP if drill files are merged!*
     % zip ../board.zip *
 - Upload the ZIP file to OSHPark.
 
