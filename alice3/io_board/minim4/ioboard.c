@@ -33,18 +33,15 @@ void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
     gpio->MODER = (gpio->MODER & mask) | value;
 }
 
-#define PANIC_LED_PIN_MASK GPIO_PIN_13
-#define PANIC_LED_PORT GPIOC
-
-#define INFO_LED_PIN_MASK GPIO_PIN_12
+#define INFO_LED_PIN_MASK GPIO_PIN_13
 #define INFO_LED_PORT GPIOC
 
-#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_15
-#define HEARTBEAT_LED_PORT GPIOA
+#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_12
+#define HEARTBEAT_LED_PORT GPIOC
 
 void LED_set_panic(int on)
 {
-    HAL_GPIO_WritePin(PANIC_LED_PORT, PANIC_LED_PIN_MASK, on);
+    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN_MASK, on);
 }
 
 void LED_beat_heart()
@@ -84,12 +81,6 @@ void LED_init()
     HAL_GPIO_Init(HEARTBEAT_LED_PORT, &GPIO_InitStruct); 
 
     HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
-
-    GPIO_InitStruct.Pin = PANIC_LED_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(PANIC_LED_PORT, &GPIO_InitStruct); 
 
     GPIO_InitStruct.Pin = INFO_LED_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -942,6 +933,15 @@ GPIOLine address_lines[] = {
 };
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 
+// Because B5 fans out to A10..A15 (currently through an inverter) we define
+// a mask here for all those pins and check it below when setting an address
+#define BUS_ADDRESS_MASK 0xfa00 // 1111 1100 0000 0000
+
+#define BUS_HIGHBITS_BUFFER_PIN_MASK GPIO_PIN_15
+#define BUS_HIGHBITS_BUFFER_PORT GPIOA
+#define BUS_HIGHBITS_BUFFER_ENABLE 0
+#define BUS_HIGHBITS_BUFFER_DISABLE 1
+
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
 #define IO_BOARD_ADDR   0
@@ -1030,6 +1030,7 @@ void BUS_set_ADDRESS_as_output()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
     }
+    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_ENABLE);
 }
 
 void BUS_set_ADDRESS_as_input()
@@ -1038,14 +1039,28 @@ void BUS_set_ADDRESS_as_input()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
     }
+    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_DISABLE);
 }
 
-void BUS_set_ADDRESS(unsigned int a)
+int BUS_set_ADDRESS(unsigned int a)
 {
-    for(int i = 0; i < address_line_count; i++) {
+    // Special case high address_lines because one fans out to A10..A15
+    if((a > (0xffff & ~BUS_ADDRESS_MASK)) & (a < BUS_ADDRESS_MASK))
+        return 0;
+
+    for(int i = 0; i < address_line_count - 1; i++) {
         GPIOLine* line = &address_lines[i];
         set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
     }
+
+    // Special case for address_lines[address_line_count - 1] because
+    // that one fans out to A10..A15
+    int lines_A10_A15 = (a >= BUS_ADDRESS_MASK);
+
+    GPIOLine* line = &address_lines[address_line_count - 1];
+    set_GPIO_value(line->gpio, 0x1U << line->pin, lines_A10_A15);
+
+    return 1;
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1130,6 +1145,7 @@ unsigned char BUS_read_io_byte(unsigned int a)
 
 void BUS_mastering_start()
 {
+    BUS_set_ADDRESS(0);
     BUS_set_ADDRESS_as_output();
 
     HAL_NVIC_DisableIRQ(EXTI1_IRQn); // Stop /RD from interrupting
@@ -1209,6 +1225,13 @@ void BUS_init()
         HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
     }
 
+    // High address pin enable, always enabled, controls buffer /OE
+    GPIO_InitStruct.Pin = BUS_HIGHBITS_BUFFER_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_HIGHBITS_BUFFER_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_DISABLE);
+
     BUS_reset_init();
 }
 
@@ -1231,6 +1254,7 @@ void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
 void BUS_write_IO(int io, unsigned char byte)
 {
     BUS_mastering_start();
+    BUS_set_DATA(0);
     BUS_set_DATA_as_output();
 
     BUS_write_io_byte(io, byte);
@@ -1252,6 +1276,8 @@ extern unsigned int romimage_length;
 void BUS_write_ROM_image()
 {
     BUS_mastering_start();
+    BUS_set_ADDRESS(0);
+    BUS_set_DATA(0);
     BUS_set_DATA_as_output();
 
     for(unsigned int a = 0; a < romimage_length; a++)
@@ -1288,6 +1314,7 @@ void VIDEO_output_string(char *c)
 void VIDEO_start_clock()
 {
     BUS_mastering_start();
+    BUS_set_DATA(0);
     BUS_set_DATA_as_output();
 
     BUS_write_io_byte(VIDEO_BOARD_OUTPUT_ADDR, VIDEO_BOARD_START_CLOCK);
@@ -1912,6 +1939,7 @@ void usage()
     printf("pass       - pass monitor keys to Z80\n");
     printf("version    - print firmware build version\n");
     printf("read N     - read and dump block N\n");
+    printf("low128     - dump low 128 bytes from RAM (resetting Z80!!)\n");
     printf("panic      - force panic\n");
     printf("flashinfo  - force flashing the info LED\n");
 }
@@ -1962,12 +1990,12 @@ void process_local_key(unsigned char c)
             printf("panicking now\n");
             panic();
 
-        } else if(strcmp(gMonitorCommandLine, "1k") == 0) {
+        } else if(strcmp(gMonitorCommandLine, "low128") == 0) {
 
             BUS_reset_start();
-            static unsigned char buf[1024];
-            BUS_read_memory_block(0, 1024, buf);
-            printf("RAM at 1K:\n");
+            static unsigned char buf[128];
+            BUS_read_memory_block(0, 128, buf);
+            printf("low 128 bytes of RAM:\n");
             dump_buffer_hex(4, buf, sizeof(buf));
             BUS_reset_finish();
 
