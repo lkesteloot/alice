@@ -58,9 +58,15 @@ To hide values (like 220 ohms):
 - Select "Invisible".
 - You can also hide all of these at once when creating Gerber files.
 
+To do a design check:
+
+- Click the ladybug with a checkmark at the top.
+- Click "Start DRC".
+
 To make Gerber files for OSHPark:
 
 - The default design rules are more strict than the OSHPark ones, so I didn't change them.
+- Switch to mm mode (on left) because the values below are in mm.
 - File -> Plot
     - Create a "gerber" subdirectory to your project dir and specify it.
     - Enable these layers:
@@ -94,7 +100,7 @@ To make Gerber files for OSHPark:
         - Drill origin:
             - Absolute
         - Click "Drill File"
-- From main KiCAD window, click "GerbView".
+- From main KiCAD window, click "GerbView" (the icon with magnifying glass).
     - File -> Load Gerber File
         - Select all Gerber files.
     - Check each one.
