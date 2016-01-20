@@ -594,7 +594,7 @@ void KBD_init()
     HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
 
     /* Enable and set EXTI Line15-10 interrupt */
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
@@ -664,7 +664,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* NVIC for USART */
-  HAL_NVIC_SetPriority(USART1_IRQn, 1, 1);
+  HAL_NVIC_SetPriority(USART1_IRQn, 3, 1);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
 }
 
@@ -769,36 +769,6 @@ void SERIAL_init()
       panic();
     }
 }
-
-//----------------------------------------------------------------------------
-// Alice 3 Bus /RESET
-
-#define Z80_RESET_PIN_MASK GPIO_PIN_0
-#define Z80_RESET_PORT GPIOB
-
-void BUS_reset_init(void)
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 0); // Reset starts active
-}
-
-void BUS_reset_start()
-{
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 0);
-    delay_ms(10);
-}
-
-void BUS_reset_finish()
-{
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, 1);
-}
-
 
 //----------------------------------------------------------------------------
 // Alice 3 Bus IO communication protocol
@@ -1194,11 +1164,11 @@ void BUS_init()
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
 
-    /* Enable and set EXTI Line0 Interrupt to the highest priority */
+    /* Enable and set EXTI Line1 Interrupt to the highest priority */
     HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
-    /* Enable and set EXTI Line0 Interrupt to the highest priority */
+    /* Enable and set EXTI Line2 Interrupt to the highest priority */
     HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
@@ -1231,8 +1201,6 @@ void BUS_init()
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(BUS_HIGHBITS_BUFFER_PORT, &GPIO_InitStruct); 
     set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_DISABLE);
-
-    BUS_reset_init();
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1343,6 +1311,69 @@ void __io_putchar( char c )
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
     }
 }
+
+
+//----------------------------------------------------------------------------
+// Alice 3 Bus /RESET
+
+#define Z80_RESET_PIN_MASK GPIO_PIN_0
+#define Z80_RESET_PORT GPIOB
+#define Z80_RESET_IRQn EXTI0_IRQn
+#define Z80_RESET_ACTIVE 0
+#define Z80_RESET_INACTIVE Z80_RESET_PIN_MASK
+
+void BUS_reset_start()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    HAL_NVIC_DisableIRQ(Z80_RESET_IRQn);
+
+    HAL_GPIO_DeInit(Z80_RESET_PORT, Z80_RESET_PIN_MASK); 
+    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
+    DWT_Delay(10000);
+}
+
+void BUS_reset_finish()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
+
+    HAL_GPIO_DeInit(Z80_RESET_PORT, Z80_RESET_PIN_MASK); 
+    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
+
+    /* Enable and set EXTI Line0 Interrupt priority */
+    HAL_NVIC_SetPriority(Z80_RESET_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(Z80_RESET_IRQn);
+}
+
+int gZ80_reset_was_pushed = 0;
+
+void EXTI0_IRQHandler(void)
+{
+    __HAL_GPIO_EXTI_CLEAR_IT(Z80_RESET_PIN_MASK);
+    NVIC_ClearPendingIRQ(Z80_RESET_IRQn);
+
+    gZ80_reset_was_pushed = 1;
+
+    BUS_reset_start();
+
+    response_clear();
+    command_clear();
+
+    BUS_write_ROM_image();
+    VIDEO_start_clock();
+}
+
 
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
@@ -1993,20 +2024,28 @@ void process_local_key(unsigned char c)
         } else if(strcmp(gMonitorCommandLine, "low128") == 0) {
 
             BUS_reset_start();
+
             static unsigned char buf[128];
             BUS_read_memory_block(0, 128, buf);
+
             printf("low 128 bytes of RAM:\n");
             dump_buffer_hex(4, buf, sizeof(buf));
+
             BUS_reset_finish();
 
         } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
-            BUS_reset_start();
             printf("Resetting Z-80 and communication buffers...\n");
+
+            BUS_reset_start();
+
             response_clear();
             command_clear();
+
             BUS_write_ROM_image();
+
             VIDEO_start_clock();
+
             BUS_reset_finish();
 
         } else if(strcmp(gMonitorCommandLine, "pass") == 0) {
@@ -2430,6 +2469,12 @@ int main()
         if(responseWasWaiting && !response_waiting) {
             if(gDebugLevel >= DEBUG_EVENTS) printf("response packet was read\n");
             responseWasWaiting = 0;
+        }
+
+        if(gZ80_reset_was_pushed) {
+            gZ80_reset_was_pushed = 0;
+            BUS_reset_finish();
+            if(gDebugLevel >= 0/*DEBUG_EVENTS*/) printf("Z80 was reset\n");
         }
     }
 
