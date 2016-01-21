@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #define XSTR(x) STR(x)
 #define STR(x) # x
@@ -144,6 +145,23 @@ enum DebugLevels {
     DEBUG_INSANE = 99,
 };
 int gDebugLevel = DEBUG_WARNINGS;
+
+void logprintf(int level, char *fmt, ...)
+{
+    va_list args;
+    static char dummy[512];
+
+    if(level > gDebugLevel)
+        return;
+
+    va_start(args, fmt);
+    vsprintf(dummy, fmt, args);
+    va_end(args);
+    
+    char *s = dummy;
+    while(*s)
+        putchar(*s++);
+}
 
 void dump_buffer_hex(int indent, unsigned char *data, int size)
 {
@@ -883,6 +901,41 @@ void response_clear()
 #define BUS_MREQ_ACTIVE 0
 #define BUS_MREQ_INACTIVE BUS_MREQ_PIN_MASK
 
+#define BUS_BUSRQ_PIN_MASK GPIO_PIN_11
+#define BUS_BUSRQ_PIN 11
+#define BUS_BUSRQ_PORT GPIOC
+#define BUS_BUSRQ_ACTIVE 0
+#define BUS_BUSRQ_INACTIVE BUS_BUSRQ_PIN_MASK
+
+#define BUS_BUSAK_PIN_MASK GPIO_PIN_10
+#define BUS_BUSAK_PIN 10
+#define BUS_BUSAK_PORT GPIOC
+#define BUS_BUSAK_ACTIVE 0
+#define BUS_BUSAK_INACTIVE BUS_BUSAK_PIN_MASK
+
+#define BUS_HALT_PIN_MASK GPIO_PIN_15
+#define BUS_HALT_PIN 15
+#define BUS_HALT_PORT GPIOA
+
+volatile int gZ80IsInRESET = 0;
+volatile int gZ80IsInHALT = 0;
+
+void BUS_acquire_bus()
+{
+    printf("acquiring bus\n"); serial_try_to_transmit_buffers();
+    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_OUTPUT_PP);
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_ACTIVE);
+    while(HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+}
+
+void BUS_release_bus()
+{
+    printf("releasing bus\n"); serial_try_to_transmit_buffers();
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
+    while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_INPUT);
+}
+
 typedef struct GPIOLine {
     GPIO_TypeDef* gpio;
     int pin; 
@@ -899,18 +952,8 @@ GPIOLine address_lines[] = {
     {GPIOC, 4}, // A7
     {GPIOC, 9}, // A8
     {GPIOB, 4}, // A9
-    {GPIOB, 5}, // A10..A15
 };
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
-
-// Because B5 fans out to A10..A15 (currently through an inverter) we define
-// a mask here for all those pins and check it below when setting an address
-#define BUS_ADDRESS_MASK 0xfa00 // 1111 1100 0000 0000
-
-#define BUS_HIGHBITS_BUFFER_PIN_MASK GPIO_PIN_15
-#define BUS_HIGHBITS_BUFFER_PORT GPIOA
-#define BUS_HIGHBITS_BUFFER_ENABLE 0
-#define BUS_HIGHBITS_BUFFER_DISABLE 1
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
@@ -1000,7 +1043,6 @@ void BUS_set_ADDRESS_as_output()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
     }
-    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_ENABLE);
 }
 
 void BUS_set_ADDRESS_as_input()
@@ -1009,28 +1051,14 @@ void BUS_set_ADDRESS_as_input()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
     }
-    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_DISABLE);
 }
 
-int BUS_set_ADDRESS(unsigned int a)
+void BUS_set_ADDRESS(unsigned int a)
 {
-    // Special case high address_lines because one fans out to A10..A15
-    if((a > (0xffff & ~BUS_ADDRESS_MASK)) & (a < BUS_ADDRESS_MASK))
-        return 0;
-
-    for(int i = 0; i < address_line_count - 1; i++) {
+    for(int i = 0; i < address_line_count; i++) {
         GPIOLine* line = &address_lines[i];
         set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
     }
-
-    // Special case for address_lines[address_line_count - 1] because
-    // that one fans out to A10..A15
-    int lines_A10_A15 = (a >= BUS_ADDRESS_MASK);
-
-    GPIOLine* line = &address_lines[address_line_count - 1];
-    set_GPIO_value(line->gpio, 0x1U << line->pin, lines_A10_A15);
-
-    return 1;
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1115,6 +1143,8 @@ unsigned char BUS_read_io_byte(unsigned int a)
 
 void BUS_mastering_start()
 {
+    if(!gZ80IsInRESET && !gZ80IsInHALT)
+        BUS_acquire_bus();
     BUS_set_ADDRESS(0);
     BUS_set_ADDRESS_as_output();
 
@@ -1138,6 +1168,8 @@ void BUS_mastering_finish()
     HAL_NVIC_EnableIRQ(EXTI1_IRQn); // /RD will interrupt
 
     BUS_set_ADDRESS_as_input();
+    if(!gZ80IsInRESET && !gZ80IsInHALT)
+        BUS_release_bus();
 }
 
 void BUS_init()
@@ -1186,6 +1218,25 @@ void BUS_init()
     HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 
+    // HALT
+    GPIO_InitStruct.Pin = BUS_HALT_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_HALT_PORT, &GPIO_InitStruct); 
+
+    // BUSRQ
+    GPIO_InitStruct.Pin = BUS_BUSRQ_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_BUSRQ_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
+
+    // BUSAK
+    GPIO_InitStruct.Pin = BUS_BUSAK_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_BUSAK_PORT, &GPIO_InitStruct); 
+
     // Address bus pins
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -1194,13 +1245,6 @@ void BUS_init()
         GPIO_InitStruct.Pin = 1U << line->pin;
         HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
     }
-
-    // High address pin enable, always enabled, controls buffer /OE
-    GPIO_InitStruct.Pin = BUS_HIGHBITS_BUFFER_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_HIGHBITS_BUFFER_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_HIGHBITS_BUFFER_PORT, BUS_HIGHBITS_BUFFER_PIN_MASK, BUS_HIGHBITS_BUFFER_DISABLE);
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1316,62 +1360,80 @@ void __io_putchar( char c )
 //----------------------------------------------------------------------------
 // Alice 3 Bus /RESET
 
-#define Z80_RESET_PIN_MASK GPIO_PIN_0
+#define RESET_BUTTON_PORT GPIOB
+#define RESET_BUTTON_PIN_MASK GPIO_PIN_5
+#define RESET_BUTTON_IRQn EXTI9_5_IRQn
+#define RESET_BUTTON_DELAY_MS 10
+
 #define Z80_RESET_PORT GPIOB
-#define Z80_RESET_IRQn EXTI0_IRQn
+#define Z80_RESET_PIN_MASK GPIO_PIN_0
 #define Z80_RESET_ACTIVE 0
 #define Z80_RESET_INACTIVE Z80_RESET_PIN_MASK
+#define Z80_RESET_DURATION_MS 10
 
-void BUS_reset_start()
+void BUS_reset_init()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    HAL_NVIC_DisableIRQ(Z80_RESET_IRQn);
-
-    HAL_GPIO_DeInit(Z80_RESET_PORT, Z80_RESET_PIN_MASK); 
     GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
     HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
-    DWT_Delay(10000);
+    gZ80IsInRESET = 1;
+}
+
+void BUS_reset_start()
+{
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
+    gZ80IsInRESET = 1;
+    delay_ms(Z80_RESET_DURATION_MS);
 }
 
 void BUS_reset_finish()
 {
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
+    gZ80IsInRESET = 0;
     HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
-
-    HAL_GPIO_DeInit(Z80_RESET_PORT, Z80_RESET_PIN_MASK); 
-    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
-
-    /* Enable and set EXTI Line0 Interrupt priority */
-    HAL_NVIC_SetPriority(Z80_RESET_IRQn, 2, 0);
-    HAL_NVIC_EnableIRQ(Z80_RESET_IRQn);
 }
 
-int gZ80_reset_was_pushed = 0;
+volatile int gResetTheZ80 = 0;
 
-void EXTI0_IRQHandler(void)
+void RESET_BUTTON_init()
 {
-    __HAL_GPIO_EXTI_CLEAR_IT(Z80_RESET_PIN_MASK);
-    NVIC_ClearPendingIRQ(Z80_RESET_IRQn);
+    GPIO_InitTypeDef  GPIO_InitStruct;
 
-    gZ80_reset_was_pushed = 1;
+    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
 
+    /* Enable and set interrupt priority */
+    HAL_NVIC_SetPriority(RESET_BUTTON_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(RESET_BUTTON_IRQn);
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+    __HAL_GPIO_EXTI_CLEAR_IT(RESET_BUTTON_PIN_MASK);
+    NVIC_ClearPendingIRQ(RESET_BUTTON_IRQn);
+
+    gResetTheZ80 = 1;
+}
+
+void Z80_reset()
+{
     BUS_reset_start();
 
     response_clear();
     command_clear();
 
     BUS_write_ROM_image();
+
     VIDEO_start_clock();
+
+    BUS_reset_finish();
 }
 
 
@@ -2036,17 +2098,7 @@ void process_local_key(unsigned char c)
         } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
             printf("Resetting Z-80 and communication buffers...\n");
-
-            BUS_reset_start();
-
-            response_clear();
-            command_clear();
-
-            BUS_write_ROM_image();
-
-            VIDEO_start_clock();
-
-            BUS_reset_finish();
+            Z80_reset();
 
         } else if(strcmp(gMonitorCommandLine, "pass") == 0) {
 
@@ -2184,6 +2236,7 @@ int main()
 {
     unsigned char responseWasWaiting = 0;
     volatile unsigned char escapeBackToMonitor = 0;
+    int Z80WasInHALT = 0;
 
     system_init();
 
@@ -2225,12 +2278,11 @@ int main()
 
     BUS_init();
 
+    BUS_reset_init();
+
     BUS_reset_start();
     BUS_write_ROM_image();
     VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n");
-    gOutputDevices = OUTPUT_TO_VIDEO;
-    printf("Peripherals initialized\n");
-    gOutputDevices = OUTPUT_TO_SERIAL;
     VIDEO_start_clock();
     delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
     BUS_reset_finish();
@@ -2282,7 +2334,7 @@ int main()
 
             } else if(command_length >= command_lengths[command_byte]) {
                 command_request = command_byte;
-                if(gDebugLevel >= DEBUG_EVENTS) printf("complete command received.\n");
+                logprintf(DEBUG_EVENTS, "complete command received.\n");
                 if(command_length > command_lengths[command_byte]) {
                     if(gDebugLevel >= DEBUG_ERRORS) printf("ERROR: command buffer longer than expected for command.\n");
                 }
@@ -2471,10 +2523,26 @@ int main()
             responseWasWaiting = 0;
         }
 
-        if(gZ80_reset_was_pushed) {
-            gZ80_reset_was_pushed = 0;
-            BUS_reset_finish();
+        if(gResetTheZ80 || HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
+            while(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK));
+            delay_ms(RESET_BUTTON_DELAY_MS);// software debounce
+            gResetTheZ80 = 0;
+
+            Z80_reset();
+
             if(gDebugLevel >= 0/*DEBUG_EVENTS*/) printf("Z80 was reset\n");
+        }
+
+        gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
+        if(gZ80IsInHALT != Z80WasInHALT) {
+            gOutputDevices = OUTPUT_TO_VIDEO | OUTPUT_TO_SERIAL;
+            if(gZ80IsInHALT) {
+                if(gDebugLevel >= 0 /*DEBUG_EVENTS*/) printf("Z80 has HALTed.\n");
+            } else {
+                if(gDebugLevel >= 0 /*DEBUG_EVENTS*/) printf("Z80 has exited HALT state.\n");
+            }
+            gOutputDevices = OUTPUT_TO_SERIAL;
+            Z80WasInHALT = gZ80IsInHALT;
         }
     }
 
