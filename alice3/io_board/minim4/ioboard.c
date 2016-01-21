@@ -146,23 +146,6 @@ enum DebugLevels {
 };
 int gDebugLevel = DEBUG_WARNINGS;
 
-void logprintf(int level, char *fmt, ...)
-{
-    va_list args;
-    static char dummy[512];
-
-    if(level > gDebugLevel)
-        return;
-
-    va_start(args, fmt);
-    vsprintf(dummy, fmt, args);
-    va_end(args);
-    
-    char *s = dummy;
-    while(*s)
-        putchar(*s++);
-}
-
 void dump_buffer_hex(int indent, unsigned char *data, int size)
 {
     int address = 0;
@@ -922,7 +905,6 @@ volatile int gZ80IsInHALT = 0;
 
 void BUS_acquire_bus()
 {
-    printf("acquiring bus\n"); serial_try_to_transmit_buffers();
     set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_OUTPUT_PP);
     set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_ACTIVE);
     while(HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
@@ -930,7 +912,6 @@ void BUS_acquire_bus()
 
 void BUS_release_bus()
 {
-    printf("releasing bus\n"); serial_try_to_transmit_buffers();
     set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
     while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
     set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_INPUT);
@@ -1316,10 +1297,15 @@ void BUS_write_ROM_image()
 #define VIDEO_BOARD_CONTROL_ADDR   0x81
 #define VIDEO_BOARD_START_CLOCK   0x01
 
-void VIDEO_output_string(char *c)
+void VIDEO_output_string(char *c, int inverse)
 {
     while(*c) {
-        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, *c++);
+        if(*c == '\n') {
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, *c);
+        } else
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, *c + (inverse ? 128 : 0));
+        c++;
     }
 }
 
@@ -1354,6 +1340,27 @@ void __io_putchar( char c )
             BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
     }
+}
+
+void logprintf(int level, char *fmt, ...)
+{
+    va_list args;
+    static char dummy[512];
+
+    if(level > gDebugLevel)
+        return;
+
+    va_start(args, fmt);
+    vsprintf(dummy, fmt, args);
+    va_end(args);
+    
+    char *s = dummy;
+    while(*s) {
+        putchar(*s++);
+    }
+
+    if(!(gOutputDevices & OUTPUT_TO_VIDEO) && (level <= DEBUG_WARNINGS))
+        VIDEO_output_string(dummy, 1);
 }
 
 
@@ -1682,7 +1689,7 @@ void spi_writen(unsigned char *buffer, unsigned int nlen)
     }
     int result = HAL_SPI_Transmit(&gSPIHandle, buffer, nlen, 1000);
     if(result != HAL_OK){
-        printf("spi_writen: SPI error 0x%04X\n", result);
+        logprintf(DEBUG_ERRORS, "spi_writen: SPI error 0x%04X\n", result);
         panic();
     }
 }
@@ -1692,7 +1699,7 @@ void spi_readn(unsigned char *buffer, unsigned int nlen)
     memset(buffer, 0xff, nlen);
     int result = HAL_SPI_TransmitReceive(&gSPIHandle, buffer, buffer, nlen, 1000);
     if(result != HAL_OK){
-        printf("spi_readn: SPI error 0x%04X\n", result);
+        logprintf(DEBUG_ERRORS, "spi_readn: SPI error 0x%04X\n", result);
         panic();
     }
     if(gDebugLevel >= DEBUG_INSANE) {
@@ -1716,12 +1723,12 @@ int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, uns
     command_buffer[4] = (parameter >> 0) & 0xff;
     command_buffer[5] = ((crc7_generate_bytes(command_buffer, 5) & 0x7f) << 1) | 0x01;
 
-    if(gDebugLevel >= DEBUG_DATA) printf("command constructed: %02X %02X %02X %02X %02X %02X\n",
+    logprintf(DEBUG_DATA, "command constructed: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
     spi_bulk(command_buffer, sizeof(command_buffer));
-    if(gDebugLevel >= DEBUG_ALL) printf("returned in buffer: %02X %02X %02X %02X %02X %02X\n",
+    logprintf(DEBUG_ALL, "returned in buffer: %02X %02X %02X %02X %02X %02X\n",
         command_buffer[0], command_buffer[1], command_buffer[2],
         command_buffer[3], command_buffer[4], command_buffer[5]);
 
@@ -1734,7 +1741,7 @@ int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, uns
         }
         response[0] = 0xff;
         spi_bulk(response, 1);
-        if(gDebugLevel >= DEBUG_ALL) printf("response 0x%02X\n", response[0]);
+        logprintf(DEBUG_ALL, "response 0x%02X\n", response[0]);
     } while(response[0] & 0x80);
 
     if(response_length > 1) {
@@ -1776,7 +1783,7 @@ int sdcard_init()
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    if(gDebugLevel >= DEBUG_DATA) printf("sdcard_init: OCR response is 0x%08lX\n", OCR);
+    logprintf(DEBUG_DATA, "sdcard_init: OCR response is 0x%08lX\n", OCR);
 
     // should get CSD, CID, print information about them
 
@@ -1799,7 +1806,7 @@ int sdcard_init()
         if(!sdcard_send_command(ACMD41, 0x40000000, response, 1))
             return 0;
     } while(response[0] != gSDCardResponseSUCCESS);
-    if(gDebugLevel >= DEBUG_ALL) printf("returned from ACMD41: %02X\n", response[0]);
+    logprintf(DEBUG_ALL, "returned from ACMD41: %02X\n", response[0]);
 
     return 1;
 }
@@ -1836,7 +1843,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(gDebugLevel >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
+        logprintf(DEBUG_ALL, "readblock response 0x%02X\n", response[0]);
     } while(response[0] != gSDCardToken_17_18_24);
 
     // Read data.
@@ -1844,7 +1851,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
 
     // Read CRC
     spi_readn(response, 2);
-    if(gDebugLevel >= DEBUG_DATA) printf("CRC is 0x%02X%02X\n", response[0], response[1]);
+    logprintf(DEBUG_DATA, "CRC is 0x%02X%02X\n", response[0], response[1]);
 
     unsigned short crc_theirs = response[0] * 256 + response[1];
 
@@ -1855,7 +1862,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
         printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
         return 0;
     } else {
-        if(gDebugLevel >= DEBUG_DATA) printf("CRC matches\n");
+        logprintf(DEBUG_DATA, "CRC matches\n");
     }
 
     // Wait for DO to go high. I don't think we need to do this for block reads,
@@ -1868,7 +1875,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(gDebugLevel >= DEBUG_ALL) printf("readblock response 0x%02X\n", response[0]);
+        logprintf(DEBUG_ALL, "readblock response 0x%02X\n", response[0]);
     } while(response[0] != 0xFF);
 
     if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("read completion");
@@ -1905,7 +1912,7 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
 
     // Get DATA_ACCEPTED response from WRITE
     spi_readn(response, 1);
-    if(gDebugLevel >= DEBUG_DATA) printf("writeblock response 0x%02X\n", response[0]);
+    logprintf(DEBUG_DATA, "writeblock response 0x%02X\n", response[0]);
     if(response[0] != gSDCardResponseDATA_ACCEPTED) {
         printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
         return 0;
@@ -1921,10 +1928,10 @@ int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
             return 0;
         }
         spi_readn(response, 1);
-        if(gDebugLevel >= DEBUG_ALL) printf("writeblock completion 0x%02X\n", response[0]);
+        logprintf(DEBUG_ALL, "writeblock completion 0x%02X\n", response[0]);
         count++;
     } while(response[0] != 0xFF);
-    if(gDebugLevel >= DEBUG_DATA) printf("read %d SPI bytes waiting on write to complete.\n", count);
+    logprintf(DEBUG_DATA, "read %d SPI bytes waiting on write to complete.\n", count);
 
     if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("write completion");
 
@@ -2282,7 +2289,7 @@ int main()
 
     BUS_reset_start();
     BUS_write_ROM_image();
-    VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n");
+    VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
     VIDEO_start_clock();
     delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
     BUS_reset_finish();
@@ -2325,18 +2332,18 @@ int main()
 
         if(command_length > 0) {
             unsigned char command_byte = command_bytes[0];
-            if(gDebugLevel >= DEBUG_DATA) printf("receiving command...\n");
+            logprintf(DEBUG_DATA, "receiving command...\n");
 
             if((command_byte < IOBOARD_CMD_MIN) || (command_byte > IOBOARD_CMD_MAX)) {
 
-                if(gDebugLevel >= DEBUG_ERRORS) printf("ERROR: Unknown command 0x%02X received\n", command_byte);
+                logprintf(DEBUG_ERRORS, "ERROR: Unknown command 0x%02X received\n", command_byte);
                 command_clear();
 
             } else if(command_length >= command_lengths[command_byte]) {
                 command_request = command_byte;
                 logprintf(DEBUG_EVENTS, "complete command received.\n");
                 if(command_length > command_lengths[command_byte]) {
-                    if(gDebugLevel >= DEBUG_ERRORS) printf("ERROR: command buffer longer than expected for command.\n");
+                    logprintf(DEBUG_ERRORS, "ERROR: command buffer longer than expected for command.\n");
                 }
             }
         }
@@ -2354,23 +2361,23 @@ int main()
                     unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
                     unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
 
-                    if(gDebugLevel >= DEBUG_EVENTS) printf("read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    logprintf(DEBUG_EVENTS, "read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        if(gDebugLevel >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
+                        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
                         response_append(IOBOARD_FAILURE);
                         break;
                     }
 
                     if(gCachedBlockNumber == block_number) {
-                        if(gDebugLevel >= DEBUG_DATA) printf("Block already in cache.\n");
+                        logprintf(DEBUG_DATA, "Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, gCachedBlock)) {
-                            if(gDebugLevel >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
+                            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
                             response_append(IOBOARD_FAILURE);
                             break;
                         }
-                        if(gDebugLevel >= DEBUG_DATA) printf("New cached block\n");
+                        logprintf(DEBUG_DATA, "New cached block\n");
                         if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
                         gCachedBlockNumber = block_number;
                     }
@@ -2388,7 +2395,7 @@ int main()
 
                         response_append(sum & 0xff);
                         response_append((sum >> 8) & 0xff);
-                        if(gDebugLevel >= DEBUG_ALL) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+                        logprintf(DEBUG_ALL, "checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
                     }
                     break;
                 }
@@ -2402,10 +2409,10 @@ int main()
                     unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
                     unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
 
-                    if(gDebugLevel >= DEBUG_EVENTS) printf("write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+                    logprintf(DEBUG_EVENTS, "write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
 
                     if(disk > 3) { 
-                        if(gDebugLevel >= DEBUG_WARNINGS) printf("asked for disk out of range\n");
+                        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
                         response_append(IOBOARD_FAILURE);
                         break;
                     }
@@ -2417,7 +2424,7 @@ int main()
                             sum += command_bytes[offset + u];
                         unsigned short theirs = command_bytes[134] | (command_bytes[135] << 8);
                         if(sum != theirs) {
-                            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
+                            logprintf(DEBUG_WARNINGS, "WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
                             // XXX retry?
                             response_append(IOBOARD_FAILURE);
                             break;
@@ -2425,14 +2432,14 @@ int main()
                     }
 
                     if(gCachedBlockNumber == block_number) {
-                        if(gDebugLevel >= DEBUG_DATA) printf("Block already in cache.\n");
+                        logprintf(DEBUG_DATA, "Block already in cache.\n");
                     } else {
                         if(!sdcard_readblock(block_number, gCachedBlock)) {
-                            if(gDebugLevel >= DEBUG_WARNINGS) printf("some kind of block read failure\n");
+                            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
                             response_append(IOBOARD_FAILURE);
                             break;
                         }
-                        if(gDebugLevel >= DEBUG_DATA) printf("New cached block\n");
+                        logprintf(DEBUG_DATA, "New cached block\n");
                         gCachedBlockNumber = block_number;
                     }
 
@@ -2456,7 +2463,7 @@ int main()
                 }
 
                 case IOBOARD_CMD_CONST: {
-                    if(gDebugLevel >= DEBUG_EVENTS)printf("CONST\n");
+                    logprintf(DEBUG_EVENTS, "CONST\n");
                     isEmpty = queue_isempty(&con_queue.q);
                     if(!isEmpty)
                         response_append(IOBOARD_READY);
@@ -2467,7 +2474,7 @@ int main()
 
                 case IOBOARD_CMD_CONIN: {
                     unsigned char c;
-                    if(gDebugLevel >= DEBUG_EVENTS) printf("CONIN\n");
+                    logprintf(DEBUG_EVENTS, "CONIN\n");
                     isEmpty = queue_isempty(&con_queue.q);
                     if(!isEmpty) {
                         c = queue_deq(&con_queue.q);
@@ -2489,7 +2496,7 @@ int main()
             LED_set_info(0);
 
             if(response_staging_length > 0) {
-                if(gDebugLevel >= DEBUG_DATA) printf("will respond with %d\n", response_staging_length);
+                logprintf(DEBUG_DATA, "will respond with %d\n", response_staging_length);
                 command_clear();
                 disable_interrupts();
                 response_finish();
@@ -2509,17 +2516,17 @@ int main()
         }
 
         if(gConsoleOverflowed) {
-            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: Console input queue overflow\n");
+            logprintf(DEBUG_WARNINGS, "WARNING: Console input queue overflow\n");
             gConsoleOverflowed = 0;
         }
 
         if(gKeyboardOverflowed) {
-            if(gDebugLevel >= DEBUG_WARNINGS) printf("WARNING: Keyboard data queue overflow\n");
+            logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data queue overflow\n");
             gKeyboardOverflowed = 0;
         }
 
         if(responseWasWaiting && !response_waiting) {
-            if(gDebugLevel >= DEBUG_EVENTS) printf("response packet was read\n");
+            logprintf(DEBUG_EVENTS, "response packet was read\n");
             responseWasWaiting = 0;
         }
 
@@ -2530,16 +2537,16 @@ int main()
 
             Z80_reset();
 
-            if(gDebugLevel >= 0/*DEBUG_EVENTS*/) printf("Z80 was reset\n");
+            logprintf(DEBUG_EVENTS, "Z80 was reset\n");
         }
 
         gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
         if(gZ80IsInHALT != Z80WasInHALT) {
             gOutputDevices = OUTPUT_TO_VIDEO | OUTPUT_TO_SERIAL;
             if(gZ80IsInHALT) {
-                if(gDebugLevel >= 0 /*DEBUG_EVENTS*/) printf("Z80 has HALTed.\n");
+                logprintf(DEBUG_EVENTS, "Z80 has HALTed.\n");
             } else {
-                if(gDebugLevel >= 0 /*DEBUG_EVENTS*/) printf("Z80 has exited HALT state.\n");
+                logprintf(DEBUG_EVENTS, "Z80 has exited HALT state.\n");
             }
             gOutputDevices = OUTPUT_TO_SERIAL;
             Z80WasInHALT = gZ80IsInHALT;
