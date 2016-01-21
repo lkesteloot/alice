@@ -1,4 +1,5 @@
 EESchema Schematic File Version 2
+LIBS:sd_card
 LIBS:power
 LIBS:device
 LIBS:transistors
