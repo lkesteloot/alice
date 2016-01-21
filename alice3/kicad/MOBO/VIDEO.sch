@@ -260,7 +260,7 @@ U 1 1 5681FB9D
 P 3550 2000
 F 0 "C1" H 3575 2100 50  0000 L CNN
 F 1 "1000 µF" H 3575 1900 50  0000 L CNN
-F 2 "Capacitors_ThroughHole:C_Radial_D5_L6_P2.5" H 3550 2000 50  0001 C CNN
+F 2 "Capacitors_ThroughHole:C_Radial_D13_L21_P5" H 3550 2000 50  0001 C CNN
 F 3 "" H 3550 2000 50  0000 C CNN
 	1    3550 2000
 	1    0    0    -1  
@@ -567,7 +567,7 @@ U 1 1 568DD525
 P 5800 1950
 F 0 "C2" H 5825 2050 50  0000 L CNN
 F 1 "0.1 µF" H 5825 1850 50  0000 L CNN
-F 2 "" H 5838 1800 50  0000 C CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D6_P5" H 5838 1800 50  0001 C CNN
 F 3 "" H 5800 1950 50  0000 C CNN
 	1    5800 1950
 	1    0    0    -1  
@@ -613,7 +613,7 @@ Wire Wire Line
 Wire Wire Line
 	7400 3700 7500 3700
 Text GLabel 8000 1900 2    60   Output ~ 0
-RESET
+/RESET
 Wire Wire Line
 	7800 1900 8000 1900
 Wire Wire Line
