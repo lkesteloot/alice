@@ -21,12 +21,12 @@ disks:	equ	04h		;number of disks in the system
 ; Alice 3 HW definitions
 ;
 propeller_port:         equ     128     ; access to Propeller-hosted I/O
-pic_port:               equ     0       ; access to PIC-hosted I/O
-pic_poll_again:         equ     0       ; operation not complete on PIC
-pic_success:            equ     1       ; operation succeeded on PIC
-pic_failure:            equ     0FFh    ; operation succeeded on PIC
-pic_ready:              equ     1       ; operation succeeded on PIC
-pic_notready:           equ     0FFh    ; operation succeeded on PIC
+pic_port:               equ     0       ; access to ARM-hosted I/O
+pic_poll_again:         equ     0       ; operation not complete on IO board
+pic_success:            equ     1       ; command received, operation succeeded on IO board
+pic_failure:            equ     0FFh    ; command received, operation failed on IO board
+pic_ready:              equ     1       ; command received by IO board, results follow
+pic_notready:           equ     0FFh    ; command received by IO board, results not ready, send command again
 pic_cmd_read:           equ     1       ; READ sector
 pic_cmd_write:          equ     2       ; WRITE sector
 pic_cmd_const:          equ     3       ; CONST
@@ -240,7 +240,7 @@ diskok:
         LD 	c, a		;send to the ccp
 	JP	ccp		;go to cp/m for further processing
 
-; wait until PIC is ready
+; wait until IO board is ready
 pic_poll:
 	in 	a,(pic_port)	;get status
         and     0ffh
