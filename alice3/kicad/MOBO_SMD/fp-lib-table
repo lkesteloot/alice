@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name "level converter")(type KiCad)(uri $KIPRJMOD/level_converter.pretty)(options "")(descr ""))
+  (lib (name "ftdi basic breakout")(type KiCad)(uri $KIPRJMOD/ftdi_basic.pretty)(options "")(descr ""))
+)
