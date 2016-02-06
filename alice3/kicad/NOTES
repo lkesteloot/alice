@@ -77,6 +77,7 @@ To make Gerber files for OSHPark:
         - B.Mask
         - F.Mask
         - Edge.Cuts
+        - F.Paste (if SMD and you want a stencil from oshstencils.com)
     - Only these checkboxes should be checked:
         - Plot footprint references
         - Exclude PCB edge layer from other layers
