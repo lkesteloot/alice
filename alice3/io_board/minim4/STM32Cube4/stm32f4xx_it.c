@@ -42,6 +42,14 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_it.h"
 
+extern PCD_HandleTypeDef hpcd;
+
+/* UART handler declared in "usbd_cdc_interface.c" file */
+extern UART_HandleTypeDef UartHandle;
+
+/* TIM handler declared in "usbd_cdc_interface.c" file */
+extern TIM_HandleTypeDef TimHandle;
+
 /** @addtogroup STM32F4xx_HAL_Examples
   * @{
   */
@@ -175,12 +183,12 @@ void SysTick_Handler(void)
 {
 }*/
 
-/**
-  * @}
-  */ 
+void OTG_FS_IRQHandler(void)
+{
+  HAL_PCD_IRQHandler(&hpcd);
+}
 
-/**
-  * @}
-  */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+void TIMx_IRQHandler(void)
+{
+  HAL_TIM_IRQHandler(&TimHandle);
+}

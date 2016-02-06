@@ -2,11 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-
 #define XSTR(x) STR(x)
 #define STR(x) # x
 
-#include <stm32f4xx_hal.h>
+#include "main.h"
 
 #define enable_interrupts() __enable_irq()
 #define disable_interrupts() __disable_irq()
@@ -207,6 +206,7 @@ static void SystemClock_Config(void)
 {
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_OscInitTypeDef RCC_OscInitStruct;
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
 
   /* Enable Power Control clock */
   __HAL_RCC_PWR_CLK_ENABLE();
@@ -229,6 +229,15 @@ static void SystemClock_Config(void)
   {
     panic();
   }
+
+  // XXX check M and N and P - match to clock freq?
+  /* Select PLLSAI output as USB clock source */
+  PeriphClkInitStruct.PLLSAI.PLLSAIM = 8;
+  PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
+  PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV8;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CK48;
+  PeriphClkInitStruct.Clk48ClockSelection = RCC_CK48CLKSOURCE_PLLSAIP;
+  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -618,6 +627,37 @@ void EXTI15_10_IRQHandler(void)
         kbd_data = 0;
         kbd_bits = 0;
     }
+}
+
+
+/*--------------------------------------------------------------------------*/
+/* USB ---------------------------------------------------------------------*/
+
+static USBD_HandleTypeDef USBD_Device;
+
+void USB_init()
+{
+    // Enable TIM peripherals Clock 
+    TIMx_CLK_ENABLE();
+  
+    // Configure the NVIC for TIMx 
+    /* Set Interrupt Group Priority */
+    HAL_NVIC_SetPriority(TIMx_IRQn, 6, 0);
+  
+    /* Enable the TIMx global Interrupt */
+    HAL_NVIC_EnableIRQ(TIMx_IRQn);
+
+    /* Init Device Library */
+    USBD_Init(&USBD_Device, &VCP_Desc, 0);
+
+    /* Add Supported Class */
+    USBD_RegisterClass(&USBD_Device, USBD_CDC_CLASS);
+
+    /* Add CDC Interface Class */
+    USBD_CDC_RegisterInterface(&USBD_Device, &USBD_CDC_fops);
+
+    /* Start Device Process */
+    USBD_Start(&USBD_Device);
 }
 
 
@@ -2255,6 +2295,8 @@ int main()
     LED_beat_heart();
 
     LED_beat_heart();
+
+    USB_init();
 
     setbuf(stdout, NULL);
     SERIAL_init(); // transmit and receive but global interrupts disabled

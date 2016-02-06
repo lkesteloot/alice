@@ -22,6 +22,9 @@ OBJECTS = \
         STM32Cube4/stm32f4xx_hal_uart.o \
         STM32Cube4/stm32f4xx_hal_spi.o \
         STM32Cube4/stm32f4xx_hal.o \
+	usbd_cdc_interface.o \
+	usbd_conf.o \
+	usbd_desc.o \
         syscalls.o \
         bootrom.o \
         $(NULL)
