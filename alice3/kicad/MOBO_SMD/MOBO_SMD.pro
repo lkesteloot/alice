@@ -1,4 +1,4 @@
-update=Wednesday, January 20, 2016 'PMt' 04:14:21 PM
+update=Saturday, February 06, 2016 'AMt' 09:46:17 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -66,3 +66,4 @@ LibName34=minim4-d40
 LibName35=vga_daughter_board
 LibName36=Zilog
 LibName37=km681000blp-7
+LibName38=stm32f415rg
