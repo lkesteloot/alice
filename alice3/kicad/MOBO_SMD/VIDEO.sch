@@ -29,18 +29,14 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
-LIBS:24lc256
-LIBS:74hc4050
 LIBS:lm2937-3-3
 LIBS:propeller_plug
 LIBS:propeller_p8x32a-d40
-LIBS:dfrobot_ftdi_basic
-LIBS:levelconverter
 LIBS:minim4-d40
 LIBS:vga_daughter_board
 LIBS:Zilog
 LIBS:km681000blp-7
-LIBS:28f512
+LIBS:stm32f415rg
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
