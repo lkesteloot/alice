@@ -14,15 +14,24 @@ CON
   STATE_NORMAL = 0
   STATE_GOT_ESCAPE = 1
   STATE_GOT_BRACKET = 2
+  STATE_ERROR = 3
+  STATE_MYZ80_GOT_EQUAL = 4
+  STATE_MYZ80_GOT_ROW = 5
   
   MAX_ATTRIBUTES = 5
+  MAX_ERROR_BUFFER_LENGTH = 30
 
 VAR
-  long Stack[20]
+  long Stack[40]
   long State
   long Attributes[MAX_ATTRIBUTES]
   long AttributeCount
+  long CursorX
+  long CursorY
   byte CharAttribute
+  byte ErrorBuffer[MAX_ERROR_BUFFER_LENGTH]
+  byte ErrorBufferLength
+  byte MyZ80Row
 
 PUB start(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr, CursorYPtr)
 
@@ -55,10 +64,11 @@ PUB start(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr,
   ' Start on a new cog.
   cognew(Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr, CursorYPtr), @Stack[0])
   
-PRI Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr, CursorYPtr) | Data, CursorX, CursorY, HeadIndex, I
+PRI Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr, CursorYPtr) | Data, HeadIndex, I
 
   State := STATE_NORMAL
   CharAttribute := 0
+  ErrorBufferLength := 0
 
   repeat
     ' Wait until the queue is not empty.
@@ -79,29 +89,54 @@ PRI Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPt
     if State == STATE_NORMAL
       if Data == 27
         State := STATE_GOT_ESCAPE
+        AddErrorChar("^")
+        AddErrorChar("[")
       elseif Data == 13
         ' Carriage return.
         CursorX := 0
+        FixCursor(ScreenPtr)
       elseif Data == 10
         ' Line feed.
         CursorY += 1
+        FixCursor(ScreenPtr)
       elseif Data == 8
         ' Backspace
         if CursorX > 0
           CursorX -= 1
           byte[ScreenPtr][CursorY*COLS + CursorX] := 32 | CharAttribute
+          FixCursor(ScreenPtr)
       else
         ' Visible character.
-        byte[ScreenPtr][CursorY*COLS + CursorX] := Data | CharAttribute
-        CursorX += 1
+        WriteCharacter(ScreenPtr, Data | CharAttribute)
     elseif State == STATE_GOT_ESCAPE
+      AddErrorChar(Data)
       if Data == "["
         State := STATE_GOT_BRACKET
         AttributeCount := 1
         Attributes[AttributeCount - 1] := 0
-      else
+      elseif Data == "T"
+        ' MyZ80: Clear to end of line.
+        ClearEol(ScreenPtr)
         State := STATE_NORMAL
+      elseif Data == "*"
+        ' MyZ80: Clear screen, home cursor.
+        Cls(ScreenPtr)
+        State := STATE_NORMAL
+      elseif Data == ")"
+        ' MyZ80: Start reversed text.
+        CharAttribute := $80
+        State := STATE_NORMAL
+      elseif Data == "("
+        ' MyZ80: End reversed text.
+        CharAttribute := 0
+        State := STATE_NORMAL
+      elseif Data == "="
+        ' MyZ80: Position cursor.
+        State := STATE_MYZ80_GOT_EQUAL
+      else
+        State := STATE_ERROR
     elseif State == STATE_GOT_BRACKET
+      AddErrorChar(Data)
       if Data => "0" and Data =< "9"
         Attributes[AttributeCount - 1] := Attributes[AttributeCount - 1]*10 + Data - "0"
       elseif Data == ";"
@@ -112,6 +147,7 @@ PRI Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPt
         if AttributeCount == 2
           CursorX := Attributes[1] - 1
           CursorY := Attributes[0] - 1
+          FixCursor(ScreenPtr)
         State := STATE_NORMAL
       elseif Data == "m"
         repeat I from 0 to AttributeCount - 1
@@ -121,23 +157,73 @@ PRI Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPt
             CharAttribute := $80
         State := STATE_NORMAL
       elseif Data == "K"
-        repeat I from CursorX to COLS - 1
-          byte[ScreenPtr][CursorY*COLS + I] := 32  ' With CharAttribute?
+        ClearEol(ScreenPtr)
         State := STATE_NORMAL
       else
-        ' Ignore unknown code.
-        State := STATE_NORMAL
+        ' Unknown code.
+        State := STATE_ERROR
+    elseif State == STATE_MYZ80_GOT_EQUAL
+      ' MyZ80: This is the row plus $20.
+      MyZ80Row := Data
+      State := STATE_MYZ80_GOT_ROW
+    elseif State == STATE_MYZ80_GOT_ROW
+      ' MyZ80: Move cursor. Parameters are row and column, one byte
+      ' each, offset by $20.
+      CursorX := Data - $20
+      CursorY := MyZ80Row - $20
+      FixCursor(ScreenPtr)
+      State := STATE_NORMAL
+        
+    if State == STATE_ERROR
+      ' Got something we can't parse. Dump it so that the user can
+      ' figure out what's missing from this parser.
+      repeat I from 0 to ErrorBufferLength - 1
+        WriteCharacter(ScreenPtr, ErrorBuffer[I] | $80)
+      State := STATE_NORMAL
 
-    if CursorX => COLS
-      ' Wrap cursor at end of row.
-      CursorX := 0
-      CursorY += 1
-    if CursorY => ROWS
-      ' Scroll up.
-      CursorY := ROWS - 1
-      longmove(ScreenPtr, ScreenPtr + COLS, LONGS_PER_ROW*(ROWS - 1))
-      longfill(ScreenPtr + COLS*(ROWS - 1), $20202020, LONGS_PER_ROW)  ' With CharAttribute?
-  
+    if State == STATE_NORMAL
+      ErrorBufferLength := 0
+
     ' Update cursor.
     byte[CursorXPtr] := CursorX
     byte[CursorYPtr] := CursorY
+
+' Add a character to the buffer of characters we're parsing. If we
+' get an error, we can dump this to the screen. Otherwise we
+' erase it.
+PRI AddErrorChar(Char)
+  if ErrorBufferLength < MAX_ERROR_BUFFER_LENGTH
+    ErrorBuffer[ErrorBufferLength] := Char
+    ErrorBufferLength += 1
+    
+' Write a character to the screen. Advances the cursor and fixes it.
+PRI WriteCharacter(ScreenPtr, Char)
+  byte[ScreenPtr][CursorY*COLS + CursorX] := Char
+  CursorX += 1
+  FixCursor(ScreenPtr)
+
+' Make sure the cursor is on-screen. Wrap or scroll if necessary.
+PRI FixCursor(ScreenPtr)
+  ' Wrap cursor at end of row.
+  if CursorX => COLS
+    CursorX := 0
+    CursorY += 1
+
+  ' Scroll up.
+  if CursorY => ROWS
+    CursorY := ROWS - 1
+    longmove(ScreenPtr, ScreenPtr + COLS, LONGS_PER_ROW*(ROWS - 1))
+    longfill(ScreenPtr + COLS*(ROWS - 1), $20202020, LONGS_PER_ROW)  ' With CharAttribute?
+
+' Clear to end of line.
+PRI ClearEol(ScreenPtr) | I
+  repeat I from CursorX to COLS - 1
+    byte[ScreenPtr][CursorY*COLS + I] := 32  ' With CharAttribute?
+
+' Clear screen and home cursor.
+PRI Cls(ScreenPtr) | X, Y
+  repeat Y from 0 to ROWS - 1
+    repeat X from 0 to COLS - 1
+      byte[ScreenPtr][Y*COLS + X] := 32 ' With CharAttribute?
+  CursorX := 0
+  CursorY := 0
