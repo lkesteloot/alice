@@ -1,69 +1,13 @@
-main
-    #include "usbd_desc.h"
-    #include "usbd_cdc.h"
-    #include "usbd_cdc_interface.h"
+USBD_CDC_ReceivePacket(&USBD_Device);
+    Finished doing something, kick off another receive
+    I assume this is called when the buffer has been drained.
+    Is this asynchronous?
 
-    static USBD_HandleTypeDef USBD_Device;
+HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+    A timeout is set up
 
-    in SystemClock_Config():
-      RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
+UserTxBufPtrIn
+    Stick things in here to send back over USB 
 
-      // XXX check M and N and P - match to clock freq?
-      /* Select PLLSAI output as USB clock source */
-      PeriphClkInitStruct.PLLSAI.PLLSAIM = 8;
-      PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
-      PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV8;
-      PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CK48;
-      PeriphClkInitStruct.Clk48ClockSelection = RCC_CK48CLKSOURCE_PLLSAIP;
-      HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
-
-    in main():
-      /* Init Device Library */
-      USBD_Init(&USBD_Device, &VCP_Desc, 0);
-
-      /* Add Supported Class */
-      USBD_RegisterClass(&USBD_Device, USBD_CDC_CLASS);
-
-      /* Add CDC Interface Class */
-      USBD_CDC_RegisterInterface(&USBD_Device, &USBD_CDC_fops);
-
-      /* Start Device Process */
-      USBD_Start(&USBD_Device);
-
-    copy stm32f4xx_hal_msp.c functions
-
-
-stm32f4xx_it.c:
-    // edit stm32f4xx_it.h to match
-    extern PCD_HandleTypeDef hpcd;
-
-    /* UART handler declared in "usbd_cdc_interface.c" file */
-    extern UART_HandleTypeDef UartHandle;
-
-    /* TIM handler declared in "usbd_cdc_interface.c" file */
-    extern TIM_HandleTypeDef TimHandle;
-
-    bring in
-        OTG_FS_IRQHandle
-        TIMx_IRQHandler
-
-system_stm32f4xx.c:
-    no change?
-
-usbd_cdc_interface.h
-    no USART
-    TIMx
-    CDC_POLLING_INTERVAL
-    extern USBD_CDC_ItfTypeDef  USBD_CDC_fops;
-
-usbd_cdc_interface.c
-    CDC_Itf_Init - no initialize UART, initialize console queues
-    XXX NEED TO DO STILL
-
-usbd_conf.h
-usbd_conf.c
-    cull HS bits
-----------------------------------------------------------------------------
-
-usbd_desc.c: copy
-usbd_desc.h: copy
+static int8_t CDC_Itf_Receive(uint8_t* Buf, uint32_t *Len)
+    I think this must be called from USBD_CDC_ReceivePacket

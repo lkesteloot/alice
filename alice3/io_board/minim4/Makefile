@@ -6,6 +6,9 @@ TOOLROOT        =       $(HOME)/trees/gcc-arm-none-eabi-4_9-2015q3
 STM32FCUBEROOT  =       $(HOME)/trees/STM32Cube_FW_F4_V1.9.0
 GCC_LIB         =       $(TOOLROOT)/lib/gcc/arm-none-eabi/4.9.3
 
+PART_DEF        =       -DSTM32F415xx -DUSE_USB_FS
+STM32CUBE_INC   =       -ISTM32Cube4
+
 CORTEX_M4_HWFP_CC_FLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mlittle-endian
 TARGET = STM32F415xx
 STM32F4XX_CMSIS_INC_PATH        = $(STM32FCUBEROOT)/Drivers/CMSIS/Include/
@@ -16,18 +19,28 @@ OBJECTS = \
         STM32Cube4/system_stm32f4xx.o \
         STM32Cube4/stm32f4xx_it.o \
         STM32Cube4/stm32f4xx_hal_cortex.o \
+        STM32Cube4/stm32f4xx_hal_pcd_ex.o \
         STM32Cube4/stm32f4xx_hal_dma.o \
         STM32Cube4/stm32f4xx_hal_gpio.o \
+        STM32Cube4/stm32f4xx_hal_pcd.o \
         STM32Cube4/stm32f4xx_hal_rcc.o \
         STM32Cube4/stm32f4xx_hal_uart.o \
         STM32Cube4/stm32f4xx_hal_spi.o \
+        STM32Cube4/stm32f4xx_hal_tim.o \
+        STM32Cube4/stm32f4xx_hal_tim_ex.o \
         STM32Cube4/stm32f4xx_hal.o \
-	usbd_cdc_interface.o \
+        STM32Cube4/stm32f4xx_ll_usb.o \
+	usbd_core.o \
+	usbd_ioreq.o \
+	usbd_ctlreq.o \
 	usbd_conf.o \
+	usbd_cdc.o \
+	usbd_cdc_interface.o \
 	usbd_desc.o \
         syscalls.o \
         bootrom.o \
         $(NULL)
+
 
 ioboard.hex: ioboard.elf
 	$(TOOLROOT)/bin/arm-none-eabi-objcopy -O ihex $< $@
@@ -39,7 +52,7 @@ STM32Cube4/startup_stm32f417xx.o: STM32Cube4/startup_stm32f417xx.s
 	$(TOOLROOT)/bin/arm-none-eabi-gcc -Wall $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
 
 %.o: %.c
-	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
+	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) $(STM32CUBE_INC) $(PART_DEF) -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin  -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $^ -c -o $@
 
 clean:
 	rm -f *.hex *.elf *.o $(OBJECTS)

@@ -96,9 +96,9 @@ void panic_worse()
     for(;;);
 }
 
-void serial_try_to_transmit_buffers();
+void serial_flush();
 
-static void panic(void)
+void panic(void)
 {
     static int entered = 0;
 
@@ -109,9 +109,9 @@ static void panic(void)
     int pin = 0;
     for(;;) {
         if(!entered) {
-            // serial_try_to_transmit_buffers() can itself panic(), so stop reentry here
+            // serial_flush() can itself panic(), so stop reentry here
             entered = 1;
-            serial_try_to_transmit_buffers();
+            serial_flush();
             entered = 0;
         }
 
@@ -206,7 +206,6 @@ static void SystemClock_Config(void)
 {
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
 
   /* Enable Power Control clock */
   __HAL_RCC_PWR_CLK_ENABLE();
@@ -229,15 +228,6 @@ static void SystemClock_Config(void)
   {
     panic();
   }
-
-  // XXX check M and N and P - match to clock freq?
-  /* Select PLLSAI output as USB clock source */
-  PeriphClkInitStruct.PLLSAI.PLLSAIM = 8;
-  PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
-  PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV8;
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CK48;
-  PeriphClkInitStruct.Clk48ClockSelection = RCC_CK48CLKSOURCE_PLLSAIP;
-  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -633,31 +623,39 @@ void EXTI15_10_IRQHandler(void)
 /*--------------------------------------------------------------------------*/
 /* USB ---------------------------------------------------------------------*/
 
-static USBD_HandleTypeDef USBD_Device;
+USBD_HandleTypeDef USBD_Device;
 
 void USB_init()
 {
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     // Enable TIM peripherals Clock 
     TIMx_CLK_ENABLE();
   
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     // Configure the NVIC for TIMx 
     /* Set Interrupt Group Priority */
     HAL_NVIC_SetPriority(TIMx_IRQn, 6, 0);
   
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     /* Enable the TIMx global Interrupt */
     HAL_NVIC_EnableIRQ(TIMx_IRQn);
 
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     /* Init Device Library */
     USBD_Init(&USBD_Device, &VCP_Desc, 0);
 
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     /* Add Supported Class */
     USBD_RegisterClass(&USBD_Device, USBD_CDC_CLASS);
 
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     /* Add CDC Interface Class */
     USBD_CDC_RegisterInterface(&USBD_Device, &USBD_CDC_fops);
 
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
     /* Start Device Process */
     USBD_Start(&USBD_Device);
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
 }
 
 
@@ -747,6 +745,12 @@ void serial_try_to_transmit_buffers()
         gNextTransmitBuffer ^= 1;
         gTransmitBufferLengths[gNextTransmitBuffer] = 0;
     }
+}
+
+void serial_flush()
+{
+    while(gUARTTransmitBusy || gTransmitBufferLengths[gNextTransmitBuffer] > 0)
+        serial_try_to_transmit_buffers();
 }
 
 void serial_enqueue_one_char(char c)
@@ -1306,7 +1310,7 @@ extern unsigned int romimage_length;
 
 // Caller has to guarantee A and D access will not collide with
 // another peripheral; basically either Z80 BUSRQ or RESET
-void BUS_write_ROM_image()
+int BUS_write_ROM_image()
 {
     BUS_mastering_start();
     BUS_set_ADDRESS(0);
@@ -1321,12 +1325,15 @@ void BUS_write_ROM_image()
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
         if(t != romimage_bytes[a]) {
-            printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-            panic();
+            printf("wrote 0x%02X byte at RAM address 0x%04X, read back 0x%02X\n", romimage_bytes[a], a, t);
+            BUS_set_DATA(gNextByteForReading);
+            BUS_mastering_finish();
+            return 0;
         }
     }
     BUS_set_DATA(gNextByteForReading);
     BUS_mastering_finish();
+    return 1;
 }
 
 
@@ -1476,7 +1483,9 @@ void Z80_reset()
     response_clear();
     command_clear();
 
-    BUS_write_ROM_image();
+    if(!BUS_write_ROM_image()) {
+        panic();
+    }
 
     VIDEO_start_clock();
 
@@ -2296,8 +2305,6 @@ int main()
 
     LED_beat_heart();
 
-    USB_init();
-
     setbuf(stdout, NULL);
     SERIAL_init(); // transmit and receive but global interrupts disabled
     LED_beat_heart();
@@ -2305,6 +2312,10 @@ int main()
     printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
     LED_beat_heart();
+
+    serial_flush();
+    USB_init();
+    printf("%s, line %d\n", __FILE__, __LINE__); serial_flush();
 
     SPI_config_for_sd();
     LED_beat_heart();
@@ -2330,7 +2341,9 @@ int main()
     BUS_reset_init();
 
     BUS_reset_start();
-    BUS_write_ROM_image();
+    if(!BUS_write_ROM_image()) {
+        // panic();
+    }
     VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
     VIDEO_start_clock();
     delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
