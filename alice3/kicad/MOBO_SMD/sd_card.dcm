@@ -1,5 +1,10 @@
 EESchema-DOCLIB  Version 2.0
 #
+$CMP MicroSD
+D MicroSD
+K CONN SD
+$ENDCMP
+#
 $CMP SD_Card
 D SD Card Reader (Sparkfun)
 K CONN SD

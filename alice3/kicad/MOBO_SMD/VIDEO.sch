@@ -5,7 +5,6 @@ LIBS:device
 LIBS:transistors
 LIBS:conn
 LIBS:linear
-LIBS:regul
 LIBS:74xx
 LIBS:cmos4000
 LIBS:adc-dac
@@ -37,12 +36,14 @@ LIBS:vga_daughter_board
 LIBS:Zilog
 LIBS:km681000blp-7
 LIBS:stm32f415rg
+LIBS:regul
+LIBS:ldo
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
 $Descr USLetter 11000 8500
 encoding utf-8
-Sheet 2 4
+Sheet 2 5
 Title "Alice 3 video section"
 Date "2016-01-06"
 Rev ""

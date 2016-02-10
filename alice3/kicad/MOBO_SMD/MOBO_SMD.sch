@@ -5,7 +5,6 @@ LIBS:device
 LIBS:transistors
 LIBS:conn
 LIBS:linear
-LIBS:regul
 LIBS:74xx
 LIBS:cmos4000
 LIBS:adc-dac
@@ -37,12 +36,14 @@ LIBS:vga_daughter_board
 LIBS:Zilog
 LIBS:km681000blp-7
 LIBS:stm32f415rg
+LIBS:regul
+LIBS:ldo
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 1 4
+Sheet 1 5
 Title ""
 Date ""
 Rev ""
@@ -69,5 +70,11 @@ S 7600 1600 2300 1600
 U 568DDBCB
 F0 "CPU" 60
 F1 "CPU.sch" 60
+$EndSheet
+$Sheet
+S 4250 4100 2150 1650
+U 56BA9956
+F0 "POWER" 60
+F1 "POWER.sch" 60
 $EndSheet
 $EndSCHEMATC
