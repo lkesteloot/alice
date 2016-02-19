@@ -1,0 +1,33 @@
+EESchema-LIBRARY Version 2.3
+#encoding utf-8
+#(c) SnapEDA 2015 (snapeda.com)
+#This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA) with Design Exception 1.0
+#
+# 10118192-0001LF
+#
+DEF 10118192-0001LF J 0 40 N N 1 L N
+F0 "J" -200 350 50 H V L CNN
+F1 "10118192-0001LF" 0 -400 50 H V L CNN
+F2 "10118192-0001LF" 0 0 50 H I L CNN
+DRAW
+P 2 0 0 16 300 300 -200 300 N
+P 2 0 0 16 -200 300 -200 -300 N
+P 2 0 0 16 -200 -300 -100 -300 N
+P 2 0 0 16 -100 -300 300 -300 N
+P 2 0 0 6 -100 -300 -100 -400 N
+T 900 300 -125 100 0 0 0 USB Normal 0 L B
+X D+ 3 -300 0 100 R 40 40 0 0 P 
+X D- 2 -300 100 100 R 40 40 0 0 P 
+X VBUS 1 -300 200 100 R 40 40 0 0 P 
+X ID 4 -300 -100 100 R 40 40 0 0 P 
+X S M1 -100 -400 0 U 40 40 0 0 P 
+X S M2 -100 -400 0 U 40 40 0 0 P 
+X S S1 -100 -400 0 U 40 40 0 0 P 
+X S S2 -100 -400 0 U 40 40 0 0 P 
+X S S3 -100 -400 0 U 40 40 0 0 P 
+X S S4 -100 -400 0 U 40 40 0 0 P 
+X GND 5 -300 -200 100 R 40 40 0 0 P 
+ENDDRAW
+ENDDEF
+#
+# End Library
