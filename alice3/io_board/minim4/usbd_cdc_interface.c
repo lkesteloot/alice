@@ -112,6 +112,7 @@ static int8_t CDC_Itf_Init(void)
   */
 static int8_t CDC_Itf_DeInit(void)
 {
+    printf("CDC_Itf_DeInit() enter\n"); serial_flush();
   return (USBD_OK);
 }
 
@@ -125,6 +126,7 @@ static int8_t CDC_Itf_DeInit(void)
   */
 static int8_t CDC_Itf_Control (uint8_t cmd, uint8_t* pbuf, uint16_t length)
 { 
+    printf("CDC_Itf_Control() enter, cmd %d\n", cmd); serial_flush();
   switch (cmd)
   {
   case CDC_SEND_ENCAPSULATED_COMMAND:
@@ -224,6 +226,7 @@ void USB_append_tx(unsigned char c)
 
 static int8_t CDC_Itf_Receive(uint8_t* Buf, uint32_t *Len)
 {
+    printf("CDC_Itf_Receive() enter\n"); serial_flush();
     // XXX Send this data back to the monitor
     USBD_CDC_ReceivePacket(&USBD_Device);
     return (USBD_OK);

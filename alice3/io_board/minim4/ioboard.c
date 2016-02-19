@@ -2336,18 +2336,21 @@ int main()
     KBD_init();
     LED_beat_heart();
 
-    BUS_init();
+    if(0) {
+        // XXX testing USB serial
+        BUS_init();
 
-    BUS_reset_init();
+        BUS_reset_init();
 
-    BUS_reset_start();
-    if(!BUS_write_ROM_image()) {
-        // panic();
+        BUS_reset_start();
+        if(!BUS_write_ROM_image()) {
+            // panic();
+        }
+        VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
+        VIDEO_start_clock();
+        delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
+        BUS_reset_finish();
     }
-    VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
-    VIDEO_start_clock();
-    delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
-    BUS_reset_finish();
 
     printf("* ");
 
