@@ -1,5 +1,5 @@
 (fp_lib_table
-  (lib (name "level converter")(type KiCad)(uri $KIPRJMOD/level_converter.pretty)(options "")(descr ""))
-  (lib (name "ftdi basic breakout")(type KiCad)(uri $KIPRJMOD/ftdi_basic.pretty)(options "")(descr ""))
   (lib (name microusb)(type Legacy)(uri $KIPRJMOD/snapeda/10118192-0001LF.mod)(options "")(descr ""))
+  (lib (name TSOP44-II)(type Legacy)(uri $KIPRJMOD/snapeda/TSOP44-II.mod)(options "")(descr ""))
+  (lib (name microsd)(type KiCad)(uri $KIPRJMOD/w_conn_misc.pretty/)(options "")(descr ""))
 )

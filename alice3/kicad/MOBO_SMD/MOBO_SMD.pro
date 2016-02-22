@@ -1,4 +1,4 @@
-update=Tuesday, February 09, 2016 'PMt' 05:26:37 PM
+update=Sunday, February 21, 2016 'PMt' 11:21:29 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -23,6 +23,8 @@ ModuleOutlineThickness=0.150000000000
 [cvpcb]
 version=1
 NetIExt=net
+[general]
+version=1
 [eeschema]
 version=1
 LibDir=
@@ -66,5 +68,4 @@ LibName36=km681000blp-7
 LibName37=stm32f415rg
 LibName38=regul
 LibName39=ldo
-[general]
-version=1
+LibName40=71v424s15phgi8
