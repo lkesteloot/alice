@@ -39,6 +39,8 @@ LIBS:stm32f415rg
 LIBS:regul
 LIBS:ldo
 LIBS:71v424s15phgi8
+LIBS:vga
+LIBS:mini_din
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END

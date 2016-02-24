@@ -1,4 +1,4 @@
-update=Sunday, February 21, 2016 'PMt' 11:21:29 PM
+update=Wednesday, February 24, 2016 'AMt' 09:06:22 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -69,3 +69,5 @@ LibName37=stm32f415rg
 LibName38=regul
 LibName39=ldo
 LibName40=71v424s15phgi8
+LibName41=vga
+LibName42=mini_din
