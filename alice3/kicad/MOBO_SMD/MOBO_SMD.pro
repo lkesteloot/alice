@@ -1,4 +1,4 @@
-update=Wednesday, February 24, 2016 'AMt' 09:06:22 AM
+update=Thursday, February 25, 2016 'AMt' 11:43:43 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -71,3 +71,4 @@ LibName39=ldo
 LibName40=71v424s15phgi8
 LibName41=vga
 LibName42=mini_din
+LibName43=24lc256
