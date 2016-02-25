@@ -42,6 +42,7 @@ LIBS:71v424s15phgi8
 LIBS:vga
 LIBS:mini_din
 LIBS:24lc256
+LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
 $Descr USLetter 11000 8500
@@ -246,18 +247,14 @@ $EndComp
 Wire Wire Line
 	3800 3550 3700 3550
 Wire Wire Line
-	3700 3550 3700 3650
-Wire Wire Line
-	3700 3650 3700 3850
+	3700 3550 3700 3850
 Wire Wire Line
 	3800 3650 3700 3650
 Connection ~ 3700 3650
 Wire Wire Line
 	3700 1550 3800 1550
 Wire Wire Line
-	3700 1250 3700 1450
-Wire Wire Line
-	3700 1450 3700 1550
+	3700 1250 3700 1550
 Wire Wire Line
 	3800 1450 3700 1450
 Connection ~ 3700 1450
@@ -276,11 +273,7 @@ Wire Wire Line
 Wire Wire Line
 	5000 1550 5050 1550
 Wire Wire Line
-	5000 1450 5400 1450
-Wire Wire Line
-	5400 1450 5450 1450
-Wire Wire Line
-	5450 1450 5600 1450
+	5000 1450 5600 1450
 Wire Wire Line
 	3100 2650 3800 2650
 Wire Wire Line
@@ -300,13 +293,7 @@ Wire Wire Line
 Wire Wire Line
 	6000 3150 5950 3150
 Wire Wire Line
-	5950 3150 5950 3250
-Wire Wire Line
-	5950 3250 5950 3350
-Wire Wire Line
-	5950 3350 5950 3450
-Wire Wire Line
-	5950 3450 5950 3550
+	5950 3150 5950 3550
 Wire Wire Line
 	6000 3250 5950 3250
 Connection ~ 5950 3250
@@ -339,11 +326,9 @@ Wire Wire Line
 Wire Wire Line
 	7050 3450 7050 3850
 Wire Wire Line
-	7050 3850 5700 3850
+	5700 3850 7050 3850
 Wire Wire Line
-	5700 3850 5700 3150
-Wire Wire Line
-	5700 3150 5700 3100
+	5700 3100 5700 3850
 Wire Wire Line
 	5700 3150 5000 3150
 Connection ~ 5700 3150
@@ -369,9 +354,7 @@ Wire Wire Line
 Wire Wire Line
 	6850 1450 6850 1850
 Wire Wire Line
-	6200 1450 6250 1450
-Wire Wire Line
-	6250 1450 6850 1450
+	6200 1450 6850 1450
 Wire Wire Line
 	6250 1450 6250 1550
 Connection ~ 6250 1450
@@ -571,15 +554,7 @@ $EndComp
 Wire Wire Line
 	3325 6225 3450 6225
 Wire Wire Line
-	3325 5725 3325 5825
-Wire Wire Line
-	3325 5825 3325 6225
-Wire Wire Line
-	3325 6225 3325 6425
-Wire Wire Line
-	3325 6425 3325 6625
-Wire Wire Line
-	3325 6625 3325 6775
+	3325 5725 3325 6775
 Wire Wire Line
 	3450 6425 3325 6425
 Connection ~ 3325 6425
@@ -738,15 +713,11 @@ Wire Wire Line
 Wire Wire Line
 	1800 6575 2325 6575
 Wire Wire Line
-	2325 6525 2325 6575
-Wire Wire Line
-	2325 6575 2325 6750
+	2325 6525 2325 6750
 Wire Wire Line
 	2325 6525 3450 6525
 Wire Wire Line
-	2325 6225 2325 6325
-Wire Wire Line
-	2325 6325 2325 6400
+	2325 6225 2325 6400
 Wire Wire Line
 	2325 6325 3450 6325
 Wire Wire Line
@@ -757,9 +728,7 @@ Wire Wire Line
 Wire Wire Line
 	1800 5875 2325 5875
 Wire Wire Line
-	2325 5875 2325 6050
-Wire Wire Line
-	2325 6050 2325 6125
+	2325 5875 2325 6125
 Wire Wire Line
 	2325 6400 1800 6400
 Wire Wire Line
