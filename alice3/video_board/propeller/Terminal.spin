@@ -60,6 +60,14 @@ PUB start(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr,
   '                         0 or none:      Reset
   '                         7:              Inverse video
   '    <ESC>[K          Erase to end of line.
+  '
+  ' MyZ80 sequences supported:
+  '    <ESC>T           Erase to end of line.
+  '    <ESC>*           Clear screen and home cursor.
+  '    <ESC>)           Start reverse text.
+  '    <ESC>(           End reverse text.
+  '    <ESC>=YX         Move to X,Y (each one byte, position plus 0x20).
+  '
 
   ' Start on a new cog.
   cognew(Process(QueuePtr, HeadIndexPtr, TailIndexPtr, Capacity, ScreenPtr, CursorXPtr, CursorYPtr), @Stack[0])
