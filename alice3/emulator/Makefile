@@ -10,10 +10,13 @@ CXXFLAGS=-Wall -I/opt/local/include -I$(BG80D_PATH) -DUSE_BG80D=$(USE_BG80D) -st
 
 VPATH=$(BG80D_PATH)
 
-all: emulator hex2bin
+all: emulator hex2bin hexinfo
 
 emulator: emulator.o z80emu.o readhex.o
 	$(CXX) $(LDFLAGS) $^   -o $@ $(LDLIBS)
+
+hexinfo: hexinfo.o readhex.o
+	$(CC) hexinfo.o readhex.o -o hexinfo
 
 hex2bin: hex2bin.o readhex.o
 	$(CC) hex2bin.o readhex.o -o hex2bin

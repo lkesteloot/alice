@@ -3,6 +3,7 @@
 #include "readhex.h"
 
 #define RECORD_EXTENDED_LINEAR_ADDRESS 0x04
+#define RECORD_SET_EXECUTION_START 0x05
 
 static int get_nybble(unsigned char *s)
 {
@@ -38,6 +39,7 @@ int read_hex(FILE *f, memory_func memory, void *memory_arg, int bad_checksum_is_
 {
     unsigned char *s;
     int base_address = 0x0;
+    int start_execution = -1;
     int num_bytes;
     int address;
     unsigned char checksum;
@@ -76,7 +78,14 @@ int read_hex(FILE *f, memory_func memory, void *memory_arg, int bad_checksum_is_
             s += 2;
             checksum += (unsigned char) byte;
 
-            if(byte == RECORD_EXTENDED_LINEAR_ADDRESS) {
+            if(byte == RECORD_SET_EXECUTION_START) {
+                start_execution = get_word(s) * 65536 + get_word(s + 4);
+                checksum += (unsigned char) get_byte(s);
+                checksum += (unsigned char) get_byte(s + 2);
+                checksum += (unsigned char) get_byte(s + 4);
+                checksum += (unsigned char) get_byte(s + 6);
+                s += 8;
+            } else if(byte == RECORD_EXTENDED_LINEAR_ADDRESS) {
                 base_address = get_word(s) * 65536;
                 checksum += (unsigned char) get_byte(s);
                 checksum += (unsigned char) get_byte(s + 2);
@@ -115,6 +124,9 @@ int read_hex(FILE *f, memory_func memory, void *memory_arg, int bad_checksum_is_
     if (skipped_bytes > 0) {
         printf("Skipped %d bytes.\n", skipped_bytes);
     }
+
+    if(start_execution >= 0)
+        printf("start execution at 0x%08X\n", start_execution);
 
     return 1;
 }
