@@ -1,4 +1,4 @@
-update=Sunday, February 28, 2016 'PMt' 01:38:45 PM
+update=Sunday, February 28, 2016 'PMt' 03:29:26 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -25,6 +25,16 @@ version=1
 NetIExt=net
 [general]
 version=1
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
 [eeschema]
 version=1
 LibDir=
@@ -72,13 +82,4 @@ LibName40=71v424s15phgi8
 LibName41=vga
 LibName42=mini_din
 LibName43=24lc256
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=
-SpiceForceRefPrefix=0
-SpiceUseNetNumbers=0
-LabSize=60
+LibName44=../z80cpu-smd
