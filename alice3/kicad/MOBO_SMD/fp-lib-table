@@ -3,4 +3,5 @@
   (lib (name TSOP44-II)(type Legacy)(uri $KIPRJMOD/snapeda/TSOP44-II.mod)(options "")(descr ""))
   (lib (name microsd)(type KiCad)(uri $KIPRJMOD/w_conn_misc.pretty/)(options "")(descr ""))
   (lib (name mini_din)(type KiCad)(uri $KIPRJMOD/mini_din.pretty/)(options "")(descr ""))
+  (lib (name cui-md-xxs)(type Legacy)(uri "$(KIPRJMOD)/cui-md-xxs.mod")(options "")(descr ""))
 )
