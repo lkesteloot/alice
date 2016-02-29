@@ -784,8 +784,6 @@ F 3 "" H 3800 6550 60  0000 C CNN
 $EndComp
 NoConn ~ 3300 6350
 NoConn ~ 3200 6650
-NoConn ~ 3300 6750
-NoConn ~ 4300 6750
 Wire Wire Line
 	7150 4900 7150 5900
 Wire Wire Line
@@ -1154,6 +1152,18 @@ Text GLabel 3900 4600 2    60   Input ~ 0
 ~PROP_READY~
 Text GLabel 3900 4700 2    60   BiDi ~ 0
 A17
-NoConn ~ 3800 6950
 Connection ~ 800  1900
+$Comp
+L GND #PWR?
+U 1 1 56D3ADAD
+P 3800 7000
+F 0 "#PWR?" H 3800 6750 50  0001 C CNN
+F 1 "GND" H 3800 6850 50  0000 C CNN
+F 2 "" H 3800 7000 50  0000 C CNN
+F 3 "" H 3800 7000 50  0000 C CNN
+	1    3800 7000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3800 6950 3800 7000
 $EndSCHEMATC
