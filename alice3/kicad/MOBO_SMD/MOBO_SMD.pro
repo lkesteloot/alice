@@ -1,4 +1,4 @@
-update=Sunday, February 28, 2016 'PMt' 04:01:42 PM
+update=Sunday, February 28, 2016 'PMt' 04:43:56 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -84,3 +84,4 @@ LibName42=mini_din
 LibName43=24lc256
 LibName44=../z80cpu-smd
 LibName45=propeller_p8x32a-q44
+LibName46=as6c2008_tsop
