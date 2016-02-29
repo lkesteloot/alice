@@ -521,50 +521,6 @@ F 3 "" H 900 3450 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Crystal Y3
-U 1 1 56BA69BE
-P 4350 4900
-F 0 "Y3" H 4350 5050 50  0000 C CNN
-F 1 "32.768KHz" H 4350 4750 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" H 4350 4900 60  0001 C CNN
-F 3 "" H 4350 4900 60  0000 C CNN
-	1    4350 4900
-	0    1    1    0   
-$EndComp
-$Comp
-L GND #PWR32
-U 1 1 56BA69C4
-P 5050 4900
-F 0 "#PWR32" H 5050 4650 50  0001 C CNN
-F 1 "GND" H 5050 4750 50  0000 C CNN
-F 2 "" H 5050 4900 60  0000 C CNN
-F 3 "" H 5050 4900 60  0000 C CNN
-	1    5050 4900
-	1    0    0    -1  
-$EndComp
-$Comp
-L C_Small C12
-U 1 1 56BA69CA
-P 4700 4750
-F 0 "C12" H 4710 4820 50  0000 L CNN
-F 1 "22pF" H 4710 4670 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 4700 4750 60  0001 C CNN
-F 3 "" H 4700 4750 60  0000 C CNN
-	1    4700 4750
-	1    0    0    -1  
-$EndComp
-$Comp
-L C_Small C13
-U 1 1 56BA69D0
-P 4700 5050
-F 0 "C13" H 4710 5120 50  0000 L CNN
-F 1 "22pF" H 4710 4970 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 4700 5050 60  0001 C CNN
-F 3 "" H 4700 5050 60  0000 C CNN
-	1    4700 5050
-	1    0    0    -1  
-$EndComp
-$Comp
 L MicroSD CON1
 U 1 1 56BA79CB
 P 8750 5050
@@ -957,29 +913,6 @@ Wire Wire Line
 	900  2850 900  3100
 Connection ~ 900  3000
 Wire Wire Line
-	4350 4750 4350 4600
-Wire Wire Line
-	4700 4900 5050 4900
-Wire Wire Line
-	4350 5050 4350 5200
-Wire Wire Line
-	4700 4600 4700 4650
-Wire Wire Line
-	4700 4850 4700 4950
-Connection ~ 4700 4900
-Wire Wire Line
-	4700 5200 4700 5150
-Wire Wire Line
-	3900 4600 4700 4600
-Connection ~ 4350 4600
-Wire Wire Line
-	3900 4700 4000 4700
-Wire Wire Line
-	4000 4700 4000 5200
-Wire Wire Line
-	4000 5200 4700 5200
-Connection ~ 4350 5200
-Wire Wire Line
 	6800 5000 8050 5000
 Wire Wire Line
 	7050 5100 8050 5100
@@ -1216,4 +1149,8 @@ Wire Wire Line
 Wire Wire Line
 	1750 6550 2050 6550
 Connection ~ 1850 6550
+Text GLabel 3900 4600 2    60   Input ~ 0
+~PROP_READY~
+Text GLabel 3900 4700 2    60   BiDi ~ 0
+A17
 $EndSCHEMATC

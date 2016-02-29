@@ -720,5 +720,6 @@ Wire Wire Line
 Wire Wire Line
 	3400 950  3700 950 
 Connection ~ 3700 950 
-NoConn ~ 3800 1750
+Text GLabel 3800 1750 0    60   Output ~ 0
+~PROP_READY~
 $EndSCHEMATC
