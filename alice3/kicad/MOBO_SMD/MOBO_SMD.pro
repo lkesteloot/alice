@@ -1,4 +1,4 @@
-update=Sunday, February 28, 2016 'PMt' 04:43:56 PM
+update=Monday, February 29, 2016 'PMt' 09:45:41 PM
 version=1
 last_client=kicad
 [pcbnew]
@@ -25,16 +25,6 @@ version=1
 NetIExt=net
 [general]
 version=1
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=
-SpiceForceRefPrefix=0
-SpiceUseNetNumbers=0
-LabSize=60
 [eeschema]
 version=1
 LibDir=
@@ -85,3 +75,13 @@ LibName43=24lc256
 LibName44=../z80cpu-smd
 LibName45=propeller_p8x32a-q44
 LibName46=as6c2008_tsop
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=Pcbnew
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
