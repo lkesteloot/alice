@@ -3,5 +3,6 @@
   (lib (name TSOP44-II)(type Legacy)(uri $KIPRJMOD/snapeda/TSOP44-II.mod)(options "")(descr ""))
   (lib (name microsd)(type KiCad)(uri $KIPRJMOD/w_conn_misc.pretty/)(options "")(descr ""))
   (lib (name cui-md-xxs)(type KiCad)(uri $KIPRJMOD/cui-md-xxs.pretty/)(options "")(descr ""))
+  (lib (name Molex)(type KiCad)(uri $KIPRJMOD/molex.pretty/)(options "")(descr ""))
   (lib (name Jac)(type Legacy)(uri $KIPRJMOD/jac.mod)(options "")(descr ""))
 )
