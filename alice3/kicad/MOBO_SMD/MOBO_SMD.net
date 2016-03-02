@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /Users/lk/mine/alice/alice3/kicad/MOBO_SMD/MOBO_SMD.sch)
-    (date "Wednesday, March 02, 2016 'AMt' 09:32:48 AM")
+    (date "Wednesday, March 02, 2016 'PMt' 01:40:24 PM")
     (tool "Eeschema 4.0.0-stable")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -259,7 +259,7 @@
       (tstamp 56BA6607))
     (comp (ref CON1)
       (value MicroSD)
-      (footprint microsd:microsd_socket)
+      (footprint Molex:microsd_1040310811)
       (libsource (lib sd_card) (part MicroSD))
       (sheetpath (names /IO/) (tstamps /568DBAE1/))
       (tstamp 56BA79CB))
