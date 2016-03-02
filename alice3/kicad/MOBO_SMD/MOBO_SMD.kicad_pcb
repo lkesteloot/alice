@@ -44,11 +44,11 @@
   )
 
   (setup
-    (last_trace_width 0.25)
-    (trace_clearance 0.2)
+    (last_trace_width 0.1524)
+    (trace_clearance 0.1524)
     (zone_clearance 0.508)
     (zone_45_only no)
-    (trace_min 0.2)
+    (trace_min 0.1524)
     (segment_width 0.2)
     (edge_width 0.15)
     (via_size 0.6)
@@ -200,8 +200,8 @@
   (net 100 "Net-(X1-Pad2)")
 
   (net_class Default "This is the default net class."
-    (clearance 0.2)
-    (trace_width 0.25)
+    (clearance 0.1524)
+    (trace_width 0.1524)
     (via_dia 0.6)
     (via_drill 0.4)
     (uvia_dia 0.3)
@@ -305,7 +305,7 @@
   )
 
   (net_class Power ""
-    (clearance 0.2)
+    (clearance 0.1524)
     (trace_width 0.2794)
     (via_dia 0.6)
     (via_drill 0.4)
