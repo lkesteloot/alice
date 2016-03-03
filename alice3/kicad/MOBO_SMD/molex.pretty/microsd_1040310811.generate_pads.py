@@ -22,6 +22,9 @@ def pad_lower_left(name, degrees, size, ll):
 def pad_upper_left(name, degrees, size, ul):
     return pad(name, degrees, size, vec2_add(ul, size.x/2.0, size.y/2.0))
 
+def pad_get_upper_left(p):
+    return vec2(p.center.x - p.size.x / 2.0, p.center.y - p.size.y / 2.0)
+
 pads = []
 
 center = vec2(0, 0) # center line and product line for Molex 1040310811
@@ -50,7 +53,7 @@ pads.append(p)
 p = pad("7", 0, pad_1_8_size, vec2_add(p.center, pad_1_8_left_to_left, 0))
 pads.append(p)
 
-p = pad("8", 0, vec2(.75, 1.1), vec2_add(p.center, pad_1_8_left_to_left + .1, 0))
+p = pad_lower_left("8", 0, vec2(.75, 1.1), vec2_add(center, -4.17 - .75, .3))
 pads.append(p)
 
 p = pad_lower_left("CD1", 0, vec2(1.2, 1.0), vec2_add(center, 5.14, -5.9))
