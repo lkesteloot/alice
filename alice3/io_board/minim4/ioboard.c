@@ -2529,7 +2529,6 @@ void process_serial_polling()
 
 int main()
 {
-
     system_init();
 
     queue_init(&mon_queue.q, MON_QUEUE_CAPACITY);
@@ -2539,9 +2538,8 @@ int main()
     LED_init();
     LED_beat_heart();
 
-    LED_beat_heart();
-
     setbuf(stdout, NULL);
+
     SERIAL_init(); // transmit and receive but global interrupts disabled
     LED_beat_heart();
 

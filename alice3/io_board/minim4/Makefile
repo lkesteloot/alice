@@ -47,3 +47,9 @@ bootrom.bin: ../../rom/rom.bin
 
 bootrom.c: bootrom.bin
 	python bin2c.py romimage bootrom.bin > bootrom.c
+
+ioboard.dfu: ioboard.hex
+	python dfu-convert -i ioboard.hex ioboard.dfu
+
+burn:
+	sudo ~/trees/dfu-util/src/dfu-util -d 0483:df11 -a 0 -D ioboard.dfu
