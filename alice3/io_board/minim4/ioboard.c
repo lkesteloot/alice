@@ -797,7 +797,6 @@ void SERIAL_init()
 #define IOBOARD_CMD_WRITE_SUM 0x07
 #define IOBOARD_CMD_MAX 0x07
 
-volatile unsigned char command_request; /* set this after reading all the bytes */
 volatile unsigned char command_bytes[1 + 5 + 128 + 2]; // largest is status + write + sector + 16-bit checksum
 volatile unsigned char command_length;
 
@@ -807,6 +806,7 @@ volatile unsigned char response_staging_length;
 volatile unsigned char response_length;
 volatile unsigned char response_index;
 volatile unsigned char response_waiting;
+volatile unsigned char gResponseWasWaiting = 0;
 
 void response_start()
 {
@@ -837,7 +837,6 @@ const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
 // Caller must protect with disable_interrupts()/enable_interrupts() if necessary
 void command_clear()
 {
-    command_request = IOBOARD_CMD_NONE;
     command_length = 0;
 }
 
@@ -1272,8 +1271,10 @@ extern unsigned int romimage_length;
 
 // Caller has to guarantee A and D access will not collide with
 // another peripheral; basically either Z80 BUSRQ or RESET
-void BUS_write_ROM_image()
+int BUS_write_ROM_image()
 {
+    int succeeded = 1;
+
     BUS_mastering_start();
     BUS_set_ADDRESS(0);
     BUS_set_DATA(0);
@@ -1287,12 +1288,16 @@ void BUS_write_ROM_image()
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
         if(t != romimage_bytes[a]) {
-            printf("panic: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-            panic();
+            printf(" expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+            succeeded = 0;
+            break;
         }
     }
+
     BUS_set_DATA(gNextByteForReading);
     BUS_mastering_finish();
+
+    return succeeded;
 }
 
 
@@ -2121,7 +2126,6 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "buffers") == 0) {
 
-            printf("Command request: 0x%02X\n", command_request);
             printf("Command length: %d bytes\n", command_length);
             if(command_length > 0) {
                 printf("Command buffer:\n");
@@ -2246,11 +2250,285 @@ void process_local_key(unsigned char c)
     }
 }
 
+void process_command_read(unsigned char command_request, volatile unsigned char *command_bytes)
+{
+    unsigned int disk = command_bytes[1];
+    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
+    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
+    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
+    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
+
+    logprintf(DEBUG_EVENTS, "read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+
+    if(disk > 3) { 
+        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+
+    if(gCachedBlockNumber == block_number) {
+        logprintf(DEBUG_DATA, "Block already in cache.\n");
+    } else {
+        if(!sdcard_readblock(block_number, gCachedBlock)) {
+            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
+            response_append(IOBOARD_FAILURE);
+            return;
+        }
+        logprintf(DEBUG_DATA, "New cached block\n");
+        if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
+        gCachedBlockNumber = block_number;
+    }
+
+    response_append(IOBOARD_SUCCESS);
+
+    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+        response_append(gCachedBlock[sector_byte_offset + u]);
+
+    if(command_request == IOBOARD_CMD_READ_SUM) {
+        unsigned short sum = 0;
+
+        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+            sum += gCachedBlock[sector_byte_offset + u];
+
+        response_append(sum & 0xff);
+        response_append((sum >> 8) & 0xff);
+        logprintf(DEBUG_ALL, "checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+    }
+}
+
+void process_command_write(unsigned char command_request, volatile unsigned char *command_bytes)
+{
+    unsigned int disk = command_bytes[1];
+    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
+    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
+    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
+    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
+
+    logprintf(DEBUG_EVENTS, "write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+
+    if(disk > 3) { 
+        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+
+    if(command_request == IOBOARD_CMD_WRITE_SUM) {
+        unsigned short sum = 0;
+        unsigned char offset = 6;
+        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+            sum += command_bytes[offset + u];
+        unsigned short theirs = command_bytes[134] | (command_bytes[135] << 8);
+        if(sum != theirs) {
+            logprintf(DEBUG_WARNINGS, "WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
+            // XXX retry?
+            response_append(IOBOARD_FAILURE);
+            return;
+        }
+    }
+
+    if(gCachedBlockNumber == block_number) {
+        logprintf(DEBUG_DATA, "Block already in cache.\n");
+    } else {
+        if(!sdcard_readblock(block_number, gCachedBlock)) {
+            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
+            response_append(IOBOARD_FAILURE);
+            return;
+        }
+        logprintf(DEBUG_DATA, "New cached block\n");
+        gCachedBlockNumber = block_number;
+    }
+
+    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+        gCachedBlock[sector_byte_offset + u] = command_bytes[6 + u];
+    if(!sdcard_writeblock(block_number, gCachedBlock)) {
+        printf("some kind of block write failure\n");
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+
+    response_append(IOBOARD_SUCCESS);
+}
+
+void check_and_process_command()
+{
+    unsigned char isEmpty;
+
+    if(command_length == 0)
+        return;
+
+    unsigned char command = command_bytes[0];
+
+    if((command < IOBOARD_CMD_MIN) || (command > IOBOARD_CMD_MAX)) {
+
+        logprintf(DEBUG_ERRORS, "ERROR: Unknown command 0x%02X received\n", command);
+        command_clear();
+        return;
+    }
+
+    if(command_length < command_lengths[command])
+        return;
+
+    logprintf(DEBUG_EVENTS, "complete command received.\n");
+    if(command_length > command_lengths[command]) {
+        logprintf(DEBUG_ERRORS, "ERROR: command buffer longer than expected for command.\n");
+    }
+
+    if(command == IOBOARD_CMD_NONE)
+        return;
+
+    response_start();
+    LED_set_info(1);
+    switch(command) {
+        case IOBOARD_CMD_READ:
+        case IOBOARD_CMD_READ_SUM:
+            process_command_read(command, command_bytes);
+            break;
+
+        case IOBOARD_CMD_WRITE:
+        case IOBOARD_CMD_WRITE_SUM:
+            process_command_write(command, command_bytes);
+            break;
+
+        case IOBOARD_CMD_SEROUT: {
+            putchar(command_bytes[1]);
+            response_append(IOBOARD_SUCCESS);
+            break;
+        }
+
+        case IOBOARD_CMD_CONST: {
+            logprintf(DEBUG_EVENTS, "CONST\n");
+            isEmpty = queue_isempty(&con_queue.q);
+            if(!isEmpty)
+                response_append(IOBOARD_READY);
+            else
+                response_append(IOBOARD_NOT_READY);
+            break;
+        }
+
+        case IOBOARD_CMD_CONIN: {
+            unsigned char c;
+            logprintf(DEBUG_EVENTS, "CONIN\n");
+            isEmpty = queue_isempty(&con_queue.q);
+            if(!isEmpty) {
+                c = queue_deq(&con_queue.q);
+                response_append(IOBOARD_SUCCESS);
+                response_append(c);
+            } else {
+                printf("Hm, char wasn't actually ready at CONIN\n");
+                response_append(IOBOARD_SUCCESS);
+                response_append(0);
+            }
+            break;
+        }
+
+        default: {
+            printf("unexpected command 0x%02X from z80!\n", command);
+            break;
+        }
+    }
+    LED_set_info(0);
+
+    if(response_staging_length > 0) {
+        logprintf(DEBUG_DATA, "will respond with %d\n", response_staging_length);
+        command_clear();
+        disable_interrupts();
+        response_finish();
+        gResponseWasWaiting = 1;
+        enable_interrupts();
+    }
+}
+
+void process_keyboard_queue()
+{
+    int isEmpty = queue_isempty(&kbd_queue.q);
+    if(!isEmpty) {
+        unsigned char kb = queue_deq(&kbd_queue.q);
+        if(dump_keyboard_data)
+            logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
+        kbd_process_byte(kb);
+    }
+}
+
+void check_and_process_HALT()
+{
+    static int Z80WasInHALT = 0;
+    gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
+    if(gZ80IsInHALT != Z80WasInHALT) {
+        gOutputDevices = OUTPUT_TO_VIDEO | OUTPUT_TO_SERIAL;
+        if(gZ80IsInHALT) {
+            logprintf(DEBUG_EVENTS, "Z80 has HALTed.\n");
+        } else {
+            logprintf(DEBUG_EVENTS, "Z80 has exited HALT state.\n");
+        }
+        gOutputDevices = OUTPUT_TO_SERIAL;
+        Z80WasInHALT = gZ80IsInHALT;
+    }
+}
+
+void check_and_process_soft_reset()
+{
+    if(gResetTheZ80 || HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
+        while(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK));
+        delay_ms(RESET_BUTTON_DELAY_MS);// software debounce
+        gResetTheZ80 = 0;
+
+        Z80_reset();
+
+        logprintf(DEBUG_EVENTS, "Z80 was reset\n");
+    }
+}
+
+void check_exceptional_conditions()
+{
+    if(gConsoleOverflowed) {
+        logprintf(DEBUG_WARNINGS, "WARNING: Console input queue overflow\n");
+        gConsoleOverflowed = 0;
+    }
+
+    if(gKeyboardOverflowed) {
+        logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data queue overflow\n");
+        gKeyboardOverflowed = 0;
+    }
+}
+
+void process_monitor_queue()
+{
+    unsigned char isEmpty = queue_isempty(&mon_queue.q);
+    static unsigned char escapeBackToMonitor = 0;
+
+    if(!isEmpty) {
+        unsigned char c = queue_deq(&mon_queue.q);
+        if(gSerialInputToMonitor)
+            process_local_key(c);
+        else {
+            if(escapeBackToMonitor == 0 && c == 1)
+                escapeBackToMonitor = 1;
+            else if(escapeBackToMonitor != 0 && c == 2) {
+                escapeBackToMonitor = 0;
+                gSerialInputToMonitor = 1;
+                printf("Serial input returned to monitor\n");
+            } else {
+                escapeBackToMonitor = 0;
+                console_enqueue_key(c);
+            }
+        }
+    }
+}
+
+void process_serial_polling()
+{
+    // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
+    if(gStartAnotherUARTReceive) {
+        gStartAnotherUARTReceive = 0;
+        int result;
+        if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
+            /* error_code = gUARTHandle.State; */
+        }
+    }
+}
+
 int main()
 {
-    unsigned char responseWasWaiting = 0;
-    volatile unsigned char escapeBackToMonitor = 0;
-    int Z80WasInHALT = 0;
 
     system_init();
 
@@ -2315,256 +2593,24 @@ int main()
         serial_try_to_transmit_buffers();
         LED_beat_heart();
 
-        // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
-        if(gStartAnotherUARTReceive) {
-            gStartAnotherUARTReceive = 0;
-            int result;
-            if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
-                /* error_code = gUARTHandle.State; */
-            }
-        }
+        process_serial_polling();
 
-        unsigned char isEmpty = queue_isempty(&mon_queue.q);
+        process_monitor_queue();
 
-        if(!isEmpty) {
-            unsigned char c = queue_deq(&mon_queue.q);
-            if(gSerialInputToMonitor)
-                process_local_key(c);
-            else {
-                if(escapeBackToMonitor == 0 && c == 1)
-                    escapeBackToMonitor = 1;
-                else if(escapeBackToMonitor != 0 && c == 2) {
-                    escapeBackToMonitor = 0;
-                    gSerialInputToMonitor = 1;
-                    printf("Serial input returned to monitor\n");
-                } else {
-                    escapeBackToMonitor = 0;
-                    console_enqueue_key(c);
-                }
-            }
-        }
+        check_and_process_command();
 
-        if(command_length > 0) {
-            unsigned char command_byte = command_bytes[0];
-            logprintf(DEBUG_DATA, "receiving command...\n");
+        process_keyboard_queue();
 
-            if((command_byte < IOBOARD_CMD_MIN) || (command_byte > IOBOARD_CMD_MAX)) {
+        check_exceptional_conditions();
 
-                logprintf(DEBUG_ERRORS, "ERROR: Unknown command 0x%02X received\n", command_byte);
-                command_clear();
-
-            } else if(command_length >= command_lengths[command_byte]) {
-                command_request = command_byte;
-                logprintf(DEBUG_EVENTS, "complete command received.\n");
-                if(command_length > command_lengths[command_byte]) {
-                    logprintf(DEBUG_ERRORS, "ERROR: command buffer longer than expected for command.\n");
-                }
-            }
-        }
-
-        if(command_request != IOBOARD_CMD_NONE) {
-            response_start();
-            LED_set_info(1);
-            switch(command_request) {
-                case IOBOARD_CMD_READ:
-                case IOBOARD_CMD_READ_SUM:
-                {
-                    unsigned int disk = command_bytes[1];
-                    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
-                    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
-                    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
-
-                    logprintf(DEBUG_EVENTS, "read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
-
-                    if(disk > 3) { 
-                        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
-                        response_append(IOBOARD_FAILURE);
-                        break;
-                    }
-
-                    if(gCachedBlockNumber == block_number) {
-                        logprintf(DEBUG_DATA, "Block already in cache.\n");
-                    } else {
-                        if(!sdcard_readblock(block_number, gCachedBlock)) {
-                            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
-                            response_append(IOBOARD_FAILURE);
-                            break;
-                        }
-                        logprintf(DEBUG_DATA, "New cached block\n");
-                        if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
-                        gCachedBlockNumber = block_number;
-                    }
-
-                    response_append(IOBOARD_SUCCESS);
-
-                    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-                        response_append(gCachedBlock[sector_byte_offset + u]);
-
-                    if(command_request == IOBOARD_CMD_READ_SUM) {
-                        unsigned short sum = 0;
-
-                        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-                            sum += gCachedBlock[sector_byte_offset + u];
-
-                        response_append(sum & 0xff);
-                        response_append((sum >> 8) & 0xff);
-                        logprintf(DEBUG_ALL, "checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
-                    }
-                    break;
-                }
-
-                case IOBOARD_CMD_WRITE:
-                case IOBOARD_CMD_WRITE_SUM:
-                {
-                    unsigned int disk = command_bytes[1];
-                    unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
-                    unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-                    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
-                    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
-
-                    logprintf(DEBUG_EVENTS, "write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
-
-                    if(disk > 3) { 
-                        logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
-                        response_append(IOBOARD_FAILURE);
-                        break;
-                    }
-
-                    if(command_request == IOBOARD_CMD_WRITE_SUM) {
-                        unsigned short sum = 0;
-                        unsigned char offset = 6;
-                        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-                            sum += command_bytes[offset + u];
-                        unsigned short theirs = command_bytes[134] | (command_bytes[135] << 8);
-                        if(sum != theirs) {
-                            logprintf(DEBUG_WARNINGS, "WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
-                            // XXX retry?
-                            response_append(IOBOARD_FAILURE);
-                            break;
-                        }
-                    }
-
-                    if(gCachedBlockNumber == block_number) {
-                        logprintf(DEBUG_DATA, "Block already in cache.\n");
-                    } else {
-                        if(!sdcard_readblock(block_number, gCachedBlock)) {
-                            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
-                            response_append(IOBOARD_FAILURE);
-                            break;
-                        }
-                        logprintf(DEBUG_DATA, "New cached block\n");
-                        gCachedBlockNumber = block_number;
-                    }
-
-                    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-                        gCachedBlock[sector_byte_offset + u] = command_bytes[6 + u];
-                    if(!sdcard_writeblock(block_number, gCachedBlock)) {
-                        printf("some kind of block write failure\n");
-                        response_append(IOBOARD_FAILURE);
-                        break;
-                    }
-
-                    response_append(IOBOARD_SUCCESS);
-
-                    break;
-                }
-
-                case IOBOARD_CMD_SEROUT: {
-                    putchar(command_bytes[1]);
-                    response_append(IOBOARD_SUCCESS);
-                    break;
-                }
-
-                case IOBOARD_CMD_CONST: {
-                    logprintf(DEBUG_EVENTS, "CONST\n");
-                    isEmpty = queue_isempty(&con_queue.q);
-                    if(!isEmpty)
-                        response_append(IOBOARD_READY);
-                    else
-                        response_append(IOBOARD_NOT_READY);
-                    break;
-                }
-
-                case IOBOARD_CMD_CONIN: {
-                    unsigned char c;
-                    logprintf(DEBUG_EVENTS, "CONIN\n");
-                    isEmpty = queue_isempty(&con_queue.q);
-                    if(!isEmpty) {
-                        c = queue_deq(&con_queue.q);
-                        response_append(IOBOARD_SUCCESS);
-                        response_append(c);
-                    } else {
-                        printf("Hm, char wasn't actually ready at CONIN\n");
-                        response_append(IOBOARD_SUCCESS);
-                        response_append(0);
-                    }
-                    break;
-                }
-
-                default: {
-                    printf("unexpected command 0x%02X from z80!\n", command_request);
-                    break;
-                }
-            }
-            LED_set_info(0);
-
-            if(response_staging_length > 0) {
-                logprintf(DEBUG_DATA, "will respond with %d\n", response_staging_length);
-                command_clear();
-                disable_interrupts();
-                response_finish();
-                responseWasWaiting = 1;
-                enable_interrupts();
-            }
-        }
-
-        {
-            isEmpty = queue_isempty(&kbd_queue.q);
-            if(!isEmpty) {
-                unsigned char kb = queue_deq(&kbd_queue.q);
-                if(dump_keyboard_data)
-                    logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
-                kbd_process_byte(kb);
-            }
-        }
-
-        if(gConsoleOverflowed) {
-            logprintf(DEBUG_WARNINGS, "WARNING: Console input queue overflow\n");
-            gConsoleOverflowed = 0;
-        }
-
-        if(gKeyboardOverflowed) {
-            logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data queue overflow\n");
-            gKeyboardOverflowed = 0;
-        }
-
-        if(responseWasWaiting && !response_waiting) {
+        if(gResponseWasWaiting && !response_waiting) {
             logprintf(DEBUG_EVENTS, "response packet was read\n");
-            responseWasWaiting = 0;
+            gResponseWasWaiting = 0;
         }
 
-        if(gResetTheZ80 || HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
-            while(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK));
-            delay_ms(RESET_BUTTON_DELAY_MS);// software debounce
-            gResetTheZ80 = 0;
+        check_and_process_soft_reset();
 
-            Z80_reset();
-
-            logprintf(DEBUG_EVENTS, "Z80 was reset\n");
-        }
-
-        gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
-        if(gZ80IsInHALT != Z80WasInHALT) {
-            gOutputDevices = OUTPUT_TO_VIDEO | OUTPUT_TO_SERIAL;
-            if(gZ80IsInHALT) {
-                logprintf(DEBUG_EVENTS, "Z80 has HALTed.\n");
-            } else {
-                logprintf(DEBUG_EVENTS, "Z80 has exited HALT state.\n");
-            }
-            gOutputDevices = OUTPUT_TO_SERIAL;
-            Z80WasInHALT = gZ80IsInHALT;
-        }
+        check_and_process_HALT();
     }
 
     // should not reach
