@@ -37,8 +37,8 @@ void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
 #define INFO_LED_PIN_MASK GPIO_PIN_13
 #define INFO_LED_PORT GPIOC
 
-#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_12
-#define HEARTBEAT_LED_PORT GPIOC
+#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_2
+#define HEARTBEAT_LED_PORT GPIOB
 
 void LED_set_panic(int on)
 {
@@ -97,7 +97,7 @@ void panic_worse()
     for(;;);
 }
 
-void serial_try_to_transmit_buffers();
+void serial_flush();
 
 static void panic(void)
 {
@@ -110,9 +110,9 @@ static void panic(void)
     int pin = 0;
     for(;;) {
         if(!entered) {
-            // serial_try_to_transmit_buffers() can itself panic(), so stop reentry here
+            // serial_flush() can itself panic(), so stop reentry here
             entered = 1;
-            serial_try_to_transmit_buffers();
+            serial_flush();
             entered = 0;
         }
 
@@ -707,6 +707,12 @@ void serial_try_to_transmit_buffers()
         gNextTransmitBuffer ^= 1;
         gTransmitBufferLengths[gNextTransmitBuffer] = 0;
     }
+}
+
+void serial_flush()
+{
+    while(gUARTTransmitBusy || gTransmitBufferLengths[gNextTransmitBuffer] > 0)
+        serial_try_to_transmit_buffers();
 }
 
 void serial_enqueue_one_char(char c)
@@ -1358,6 +1364,7 @@ void logprintf(int level, char *fmt, ...)
     while(*s) {
         putchar(*s++);
     }
+    serial_flush();
 
     if(!(gOutputDevices & OUTPUT_TO_VIDEO) && (level <= DEBUG_WARNINGS))
         VIDEO_output_string(dummy, 1);
@@ -2263,6 +2270,7 @@ int main()
     printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
     LED_beat_heart();
+    serial_flush();
 
     SPI_config_for_sd();
     LED_beat_heart();
@@ -2272,6 +2280,7 @@ int main()
     else 
         printf("SD Card interface is initialized for SPI\n");
     LED_beat_heart();
+    serial_flush();
 
     if(0) {
         test_sd_card();
@@ -2283,18 +2292,23 @@ int main()
     KBD_init();
     LED_beat_heart();
 
-    BUS_init();
+    if(0) { // Can't have floating BUS in test mode
+        BUS_init();
 
-    BUS_reset_init();
+        BUS_reset_init();
 
-    BUS_reset_start();
-    BUS_write_ROM_image();
-    VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
-    VIDEO_start_clock();
-    delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
-    BUS_reset_finish();
+        BUS_reset_start();
+        if(!BUS_write_ROM_image()) {
+            panic();
+        }
+        VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
+        VIDEO_start_clock();
+        delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
+        BUS_reset_finish();
+    }
 
     printf("* ");
+    serial_flush();
 
     for(;;) {
 
@@ -2510,7 +2524,7 @@ int main()
             if(!isEmpty) {
                 unsigned char kb = queue_deq(&kbd_queue.q);
                 if(dump_keyboard_data)
-                    printf("keyboard scan code: %02X\n", kb);
+                    logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
                 kbd_process_byte(kb);
             }
         }
