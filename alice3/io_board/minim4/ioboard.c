@@ -2517,6 +2517,9 @@ void process_command_write(unsigned char command_request, volatile unsigned char
         response_append(IOBOARD_FAILURE);
         return;
     }
+    // XXX Should probably set this up as a timeout, so multiple
+    // sectors writes can take advantage of single block
+    f_sync(&gDiskImageFiles[disk]);
 
     response_append(IOBOARD_SUCCESS);
 }
