@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "ff.h"
+#include "diskio.h"
+
 #define XSTR(x) STR(x)
 #define STR(x) # x
 
@@ -146,7 +149,7 @@ enum DebugLevels {
 };
 int gDebugLevel = DEBUG_WARNINGS;
 
-void dump_buffer_hex(int indent, unsigned char *data, int size)
+void dump_buffer_hex(int indent, const unsigned char *data, int size)
 {
     int address = 0;
     int i;
@@ -158,11 +161,13 @@ void dump_buffer_hex(int indent, unsigned char *data, int size)
         for(i = 0; i < howmany; i++)
             printf("%02X ", data[i]);
         printf("\n");
+        serial_flush();
 
         printf("%*s        ", indent, "");
         for(i = 0; i < howmany; i++)
             printf(" %c ", isprint(data[i]) ? data[i] : '.');
         printf("\n");
+        serial_flush();
 
         size -= howmany;
         data += howmany;
@@ -1266,14 +1271,19 @@ void BUS_write_IO(int io, unsigned char byte)
 //----------------------------------------------------------------------------
 // Alice 3 ROM (boot) image
 
-extern unsigned char romimage_bytes[];
-extern unsigned int romimage_length;
+unsigned char *gZ80BootImage;
+unsigned int gZ80BootImageLength;
 
 // Caller has to guarantee A and D access will not collide with
 // another peripheral; basically either Z80 BUSRQ or RESET
-int BUS_write_ROM_image()
+int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_length)
 {
     int succeeded = 1;
+
+    if(romimage_bytes == NULL) {
+        printf("BUS_write_ROM_image : Z80 boot image is undefined (gZ80BootImage == NULL)\n");
+        return 0;
+    }
 
     BUS_mastering_start();
     BUS_set_ADDRESS(0);
@@ -1288,7 +1298,7 @@ int BUS_write_ROM_image()
     for(unsigned int a = 0; a < romimage_length; a++) {
         unsigned char t = BUS_read_memory_byte(a);
         if(t != romimage_bytes[a]) {
-            printf(" expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+            printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
             succeeded = 0;
             break;
         }
@@ -1448,7 +1458,7 @@ void Z80_reset()
     response_clear();
     command_clear();
 
-    BUS_write_ROM_image();
+    BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength);
 
     VIDEO_start_clock();
 
@@ -1693,13 +1703,13 @@ void spi_bulk(unsigned char *buffer, unsigned int nlen)
     }
 }
 
-void spi_writen(unsigned char *buffer, unsigned int nlen)
+void spi_writen(const unsigned char *buffer, unsigned int nlen)
 {
     if(gDebugLevel >= DEBUG_INSANE) {
         printf("spi_writen write:\n");
         dump_buffer_hex(4, buffer, nlen);
     }
-    int result = HAL_SPI_Transmit(&gSPIHandle, buffer, nlen, 1000);
+    int result = HAL_SPI_Transmit(&gSPIHandle, (unsigned char *)buffer, nlen, 1000);
     if(result != HAL_OK){
         logprintf(DEBUG_ERRORS, "spi_writen: SPI error 0x%04X\n", result);
         panic();
@@ -1896,7 +1906,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
 }
 
 /* precondition: SDcard CS is low (active) */
-int sdcard_writeblock(unsigned int blocknum, unsigned char *block)
+int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
 {
     int count;
     unsigned char response[8];
@@ -2025,12 +2035,167 @@ void test_sd_card()
     }
 }
 
+
+//----------------------------------------------------------------------------
+// FatFS device routines
+
+DSTATUS disk_status (BYTE pdrv)
+{
+    if(pdrv != 0)
+        return STA_NODISK;
+
+    return 0;
+}
+
+DSTATUS disk_initialize (BYTE pdrv)
+{
+    if(pdrv != 0)
+        return RES_ERROR;
+
+    return RES_OK;
+}
+
+DRESULT disk_read (BYTE pdrv, BYTE *buff, DWORD sector,	UINT count)
+{
+    if(pdrv != 0)
+        return RES_ERROR;
+
+    for(int i = 0; i < count; i++)
+        if(!sdcard_readblock(sector + i, buff + BLOCK_SIZE * i))
+            return RES_ERROR;
+    
+    return RES_OK;
+}
+
+DRESULT disk_write (BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
+{
+    if(pdrv != 0)
+        return RES_ERROR;
+
+    for(int i = 0; i < count; i++)
+        if(!sdcard_writeblock(sector + i, buff + BLOCK_SIZE * i))
+            return RES_ERROR;
+    
+    return RES_OK;
+}
+
+DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void *buff)
+{
+    DRESULT result = RES_OK;
+
+    if(pdrv != 0)
+        return RES_ERROR;
+
+    switch(cmd) {
+        case CTRL_SYNC:
+            result = RES_OK;
+            break;
+
+        default:
+            logprintf(DEBUG_ERRORS, "ERROR: unexpected FatFS ioctl %d\n", cmd);
+            result = RES_ERROR;
+            break;
+    }
+
+    return result;
+}
+
+DWORD get_fattime(void)
+{
+    // returns FatFS formatted date-time
+    // hardcoded to Mar 15 2016, midnight
+    return
+        ((_NORTC_YEAR - 1980) << 25) | 
+        (_NORTC_MON << 21) | 
+        (_NORTC_MDAY << 16) | 
+        (0 << 11) | 
+        (0 << 5) | 
+        (0 << 0)
+        ;
+}
+
+//----------------------------------------------------------------------------
+// CP/M 8MB Disk definitions
 #define SECTORS_PER_BLOCK 4
 #define SECTORS_PER_TRACK 64
 #define TRACKS_PER_DISK 1024
 #define SECTOR_SIZE 128
 /* disk is 8MB, so 16384 512-byte blocks per disk */
 #define BLOCKS_PER_DISK 16384
+
+FATFS gFATVolume;
+
+#define DISK_IMAGE_MAX 8
+char gDiskImageFilenames[DISK_IMAGE_MAX][13];
+FIL gDiskImageFiles[DISK_IMAGE_MAX];
+int gDiskImageCount = 0;
+
+int read_disk_image_list()
+{
+    FIL f;
+    FRESULT result = f_open (&f, "disks.txt", FA_READ | FA_OPEN_EXISTING);
+
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't open \"disks.txt\" for reading, FatFS result %d\n", result);
+        return 0;
+    }
+
+    while(!f_eof(&f) && (gDiskImageCount < DISK_IMAGE_MAX)) {
+        static char line[80];
+        if(f_gets(line, sizeof(line), &f)) {
+            if(line[strlen(line) - 1] != '\n') {
+                logprintf(DEBUG_WARNINGS, "\"disks.txt\" unexpectedly contained a line longer than 80 characters:\n");
+                logprintf(DEBUG_WARNINGS, "\"%s\"\n", line);
+                return 0;
+            }
+
+            line[strlen(line) - 1] = '\0';
+
+            if(strlen(line) > 12) {
+                logprintf(DEBUG_WARNINGS, "Unexpectedly long disk image name \"%s\" ignored\n", line);
+            } else {
+                strcpy(gDiskImageFilenames[gDiskImageCount], line);
+                gDiskImageCount++;
+            }
+        }
+    }
+
+    if(!f_eof(&f)) {
+        logprintf(DEBUG_WARNINGS, "Maximum disk images reached (%d), further contents of \"disks.txt\" ignored\n", DISK_IMAGE_MAX);
+    }
+
+    f_close(&f);
+    return 1;
+}
+
+int open_disk_images()
+{
+    int success = 1;
+    int i;
+
+    for(i = 0; i < gDiskImageCount; i++) {
+        FRESULT result = f_open (&gDiskImageFiles[i], gDiskImageFilenames[i], FA_READ | FA_WRITE | FA_OPEN_EXISTING);
+
+        if(result != FR_OK) {
+            logprintf(DEBUG_ERRORS, "ERROR: couldn't open disk image \"%s\" for rw, FatFS result %d\n", gDiskImageFilenames[i], result);
+            success = 0;
+            break;
+        }
+
+        if(f_size(&gDiskImageFiles[i]) != BLOCKS_PER_DISK * BLOCK_SIZE) {
+            logprintf(DEBUG_ERRORS, "ERROR: expected disk image \"%s\" to be 8MB, is %d bytes\n", gDiskImageFilenames[i], f_size(&gDiskImageFiles[i]));
+            success = 0;
+            break;
+        }
+    }
+
+    if(!success)
+        for(int j = 0; j < i; j++)
+            f_close(&gDiskImageFiles[j]);
+
+    return success;
+}
+
 
 
 char gMonitorCommandLine[80];
@@ -2250,45 +2415,54 @@ void process_local_key(unsigned char c)
     }
 }
 
+
 void process_command_read(unsigned char command_request, volatile unsigned char *command_bytes)
 {
+    static unsigned char buffer[128];
     unsigned int disk = command_bytes[1];
     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
-    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
+    unsigned int lba_sector = track * SECTORS_PER_TRACK + sector;
 
-    logprintf(DEBUG_EVENTS, "read disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+    logprintf(DEBUG_EVENTS, "read disk %d, sector %d, track %d, lba sector %d\n", disk, sector, track, lba_sector);
 
-    if(disk > 3) { 
+    if(disk > gDiskImageCount) { 
         logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
         response_append(IOBOARD_FAILURE);
         return;
     }
 
-    if(gCachedBlockNumber == block_number) {
-        logprintf(DEBUG_DATA, "Block already in cache.\n");
-    } else {
-        if(!sdcard_readblock(block_number, gCachedBlock)) {
-            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
-            response_append(IOBOARD_FAILURE);
-            return;
-        }
-        logprintf(DEBUG_DATA, "New cached block\n");
-        if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
-        gCachedBlockNumber = block_number;
+    FRESULT result = f_lseek(&gDiskImageFiles[disk], lba_sector * SECTOR_SIZE);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't seek to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
+        response_append(IOBOARD_FAILURE);
+        return;
     }
+
+    UINT wasread;
+    result = f_read(&gDiskImageFiles[disk], buffer, SECTOR_SIZE, &wasread);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't read sector %d, track %d from \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+    if(wasread != SECTOR_SIZE) {
+        logprintf(DEBUG_ERRORS, "ERROR: tried to read %lu bytes from sector %d, track %d of \"%s\", only read %ld\n", SECTOR_SIZE, gDiskImageFilenames[disk], sector, track, wasread);
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+    if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, buffer, SECTOR_SIZE);
 
     response_append(IOBOARD_SUCCESS);
 
     for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-        response_append(gCachedBlock[sector_byte_offset + u]);
+        response_append(buffer[u]);
 
     if(command_request == IOBOARD_CMD_READ_SUM) {
         unsigned short sum = 0;
 
         for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-            sum += gCachedBlock[sector_byte_offset + u];
+            sum += buffer[u];
 
         response_append(sum & 0xff);
         response_append((sum >> 8) & 0xff);
@@ -2301,12 +2475,11 @@ void process_command_write(unsigned char command_request, volatile unsigned char
     unsigned int disk = command_bytes[1];
     unsigned int sector = command_bytes[2] + 256 * command_bytes[3];
     unsigned int track = command_bytes[4] + 256 * command_bytes[5];
-    unsigned int block_number = disk * BLOCKS_PER_DISK + (track * SECTORS_PER_TRACK + sector) / SECTORS_PER_BLOCK;
-    unsigned int sector_byte_offset = 128 * ((track * SECTORS_PER_TRACK + sector) % SECTORS_PER_BLOCK);
+    unsigned int lba_sector = track * SECTORS_PER_TRACK + sector;
 
-    logprintf(DEBUG_EVENTS, "write disk %d, sector %d, track %d -> block %d, offset %d\n", disk, sector, track, block_number, sector_byte_offset);
+    logprintf(DEBUG_EVENTS, "write disk %d, sector %d, track %d, lba sector %d\n", disk, sector, track, lba_sector);
 
-    if(disk > 3) { 
+    if(disk > gDiskImageCount) { 
         logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
         response_append(IOBOARD_FAILURE);
         return;
@@ -2326,22 +2499,21 @@ void process_command_write(unsigned char command_request, volatile unsigned char
         }
     }
 
-    if(gCachedBlockNumber == block_number) {
-        logprintf(DEBUG_DATA, "Block already in cache.\n");
-    } else {
-        if(!sdcard_readblock(block_number, gCachedBlock)) {
-            logprintf(DEBUG_WARNINGS, "some kind of block read failure\n");
-            response_append(IOBOARD_FAILURE);
-            return;
-        }
-        logprintf(DEBUG_DATA, "New cached block\n");
-        gCachedBlockNumber = block_number;
+    FRESULT result = f_lseek(&gDiskImageFiles[disk], lba_sector * SECTOR_SIZE);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't seek to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
+        panic();
     }
 
-    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-        gCachedBlock[sector_byte_offset + u] = command_bytes[6 + u];
-    if(!sdcard_writeblock(block_number, gCachedBlock)) {
-        printf("some kind of block write failure\n");
+    UINT waswritten;
+    result = f_write(&gDiskImageFiles[disk], (unsigned char*)(command_bytes + 6), SECTOR_SIZE, &waswritten);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't write to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
+        response_append(IOBOARD_FAILURE);
+        return;
+    }
+    if(waswritten != SECTOR_SIZE) {
+        logprintf(DEBUG_ERRORS, "ERROR: tried to write %lu bytes to sector %d, track %d of \"%s\", only read %ld\n", SECTOR_SIZE, gDiskImageFilenames[disk], sector, track, waswritten);
         response_append(IOBOARD_FAILURE);
         return;
     }
@@ -2527,6 +2699,44 @@ void process_serial_polling()
     }
 }
 
+int read_bootrom()
+{
+    FIL f;
+    FRESULT result = f_open (&f, "bootrom.bin", FA_READ | FA_OPEN_EXISTING);
+
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't open \"bootrom.bin\" for reading, FatFS result %d\n", result);
+        return 0;
+    }
+
+    gZ80BootImageLength = f_size(&f);
+
+    gZ80BootImage = (unsigned char*)malloc(gZ80BootImageLength);
+    if(gZ80BootImage == NULL) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't allocate %lu bytes to read Z80 boot image\n", gZ80BootImageLength);
+        return 0;
+    }
+
+    UINT wasread;
+    result = f_read(&f, gZ80BootImage, gZ80BootImageLength, &wasread);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't read from \"bootrom.bin\", FatFS result %d\n", result);
+        free(gZ80BootImage);
+        gZ80BootImage = NULL;
+        return 0;
+    }
+
+    if(wasread != gZ80BootImageLength) {
+        logprintf(DEBUG_ERRORS, "ERROR: tried to read %lu bytes, only read %ld\n", gZ80BootImageLength, wasread);
+        free(gZ80BootImage);
+        gZ80BootImage = NULL;
+        return 0;
+    }
+
+    f_close(&f);
+    return 1;
+}
+
 int main()
 {
     system_init();
@@ -2563,7 +2773,43 @@ int main()
         LED_beat_heart();
     }
 
+    FRESULT result = f_mount(&gFATVolume, "0:", 1);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: FATFS mount result is %d\n", result);
+        panic();
+    } else {
+        printf("Mounted FATFS from SD card successfully.\n");
+    }
+    serial_flush();
+
+    int success = read_bootrom();
+    if(!success) {
+        panic();
+    }
     LED_beat_heart();
+
+    success = read_disk_image_list();
+    if(!success) {
+        panic();
+    }
+    for(int i = 0; i < gDiskImageCount; i++) {
+        printf("disk %c: \"%s\"\n", 'A' + i, gDiskImageFilenames[i]);
+    }
+    success = open_disk_images();
+    if(!success) {
+        panic();
+    }
+    LED_beat_heart();
+
+    {
+        unsigned char block[128];
+        UINT wasread;
+        for(int i = 0; i < gDiskImageCount; i++) {
+            result = f_read(&gDiskImageFiles[i], block, sizeof(block), &wasread);
+            printf("\"%s\", read resulted in %d, got %d bytes:\n", gDiskImageFilenames[i], result, wasread);
+            dump_buffer_hex(4, block, sizeof(block));
+        }
+    }
 
     KBD_init();
     LED_beat_heart();
@@ -2574,7 +2820,7 @@ int main()
         BUS_reset_init();
 
         BUS_reset_start();
-        if(!BUS_write_ROM_image()) {
+        if(!BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength)) {
             panic();
         }
         VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
