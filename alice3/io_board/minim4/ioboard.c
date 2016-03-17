@@ -1213,7 +1213,7 @@ volatile char kbd_shift_status = 0;
 volatile char kbd_alt_status = 0;
 volatile char kbd_ctrl_status = 0;
 
-volatile unsigned char dump_keyboard_data = 1;
+volatile unsigned char gDumpKeyboardData = 1;
 
 #define LSHIFT_KEY 0x12
 #define RSHIFT_KEY 0x59
@@ -1368,31 +1368,31 @@ void kbd_process_byte(unsigned char kbd_byte)
 {
     if(kbd_byte == UP_KEY) {
         up_key_flag = 1;
-        if(dump_keyboard_data) 
+        if(gDumpKeyboardData) 
             logprintf(DEBUG_DATA, "keyboard key up\n");
     } else {
         switch(kbd_byte) {
             case LSHIFT_KEY:
             case RSHIFT_KEY:
                 kbd_shift_status = !up_key_flag;
-                if(dump_keyboard_data) 
+                if(gDumpKeyboardData) 
                     logprintf(DEBUG_DATA, "shift status is now %d\n", kbd_shift_status);
                 break;
             case ALT_KEY:
                 kbd_alt_status = !up_key_flag;
-                if(dump_keyboard_data) 
+                if(gDumpKeyboardData) 
                     logprintf(DEBUG_DATA, "alt status is now %d\n", kbd_alt_status);
                 break;
             case CTRL_KEY:
                 kbd_ctrl_status = !up_key_flag;
-                if(dump_keyboard_data) 
+                if(gDumpKeyboardData) 
                     logprintf(DEBUG_DATA, "ctrl status is now %d\n", kbd_ctrl_status);
                 break;
             default:
                 if(!up_key_flag)
                     if(!(kbd_byte & 0x80)) {
                         unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
-                        if(dump_keyboard_data) {
+                        if(gDumpKeyboardData) {
                             logprintf(DEBUG_DATA, "keyboard ASCII: %02X", c);
                             if(isprint(c))
                                 logprintf(DEBUG_DATA, "(%c)\n", c);
@@ -1471,7 +1471,7 @@ void KBD_send_byte(int b)
 
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match SPI rate?
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
 
     GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
     HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
@@ -1479,9 +1479,9 @@ void KBD_send_byte(int b)
     GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
     HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
 
-    kbd_bits = KBD_BIT_COUNT;
+    kbd_bits = 10;
     int parity = KBD_byte_odd_parity(b) ^ 0x01;
-    kbd_data = (parity << 10) | (KBD_stop_bit << 9) | (b << 1) | (KBD_start_bit << 0);
+    kbd_data = (parity << 9) | (KBD_stop_bit << 8) | (b << 0);
     KBD_sending = 1;
 
     // Pull CLK low for at least 100 uS
@@ -1495,7 +1495,6 @@ void KBD_send_byte(int b)
     // Restore CLK to input
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
-
     GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
     HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
 
@@ -1511,21 +1510,24 @@ void EXTI15_10_IRQHandler(void)
     if(KBD_sending) {
         // DATA has already been set as output:
 
-        HAL_GPIO_WritePin(KEYBOARD_CLOCK_PORT, KEYBOARD_CLOCK_PIN_MASK, kbd_data & 0x01);
+        HAL_GPIO_WritePin(KEYBOARD_DATA_PORT, KEYBOARD_DATA_PIN_MASK, kbd_data & 0x01);
         kbd_data >>= 1;
 
         if(--kbd_bits == 0) {
             GPIO_InitTypeDef  GPIO_InitStruct;
 
+            KBD_sending = 0;
             KBD_send_ACK = 1;
+
+            // Should do this as interrupt on rise of CLK
+            // Wait for clock to rise, meaning DATA has been read by device
+            while(!HAL_GPIO_ReadPin(KEYBOARD_CLOCK_PORT, KEYBOARD_CLOCK_PIN_MASK));
+
             // Restore DATA to input
             GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
             GPIO_InitStruct.Pull = GPIO_PULLUP;
-
             GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
             HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
-            KBD_sending = 0;
-            KBD_send_ACK = 1;
         }
 
     } else {
@@ -1554,8 +1556,6 @@ void EXTI15_10_IRQHandler(void)
                     gKeyboardBATBadParity = 1;
                 else
                     gKeyboardParityError = 1;
-
-                // KBD_send_byte(KBD_parity_error_response);
 
             } else {
 
@@ -2196,8 +2196,8 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "dumpkbd") == 0) {
 
-            dump_keyboard_data = !dump_keyboard_data;
-            if(dump_keyboard_data)
+            gDumpKeyboardData = !gDumpKeyboardData;
+            if(gDumpKeyboardData)
                 printf("Dumping keyboard data...\n");
             else
                 printf("Not dumping keyboard data...\n");
@@ -2642,7 +2642,7 @@ int main()
             isEmpty = queue_isempty(&kbd_queue.q);
             if(!isEmpty) {
                 unsigned char kb = queue_deq(&kbd_queue.q);
-                if(dump_keyboard_data)
+                if(gDumpKeyboardData)
                     logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
                 kbd_process_byte(kb);
             }
@@ -2666,6 +2666,7 @@ int main()
         if(gKeyboardParityError) {
             logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data parity error\n");
             gKeyboardParityError = 0;
+            KBD_send_byte(KBD_parity_error_response);
         }
 
         if(responseWasWaiting && !response_waiting) {
