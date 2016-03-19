@@ -1889,7 +1889,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     if(!sdcard_send_command(CMD17, blocknum, response, 1))
         return 0;
     if(response[0] != gSDCardResponseSUCCESS) {
-        printf("sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
+        logprintf(LOG_ERRORS, "sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
 
@@ -1898,7 +1898,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_readblock: timed out waiting for data token\n");
+            logprintf(LOG_ERRORS, "sdcard_readblock: timed out waiting for data token\n");
             return 0;
         }
         spi_readn(response, 1);
@@ -1918,7 +1918,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     unsigned short crc_ours = crc_itu_t(0, block, BLOCK_SIZE);
 
     if(crc_theirs != crc_ours) {
-        printf("CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
+        logprintf(DEBUG_ERRORS, "CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
         return 0;
     } else {
         logprintf(DEBUG_DATA, "CRC matches\n");
@@ -1930,7 +1930,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_readblock: timed out waiting on completion\n");
+            logprintf(DEBUG_ERRORS, "sdcard_readblock: timed out waiting on completion\n");
             return 0;
         }
         spi_readn(response, 1);
@@ -1952,7 +1952,7 @@ int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
     if(!sdcard_send_command(CMD24, blocknum, response, 1))
         return 0;
     if(response[0] != gSDCardResponseSUCCESS) {
-        printf("sdcard_writeblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_ERRORS, "sdcard_writeblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
     // XXX - elm-chan.org says I should be waiting >= 1byte here
@@ -1973,7 +1973,7 @@ int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
     spi_readn(response, 1);
     logprintf(DEBUG_DATA, "writeblock response 0x%02X\n", response[0]);
     if(response[0] != gSDCardResponseDATA_ACCEPTED) {
-        printf("sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_ERRORS, "sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
         return 0;
     }
 
@@ -1983,7 +1983,7 @@ int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_writeblock: timed out waiting on completion\n");
+            logprintf(DEBUG_ERRORS, "sdcard_writeblock: timed out waiting on completion\n");
             return 0;
         }
         spi_readn(response, 1);
@@ -2098,8 +2098,10 @@ DRESULT disk_read (BYTE pdrv, BYTE *buff, DWORD sector,	UINT count)
         return RES_ERROR;
 
     for(int i = 0; i < count; i++)
-        if(!sdcard_readblock(sector + i, buff + BLOCK_SIZE * i))
+        if(!sdcard_readblock(sector + i, buff + BLOCK_SIZE * i))  {
+            logprintf(DEBUG_ERRORS, "ERROR: failed reading SD block %d\n", sector + i);
             return RES_ERROR;
+        }
     
     return RES_OK;
 }
@@ -2153,6 +2155,8 @@ DWORD get_fattime(void)
 
 //----------------------------------------------------------------------------
 // CP/M 8MB Disk definitions
+
+
 #define SECTORS_PER_BLOCK 4
 #define SECTORS_PER_TRACK 64
 #define TRACKS_PER_DISK 1024
@@ -2841,6 +2845,7 @@ int main()
     if(!success) {
         panic();
     }
+
     LED_beat_heart();
 
     success = read_disk_image_list();
@@ -2869,7 +2874,7 @@ int main()
     KBD_init();
     LED_beat_heart();
 
-    if(0) { // Can't have floating BUS in test mode
+    if(1) { // Can't have floating BUS in test mode
         BUS_init();
 
         BUS_reset_init();
