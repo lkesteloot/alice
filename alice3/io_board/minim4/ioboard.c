@@ -1665,7 +1665,7 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
     return crc;
 }
 
-int gSDCardTimeoutMillis = 100;
+int gSDCardTimeoutMillis = 1000;
 
 #define BLOCK_SIZE 512
 
@@ -1758,8 +1758,8 @@ int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, uns
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_send_command: timed out waiting on response\n");
-            return 0;
+            logprintf(DEBUG_ERRORS, "sdcard_send_command: timed out waiting on response\n");
+            panic();
         }
         response[0] = 0xff;
         spi_bulk(response, 1);
@@ -1792,7 +1792,7 @@ int sdcard_init()
     if(!sdcard_send_command(CMD0, 0, response, 1))
         return 0;
     if(response[0] != gSDCardResponseIDLE) {
-        printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
         return 0;
     }
     delay_ms(100);
@@ -1801,7 +1801,7 @@ int sdcard_init()
     if(!sdcard_send_command(CMD8, 0x000001AA, response, 5))
         return 0;
     if(response[0] != gSDCardResponseIDLE) {
-        printf("sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
@@ -1821,7 +1821,7 @@ int sdcard_init()
         if(!sdcard_send_command(CMD55, 0x00000000, response, 1))
             return 0;
         if(response[0] != gSDCardResponseIDLE) {
-            printf("sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
+            logprintf(DEBUG_WARNINGS, "sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
             return 0;
         }
         /* start initialization process, set HCS (high-capacity) */
@@ -1947,7 +1947,7 @@ int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
             logprintf(DEBUG_ERRORS, "sdcard_writeblock: timed out waiting on completion\n");
-            return 0;
+            panic();
         }
         spi_readn(response, 1);
         logprintf(DEBUG_ALL, "writeblock completion 0x%02X\n", response[0]);

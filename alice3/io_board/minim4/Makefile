@@ -23,7 +23,7 @@ OBJECTS = \
         STM32Cube4/stm32f4xx_hal_spi.o \
         STM32Cube4/stm32f4xx_hal.o \
         syscalls.o \
-        bootrom.o \
+        ff.o \
         $(NULL)
 
 ioboard.hex: ioboard.elf
@@ -45,5 +45,8 @@ bootrom.bin: ../../rom/rom.bin
 	(cd ../../rom ; make rom.bin)
 	dd bs=1024 count=1 if=../../rom/rom.bin of=bootrom.bin
 
-bootrom.c: bootrom.bin
-	python bin2c.py romimage bootrom.bin > bootrom.c
+ioboard.dfu: ioboard.hex
+	python dfu-convert -i ioboard.hex ioboard.dfu
+
+burn: ioboard.dfu
+	sudo ~/trees/dfu-util/src/dfu-util -d 0483:df11 -a 0 -D ioboard.dfu
