@@ -2738,7 +2738,7 @@ int read_bootrom()
 #define PROP_READY_PIN_MASK GPIO_PIN_14
 #define PROP_READY_PORT GPIOC
 
-void PROPELLER_init()
+void VIDEO_init()
 {
     // set PROP_READY pull up
     GPIO_InitTypeDef  GPIO_InitStruct;
@@ -2749,7 +2749,7 @@ void PROPELLER_init()
     HAL_GPIO_Init(PROP_READY_PORT, &GPIO_InitStruct); 
 }
 
-void PROPELLER_wait()
+void VIDEO_wait()
 {
     int started = HAL_GetTick();
     int then = HAL_GetTick();
@@ -2767,6 +2767,8 @@ void PROPELLER_wait()
         }
     }
 }
+
+int gStandaloneARM = 0;
 
 int main()
 {
@@ -2791,8 +2793,15 @@ int main()
     LED_beat_heart();
     serial_flush();
 
-    PROPELLER_init();
-    PROPELLER_wait();
+    if(!gStandaloneARM) {
+        VIDEO_init();
+        VIDEO_wait();
+
+        BUS_init();
+        BUS_reset_init();
+
+        VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
+    }
 
     SPI_config_for_sd();
     LED_beat_heart();
@@ -2850,16 +2859,12 @@ int main()
     KBD_init();
     LED_beat_heart();
 
-    if(1) { // Can't have floating BUS in test mode
-        BUS_init();
-
-        BUS_reset_init();
+    if(!gStandaloneARM) { // Can't have floating BUS in test mode
 
         BUS_reset_start();
         if(!BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength)) {
             panic();
         }
-        VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
         VIDEO_start_clock();
         delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
         BUS_reset_finish();
