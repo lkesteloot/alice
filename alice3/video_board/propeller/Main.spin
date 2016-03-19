@@ -28,6 +28,10 @@ OBJ
   bus_interface : "Bus_interface"
   terminal : "Terminal"
 
+DAT
+
+  BootMsg byte "Alice 3 GPU firmware", 13, 10, 0
+
 VAR
 
   'sync long - written to -1 by VGA driver after each screen refresh
@@ -70,17 +74,7 @@ PUB start | i, j, addr, data
     screen.byte[i] := 32
     
   ' Write welcome message.
-  waitcnt(clkfreq*2 + cnt)
-  queue[queue_tail] := "V"
-  queue_tail += 1
-  queue[queue_tail] := "G"
-  queue_tail += 1
-  queue[queue_tail] := "A"
-  queue_tail += 1
-  queue[queue_tail] := 13
-  queue_tail += 1
-  queue[queue_tail] := 10
-  queue_tail += 1
+  print(@BootMsg)
   
   ' Start Z-80 clock.
   cognew(@z80clock, 0)
@@ -88,31 +82,14 @@ PUB start | i, j, addr, data
   ' Tell the ARM that we're ready.
   dira[PROP_READY_PIN] := 1
   outa[PROP_READY_PIN] := 0  ' Active low.
+  
+  repeat ' Wait forever.
 
-  if false ' Testing
-    colors[0] := %%3000_3330
-    colors[1] := %%0000_0300
-    colors[2] := %%1100_3300
-    colors[3] := %%0020_3330
-    colors[4] := %%3130_0000
-    colors[5] := %%3310_0000
-    colors[6] := %%1330_0000
-    colors[7] := %%0020_3300
-    colors[rows-1] := %%1110_2220
-
-    ' Fill screen with characters
-    repeat i from 0 to chrs - 1
-      screen.byte[i] := i // $100
-
-    ' Advance cursor forever.
-    repeat
-      waitcnt(clkfreq + cnt)
-      cx0 += 1
-      if cx0 == 80
-        cx0 := 0
-        cy0 += 1
-        if cy0 == 40
-          cy0 := 0
+PRI print(s)
+  repeat strsize(s)
+    queue[queue_tail] := byte[s]
+    s += 1
+    queue_tail += 1
 
 DAT
 
