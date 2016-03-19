@@ -20,6 +20,7 @@ CON
   queue_capacity = 512
   
   CLK_PIN = 5
+  PROP_READY_PIN = 0
 
 OBJ
  
@@ -83,6 +84,10 @@ PUB start | i, j, addr, data
   
   ' Start Z-80 clock.
   cognew(@z80clock, 0)
+
+  ' Tell the ARM that we're ready.
+  dira[PROP_READY_PIN] := 1
+  outa[PROP_READY_PIN] := 0  ' Active low.
 
   if false ' Testing
     colors[0] := %%3000_3330
