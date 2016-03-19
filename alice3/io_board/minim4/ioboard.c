@@ -1161,7 +1161,7 @@ void RESET_BUTTON_init()
 
     GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
 
@@ -2370,6 +2370,7 @@ void process_local_key(unsigned char c)
 
 int main()
 {
+    int blarg = 0; 
     unsigned char responseWasWaiting = 0;
     volatile unsigned char escapeBackToMonitor = 0;
     int Z80WasInHALT = 0;
@@ -2433,6 +2434,7 @@ int main()
     serial_flush();
 
     for(;;) {
+        if(blarg) logprintf("%d\n", __LINE__);
 
         serial_try_to_transmit_buffers();
         LED_beat_heart();
@@ -2446,6 +2448,7 @@ int main()
             }
         }
 
+        if(blarg) logprintf("%d\n", __LINE__);
         unsigned char isEmpty = queue_isempty(&mon_queue.q);
 
         if(!isEmpty) {
@@ -2465,6 +2468,7 @@ int main()
                 }
             }
         }
+        if(blarg) logprintf("%d\n", __LINE__);
 
         if(command_length > 0) {
             unsigned char command_byte = command_bytes[0];
@@ -2483,6 +2487,7 @@ int main()
                 }
             }
         }
+        if(blarg) logprintf("%d\n", __LINE__);
 
         if(command_request != IOBOARD_CMD_NONE) {
             response_start();
@@ -2664,6 +2669,7 @@ int main()
         if(gKeyboardBATBadParity) {
             logprintf(DEBUG_WARNINGS, "Keyboard initial BAT\n");
             gKeyboardBATBadParity = 0;
+            blarg = 1;
             // KBD_send_byte(HOST_TO_KBD_parity_error);
         }
 
@@ -2678,6 +2684,7 @@ int main()
             responseWasWaiting = 0;
         }
 
+        if(blarg) logprintf("%d\n", __LINE__);
         if(gResetTheZ80 || HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
             while(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK));
             delay_ms(RESET_BUTTON_DELAY_MS);// software debounce
@@ -2687,6 +2694,7 @@ int main()
 
             logprintf(DEBUG_EVENTS, "Z80 was reset\n");
         }
+        if(blarg) logprintf("%d\n", __LINE__);
 
         gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
         if(gZ80IsInHALT != Z80WasInHALT) {
@@ -2699,6 +2707,8 @@ int main()
             gOutputDevices = OUTPUT_TO_SERIAL;
             Z80WasInHALT = gZ80IsInHALT;
         }
+        if(blarg) logprintf("%d\n", __LINE__);
+
     }
 
     // should not reach
