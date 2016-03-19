@@ -1206,6 +1206,12 @@ volatile struct kbd_queue_struct kbd_queue;
 // Keyboard I/O constants
 #define KBD_BIT_COUNT 11
 
+#define KBD_stop_bit 1
+#define KBD_start_bit 0
+
+#define HOST_TO_KBD_parity_error 0xFE
+#define KBD_BAT 0xAA
+
 volatile short kbd_bits = 0;
 volatile unsigned short kbd_data = 0;
 volatile char up_key_flag = 0;
@@ -1366,7 +1372,9 @@ unsigned char kbd_lookup(int shift, int alt, int ctrl, unsigned char byte)
 
 void kbd_process_byte(unsigned char kbd_byte)
 {
-    if(kbd_byte == UP_KEY) {
+    if(kbd_byte == KBD_BAT) {
+        // Keyboard successful assurance test
+    } else if(kbd_byte == UP_KEY) {
         up_key_flag = 1;
         if(gDumpKeyboardData) 
             logprintf(DEBUG_DATA, "keyboard key up\n");
@@ -1442,11 +1450,6 @@ void KBD_init()
 
 int KBD_sending = 0;
 int KBD_send_ACK = 0;
-
-#define KBD_stop_bit 1
-#define KBD_start_bit 0
-#define KBD_parity_error_response 0xFE
-#define KBD_response_BAT 0xAA
 
 int KBD_byte_odd_parity(int b)
 {
@@ -1552,7 +1555,7 @@ void EXTI15_10_IRQHandler(void)
 
             if(KBD_byte_odd_parity(byte) != parity) {
 
-                if(byte == KBD_response_BAT)
+                if(byte == KBD_BAT)
                     gKeyboardBATBadParity = 1;
                 else
                     gKeyboardParityError = 1;
@@ -2661,12 +2664,13 @@ int main()
         if(gKeyboardBATBadParity) {
             logprintf(DEBUG_WARNINGS, "Keyboard initial BAT\n");
             gKeyboardBATBadParity = 0;
+            // KBD_send_byte(HOST_TO_KBD_parity_error);
         }
 
         if(gKeyboardParityError) {
             logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data parity error\n");
             gKeyboardParityError = 0;
-            KBD_send_byte(KBD_parity_error_response);
+            // KBD_send_byte(HOST_TO_KBD_parity_error);
         }
 
         if(responseWasWaiting && !response_waiting) {
