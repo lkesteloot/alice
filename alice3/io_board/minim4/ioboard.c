@@ -37,15 +37,12 @@ void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
     gpio->MODER = (gpio->MODER & mask) | value;
 }
 
-#define INFO_LED_PIN_MASK GPIO_PIN_13
-#define INFO_LED_PORT GPIOC
-
-#define HEARTBEAT_LED_PIN_MASK GPIO_PIN_2
-#define HEARTBEAT_LED_PORT GPIOB
+#define LED_PIN_MASK GPIO_PIN_2
+#define LED_PORT GPIOB
 
 void LED_set_panic(int on)
 {
-    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN_MASK, on);
+    HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, on);
 }
 
 void LED_beat_heart()
@@ -57,13 +54,13 @@ void LED_beat_heart()
     if(heartbeat_level == 1) {
         if(now - previous_heartbeat_tick > 350) {
             heartbeat_level = 0;
-            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, heartbeat_level);
+            HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, heartbeat_level);
             previous_heartbeat_tick = now;
         }
     } else {
         if(now - previous_heartbeat_tick > 650) {
             heartbeat_level = 1;
-            HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, heartbeat_level);
+            HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, heartbeat_level);
             previous_heartbeat_tick = now;
         }
     }
@@ -71,31 +68,25 @@ void LED_beat_heart()
 
 void LED_set_info(int on)
 {
-    HAL_GPIO_WritePin(INFO_LED_PORT, INFO_LED_PIN_MASK, on);
+    HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, on);
 }
 
 void LED_init()
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
-    GPIO_InitStruct.Pin = HEARTBEAT_LED_PIN_MASK;
+    GPIO_InitStruct.Pin = LED_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(HEARTBEAT_LED_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_Init(LED_PORT, &GPIO_InitStruct); 
 
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
-
-    GPIO_InitStruct.Pin = INFO_LED_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(INFO_LED_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, 1);
 }
 
 void panic_worse()
 {
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 0);
+    HAL_GPIO_WritePin(LED_PORT, LED_PIN_MASK, 0);
     LED_set_panic(1);
     for(;;);
 }
@@ -107,8 +98,6 @@ static void panic(void)
     static int entered = 0;
 
     LED_set_panic(1);
-
-    HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN_MASK, 1);
 
     int pin = 0;
     for(;;) {
@@ -2746,6 +2735,39 @@ int read_bootrom()
     return 1;
 }
 
+#define PROP_READY_PIN_MASK GPIO_PIN_14
+#define PROP_READY_PORT GPIOC
+
+void PROPELLER_init()
+{
+    // set PROP_READY pull up
+    GPIO_InitTypeDef  GPIO_InitStruct;
+    GPIO_InitStruct.Pin = PROP_READY_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(PROP_READY_PORT, &GPIO_InitStruct); 
+}
+
+void PROPELLER_wait()
+{
+    int started = HAL_GetTick();
+    int then = HAL_GetTick();
+    while(HAL_GPIO_ReadPin(PROP_READY_PORT, PROP_READY_PIN_MASK)) {
+        int now = HAL_GetTick();
+        if(now - then > 500) {
+            printf("Waited 500 more milliseconds for PROP_READY\n");
+            then = now;
+            serial_flush();
+        }
+        if(now - started > 5000) {
+            printf("Waited 5 seconds for PROP_READY\n");
+            serial_flush();
+            panic();
+        }
+    }
+}
+
 int main()
 {
     system_init();
@@ -2762,10 +2784,15 @@ int main()
     SERIAL_init(); // transmit and receive but global interrupts disabled
     LED_beat_heart();
 
+
     printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
+
     LED_beat_heart();
     serial_flush();
+
+    PROPELLER_init();
+    PROPELLER_wait();
 
     SPI_config_for_sd();
     LED_beat_heart();
