@@ -135,9 +135,7 @@ int isprint(unsigned char a)
     return (a >= ' ') && (a <= '~');
 }
 
-unsigned char gDisplayVideoInMonitor = 1;
 unsigned char gConsoleOverflowed = 0;
-unsigned char gVideoOverflowed = 0;
 unsigned char gKeyboardOverflowed = 0;
 
 enum DebugLevels {
@@ -325,30 +323,6 @@ void monitor_enqueue_key_unsafe(unsigned char d)
     if(!queue_isfull(&mon_queue.q)) {
         queue_enq(&mon_queue.q, d);
     }
-}
-
-
-//----------------------------------------------------------------------------
-// Video input queue
-
-#define VIDEO_QUEUE_CAPACITY 64
-struct video_queue_struct {
-    struct queue q;
-    unsigned char queue[VIDEO_QUEUE_CAPACITY];
-};
-volatile struct video_queue_struct video_queue;
-
-void video_enqueue_character(unsigned char d)
-{
-    unsigned char full;
-    disable_interrupts();
-    full = queue_isfull(&video_queue.q);
-    if(full) {
-        gVideoOverflowed = 1;
-    } else {
-        queue_enq(&video_queue.q, d);
-    }
-    enable_interrupts();
 }
 
 
@@ -974,18 +948,11 @@ int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
-#define IO_BOARD_A7   0
-#define IO_BOARD_A7_PINS   (IO_BOARD_A7 & BUS_A7_PIN_MASK)
+#define IO_BOARD_ADDR   0
+#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
-#define VIDEO_BOARD_A7   BUS_A7_PIN_MASK        // A7 active = address 128
-#define VIDEO_BOARD_A7_PINS   (VIDEO_BOARD_A7 & BUS_A7_PIN_MASK)
-
-const unsigned int gREADSignals =
-    BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_A7_PINS;
-const unsigned int gWRITESignals =
-    BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_A7_PINS;
-const unsigned int gWRITEVideo =
-    BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | VIDEO_BOARD_A7_PINS;
+const unsigned int gREADSignals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gWRITESignals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
 
 void BUS_set_DATA_as_input()
 {
@@ -1055,10 +1022,6 @@ void EXTI2_IRQHandler(void)
 
     if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITESignals) {
         command_bytes[command_length++] = d;
-    }
-
-    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITEVideo) {
-        video_enqueue_character(d);
     }
 
     __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
@@ -1702,7 +1665,7 @@ unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t
     return crc;
 }
 
-int gSDCardTimeoutMillis = 100;
+int gSDCardTimeoutMillis = 1000;
 
 #define BLOCK_SIZE 512
 
@@ -1795,8 +1758,8 @@ int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, uns
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_send_command: timed out waiting on response\n");
-            return 0;
+            logprintf(DEBUG_ERRORS, "sdcard_send_command: timed out waiting on response\n");
+            panic();
         }
         response[0] = 0xff;
         spi_bulk(response, 1);
@@ -1829,7 +1792,7 @@ int sdcard_init()
     if(!sdcard_send_command(CMD0, 0, response, 1))
         return 0;
     if(response[0] != gSDCardResponseIDLE) {
-        printf("sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
         return 0;
     }
     delay_ms(100);
@@ -1838,7 +1801,7 @@ int sdcard_init()
     if(!sdcard_send_command(CMD8, 0x000001AA, response, 5))
         return 0;
     if(response[0] != gSDCardResponseIDLE) {
-        printf("sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
         return 0;
     }
     OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
@@ -1858,7 +1821,7 @@ int sdcard_init()
         if(!sdcard_send_command(CMD55, 0x00000000, response, 1))
             return 0;
         if(response[0] != gSDCardResponseIDLE) {
-            printf("sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
+            logprintf(DEBUG_WARNINGS, "sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
             return 0;
         }
         /* start initialization process, set HCS (high-capacity) */
@@ -1889,7 +1852,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     if(!sdcard_send_command(CMD17, blocknum, response, 1))
         return 0;
     if(response[0] != gSDCardResponseSUCCESS) {
-        logprintf(LOG_ERRORS, "sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
+        logprintf(DEBUG_ERRORS, "sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
         return 0;
     }
 
@@ -1898,7 +1861,7 @@ int sdcard_readblock(unsigned int blocknum, unsigned char *block)
     do {
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
-            logprintf(LOG_ERRORS, "sdcard_readblock: timed out waiting for data token\n");
+            logprintf(DEBUG_ERRORS, "sdcard_readblock: timed out waiting for data token\n");
             return 0;
         }
         spi_readn(response, 1);
@@ -1984,7 +1947,7 @@ int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
         int now = HAL_GetTick();
         if(now - then > gSDCardTimeoutMillis) {
             logprintf(DEBUG_ERRORS, "sdcard_writeblock: timed out waiting on completion\n");
-            return 0;
+            panic();
         }
         spi_readn(response, 1);
         logprintf(DEBUG_ALL, "writeblock completion 0x%02X\n", response[0]);
@@ -2112,8 +2075,10 @@ DRESULT disk_write (BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
         return RES_ERROR;
 
     for(int i = 0; i < count; i++)
-        if(!sdcard_writeblock(sector + i, buff + BLOCK_SIZE * i))
+        if(!sdcard_writeblock(sector + i, buff + BLOCK_SIZE * i)) {
+            logprintf(DEBUG_ERRORS, "ERROR: failed reading SD block %d\n", sector + i);
             return RES_ERROR;
+        }
     
     return RES_OK;
 }
@@ -2696,11 +2661,6 @@ void check_and_process_soft_reset()
 
 void check_exceptional_conditions()
 {
-    if(gVideoOverflowed) {
-        logprintf(DEBUG_WARNINGS, "WARNING: Video character queue overflow\n");
-        gVideoOverflowed = 0;
-    }
-
     if(gConsoleOverflowed) {
         logprintf(DEBUG_WARNINGS, "WARNING: Console input queue overflow\n");
         gConsoleOverflowed = 0;
@@ -2709,16 +2669,6 @@ void check_exceptional_conditions()
     if(gKeyboardOverflowed) {
         logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data queue overflow\n");
         gKeyboardOverflowed = 0;
-    }
-}
-
-void process_video_queue()
-{
-    unsigned char isEmpty = queue_isempty(&video_queue.q);
-    if(!isEmpty) {
-        unsigned char c = queue_deq(&mon_queue.q);
-        if(gDisplayVideoInMonitor)
-            putchar(c);
     }
 }
 
@@ -2845,7 +2795,6 @@ int main()
     if(!success) {
         panic();
     }
-
     LED_beat_heart();
 
     success = read_disk_image_list();
@@ -2900,8 +2849,6 @@ int main()
         process_serial_polling();
 
         process_monitor_queue();
-
-        process_video_queue();
 
         check_and_process_command();
 
