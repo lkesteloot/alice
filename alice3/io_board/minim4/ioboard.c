@@ -932,16 +932,39 @@ GPIOLine address_lines[] = {
     {GPIOC, 4}, // A7
     {GPIOC, 9}, // A8
     {GPIOB, 4}, // A9
+    {GPIOC, 13}, // A10
+    {GPIOC, 12}, // A11
+    {GPIOC, 8}, // A12
+    {GPIOC, 7}, // A13
+    {GPIOC, 6}, // A14
+    {GPIOC, 3}, // A15
 };
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
+
+unsigned int shuffle_address(unsigned int a)
+{
+    unsigned int A = 0, B = 0, C = 0;
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        int bit = a >> i;
+        if(line->gpio == GPIOA)
+            A |= (bit << line->pin);
+        else if(line->gpio == GPIOB)
+            B |= (bit << line->pin);
+        else if(line->gpio == GPIOC)
+            C |= (bit << line->pin);
+    }
+    unsigned int ddr = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return ddr;
+}
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
 #define IO_BOARD_ADDR   0
 #define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
-const unsigned int gREADSignals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
-const unsigned int gWRITESignals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gREAD_IO_Signals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gWRITE_IO_Signals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
 
 void BUS_set_DATA_as_input()
 {
@@ -963,9 +986,28 @@ void BUS_set_DATA(unsigned char data)
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
+void ccmram_set(unsigned int address, unsigned char b)
+{
+    ((unsigned char *)0x10000000)[address] = b;
+}
+
+unsigned char ccmram_get(unsigned int address)
+{
+    return ((unsigned char *)0x10000000)[address];
+}
+
+unsigned int BUS_get_ADDRESS()
+{
+    unsigned int A = GPIOA->IDR;
+    unsigned int B = GPIOB->IDR;
+    unsigned int C = GPIOC->IDR;
+    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return address;
+}
+
 void EXTI1_IRQHandler(void)
 {
-    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gREADSignals) {
+    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gREAD_IO_Signals) {
 
         // Put this here even before clearing interrupt so it happens
         // as soon as possible.
@@ -992,11 +1034,20 @@ void EXTI1_IRQHandler(void)
             gNextByteForReading = response_bytes[response_index++];
         } 
 
-    } else {
+    } else if((GPIOC->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+        // Memory read
+        unsigned int address = BUS_get_ADDRESS();
+        unsigned char byte = ccmram_get(address);
 
-        // Put this here even before clearing interrupt so it happens
-        // as soon as possible.
+        BUS_set_DATA(byte);
+        BUS_set_DATA_as_output();
+
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+
+        while((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_ACTIVE); /* busy wait for RD to rise */
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
         BUS_set_DATA_as_input();
+
         __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
@@ -1009,8 +1060,14 @@ void EXTI2_IRQHandler(void)
     unsigned char d = BUS_get_DATA();
     __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
-    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITESignals) {
+    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITE_IO_Signals) {
         command_bytes[command_length++] = d;
+    } else {
+        // Memory write
+        if((GPIOC->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+            unsigned int address = BUS_get_ADDRESS();
+            ccmram_set(address, d);
+        }
     }
 
     __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
@@ -1033,6 +1090,7 @@ void BUS_set_ADDRESS_as_input()
     }
 }
 
+__attribute__((optimize("unroll-loops")))
 void BUS_set_ADDRESS(unsigned int a)
 {
     for(int i = 0; i < address_line_count; i++) {
@@ -1274,27 +1332,36 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
         return 0;
     }
 
-    BUS_mastering_start();
-    BUS_set_ADDRESS(0);
-    BUS_set_DATA(0);
-    BUS_set_DATA_as_output();
+    if(1) {
 
-    for(unsigned int a = 0; a < romimage_length; a++)
-        BUS_write_memory_byte(a, romimage_bytes[a]);
+        for(unsigned int a = 0; a < romimage_length; a++)
+            ccmram_set(shuffle_address(a), romimage_bytes[a]);
 
-    BUS_set_DATA_as_input();
+    } else {
 
-    for(unsigned int a = 0; a < romimage_length; a++) {
-        unsigned char t = BUS_read_memory_byte(a);
-        if(t != romimage_bytes[a]) {
-            printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-            succeeded = 0;
-            break;
+        BUS_mastering_start();
+        BUS_set_ADDRESS(0);
+        BUS_set_DATA(0);
+        BUS_set_DATA_as_output();
+
+        for(unsigned int a = 0; a < romimage_length; a++)
+            BUS_write_memory_byte(a, romimage_bytes[a]);
+
+        BUS_set_DATA_as_input();
+
+        for(unsigned int a = 0; a < romimage_length; a++) {
+            unsigned char t = BUS_read_memory_byte(a);
+            if(t != romimage_bytes[a]) {
+                printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+                succeeded = 0;
+                break;
+            }
         }
+
+        BUS_set_DATA(gNextByteForReading);
+        BUS_mastering_finish();
     }
 
-    BUS_set_DATA(gNextByteForReading);
-    BUS_mastering_finish();
 
     return succeeded;
 }
@@ -2787,7 +2854,7 @@ int main()
     LED_beat_heart();
 
 
-    printf("\n\nAlice 3 I/O board firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
+    printf("\n\nAlice 3 I/O firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
 
     LED_beat_heart();
@@ -2800,7 +2867,7 @@ int main()
         BUS_init();
         BUS_reset_init();
 
-        VIDEO_output_string("Alice 3 I/O board firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
+        VIDEO_output_string("Alice 3 I/O firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
     }
 
     SPI_config_for_sd();
@@ -2863,7 +2930,7 @@ int main()
 
         BUS_reset_start();
         if(!BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength)) {
-            panic();
+            // panic();
         }
         VIDEO_start_clock();
         delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
