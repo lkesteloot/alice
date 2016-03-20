@@ -946,7 +946,7 @@ unsigned int shuffle_address(unsigned int a)
     unsigned int A = 0, B = 0, C = 0;
     for(int i = 0; i < address_line_count; i++) {
         GPIOLine* line = &address_lines[i];
-        int bit = a >> i;
+        int bit = (a >> i) & 0x01;
         if(line->gpio == GPIOA)
             A |= (bit << line->pin);
         else if(line->gpio == GPIOB)
@@ -996,14 +996,26 @@ unsigned char ccmram_get(unsigned int address)
     return ((unsigned char *)0x10000000)[address];
 }
 
+unsigned int BUS_compute_ADDRESS(unsigned int A, unsigned int B, unsigned C)
+{
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return address;
+}
+
 unsigned int BUS_get_ADDRESS()
 {
     unsigned int A = GPIOA->IDR;
     unsigned int B = GPIOB->IDR;
     unsigned int C = GPIOC->IDR;
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
     unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
     return address;
 }
+
+int gUnclaimedWrite = 0;
+int gUnclaimedRead = 0;
+int gReadWasAlreadyInactive = 0;
 
 void EXTI1_IRQHandler(void)
 {
@@ -1013,6 +1025,9 @@ void EXTI1_IRQHandler(void)
         // as soon as possible.
         BUS_set_DATA(gNextByteForReading);
         BUS_set_DATA_as_output();
+
+        if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_INACTIVE)
+            gReadWasAlreadyInactive = 1;
 
         __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
@@ -1034,7 +1049,7 @@ void EXTI1_IRQHandler(void)
             gNextByteForReading = response_bytes[response_index++];
         } 
 
-    } else if((GPIOC->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+    } else if((BUS_MREQ_PORT->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
         // Memory read
         unsigned int address = BUS_get_ADDRESS();
         unsigned char byte = ccmram_get(address);
@@ -1052,21 +1067,45 @@ void EXTI1_IRQHandler(void)
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
+
+    } else {
+
+        gUnclaimedRead = 1;
+
+        __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
+        NVIC_ClearPendingIRQ(EXTI1_IRQn);
     }
 }
 
 void EXTI2_IRQHandler(void)
 {
+    unsigned int initialMREQ = BUS_MREQ_PORT->IDR;
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
     unsigned char d = BUS_get_DATA();
     __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
-    if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITE_IO_Signals) {
-        command_bytes[command_length++] = d;
+    if((BUS_IORQ_PORT->IDR & BUS_IORQ_PIN_MASK) == BUS_IORQ_ACTIVE) {
+
+        if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITE_IO_Signals) {
+            command_bytes[command_length++] = d;
+        }
+
     } else {
+
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+
+        unsigned int A = GPIOA->IDR;
+        unsigned int B = GPIOB->IDR;
+        unsigned int C = GPIOC->IDR;
+
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+
         // Memory write
-        if((GPIOC->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
-            unsigned int address = BUS_get_ADDRESS();
+        if((initialMREQ & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+            unsigned int address = BUS_compute_ADDRESS(A, B, C);
             ccmram_set(address, d);
+        } else {
+            gUnclaimedWrite = 1;
         }
     }
 
@@ -1289,14 +1328,21 @@ void BUS_init()
 // another peripheral; basically either Z80 BUSRQ or RESET
 void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
 {
-    BUS_mastering_start();
-    BUS_set_DATA_as_input();
+    if(0) {
+        BUS_mastering_start();
+        BUS_set_DATA_as_input();
 
-    for(unsigned int u = a; u < a + l; u++)
-        b[u - a] = BUS_read_memory_byte(u);
+        for(unsigned int u = a; u < a + l; u++)
+            b[u - a] = BUS_read_memory_byte(u);
 
-    BUS_set_DATA(gNextByteForReading);
-    BUS_mastering_finish();
+        BUS_set_DATA(gNextByteForReading);
+        BUS_mastering_finish();
+    } else {
+
+        for(unsigned int u = a; u < a + l; u++)
+            b[u - a] = ccmram_get(shuffle_address(u));
+
+    }
 }
 
 // Caller has to guarantee A and D access will not collide with
@@ -1337,6 +1383,14 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
         for(unsigned int a = 0; a < romimage_length; a++)
             ccmram_set(shuffle_address(a), romimage_bytes[a]);
 
+        for(unsigned int a = 0; a < romimage_length; a++) {
+            unsigned char t = ccmram_get(shuffle_address(a));
+            if(t != romimage_bytes[a]) {
+                printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+                succeeded = 0;
+                break;
+            }
+        }
     } else {
 
         BUS_mastering_start();
@@ -1490,7 +1544,7 @@ void RESET_BUTTON_init()
 
     GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
 
@@ -2670,8 +2724,8 @@ void check_and_process_command()
         command_clear();
         disable_interrupts();
         response_finish();
-        gResponseWasWaiting = 1;
         enable_interrupts();
+        gResponseWasWaiting = 1;
     }
 }
 
@@ -2725,6 +2779,21 @@ void check_exceptional_conditions()
     if(gKeyboardOverflowed) {
         logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data queue overflow\n");
         gKeyboardOverflowed = 0;
+    }
+
+    if(gReadWasAlreadyInactive) {
+        logprintf(DEBUG_WARNINGS, "A");
+        gReadWasAlreadyInactive = 0;
+    }
+
+    if(gUnclaimedWrite) {
+        logprintf(DEBUG_WARNINGS, "W");
+        gUnclaimedWrite = 0;
+    }
+
+    if(gUnclaimedWrite) {
+        logprintf(DEBUG_WARNINGS, "W");
+        gUnclaimedWrite = 0;
     }
 }
 
@@ -2853,19 +2922,20 @@ int main()
     SERIAL_init(); // transmit and receive but global interrupts disabled
     LED_beat_heart();
 
-
     printf("\n\nAlice 3 I/O firmware, %s\n", IOBOARD_FIRMWARE_VERSION_STRING);
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
 
     LED_beat_heart();
     serial_flush();
 
+    RESET_BUTTON_init();
+
     if(!gStandaloneARM) {
         VIDEO_init();
         VIDEO_wait();
 
-        BUS_init();
         BUS_reset_init();
+        BUS_init();
 
         VIDEO_output_string("Alice 3 I/O firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
     }
