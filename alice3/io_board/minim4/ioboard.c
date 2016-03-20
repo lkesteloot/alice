@@ -1014,7 +1014,10 @@ unsigned int BUS_get_ADDRESS()
 }
 
 int gUnclaimedWrite = 0;
+unsigned int gUnclaimedWriteAddress;
+unsigned int gUnclaimedWriteData;
 int gUnclaimedRead = 0;
+unsigned int gUnclaimedReadAddress;
 int gReadWasAlreadyInactive = 0;
 
 void EXTI1_IRQHandler(void)
@@ -1071,6 +1074,7 @@ void EXTI1_IRQHandler(void)
     } else {
 
         gUnclaimedRead = 1;
+        gUnclaimedReadAddress = BUS_get_ADDRESS();
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -1106,6 +1110,8 @@ void EXTI2_IRQHandler(void)
             ccmram_set(address, d);
         } else {
             gUnclaimedWrite = 1;
+            gUnclaimedWriteAddress = BUS_compute_ADDRESS(A, B, C);
+            gUnclaimedWriteData = d;
         }
     }
 
@@ -1268,7 +1274,7 @@ void BUS_init()
     // RD and WR are port C pins 1, 2 as inputs driving interrupts
     GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
@@ -2786,13 +2792,15 @@ void check_exceptional_conditions()
         gReadWasAlreadyInactive = 0;
     }
 
-    if(gUnclaimedWrite) {
-        logprintf(DEBUG_WARNINGS, "W");
-        gUnclaimedWrite = 0;
+    if(gUnclaimedRead) {
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, 'R' + 128);
+        logprintf(DEBUG_WARNINGS, "(%04X)", gUnclaimedReadAddress);
+        gUnclaimedRead = 0;
     }
 
     if(gUnclaimedWrite) {
-        logprintf(DEBUG_WARNINGS, "W");
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, 'W' + 128);
+        logprintf(DEBUG_WARNINGS, "(%04X,%02X)", gUnclaimedWriteAddress, gUnclaimedWriteData);
         gUnclaimedWrite = 0;
     }
 }
