@@ -3,6 +3,16 @@
 #include <string.h>
 #include <stdarg.h>
 
+// 1 for v1 and v2, 3 for v3
+#define ALICE3_V1 1
+#define ALICE3_V3 3
+#define ALICE3_VERSION  ALICE3_V3
+
+// if 1, then ARM reads and writes only A0-A15 and reads MREQ
+// if 0, then ARM uses A0-A17 and bus mastering to access external RAM,
+//   only writes MREQ
+#define ALICE3_V3_ARM_IS_RAM 1
+
 #include "ff.h"
 #include "diskio.h"
 
@@ -37,8 +47,17 @@ void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
     gpio->MODER = (gpio->MODER & mask) | value;
 }
 
+#if ALICE3_VERSION == ALICE3_V1
+
+#define LED_PIN_MASK GPIO_PIN_13
+#define LED_PORT GPIOC
+
+#else // ALICE3_VERSION == ALICE3_V3
+
 #define LED_PIN_MASK GPIO_PIN_2
 #define LED_PORT GPIOB
+
+#endif
 
 void LED_set_panic(int on)
 {
@@ -932,12 +951,24 @@ GPIOLine address_lines[] = {
     {GPIOC, 4}, // A7
     {GPIOC, 9}, // A8
     {GPIOB, 4}, // A9
+
+#if ALICE3_VERSION == ALICE3_V3
+
     {GPIOC, 13}, // A10
     {GPIOC, 12}, // A11
     {GPIOC, 8}, // A12
     {GPIOC, 7}, // A13
     {GPIOC, 6}, // A14
     {GPIOC, 3}, // A15
+
+#if ! ALICE3_V3_ARM_IS_RAM
+
+    {GPIOD, 2}, // A16
+    {GPIOD, 15}, // A17
+
+#endif // ! ALICE_V3_ARM_IS_RAM
+
+#endif // ALICE3_VERSION == ALICE3_V3
 };
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 
@@ -956,6 +987,23 @@ unsigned int shuffle_address(unsigned int a)
     }
     unsigned int ddr = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
     return ddr;
+}
+
+unsigned int BUS_compute_shuffled_ADDRESS(unsigned int A, unsigned int B, unsigned C)
+{
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return address;
+}
+
+unsigned int BUS_get_shuffled_ADDRESS()
+{
+    unsigned int A = GPIOA->IDR;
+    unsigned int B = GPIOB->IDR;
+    unsigned int C = GPIOC->IDR;
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return address;
 }
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
@@ -986,6 +1034,7 @@ void BUS_set_DATA(unsigned char data)
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
 
+// XXX these should be an extern unsigned char[] set through linker
 void ccmram_set(unsigned int address, unsigned char b)
 {
     ((unsigned char *)0x10000000)[address] = b;
@@ -994,23 +1043,6 @@ void ccmram_set(unsigned int address, unsigned char b)
 unsigned char ccmram_get(unsigned int address)
 {
     return ((unsigned char *)0x10000000)[address];
-}
-
-unsigned int BUS_compute_ADDRESS(unsigned int A, unsigned int B, unsigned C)
-{
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
-    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
-    return address;
-}
-
-unsigned int BUS_get_ADDRESS()
-{
-    unsigned int A = GPIOA->IDR;
-    unsigned int B = GPIOB->IDR;
-    unsigned int C = GPIOC->IDR;
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
-    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
-    return address;
 }
 
 int gUnclaimedWrite = 0;
@@ -1052,9 +1084,12 @@ void EXTI1_IRQHandler(void)
             gNextByteForReading = response_bytes[response_index++];
         } 
 
-    } else if((BUS_MREQ_PORT->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
-        // Memory read
-        unsigned int address = BUS_get_ADDRESS();
+
+    } else if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM &&
+        ((BUS_MREQ_PORT->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE)) {
+
+        // Memory read if Alice is V3 and ARM is RAM
+        unsigned int address = BUS_get_shuffled_ADDRESS();
         unsigned char byte = ccmram_get(address);
 
         BUS_set_DATA(byte);
@@ -1073,8 +1108,10 @@ void EXTI1_IRQHandler(void)
 
     } else {
 
-        gUnclaimedRead = 1;
-        gUnclaimedReadAddress = BUS_get_ADDRESS();
+        if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
+            gUnclaimedRead = 1;
+            gUnclaimedReadAddress = BUS_get_shuffled_ADDRESS();
+        }
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -1094,7 +1131,7 @@ void EXTI2_IRQHandler(void)
             command_bytes[command_length++] = d;
         }
 
-    } else {
+    } else if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
 
         __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
@@ -1106,11 +1143,11 @@ void EXTI2_IRQHandler(void)
 
         // Memory write
         if((initialMREQ & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
-            unsigned int address = BUS_compute_ADDRESS(A, B, C);
+            unsigned int address = BUS_compute_shuffled_ADDRESS(A, B, C);
             ccmram_set(address, d);
         } else {
             gUnclaimedWrite = 1;
-            gUnclaimedWriteAddress = BUS_compute_ADDRESS(A, B, C);
+            gUnclaimedWriteAddress = BUS_compute_shuffled_ADDRESS(A, B, C);
             gUnclaimedWriteData = d;
         }
     }
@@ -1334,7 +1371,13 @@ void BUS_init()
 // another peripheral; basically either Z80 BUSRQ or RESET
 void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
 {
-    if(0) {
+    if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
+
+        for(unsigned int u = a; u < a + l; u++)
+            b[u - a] = ccmram_get(shuffle_address(u));
+
+    } else {
+
         BUS_mastering_start();
         BUS_set_DATA_as_input();
 
@@ -1343,11 +1386,6 @@ void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
 
         BUS_set_DATA(gNextByteForReading);
         BUS_mastering_finish();
-    } else {
-
-        for(unsigned int u = a; u < a + l; u++)
-            b[u - a] = ccmram_get(shuffle_address(u));
-
     }
 }
 
@@ -1384,7 +1422,7 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
         return 0;
     }
 
-    if(1) {
+    if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
 
         for(unsigned int a = 0; a < romimage_length; a++)
             ccmram_set(shuffle_address(a), romimage_bytes[a]);
@@ -1397,6 +1435,7 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
                 break;
             }
         }
+
     } else {
 
         BUS_mastering_start();
@@ -1420,8 +1459,8 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
 
         BUS_set_DATA(gNextByteForReading);
         BUS_mastering_finish();
-    }
 
+    }
 
     return succeeded;
 }
@@ -2318,8 +2357,6 @@ int open_disk_images()
     return success;
 }
 
-
-
 char gMonitorCommandLine[80];
 unsigned char gMonitorCommandLineLength = 0;
 
@@ -2893,26 +2930,28 @@ void VIDEO_init()
     HAL_GPIO_Init(PROP_READY_PORT, &GPIO_InitStruct); 
 }
 
+#define PROP_READY_TIMEOUT_MILLIS 5000
+
 void VIDEO_wait()
 {
-    int started = HAL_GetTick();
-    int then = HAL_GetTick();
-    while(HAL_GPIO_ReadPin(PROP_READY_PORT, PROP_READY_PIN_MASK)) {
-        int now = HAL_GetTick();
-        if(now - then > 500) {
-            printf("Waited 500 more milliseconds for PROP_READY\n");
-            then = now;
-            serial_flush();
-        }
-        if(now - started > 5000) {
-            printf("Waited 5 seconds for PROP_READY\n");
-            serial_flush();
-            panic();
+    if(ALICE3_VERSION == ALICE3_V3) {
+
+        // Only on Alice3 V3 does ARM start before Propeller.
+        // (On V1, ARM has 5-second delay while Propeller has 1-second delay)
+
+        int started = HAL_GetTick();
+        while(HAL_GPIO_ReadPin(PROP_READY_PORT, PROP_READY_PIN_MASK)) {
+            int now = HAL_GetTick();
+            if(now - started > PROP_READY_TIMEOUT_MILLIS) {
+                printf("PANIC: timed out after waiting 5 seconds for PROP_READY\n");
+                serial_flush();
+                panic();
+            }
         }
     }
 }
 
-int gStandaloneARM = 0;
+const int gStandaloneARM = 0;
 
 int main()
 {
