@@ -11,7 +11,7 @@
 // if 1, then ARM reads and writes only A0-A15 and reads MREQ
 // if 0, then ARM uses A0-A17 and bus mastering to access external RAM,
 //   only writes MREQ
-#define ALICE3_V3_ARM_IS_RAM 1
+#define ALICE3_V3_ARM_IS_RAM 0
 
 #include "ff.h"
 #include "diskio.h"
@@ -964,7 +964,7 @@ GPIOLine address_lines[] = {
 #if ! ALICE3_V3_ARM_IS_RAM
 
     {GPIOD, 2}, // A16
-    {GPIOD, 15}, // A17
+    {GPIOC, 15}, // A17
 
 #endif // ! ALICE_V3_ARM_IS_RAM
 
@@ -1439,7 +1439,7 @@ int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_len
     } else {
 
         BUS_mastering_start();
-        BUS_set_ADDRESS(0);
+
         BUS_set_DATA(0);
         BUS_set_DATA_as_output();
 
