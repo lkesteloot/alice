@@ -1,0 +1,4 @@
+/emulator
+/sendhex
+/hex2bin
+*.o

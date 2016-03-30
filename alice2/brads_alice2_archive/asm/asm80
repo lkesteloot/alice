@@ -1,0 +1,18 @@
+#!/bin/sh
+
+MYPID=$$
+
+if [ a$1 = a ]
+then
+    echo Usage:
+    echo "    $0" inputfile
+    exit 1
+fi
+
+namebase=`echo $1 | sed 's/\..*$//'`
+# echo namebase is $namebase
+
+cc -x c -E -P $1 > /tmp/asm.$MYPID.cpp
+shift
+$(dirname $0)/az80/az80 /tmp/asm.$MYPID.cpp -o $namebase.hex -l $namebase.prn
+rm /tmp/asm.$MYPID.cpp

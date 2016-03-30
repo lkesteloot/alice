@@ -1,0 +1,33 @@
+
+todo:
+  - Allow function decl to not have parameter names
+  - Don't allocate space (label) for function decl parameters
+  - Structures, unions, and enums
+  - Typedefs
+  - Rest of operators:
+    - *
+    - /
+    - &&
+    - ||
+    - !
+    - ^
+    - %
+    - ?:
+    - +=, etc
+    - ,
+    - << >>
+    - <= >= >
+    - sizeof
+    - --
+    - ~
+  - Rest of statements:
+    - return
+    - goto
+    - continue
+    - break
+  - Function parameters
+  - Libc for common functions:
+    - getc
+    - puts
+    - outbyte
+    - inbyte

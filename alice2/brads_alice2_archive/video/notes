@@ -1,0 +1,26 @@
+Brad trying to figure this out again
+Tue Dec 15 22:46:40 PST 1998
+-----------------------------
+makerom probably takes output of makefield.
+makefield outputs sync and timing information.
+makefield is asking me for a clock speed.  I'm not sure what
+  I said last time...  Probably 11.whatever divided by four.  I'll
+  try it against timing.bin and see if there's a difference.
+Looks like it works like this:
+    makefield 2.7648 | makerom image.pbm > romfile.bin
+    I think romfile.bin contains the raw bits to write to the EPROM,
+      plus image.pbm.
+    The emitted numbers2.bin looked the same length as numbers.bin, which
+      is encouraging.  I went ahead and copied numbers2.bin to
+      the win95 partition as /eprom/video/timing2.bin
+
+
+makerom
+    take output of makefield
+    take PNM as parameter
+    scale PNM to size of visible pixel area
+    dither as necessary
+    store output as 1 or n EPROMS plus a reset bit
+    option for 2 EPROMS with 1 reset bit or 1 bitsliced EPROM with 1 reset
+      bit used as toggle of chip/bit select (1 reset bit, 2 sync bits,
+      2 video bits)

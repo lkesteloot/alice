@@ -1,0 +1,180 @@
+;
+; Brad and Lawrence's PIC Alice II keyboard test program.
+; Accepts a byte on B1, serially clocked in on rising edges of
+; B0 (1 start bit, two stop bits), writes that byte on PORTD,
+; then interrupts the CPU by setting A0 low.
+; On PSP RD interrupt, clears the interrupt by setting A0 high.
+; On PSP WR interrupt, reads the byte, shifts out data to B1
+;
+; January 25, 1996
+;
+	maclib 'p64.inc'
+
+        device  pic16c64,xt_osc,wdt_off,pwrt_off,protect_off
+
+w_temp  equ     020h
+status_temp equ 021h
+
+initstopcnt        equ     2    ; # of stop bits per byte (+ 1)
+stopcnt            equ     022h ; storage for stop bits left
+initdatabits       equ     10   ; start bits + data bits (+ 1)
+databits           equ     023h ; storage for kbd data shifts left
+                                ; (1st bit shifted in gets pushed off end)
+kbdbyte            equ     024h ; storage for keyboard byte
+
+	; Loop routine doesn't make distinction between bank 0 or bank 1
+	; so you don't have to check bank.  Just store counter, jump to
+	; subroutine, you're done.
+loopcnt1	   equ	   025h ; least significant byte of loop counter
+loopcnt2	   equ	   026h ; least significant byte of loop counter
+
+reset
+        org     0               ; on reset
+        goto    start
+
+intsvc
+        org     4               ; on interrupt
+        goto    interrupt
+
+start
+        bcf     rp0             ; bank 0
+        bsf     porta,0         ; don't interrupt CPU
+        bcf     pspif           ; clear PSP interrupt flag
+        clrf    portc           ; nothing on our debug port
+
+        movlw   initstopcnt
+        movwf   stopcnt         ; set up # of stop bits in kbd data
+        movlw   initdatabits
+        movwf   databits        ; set up # of actual shifts to make
+
+        bsf     rp0             ; bank 1
+        bcf     trisa,0         ; bit 0 port A is output
+
+        bsf     trise0          ; /RD is input
+        bsf     trise1          ; /WR is input
+        bsf     trise2          ; /CS is input
+
+        clrf    trisc           ; C is all output
+        ; don't need to set trisb, default is 0xff
+        bsf     intedg          ; RB0/INT triggers on low-to-high
+
+        bsf     pspie           ; enable PSP interrupts
+        bsf     pspmode         ; enable PSP mode
+        bsf     peie            ; enable peripheral interrupts
+        bcf     intf            ; clear RB0/INT interrupt flag
+        bsf     inte            ; enable RB0/INT interrupt
+        bsf     gie             ; enable all interrupts
+
+        bcf     rp0             ; bank 0
+                                                            
+        bsf     portc,0         ; got here!
+
+loop
+        goto loop               ; infinite loop
+                                  
+interrupt
+        ; save W and STATUS
+        movwf   w_temp          ; save W
+        swapf   status, w       ; save status in W
+        bcf     rp0             ; bank 0
+        movwf   status_temp     ; save status
+
+        bcf     portc,1         ; got here!
+        bsf     portc,1         ; got here!
+
+        btfss   pspif           ; test PSP interrupt flag
+        goto    notpsp          ; not PSP
+        bsf     portc,2         ; got here!
+        bsf     rp0             ; bank 1
+        btfss   ibf             ; did we get a write?
+        goto    gotread         ; nope, jump to read
+
+	;
+	; Must be a write.  That means send byte to keyboard.
+	;
+        bcf     portc,3         ; got here!
+        bsf     portc,3         ; got here!
+	
+
+
+        goto    endpspinterrupt ; return
+
+gotread
+        bcf     rp0             ; bank 0
+        bsf     porta,0         ; don't assert interrupt
+        goto    endpspinterrupt
+
+notpsp                          ; must be RB0/INT interrupt
+        bcf     portc, 5        ; got here!
+        bsf     portc, 5        ; got here!
+        decfsz  databits, 1     ; skip next if done with data bits
+        goto    gotbit          ; have a good bit on port B
+        decfsz  stopcnt, 1      ; skip next if done with keyboard cycle
+        goto    morestops       ; not done yet, have stop bits
+
+gotkbdbyte
+        bcf     portc, 7        ; got here!
+        bsf     portc, 7        ; got here!
+        movf    kbdbyte, w      ; get kbd byte
+        movwf   portd           ; write data to CPU
+        bcf     porta, 0        ; turn on interrupt to CPU
+
+        movlw   initstopcnt
+        movwf   stopcnt         ; set up # of stop bits in
+        movlw   initdatabits
+        movwf   databits        ; set up # of actual shifts
+
+        goto    endrb0interrupt ; done with sending byte
+
+morestops                       ; only stop bits left
+        bcf     portc, 6        ; got here!
+        bsf     portc, 6        ; got here!
+        clrf    databits
+        incf    databits        ; set remaining databits to 1
+				; next loop through dec's databits, it's 0,
+				; skips to decfsz stopcnt
+        goto    endrb0interrupt ; finish with rb0/int interrupt
+
+gotbit                          ; shift in a bit from keyboard
+        bcf     portc, 4        ; got here
+        bsf     portc, 4        ; got here
+        bsf     c               ; set carry
+        btfss   portb, 1        ; if kbd data bit is set, skip next
+        bcf     c               ; clear carry
+        rrf     kbdbyte, 1      ; rotate data bit into MSB of kbdbyte
+        ; fall through to endrb0interrupt
+
+endrb0interrupt
+        bcf     rp0             ; bank 0
+        bcf     intf            ; clear RB0/INT interrupt flag
+        goto    finishinterrupt ; pop processor context
+
+endpspinterrupt
+        bcf     rp0             ; bank 0
+        bcf     portc,4         ; got here!
+        bsf     portc,4         ; got here!
+        bcf     pspif           ; clear PSP interrupt flag
+
+finishinterrupt
+        ; restore W and STATUS
+        swapf   status_temp, w  ; put old status in W
+        movwf   status          ; put into status
+        swapf   w_temp, 1       ; swap w_temp in place
+        swapf   w_temp, w       ; put old W into W
+
+        retfie
+
+	;
+	; clock cycles used =
+	;		(loopcnt2 - 1) * (3072 + 3) +
+	;		(loopcnt1 - 1) * 12 +
+	;		6
+	;
+delayloop
+	decfsz	loopcnt1	; count down lsb of loop counter
+	goto	delayloop	; keep counting down if not 0
+	decfsz	loopcnt2	; count down msb of loop counter
+	goto	delayloop	; keep counting down if not 0
+	return			; all done!
+
+

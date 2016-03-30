@@ -1,0 +1,350 @@
+;
+; Brad and Lawrence's PIC Alice II interface chip.  The PIC
+; is responsible for keyboard, serial, and clock interfaces.
+;
+; An internal queue keeps command-data sequences for the CPU.
+; The command bytes are the constants pic_???_cmd.
+; The timer command has no data byte, and the serial and keyboard
+; bytes are followed by one byte of data.
+;
+; June 21st, 1997
+;
+	maclib 'p65.inc'
+
+        device  pic16c65,xt_osc,wdt_off,pwrt_off,protect_off
+
+w_temp		equ	020h
+status_temp	equ	021h
+
+;
+; Keyboard I/O constants
+;
+init_stop_count	equ     2	; # of stop bits per byte (+ 1)
+stop_count	equ     022h	; storage for stop bits left
+init_data_bits	equ     10	; start bits + data bits (+ 1)
+data_bits	equ     023h 	; storage for kbd data shifts left
+                                ; (1st bit shifted in gets pushed off end)
+kbd_byte	equ     024h	; storage for keyboard byte
+
+;
+; Serial I/O constants
+;
+;baud_rate_code	equ     081h	; 2400 baud at 20 MHz, BRGH=0, 129 decimal
+baud_rate_code	equ     00fh	; 19200 baud at 20 MHz, BRGH=0, 15 decimal
+
+;
+; Alice I/O queue constants
+;
+outq_tail	equ	025h	; output queue tail pointer
+outq_head	equ	026h	; output queue head pointer (actually
+				; head+1)
+outq_length	equ	027h	; length in bytes of current output queue
+				; (head - tail)
+outq_byte_pop	equ	028h	; byte popped off output queue
+outq_byte_push	equ	029h	; byte to push on output queue
+outq_storage	equ	040h	; first byte of output queue storage
+outq_size	equ	040h	; number of bytes in output queue
+outq_wrap_mask	equ	03fh	; mask for wrapping queue pointers
+
+;
+; Queue command constants
+;
+pic_non_cmd	equ	000h	; no command yet (not used on the pic)
+pic_ser_cmd	equ	001h	; serial byte
+pic_kbd_cmd	equ	002h	; keyboard byte
+pic_tim_cmd	equ	003h	; timer (no byte)
+
+;
+; Timer1 constants
+;
+ten_hz_low	equ	0dch	; low byte of 10 hz counter start
+ten_hz_high	equ	00bh	; high byte of 10 hz counter start
+				; together these make 0xbdc, which means
+				; upward-counting tmr1 does 62500 ticks,
+				; and at 5 Hz (clk/4) with 1:8 scaling,
+				; that's 10 overflows per second.
+
+reset
+        org     0               ; on reset
+        goto    start
+
+intsvc
+        org     4               ; on interrupt
+        goto    interrupt
+
+start
+        bcf     rp0             ; bank 0
+
+        bcf     pspif           ; clear PSP interrupt flag
+
+	    ; Serial interface
+        bcf     portc,6         ; clear USART transmit pin
+        bcf     portc,7         ; clear USART receive pin
+	bcf	rcif		; clear USART receive interrupt flag
+
+	    ; keyboard interface 
+        movlw   init_stop_count
+        movwf   stop_count      ; set up # of stop bits in kbd data
+        movlw   init_data_bits
+        movwf   data_bits       ; set up # of actual shifts to make
+
+        bsf     rp0             ; bank 1
+	
+	    ; Alice II bus interface
+        bcf     trisa,0         ; bit 0 port A is output
+        bcf     trisa,1         ; bit 1 port A is output
+
+	    ; Alice II bus interface
+        bsf     trise0          ; /RD is input
+        bsf     trise1          ; /WR is input
+        bsf     trise2          ; /CS is input
+
+	    ; Serial interface
+        ; don't need to set trisc, default is 0xff (input)
+	; Brad's not so sure
+        bsf     trisc, 6        ; transmit is output
+        bsf     trisc, 7        ; receive is input
+
+	    ; Keyboard interface
+        ; don't need to set trisb, default is 0xff (input)
+        bsf     intedg          ; RB0/INT triggers on low-to-high
+
+	    ; Alice II bus interface
+        bsf     pspie           ; enable PSP interrupts
+        bsf     pspmode         ; enable PSP mode
+
+	    ; Serial interface
+	movlw	baud_rate_code	; default baud rate
+	movwf	spbrg		; set baud rate generator 
+	bcf	sync		; asynchronous serial
+	bsf	txen		; enable USART transmitter
+	bcf	rp0		; bank 0
+	bsf	spen		; enable USART receiver
+	bsf	rp0		; bank 1
+	bsf	rcie		; enable USART receive interrupt
+	bcf	rp0		; bank 0
+	bsf	cren		; enable USART receive next byte
+
+	    ; Alice II bus interface
+        bsf     porta,0         ; don't interrupt CPU on IRQ 0
+
+	    ; init Alice output queue
+	movlw	outq_storage
+	movwf	outq_head
+	movwf	outq_tail
+	clrf	outq_length
+
+	    ; init timer 1
+	bsf	t1ckps1
+	bsf	t1ckps0		; set tmr1 prescaler to 8
+	movlw	ten_hz_low
+	movwf	tmr1l
+	movlw	ten_hz_high
+	movwf	tmr1h
+	bsf	tmr1on
+
+	    ; Serial and Alice II bus interface
+	bsf	rp0		; bank 1
+        bsf     peie            ; enable peripheral interrupts
+
+	    ; Timer interrupt
+	bsf	tmr1ie		; enable tmr1 interrupt
+
+	    ; Keyboard interface
+        bcf     intf            ; clear RB0/INT interrupt flag
+        bsf     inte            ; enable RB0/INT interrupt
+
+        bsf     gie             ; enable all interrupts
+
+        bcf     rp0             ; bank 0
+                                                            
+loop
+        goto    loop
+
+interrupt
+        ; save W and STATUS
+        movwf   w_temp          ; save W
+        swapf   status, w       ; save status in W
+        bcf     rp0             ; bank 0
+        movwf   status_temp     ; save status
+
+	btfsc	tmr1if		; test timer 1 flag
+	goto	timerint	; if timer int, then go handle timer
+
+        btfss   pspif           ; test PSP interrupt flag
+        goto    notpsp          ; not PSP
+
+        bsf     rp0             ; bank 1
+        btfss   ibf             ; did we get a write?
+        goto    gotread         ; nope, jump to read
+
+        ; we got a write
+        ; send on to serial 
+        bcf     rp0             ; bank 0
+        movf    portd, w	; get byte
+	movwf	txreg
+
+        goto    endpspinterrupt ; return
+
+timerint
+	bcf	tmr1on		; turn off temporarily
+	movlw	ten_hz_low
+	movwf	tmr1l
+	movlw	ten_hz_high
+	movwf	tmr1h
+	bsf	tmr1on		; reset and turn on
+
+	movlw	pic_tim_cmd
+	call	send_byte	; alert Alice of timer interrupt
+	    ; fall through to endtimerinterrupt
+
+endtimerinterrupt
+        bcf     tmr1if		; clear TMR1 interrupt flag
+        goto    finishinterrupt
+
+gotread
+        bcf     rp0             ; bank 0
+
+	call	processqueue	; send next byte if there is one
+        goto    endpspinterrupt
+
+notpsp                          ; either RB0/INT or RC/USART
+	btfss	intf		; skip next if is definitely INT interrupt
+	goto	serialin	; it's a byte from the serial port
+
+        decfsz  data_bits, 1	; skip next if done with data bits
+        goto    gotbit		; have a good bit on port B
+        decfsz  stop_count, 1	; skip next if done with keyboard cycle
+        goto    morestops	; not done yet, have stop bits
+
+gotkbd_byte
+	movlw	pic_kbd_cmd	; put the kbd cmd into the queue
+	call	send_byte	; send data to CPU
+        movf    kbd_byte, w	; get kbd byte
+	call	send_byte	; send data to CPU
+
+        movlw   init_stop_count
+        movwf   stop_count      ; set up # of stop bits in
+        movlw   init_data_bits
+        movwf   data_bits       ; set up # of actual shifts
+
+        goto    endintinterrupt ; done with sending byte
+
+morestops                       ; only stop bits left
+        clrf    data_bits
+        incf    data_bits       ; set remaining data_bits to 1
+				; next loop through dec's data_bits, it's 0,
+				; skips to decfsz stop_count
+        goto    endintinterrupt ; finish with rb0/int interrupt
+
+gotbit                          ; shift in a bit from keyboard
+        bsf     c               ; set carry
+        btfss   portb, 1        ; if kbd data bit is set, skip next
+        bcf     c               ; clear carry
+        rrf     kbd_byte, 1     ; rotate data bit into MSB of kbd_byte
+        ; fall through to endintinterrupt
+
+endintinterrupt
+        bcf     rp0             ; bank 0
+        bcf     intf            ; clear RB0/INT interrupt flag
+        goto    finishinterrupt ; pop processor context
+
+endpspinterrupt
+        bcf     rp0             ; bank 0
+        bcf     pspif           ; clear PSP interrupt flag
+        goto    finishinterrupt
+
+serialin
+        bcf     rp0             ; bank 0
+	movlw	pic_ser_cmd	; put the serial cmd into the queue
+	call	send_byte	; send to CPU
+	movf	rcreg, w	; get USART in
+	call	send_byte	; send to CPU
+	; fall through into endserinterrupt
+
+endserinterrupt
+        bcf     rp0             ; bank 0
+        bcf     rcif            ; clear USART receive interrupt
+        ; fall through to finishinterrupt
+
+finishinterrupt
+        ; restore W and STATUS
+        swapf   status_temp, w  ; put old status in W
+        movwf   status          ; put into status
+        swapf   w_temp, 1       ; swap w_temp in place
+        swapf   w_temp, w       ; put old W into W
+
+        retfie
+
+send_byte
+	; put byte that's in w into the out queue
+	; assumes interrupts are disabled (called from int routine)
+
+		; push on queue
+	bcf	rp0		; bank 0
+
+	movwf	outq_byte_push
+
+	movlw	outq_size
+	subwf	outq_length, w
+	btfsc	c
+	return			; if q length >= size (overflow), then
+				; return
+	movf	outq_head, w
+	movwf	fsr
+	movf	outq_byte_push, w
+	movwf	indf		; *head = outq_byte_push
+
+	incf	outq_head
+	movf	outq_head, w
+	andlw	outq_wrap_mask
+	addlw	outq_storage
+	movwf	outq_head	; head = storage + (head - storage + 1) % size
+				; i.e. head++
+
+	incf	outq_length	; length ++
+
+	call	processqueue	
+
+	return
+	
+
+processqueue
+	; if there is a byte in the queue, get it and send it on to the
+	; Alice II through port D
+	; assumes interrupts are disabled (called from int routine)
+
+        bsf	rp0		; bank 1
+	btfss	obf		; skip if byte already on portd
+	goto	do_another	
+	bcf	rp0		; bank 0
+	return
+
+
+do_another
+	bcf	rp0		; bank 0
+        bsf     porta, 0        ; turn off interrupt to CPU
+	movf	outq_length	; move to itself
+	btfsc	z		; skip if not zero
+	return			; if length == 0 return
+
+	movf	outq_tail, w
+	movwf	fsr
+	movf	indf, w	
+	movwf	outq_byte_pop	; outq_byte_pop = *tail
+
+	incf	outq_tail
+	movf	outq_tail, w
+	andlw	outq_wrap_mask
+	addlw	outq_storage
+	movwf	outq_tail	; tail = storage + (tail - storage + 1) % size
+				; i.e. tail++
+
+	decf	outq_length	; length --
+
+	movf	outq_byte_pop, w
+	movwf	portd		; send on to Alice
+        bcf     pspif           ; clear PSP interrupt flag
+        bcf     porta, 0        ; turn on interrupt to CPU
+
+	return

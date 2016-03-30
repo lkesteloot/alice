@@ -1,0 +1,13 @@
+I want the design process to go something like this:
+	specifications
+	draw schematic using Brad's schematic tool
+	use Lawrence's routing tool + a route editor to lay the board
+	test using some form of input;
+		calculate timing & power requirements, verify design
+	print board on transparenc(ies)
+	register, transfer, etch, tin, socket
+	test
+	assemble in enclosure
+	test
+	fill out report with specification, schematic, testing results, 
+		photos, sample code if necessary, and final summary

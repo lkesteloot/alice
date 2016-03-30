@@ -1,0 +1,29 @@
+A = nand(
+    not nor(not MREQ_, not IORQ_),
+    not nor(not WR_, not RD_))
+
+B = flipflop(
+    set = not nand(not IORQ_, not M1_)
+    clear = not nor(not WR_, not RESET_))
+
+E_ = nand(not A, not B.Q)
+
+
+
+A = and(or(MREQ, IORQ), or(WR, RD))
+
+B = flipflop(
+    set = and(IORQ, M1),
+    clear = or(WR, RESET))
+
+E = and(A, not B.Q)
+
+
+
+4556 is enabled (one output is low)
+    IF
+        either MREQ or IORQ is active, AND
+        AND either WR and RD is active
+    AND NEITHER
+        IORQ and M1 were both raised together
+        NOR neither WR nor RESET were raised

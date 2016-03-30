@@ -1,0 +1,43 @@
+#!/bin/bash
+
+ASM=../brads_alice2_archive/asm
+VNC="/Applications/VNC Viewer.app/Contents/MacOS/vncviewer"
+
+# true/false to easily enable to modification of zcc_out.asm.
+if true; then
+    echo "Building az80"
+    (cd $ASM/az80 && make) || exit 1
+
+    echo "--------------------------------------------------------------------------------"
+    echo "Building zcc"
+    (cd ../zcc && make) || exit 1
+
+    echo "--------------------------------------------------------------------------------"
+    echo "Building blan9"
+    make || exit 1
+    cp zcc_out.s $ASM/zcc_out.asm
+fi
+
+echo "--------------------------------------------------------------------------------"
+echo "Assembling ROM"
+(cd $ASM && ./asm80 rom.asm) || exit 1
+
+echo "--------------------------------------------------------------------------------"
+echo "Building emulator"
+(cd ../emulator && make) || exit 1
+
+echo "--------------------------------------------------------------------------------"
+echo "Queuing up serial port upload"
+(sleep 2 && cd ../emulator && ./sendhex -j 9000 - $ASM/rom.hex | nc localhost 6606) &
+
+if [ -x "$VNC" ]; then
+    echo "--------------------------------------------------------------------------------"
+    echo "Starting VNC viewer"
+    (sleep 1 && "$VNC" localhost) &
+fi
+
+echo "--------------------------------------------------------------------------------"
+echo "Running emulator"
+(cd ../emulator && ./emulator $ASM/rom.hex) || exit 1
+
+

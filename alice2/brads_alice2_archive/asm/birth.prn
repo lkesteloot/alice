@@ -1,0 +1,50 @@
+   0002                 LCDINST	EQU	002H
+   0003                 LCDDATA	EQU	003H
+   001d                 STRLEN	EQU	29
+                        
+   0000                 START
+   0000   21 0e 00      	LD	HL, STRING
+   0003   06 1d         	LD	B, STRLEN
+   0005                 OLOOP
+   0005   4e            	LD	C, (HL)
+   0006   23            	INC	HL
+   0007   ed a3         	OUTI
+   0009   20 fa         	JR	NZ, OLOOP
+                        
+   000b   c3 00 00      	JP	START
+                        
+   000e                 STRING
+   000e   02 38         	DB	LCDINST, 38H
+   0010   02 38         	DB	LCDINST, 38H
+   0012   02 06         	DB	LCDINST, 06H
+   0014   02 0e         	DB	LCDINST, 0eH
+   0016   02 01         	DB	LCDINST, 01H
+   0018   02 80         	DB	LCDINST, 80H
+   001a   03 41         	DB	LCDDATA, "A"
+   001c   03 6c         	DB	LCDDATA, "l"
+   001e   03 69         	DB	LCDDATA, "i"
+   0020   03 63         	DB	LCDDATA, "c"
+   0022   03 65         	DB	LCDDATA, "e"
+   0024   03 20         	DB	LCDDATA, " "
+   0026   03 49         	DB	LCDDATA, "I"
+   0028   03 49         	DB	LCDDATA, "I"
+   002a   02 c0         	DB	LCDINST, 0c0H
+   002c   03 69         	DB	LCDDATA, "i"
+   002e   03 73         	DB	LCDDATA, "s"
+   0030   03 20         	DB	LCDDATA, " "
+   0032   03 61         	DB	LCDDATA, "a"
+   0034   03 6c         	DB	LCDDATA, "l"
+   0036   03 69         	DB	LCDDATA, "i"
+   0038   03 76         	DB	LCDDATA, "v"
+   003a   03 65         	DB	LCDDATA, "e"
+   003c   02 c0         	DB	LCDINST, 0c0H
+   003e   02 c0         	DB	LCDINST, 0c0H
+   0040   02 c0         	DB	LCDINST, 0c0H
+   0042   02 c0         	DB	LCDINST, 0c0H
+   0044   02 c0         	DB	LCDINST, 0c0H
+   0046   02 c0         	DB	LCDINST, 0c0H
+                        
+   0048                 	END
+0003  LCDDATA       0002  LCDINST       0005  OLOOP         0000  START     
+000e  STRING        001d  STRLEN        
+

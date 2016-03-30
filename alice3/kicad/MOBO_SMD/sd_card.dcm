@@ -1,0 +1,14 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP MicroSD
+D MicroSD
+K CONN SD
+$ENDCMP
+#
+$CMP SD_Card
+D SD Card Reader (Sparkfun)
+K CONN SD
+F http://portal.fciconnect.com/Comergent//fci/drawing/10067847.pdf
+$ENDCMP
+#
+#End Doc Library

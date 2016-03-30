@@ -1,0 +1,1584 @@
+                                     
+                                     
+                                     
+                                     
+                                     
+                            PIC Macro Assembler
+                                     
+                        Instruction Set Supplement
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                                     
+                           microEngineering Labs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Copyrights and Trademarks
+                                     
+Copyright (c) 1996, microEngineering Labs.
+
+Parallax is a trademark of Parallax, Inc.
+PIC is a Registered Trademark of Microchip Technology, Inc.
+
+
+
+Disclaimer of Liability
+
+microEngineering Labs is not responsible for special, incidental, or
+consequential damages resulting from any breach of warranty, or under any
+legal theory, including lost profits, downtime, goodwill, damage to or
+replacement of equipment or property, or any costs for recovering,
+reprogramming, or reproducing any data used with microEngineering Labs'
+products.
+
+
+
+Introduction
+
+Early adopters of the PIC microcontroller were less than pleased with the
+PIC's instruction set. While appropriate for a RISC architecture, it is
+somewhat cryptic and makes code unreadable. Parallax realized this when
+they decided to build PIC development tools. To overcome the problem,
+Parallax decided to build an 8051-like instruction set on top of the PIC
+instruction set.
+
+The Parallax instruction set has some advantages. Most notably, the
+instructions are more intuitive and generally allow programmers to write
+more readable code. It also has some disadvantages. First, each Parallax
+instructions expands to between 1 and 4 PIC instructions. This variable
+instruction & execution length makes "cycle counting" difficult. Second, it
+is not always obvious from the Parallax instruction what is actually
+happening. Consider the instruction mov fr,#lit. While the instruction does
+the obvious (setting the file register to the literal value), it also has a
+less obvious side effect (setting the W register to the literal value).
+Such hidden side effects can make debugging difficult.
+
+Recognizing that each instruction set has advantages and disadvantages, PM
+supports both. While the PIC instructions set is widely documented, the
+Parallax instruction set is not. That is the purpose of this supplement.
+                      
+
+
+                      Summary of Parallax Instruction
+
+ADD fr,#lit
+ADD fr1,fr2
+ADD fr,W
+ADD W,#litý
+ADD W,fr
+ADDB fr,bit
+AND fr,#lit
+AND fr1,fr2
+AND fr,W
+AND W,#lit
+AND W,fr
+CALL addr
+CJA fr,#lit,addr
+CJA fr1,fr2,addr
+CJAE fr,#lit,addr
+CJAE fr1,fr2,addr
+CJB fr,#lit,addr
+CJB fr1,fr2,addr
+CJBE fr,#lit,addr
+CJBE fr1,fr2,addr
+CJE fr,#lit,addr
+CJE fr1,fr2,addr
+CJNE fr,#lit,addr
+CJNE fr1,fr2,addr
+CLC
+CLR fr
+CLR W
+CLR WDT
+CLRB bit
+CLZ
+CSA fr,#lit
+CSA fr1,fr2
+CSAE fr,#lit
+CSAE fr1,fr2
+CSB fr,#lit
+CSB fr1,fr2
+CSBE fr,#lit
+CSBE fr1,fr2
+CSE fr,#lit
+CSE fr1,fr2
+CSNE fr,#lit
+CSNE fr1,fr2
+DEC fr
+DECSZ  fr
+DJNZ fr,addr
+IJNZ fr,addr
+INC fr
+INCSZ  fr
+JB  bit,addr
+JC  addr
+JMP addr
+JMP PC+W
+JMP W
+JNB bit,addr
+JNC addr
+JNZ addr
+JZ  addr
+LCALL  addr
+LJMP addr
+LSET addr
+MOV fr,#lit
+MOV fr1,fr2
+MOV fr,W
+MOV OPTION,#lit
+MOV OPTION,fr
+MOV OPTION,W
+MOV !fr,#lit
+MOV !fr1,fr2
+MOV !fr,W
+MOV W,#lit
+MOV W,fr
+MOV W,/fr
+MOV W,fr-Wü
+MOV W,++fr
+MOV W,--fr
+MOV W,<<fr
+MOV W,>>fr
+MOV W,<>fr
+MOVB bit1,bit2
+MOVB bit1,/bit2
+MOVSZ  W,++fr
+MOVSZ  W,--fr
+NEG fr
+NOP
+NOT fr
+NOT W
+OR  fr,#lit
+OR  fr1,fr2
+OR  fr,W
+OR  W,#lit
+OR  W,fr
+RET
+RETI
+RETW lit,lit,...
+RL  fr
+RR  fr
+SB  bit
+SC
+SETB bit
+SKIP
+SLEEP
+SNB bit
+SNC
+SNZ
+STC
+STZ
+SUB fr,#lit
+SUB fr1,fr2
+SUB fr,W
+SUBB fr,bit§
+SWAP fr
+SZ
+TEST fr
+XOR fr,#lit
+XOR fr1,fr2
+XOR fr,W
+XOR W,#lit
+XOR  W,fr
+
+  ý 14-Bit Core Only
+  ü Not supported by PM
+  § PM implementation differs from Parallax
+
+
+
+ADD    fr,#lit
+
+Add literal into fr
+
+Words :   Cycles : 2     Affects : W, C,
+2                        DC, Z
+
+Coding movlw    lit    ; W = lit
+       addwf    fr    ; fr = fr + W
+
+
+
+ADD    fr1,fr2
+
+Add fr2 into fr1
+
+Words :   Cycles : 2     Affects : W, C,
+2                        DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       addwf    fr1    ; fr1 = fr1 + W
+
+
+
+ADD    fr,W
+
+Add W into fr
+
+Words :   Cycles : 1     Affects : C, DC, Z
+1
+
+Coding addwf    fr    ; fr = fr + W
+
+
+
+ADD    W,#lit              (14-Bit Core)
+
+Add literal into W
+
+Words :   Cycles : 1     Affects : W, C,
+1                        DC, Z
+
+Coding addlw    lit    ; W = W + lit
+
+
+ADD    W,fr
+
+Add fr into W
+
+Words :   Cycles : 1     Affects : W, C,
+1                        DC, Z
+
+Coding addwf    fr,W   ; W = W + fr
+
+
+
+ADDB   fr,bit
+
+Add bit into fr
+
+Words :   Cycles : 2     Affects : Z
+2
+
+Coding btfsc    bit    ; If bit = 0, PC = PC+2
+       incf   fr    ; fr = fr + 1
+
+
+
+AND    fr,#lit
+
+AND literal into fr
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movlw    lit    ; W = lit
+       andwf    fr    ; fr = fr  W
+
+
+
+AND    fr1,fr2
+
+AND fr2 into fr1
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr2,W    ; W = fr2
+       andwf    fr1    ; fr1 = fr1  W
+
+AND    fr,W
+
+AND W into fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding andwf    fr    ; fr = fr  W
+
+
+
+AND    W,#lit
+
+AND literal into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding andlw    lit    ; W = W  lit
+
+
+
+AND    W,fr
+
+AND fr into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding andwf    fr,W   ; W = W  fr
+
+
+
+CALL   addr
+
+Call subroutine
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding call   addr   ; Push PC: PC = addr
+
+
+
+CJA    fr,#lit,addr
+
+Compare fr to literal and Jump if Above
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    ~lit   ; W = ~lit
+       addwf    fr,W   ; W = W + fr
+       btfsc  C     ; If fr <= lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJA    fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Above
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr1,W    ; W = fr1
+       subwf    fr2,W    ; W = fr2 - W
+       btfss  C     ; If frq <= fr2, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJAE   fr,#lit,addr
+
+Compare fr to literal and Jump if Above or Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfsc  C     ; If fr < lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJAE   fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Above or Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfsc  C     ; If fr1 < fr2, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJB    fr,#lit,addr
+
+Compare fr to literal and Jump if Below
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfss  C     ; If fr >= lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJB    fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Below
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfss  C     ; If fr1 >= fr2, PC = PC+2
+       goto   addr   ; PC = addr
+
+CJBE   fr,#lit,addr
+
+Compare fr to literal and Jump if Below or Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    ~lit   ; W = ~lit
+       addwf    fr,W   ; W = W + fr
+       btfss  C     ; If fr > lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJBE   fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Below or Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr1,W    ; W = fr1
+       subwf    fr2,W    ; W = fr2 - W
+       btfsc  C     ; If fr1 > fr2, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJE    fr,#lit,addr
+
+Compare fr to literal and Jump if Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfsc  Z     ; If fr <> lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+CJE    fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfsc  Z     ; If fr1 <> fr2, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJNE   fr,#lit,addr
+
+Compare fr to literal and Jump if Not Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfss  Z     ; If fr = lit, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+CJNE   fr1,fr2,addr
+
+Compare fr1 to fr2 and Jump if Not Equal
+
+Words :   Cycles : 4 (5  Affects : W, C,
+4         if jump)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfss  Z     ; If fr1 = fr2, PC = PC+2
+       goto   addr   ; PC = addr
+CLC
+
+Clear Carry flag
+
+Words :   Cycles : 1     Affects : C
+1
+
+Coding bcf    C     ; C = 0
+
+
+
+CLR    fr
+
+Clear fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding clrf   fr    ; fr = 0
+
+
+
+CLR    W
+
+Clear W
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding clrw         ; W = 0
+
+
+
+CLR    WDT
+
+Clear WatchDog Timer
+
+Words :   Cycles : 1     Affects : TO, PD
+1
+
+Coding clrwdt       ; Reset Watchdog Timer
+
+CLRB   bit
+
+Clear Bit
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding bcf    bit    ; bit = 0
+
+
+
+CLZ
+
+Clear Zero flag
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding bcf    Z     ; Z = 0
+
+
+
+CSA    fr,#lit
+
+Compare fr to literal and Skip if Above
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    ~lit   ; W = ~lit
+       addwf    fr,W   ; W = W + fr
+       btfss    C     ; If fr > lit, PC = PC+2
+
+
+
+CSA    fr1,fr2
+
+Compare fr1 to fr2 and Skip if Above
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr1,W    ; W = fr1
+       subwf    fr2,W    ; W = fr2 - W
+       btfsc    C     ; If fr1 > fr2, PC = PC+2
+CSAE   fr,#lit
+
+Compare fr to literal and Skip if Above or Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfss    C     ; If fr >= lit, PC = PC+2
+
+
+
+CSAE   fr1,fr2
+
+Compare fr1 to fr2 and Skip if Above or Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfss    C     ; If fr1 >= fr2, PC = PC+2
+
+
+
+CSB    fr,#lit
+
+Compare fr to literal and Skip if Below
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfsc    C     ; If fr < lit, PC = PC+2
+
+
+
+CSB    fr1,fr2
+
+Compare fr1 to fr2 and Skip if Below
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfsc    C     ; If fr1 < fr2, PC = PC+2
+
+
+
+CSBE   fr,#lit
+
+Compare fr to literal and Skip if Below or Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    ~lit   ; W = ~lit
+       addwf    fr,W   ; W = W + fr
+       btfsc    C     ; If fr <= lit, PC = PC+2
+
+
+
+CSBE   fr1,fr2
+
+Compare fr1 to fr2 and Skip if Below or Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr1,W    ; W = fr1
+       subwf    fr2,W    ; W = fr2 - W
+       btfss    C     ; If fr1 <= fr2, PC = PC+2
+
+
+
+CSE    fr,#lit
+
+Compare fr to literal and Skip if Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfss    Z     ; If fr = lit, PC = PC+2
+
+
+
+CSE    fr1,fr2
+
+Compare fr1 to fr2 and Skip if Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfss    Z     ; If fr1 = fr2, PC = PC+2
+
+
+
+CSNE   fr,#lit
+
+Compare fr to literal and Skip if Not Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr,W   ; W = fr - W
+       btfsc    Z     ; If fr <> lit, PC = PC+2
+
+
+
+CSNE   fr1,fr2
+
+Compare fr1 to fr2 and Skip if Not Equal
+
+Words :   Cycles : 3 (4  Affects : W, C,
+3         is skip)       DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1,W    ; W = fr1 - W
+       btfsc    Z     ; If fr1 <> fr2, PC = PC+2
+
+
+
+DEC    fr
+
+Decrement fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding decf   fr    ; fr = fr - 1
+
+
+
+DECSZ  fr
+
+Decrement fr and Skip if Zero
+
+Words :   Cycles : 1 (2  Affects : None
+1         is skip)
+
+Coding decfsz fr    ; fr = fr-1: If 0,PC = PC+2
+
+
+
+DJNZ   fr,addr
+
+Decrement fr and Jump if Not Zero
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding decfsz fr    ; fr = fr-1: If 0,PC = PC+2
+       goto   addr   ; PC = addr
+
+IJNZ   fr,addr
+
+Increment fr and Jump if Not Zero
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding incfsz fr    ; fr = fr+1: If 0,PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+INC    fr
+
+Increment fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding incf   fr    ; fr = fr + 1
+
+
+
+INCSZ  fr
+
+Increment fr and Skip if Zero
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding incfsz fr    ; fr = fr+1: If 0,PC = PC+2
+
+
+
+JB     bit,addr
+
+Jump if Bit
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfsc    bit    ; If bit = 0, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+JC     addr
+
+Jump if Carry
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfsc    C     ; If C = 0, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+JMP    addr
+
+Goto address
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding goto   addr   ; PC = addr
+
+
+
+JMP    PC+W
+
+Skip W+1 instructions
+
+Words :   Cycles : 2     Affects : C, DC, Z
+1
+
+Coding addwf    PCL    ; PC = PC+W+1
+
+
+
+JMP    W
+
+Jump to W
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding movwf    PCL    ; PC = (PCLATH<<8) + W
+
+
+
+JNB    bit,addr
+
+Jump if Not Bit
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfss    bit    ; If bit = 1, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+JNC    addr
+
+Jump if Not Carry
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfss    C     ; If C = 1, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+JNZ    addr
+
+Jump if Not Zero
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfss    Z     ; If Z = 1, PC = PC+2
+       goto   addr   ; PC = addr
+
+
+
+JZ     addr
+
+Jump if Zero
+
+Words :   Cycles : 2 (3  Affects : None
+2         if jump)
+
+Coding btfsc    Z     ; If Z = 0, PC = PC+2
+       goto   addr   ; PC = addr
+LCALL  addr
+
+Long Call
+
+Words :   Cycles : 2-4   Affects : None
+1-3
+
+Coding[ bcf/bsfPCLATH.4 ]  ; Set if 8K Code
+      [ bcf/bsfPCLATH.3  ] ; Set if 4K or 8K Code
+        call   addr     ; Push PC: PC = addr
+
+
+
+LJMP   addr
+
+Long Jump
+
+Words :   Cycles : 2-4   Affects : None
+1-3
+
+Coding[ bcf/bsfPCLATH.4 ]  ; Set if 8K Code
+      [ bcf/bsfPCLATH.3  ] ; Set if 4K or 8K Code
+        goto   addr     ; PC = addr
+
+
+
+LSET   addr
+
+Long Set
+
+Words :   Cycles : 0-2   Affects : None
+0-2
+
+Coding[ bcf/bsfPCLATH.4 ]  ; Set if 8K Code
+      [ bcf/bsfPCLATH.3  ] ; Set if 4K or 8K Code
+
+
+
+MOV    fr,#lit
+
+Move literal into fr
+
+Words :   Cycles : 2     Affects : W
+2
+
+Coding movlw    lit    ; W = lit
+       movwf    fr    ; fr = W
+
+
+
+MOV    fr1,fr2
+
+Move fr2 to fr1
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr2,W    ; W = fr2
+       movwf    fr1    ; fr1 = W
+
+
+
+MOV    fr,W
+
+Move W into fr
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding movwf    fr    ; fr = W
+
+
+
+MOV    OPTION,#lit
+
+Move literal into OPTION
+
+Words :   Cycles : 2     Affects : W
+2
+
+Coding movlw    lit    ; W = lit
+       option       ; OPTION = W
+
+MOV    OPTION,fr
+
+Move fr into OPTION
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr,W   ; W = fr
+       option       ; OPTION = W
+
+
+
+MOV    OPTION,W
+
+Move W into OPTION
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding option       ; OPTION = W
+
+
+
+MOV    !fr,#lit
+
+Move literal into fr's TRIS register
+
+Words :   Cycles : 2     Affects : W
+2
+
+Coding movlw    lit    ; W = lit
+       tris   fr    ; TRIS(fr) = W
+
+
+
+MOV    !fr1,fr2
+
+Move fr2 into fr's TRIS register
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr2,W    ; W = fr2
+       tris   fr1    ; TRIS(fr1) = W
+
+MOV    !fr,W
+
+Move W into fr's TRIS register
+
+Words :   Cycles : 1     Affects : W
+1
+
+Coding tris   fr    ; TRIS(fr) = W
+
+
+
+MOV    W,#lit
+
+Move literal into W
+
+Words :   Cycles : 1     Affects : W
+1
+
+Coding movlw    lit    ; W = lit
+
+
+
+MOV    W,fr
+
+Move fr into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding movf   fr,W   ; W = fr
+
+
+
+MOV    W,/fr
+
+Move complement of fr into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding comf   fr,W   ; W = ~fr
+
+
+
+MOV    W,fr-W            (No PM Support)
+
+Move fr-W into W
+
+Words :   Cycles : 1     Affects : W, C,
+1                        DC, Z
+
+Coding subwf    fr,W   ; W = fr - W
+
+
+
+MOV    W,++fr
+
+Move fr+1 into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding incf   fr,W   ; W = fr + 1
+
+
+
+MOV    W,--fr
+
+Move fr-1 into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding decf   fr,W   ; W = fr - 1
+
+
+
+MOV    W,<<fr
+
+Move value of fr rotated left through carry into W
+
+Words :   Cycles : 1     Affects : W, C
+1
+
+Coding rlf    fr,W   ; C = fr.7: W = (fr<<1)|C
+
+
+
+MOV    W,>>fr
+
+Move value of fr rotated right through carry into W
+
+Words :   Cycles : 1     Affects : W, C
+1
+
+Coding rrf    fr,W   ; C = fr.0: W = C|(fr>>1)
+
+
+
+MOV    W,<>fr
+
+Move nibble swapped value of fr into W
+
+Words :   Cycles : 1     Affects : W
+1
+
+Coding swapf    fr,W   ; W = fr[3..0]|fr[7..4]
+
+
+
+MOVB   bit1,bit2
+
+Move bit2 into bit1
+
+Words :   Cycles : 4     Affects : None
+4
+
+Coding btfss    bit2   ; If bit2 = 1, PC = PC+2
+       bcf    bit1   ; bit1 = 0
+       btfsc    bit2   ; If bit2 = 0, PC = PC+2
+       bsf    bit1   ; bit1 = 1
+
+
+
+MOVB   bit1,/bit2
+
+Move complement of bit2 into bit1
+
+Words :   Cycles : 4     Affects : None
+4
+
+Coding btfsc    bit2   ; If bit2 = 0, PC = PC+2
+       bcf    bit1   ; bit1 = 0
+       btfss    bit2   ; If bit2 = 1, PC = PC+2
+       bsf    bit1   ; bit1 = 1
+
+
+
+MOVSZ  W,++fr
+
+Move fr+1 into W and Skip if Zero
+
+Words :   Cycles : 1 (2  Affects : W
+1         if skip)
+
+Coding incfsz fr,W   ; W = fr+1: If 0, PC = PC+2
+
+
+
+MOVSZ  W,--fr
+
+Move fr-1 into W and Skip if Zero
+
+Words :   Cycles : 1 (2  Affects : W
+1         if skip)
+
+Coding decfsz fr,W   ; W = fr-1: If 0, PC = PC+2
+
+
+
+NEG    fr
+
+Negate fr
+
+Words :   Cycles : 2     Affects : Z
+2
+
+Coding comf   fr    ; fr = ~fr
+       incf   fr    ; fr = fr + 1
+NOP
+
+No Operation
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding nop          ; Do Nothing!!!
+
+
+
+NOT    fr
+
+Complement fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding comf   fr    ; fr = ~fr
+
+
+
+NOT    W
+
+Complement W
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding xorlw    0FFh   ; W = W ^ 0FFh
+
+
+
+OR     fr,#lit
+
+OR literal into fr
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movlw    lit    ; W = lit
+       iorwf    fr    ; fr = fr  W
+
+
+
+OR     fr1,fr2
+
+OR fr2 into fr1
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr2,W    ; W = fr2
+       iorwf    fr1    ; fr1 = fr1  W
+
+
+
+OR     fr,W
+
+OR W into fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding iorwf    fr    ; fr = fr  W
+
+
+
+OR     W,#lit
+
+OR literal into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding iorlw    lit    ; W = W  lit
+
+
+
+OR     W,fr
+
+OR fr into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding iorwf    fr,W   ; W = W  fr
+
+
+
+RET                    (12-Bit Core)
+
+Return from subroutine
+
+Words :   Cycles : 2     Affects : W
+1
+
+Coding retlw    0     ; W = 0: Pop PC
+
+
+
+RET                    (14-Bit Core)
+
+Return from subroutine
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding return       ; Pop PC
+
+
+
+RETI                   (14-Bit Core)
+
+Return from interrupt
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding retfie       ; Pop PC
+
+
+
+RETW   lit1,lit2,...
+
+Return from subroutine with value(s) in W
+
+Words :   Cycles : 2     Affects : W
+?
+
+Coding  retlw    lit1     ; W = lit1: Pop PC
+      [ retlw    lit2 ]   ; W = lit2: Pop PC
+        ...
+
+
+
+RL     fr
+
+Rotate left fr through carry
+
+Words :   Cycles : 1     Affects : C
+1
+
+Coding rlf    fr    ; C = fr.7: fr = (fr<<1)|C
+
+
+RR     fr
+
+Rotate right fr through carry
+
+Words :   Cycles : 1     Affects : C
+1
+
+Coding rrf    fr    ; C = fr.0: fr = C|(fr>>1)
+
+
+
+SB     bit
+
+Skip if Bit
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfss    bit    ; If bit = 0, PC = PC+2
+
+
+
+SC
+
+Skip if Carry
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfss    C     ; If C = 0, PC = PC+2
+
+
+
+SETB   bit
+
+Set Bit
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding bsf    bit    ; bit = 1
+
+
+
+SKIP
+
+Skip next instruction
+
+Words :   Cycles : 2     Affects : None
+1
+
+Coding btfss    4,7    ; PC = PC+2
+
+
+
+SLEEP
+
+Enter Sleep mode
+
+Words :   Cycles : 1     Affects : TO, PD
+1
+
+Coding sleep          ; Enter Low Power Mode
+
+
+
+SNB    bit
+
+Skip if Not Bit
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfsc    bit    ; If bit = 0, PC = PC+2
+
+
+
+SNC
+
+Skip if Not Carry
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfsc    C     ; If C = 0, PC = PC+2
+
+
+
+SNZ
+
+Skip if Not Zero
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfsc    Z     ; If Z = 0, PC = PC+2
+
+
+
+STC
+
+Set Carry
+
+Words :   Cycles : 1     Affects : C
+1
+
+Coding bsf    C     ; C = 1
+
+
+
+STZ
+
+Set Zero
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding bsf    Z     ; Z = 1
+
+
+
+SUB    fr,#lit
+
+Subtract literal from fr
+
+Words :   Cycles : 2     Affects : W, C,
+2                        DC, Z
+
+Coding movlw    lit    ; W = lit
+       subwf    fr    ; fr = fr - W
+
+
+
+SUB    fr1,fr2
+
+Subtract fr2 from fr1
+
+Words :   Cycles : 2     Affects : W, C,
+2                        DC, Z
+
+Coding movf   fr2,W    ; W = fr2
+       subwf    fr1    ; fr1 = fr1 - W
+
+
+SUB    fr,W
+
+Subtract W from fr
+
+Words :   Cycles : 1     Affects : C, DC, Z
+1
+
+Coding subwf    fr    ; fr = fr - W
+
+
+
+SUBB   fr,bit
+
+Subtract bit from fr
+
+Words :   Cycles : 2     Affects : Z (if
+2                        bit = 1)
+
+Coding btfsc    bit    ; If bit = 0, PC = PC+2
+       decf   fr    ; fr = fr - 1
+
+
+
+SWAP   fr
+
+Swap nibble in fr
+
+Words :   Cycles : 1     Affects : None
+1
+
+Coding swapf    fr    ; fr = fr[3..0]|fr[7..4]
+
+
+
+SZ
+
+Skip if Zero
+
+Words :   Cycles : 1 (2  Affects : None
+1         if skip)
+
+Coding btfss    Z     ; If Z = 1, PC = PC+2
+
+
+
+TEST   fr
+
+Test fr for zero
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding movf   fr    ; If fr = 0, Z=1 Else Z=0
+
+
+
+XOR    fr,#lit
+
+XOR literal into fr
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movlw    lit    ; W = lit
+       xorwf    fr    ; fr = fr  W
+
+
+
+XOR    fr1,fr2
+
+XOR fr2 into fr1
+
+Words :   Cycles : 2     Affects : W, Z
+2
+
+Coding movf   fr2,W    ; W = fr2
+       xorwf    fr1    ; fr1 = fr1  W
+
+
+XOR    fr,W
+
+XOR W into fr
+
+Words :   Cycles : 1     Affects : Z
+1
+
+Coding xorwf    fr    ; fr = fr  W
+
+
+
+XOR    W,#lit
+
+XOR literal into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding xorlw    lit    ; W = W  lit
+
+
+
+XOR    W,fr
+
+XOR fr into W
+
+Words :   Cycles : 1     Affects : W, Z
+1
+
+Coding xorwf    fr,W   ; W = W  fr
+

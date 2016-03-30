@@ -1,0 +1,9 @@
+telnet in other window to localhost:6607
+out 128 0x41 - should print 'A' to telnet window
+out 0 3
+in 0 until 0x01 or 0xff returned
+type something in telnet and enter
+out 0 3
+in 0 until 0x01 or 0xff returned
+out 0 4
+in 0 until 0x01 or 0xff returned, then one more yields character
