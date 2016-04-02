@@ -11,19 +11,8 @@
 #include "defs.h"
 #include "delay.h"
 #include "leds.h"
-
-void set_GPIO_value(GPIO_TypeDef* gpio, int mask, int value)
-{
-    unsigned long int data = value ? mask : 0;
-    gpio->ODR = (gpio->ODR & ~mask) | data;
-}
-
-void set_GPIO_iotype(GPIO_TypeDef* gpio, int pin, unsigned int iotype)
-{
-    long unsigned int mask = ~(3U << (pin * 2));
-    long unsigned int value = iotype << (pin * 2);
-    gpio->MODER = (gpio->MODER & mask) | value;
-}
+#include "byte_queue.h"
+#include "gpio_helpers.h"
 
 void panic_worse()
 {
@@ -157,52 +146,6 @@ void system_init()
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     delay_init();
-}
-
-
-//----------------------------------------------------------------------------
-// Byte consumer-producer queue
-
-struct queue {
-    short next_head;
-    short tail;
-    unsigned short capacity;
-    unsigned char queue[];
-};
-
-void queue_init(volatile struct queue *q, unsigned short capacity)
-{
-    q->next_head = 0;
-    q->tail = 0;
-    q->capacity = capacity;
-}
-
-// Protect with critical section if not called from producer
-int queue_isfull(volatile struct queue *q)
-{
-    int length = (q->next_head + q->capacity - q->tail) % q->capacity;
-    return length == q->capacity - 1;
-}
-
-// Protect with critical section if not called from consumer
-int queue_isempty(volatile struct queue *q)
-{
-    return q->next_head == q->tail;
-}
-
-// Protect with critical section if not called from producer
-void queue_enq(volatile struct queue *q, unsigned char d)
-{
-    q->queue[q->next_head] = d;
-    q->next_head = (q->next_head + 1) % q->capacity;
-}
-
-// Protect with critical section if not called from consumer
-unsigned char queue_deq(volatile struct queue *q)
-{
-    unsigned char d = q->queue[q->tail];
-    q->tail = (q->tail + 1) % q->capacity;
-    return d;
 }
 
 
