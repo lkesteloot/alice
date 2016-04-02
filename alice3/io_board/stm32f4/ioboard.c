@@ -14,8 +14,10 @@
 #include "leds.h"
 #include "byte_queue.h"
 #include "gpio_helpers.h"
+#include "utility.h"
 
 #include "monitor_queue.h"
+#include "console_queue.h"
 
 void panic_worse()
 {
@@ -99,45 +101,6 @@ void system_init()
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     delay_init();
-}
-
-
-
-//----------------------------------------------------------------------------
-// Console input queue
-
-unsigned char gConsoleOverflowed = 0;
-
-#define CON_QUEUE_CAPACITY 64
-struct con_queue_struct {
-    struct queue q;
-    unsigned char queue[CON_QUEUE_CAPACITY];
-};
-volatile struct con_queue_struct con_queue;
-
-void console_enqueue_key(unsigned char d)
-{
-    unsigned char full;
-    disable_interrupts();
-    full = queue_isfull(&con_queue.q);
-    if(full) {
-        gConsoleOverflowed = 1;
-    } else {
-        queue_enq(&con_queue.q, d);
-    }
-    enable_interrupts();
-}
-
-// Call this from ISR, so skip di/ei
-void console_enqueue_key_unsafe(unsigned char d)
-{
-    unsigned char full;
-    full = queue_isfull(&con_queue.q);
-    if(full) {
-        gConsoleOverflowed = 1;
-    } else {
-        queue_enq(&con_queue.q, d);
-    }
 }
 
 
@@ -349,7 +312,9 @@ void kbd_process_byte(unsigned char kbd_byte)
                             else 
                                 putchar('\n');
                         }
-                        console_enqueue_key(c);
+                        disable_interrupts();
+                        console_enqueue_key_unsafe(c);
+                        enable_interrupts();
                     }
                 break;
         }
@@ -2690,7 +2655,9 @@ void process_monitor_queue()
                 printf("Serial input returned to monitor\n");
             } else {
                 escapeBackToMonitor = 0;
-                console_enqueue_key(c);
+                disable_interrupts();
+                console_enqueue_key_unsafe(c);
+                enable_interrupts();
             }
         }
     }

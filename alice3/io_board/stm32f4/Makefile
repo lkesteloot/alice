@@ -27,6 +27,7 @@ OBJECTS = \
         delay.o \
         leds.o \
         monitor_queue.o \
+        console_queue.o \
         utility.o \
         $(NULL)
 
