@@ -865,6 +865,74 @@ void response_clear()
 
 
 //----------------------------------------------------------------------------
+// Z80 reset button and /RESET signal
+
+#define RESET_BUTTON_PORT GPIOB
+#define RESET_BUTTON_PIN_MASK GPIO_PIN_5
+#define RESET_BUTTON_IRQn EXTI9_5_IRQn
+#define RESET_BUTTON_DELAY_MS 10
+
+#define Z80_RESET_PORT GPIOB
+#define Z80_RESET_PIN_MASK GPIO_PIN_0
+#define Z80_RESET_ACTIVE 0
+#define Z80_RESET_INACTIVE Z80_RESET_PIN_MASK
+#define Z80_RESET_DURATION_MS 10
+
+volatile int gZ80IsInRESET = 0;
+
+void BUS_reset_init()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
+    gZ80IsInRESET = 1;
+}
+
+void BUS_reset_start()
+{
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
+    gZ80IsInRESET = 1;
+    delay_ms(Z80_RESET_DURATION_MS);
+}
+
+void BUS_reset_finish()
+{
+    gZ80IsInRESET = 0;
+    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
+}
+
+volatile int gResetTheZ80 = 0;
+
+void RESET_BUTTON_init()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
+
+    /* Enable and set interrupt priority */
+    HAL_NVIC_SetPriority(RESET_BUTTON_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(RESET_BUTTON_IRQn);
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+    __HAL_GPIO_EXTI_CLEAR_IT(RESET_BUTTON_PIN_MASK);
+    NVIC_ClearPendingIRQ(RESET_BUTTON_IRQn);
+
+    gResetTheZ80 = 1;
+}
+
+
+//----------------------------------------------------------------------------
 // Alice 3 system bus
 
 #define MEMORY_DELAY_MICROS     10
@@ -918,20 +986,29 @@ void response_clear()
 #define BUS_HALT_PIN 15
 #define BUS_HALT_PORT GPIOA
 
-volatile int gZ80IsInRESET = 0;
 volatile int gZ80IsInHALT = 0;
 
-void BUS_acquire_bus()
+void BUS_acquire_bus(int releaseReset)
 {
     set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_OUTPUT_PP);
     set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_ACTIVE);
+
+    if(releaseReset)
+        BUS_reset_finish();
+
     while(HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
 }
 
-void BUS_release_bus()
+void BUS_release_bus(int startReset)
 {
     set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
-    while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+
+    if(startReset) {
+        BUS_reset_finish();
+    } else {
+        while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+    }
+
     set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_INPUT);
 }
 
@@ -1192,6 +1269,7 @@ void BUS_write_memory_byte(unsigned int a, unsigned char d)
     BUS_set_DATA(d);
 
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
+    DWT_Delay(1);
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_ACTIVE);
 
     DWT_Delay(MEMORY_DELAY_MICROS);
@@ -1210,12 +1288,13 @@ unsigned char BUS_read_memory_byte(unsigned int a)
     BUS_set_ADDRESS(a);
 
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
+    DWT_Delay(1);
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
 
     DWT_Delay(MEMORY_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_WR_ACTIVE);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 
     return d;
@@ -1261,10 +1340,14 @@ unsigned char BUS_read_io_byte(unsigned int a)
     return d;
 }
 
+int gInRESETBeforeMastering = 0;
+
+// Saves
 void BUS_mastering_start()
 {
-    if(!gZ80IsInRESET && !gZ80IsInHALT)
-        BUS_acquire_bus();
+    gInRESETBeforeMastering = !HAL_GPIO_ReadPin(Z80_RESET_PORT, Z80_RESET_PIN_MASK);
+    BUS_acquire_bus(gInRESETBeforeMastering);
+
     BUS_set_ADDRESS(0);
     BUS_set_ADDRESS_as_output();
 
@@ -1288,8 +1371,8 @@ void BUS_mastering_finish()
     HAL_NVIC_EnableIRQ(EXTI1_IRQn); // /RD will interrupt
 
     BUS_set_ADDRESS_as_input();
-    if(!gZ80IsInRESET && !gZ80IsInHALT)
-        BUS_release_bus();
+
+    BUS_release_bus(gInRESETBeforeMastering);
 }
 
 void BUS_init()
@@ -1389,7 +1472,7 @@ void BUS_read_memory_block(unsigned int a, unsigned int l, unsigned char *b)
     }
 }
 
-// Caller has to guarantee A and D access will not collide with
+// Guarantees no collisions through BUSRQ
 // another peripheral; basically either Z80 BUSRQ or RESET
 void BUS_write_IO(int io, unsigned char byte)
 {
@@ -1402,67 +1485,6 @@ void BUS_write_IO(int io, unsigned char byte)
     BUS_set_DATA_as_input();
     BUS_set_DATA(gNextByteForReading);
     BUS_mastering_finish();
-}
-
-
-//----------------------------------------------------------------------------
-// Alice 3 ROM (boot) image
-
-unsigned char *gZ80BootImage;
-unsigned int gZ80BootImageLength;
-
-// Caller has to guarantee A and D access will not collide with
-// another peripheral; basically either Z80 BUSRQ or RESET
-int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_length)
-{
-    int succeeded = 1;
-
-    if(romimage_bytes == NULL) {
-        printf("BUS_write_ROM_image : Z80 boot image is undefined (gZ80BootImage == NULL)\n");
-        return 0;
-    }
-
-    if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
-
-        for(unsigned int a = 0; a < romimage_length; a++)
-            ccmram_set(shuffle_address(a), romimage_bytes[a]);
-
-        for(unsigned int a = 0; a < romimage_length; a++) {
-            unsigned char t = ccmram_get(shuffle_address(a));
-            if(t != romimage_bytes[a]) {
-                printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-                succeeded = 0;
-                break;
-            }
-        }
-
-    } else {
-
-        BUS_mastering_start();
-
-        BUS_set_DATA(0);
-        BUS_set_DATA_as_output();
-
-        for(unsigned int a = 0; a < romimage_length; a++)
-            BUS_write_memory_byte(a, romimage_bytes[a]);
-
-        BUS_set_DATA_as_input();
-
-        for(unsigned int a = 0; a < romimage_length; a++) {
-            unsigned char t = BUS_read_memory_byte(a);
-            if(t != romimage_bytes[a]) {
-                printf("BUS_write_ROM_image : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
-                succeeded = 0;
-                break;
-            }
-        }
-
-        BUS_set_DATA(gNextByteForReading);
-        BUS_mastering_finish();
-
-    }
-
-    return succeeded;
 }
 
 
@@ -1498,6 +1520,83 @@ void VIDEO_start_clock()
     BUS_mastering_finish();
 }
 
+
+//----------------------------------------------------------------------------
+// Alice 3 ROM (boot) image
+
+unsigned char *gZ80BootImage;
+unsigned int gZ80BootImageLength;
+
+// Caller has to guarantee A and D access will not collide with
+// another peripheral; basically either Z80 BUSRQ or RESET
+int BUS_write_ROM_image(unsigned char *romimage_bytes, unsigned int romimage_length)
+{
+    int succeeded = 1;
+
+    if(romimage_bytes == NULL) {
+        printf("BUS_write_ROM_image : Z80 boot image is undefined (gZ80BootImage == NULL)\n");
+        return 0;
+    }
+
+    if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
+
+        for(unsigned int a = 0; a < romimage_length; a++)
+            ccmram_set(shuffle_address(a), romimage_bytes[a]);
+
+        for(unsigned int a = 0; a < romimage_length; a++) {
+            unsigned char t = ccmram_get(shuffle_address(a));
+            if(t != romimage_bytes[a]) {
+                printf("BUS_write_ROM_image ccmram: expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+                succeeded = 0;
+                break;
+            }
+        }
+
+    } else {
+
+        BUS_mastering_start();
+
+        BUS_set_DATA(0);
+        BUS_set_DATA_as_output();
+
+        for(unsigned int a = 0; a < romimage_length; a++)
+            BUS_write_memory_byte(a, romimage_bytes[a]);
+
+        BUS_set_DATA_as_input();
+
+        for(unsigned int a = 0; a < romimage_length; a++) {
+            unsigned char t = BUS_read_memory_byte(a);
+            if(t != romimage_bytes[a]) {
+                printf("BUS_write_ROM_image bus : expected 0x%02X byte at RAM address 0x%04X, read 0x%02X\n", romimage_bytes[a], a, t);
+                succeeded = 0;
+                // break;
+            }
+        }
+
+        BUS_set_DATA(gNextByteForReading);
+        BUS_mastering_finish();
+
+    }
+
+    return succeeded;
+}
+
+
+//----------------------------------------------------------------------------
+// reset the Z80 and restore to initial booting state
+
+void Z80_reset()
+{
+    BUS_reset_start();
+    VIDEO_start_clock();
+
+    response_clear();
+    command_clear();
+
+    BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength);
+
+    BUS_reset_finish();
+}
 
 //----------------------------------------------------------------------------
 // stdio
@@ -1538,86 +1637,6 @@ void logprintf(int level, char *fmt, ...)
 
     if(!(gOutputDevices & OUTPUT_TO_VIDEO) && (level <= DEBUG_WARNINGS))
         VIDEO_output_string(dummy, 1);
-}
-
-
-//----------------------------------------------------------------------------
-// Alice 3 Bus /RESET
-
-#define RESET_BUTTON_PORT GPIOB
-#define RESET_BUTTON_PIN_MASK GPIO_PIN_5
-#define RESET_BUTTON_IRQn EXTI9_5_IRQn
-#define RESET_BUTTON_DELAY_MS 10
-
-#define Z80_RESET_PORT GPIOB
-#define Z80_RESET_PIN_MASK GPIO_PIN_0
-#define Z80_RESET_ACTIVE 0
-#define Z80_RESET_INACTIVE Z80_RESET_PIN_MASK
-#define Z80_RESET_DURATION_MS 10
-
-void BUS_reset_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
-    gZ80IsInRESET = 1;
-}
-
-void BUS_reset_start()
-{
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
-    gZ80IsInRESET = 1;
-    delay_ms(Z80_RESET_DURATION_MS);
-}
-
-void BUS_reset_finish()
-{
-    gZ80IsInRESET = 0;
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
-}
-
-volatile int gResetTheZ80 = 0;
-
-void RESET_BUTTON_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
-
-    /* Enable and set interrupt priority */
-    HAL_NVIC_SetPriority(RESET_BUTTON_IRQn, 2, 0);
-    HAL_NVIC_EnableIRQ(RESET_BUTTON_IRQn);
-}
-
-void EXTI9_5_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(RESET_BUTTON_PIN_MASK);
-    NVIC_ClearPendingIRQ(RESET_BUTTON_IRQn);
-
-    gResetTheZ80 = 1;
-}
-
-void Z80_reset()
-{
-    BUS_reset_start();
-
-    response_clear();
-    command_clear();
-
-    BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength);
-
-    VIDEO_start_clock();
-
-    BUS_reset_finish();
 }
 
 
@@ -2376,6 +2395,7 @@ void usage()
     printf("version    - print firmware build version\n");
     printf("read N     - read and dump block N\n");
     printf("low128     - dump low 128 bytes from RAM (resetting Z80!!)\n");
+    printf("bus        - print bus signals\n");
     printf("panic      - force panic\n");
     printf("flashinfo  - force flashing the info LED\n");
 }
@@ -2426,6 +2446,32 @@ void process_local_key(unsigned char c)
             printf("panicking now\n");
             panic();
 
+        } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
+
+            printf("RESET %s\n", HAL_GPIO_ReadPin(Z80_RESET_PORT, Z80_RESET_PIN_MASK) ? "high" : "low");
+            printf("HALT %s\n", HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK) ? "high" : "low");
+            printf("IORQ %s\n", HAL_GPIO_ReadPin(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK) ? "high" : "low");
+            printf("MREQ %s\n", HAL_GPIO_ReadPin(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK) ? "high" : "low");
+            printf("RD %s\n", HAL_GPIO_ReadPin(BUS_RD_PORT, BUS_RD_PIN_MASK) ? "high" : "low");
+            printf("WR %s\n", HAL_GPIO_ReadPin(BUS_WR_PORT, BUS_WR_PIN_MASK) ? "high" : "low");
+            printf("BUSRQ %s\n", HAL_GPIO_ReadPin(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK) ? "high" : "low");
+            printf("BUSAK %s\n", HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK) ? "high" : "low");
+
+        } else if(strncmp(gMonitorCommandLine, "chaff ", 6) == 0) {
+
+            char *p = gMonitorCommandLine + 5;
+            while(*p == ' ')
+                p++;
+            int addr = strtol(p, NULL, 0);
+
+            BUS_mastering_start();
+            BUS_set_DATA_as_input();
+            BUS_set_ADDRESS(addr);
+            set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
+            DWT_Delay(1);
+            set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
+            DWT_Delay(1);
+
         } else if(strcmp(gMonitorCommandLine, "low128") == 0) {
 
             BUS_reset_start();
@@ -2436,7 +2482,7 @@ void process_local_key(unsigned char c)
             printf("low 128 bytes of RAM:\n");
             dump_buffer_hex(4, buf, sizeof(buf));
 
-            BUS_reset_finish();
+            // BUS_reset_finish();
 
         } else if(strcmp(gMonitorCommandLine, "reset") == 0) {
 
@@ -2953,6 +2999,47 @@ void VIDEO_wait()
 
 const int gStandaloneARM = 0;
 
+#define ALICE3_SRAM_SIZE (256 * 1024)
+
+int BUS_check_RAM()
+{
+    int succeeded = 1;
+
+    if((ALICE3_VERSION == ALICE3_V3) && !ALICE3_V3_ARM_IS_RAM) {
+        int t;
+
+        BUS_mastering_start();
+
+        BUS_set_DATA(0);
+        BUS_set_DATA_as_output();
+
+        t = 0;
+        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
+            BUS_write_memory_byte(a, t);
+            t = (t + 251) % 256;
+        }
+
+        BUS_set_DATA_as_input();
+
+        t = 0;
+        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
+            unsigned char q = BUS_read_memory_byte(a);
+            if(q != t) {
+                printf("BUS_check_RAM : expected 0x%02X byte at RAM address 0x%X, read 0x%02X\n", t, a, q);
+                succeeded = 0;
+                break;
+            }
+            t = (t + 251) % 256;
+        }
+
+        BUS_set_DATA(gNextByteForReading);
+        BUS_mastering_finish();
+
+    }
+
+    return succeeded;
+}
+
 int main()
 {
     system_init();
@@ -2981,10 +3068,19 @@ int main()
         VIDEO_init();
         VIDEO_wait();
 
-        BUS_reset_init();
+	BUS_reset_init(); // Pull Z80 RESET low (active), but Z80
+			  // may not actually reset until some clock
+			  // cycles have run.  So run clock below before
+                          // trying to access bus
         BUS_init();
 
+        VIDEO_start_clock();
         VIDEO_output_string("Alice 3 I/O firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
+
+        if(!BUS_check_RAM()) {
+            panic();
+        }
+
     }
 
     SPI_config_for_sd();
@@ -3021,16 +3117,17 @@ int main()
     if(!success) {
         panic();
     }
-    for(int i = 0; i < gDiskImageCount; i++) {
-        printf("disk %c: \"%s\"\n", 'A' + i, gDiskImageFilenames[i]);
-    }
+    if(0)
+        for(int i = 0; i < gDiskImageCount; i++) {
+            printf("disk %c: \"%s\"\n", 'A' + i, gDiskImageFilenames[i]);
+        }
     success = open_disk_images();
     if(!success) {
         panic();
     }
     LED_beat_heart();
 
-    {
+    if(0) {
         unsigned char block[128];
         UINT wasread;
         for(int i = 0; i < gDiskImageCount; i++) {
@@ -3049,7 +3146,6 @@ int main()
         if(!BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength)) {
             // panic();
         }
-        VIDEO_start_clock();
         delay_ms(1); // XXX delay for at least 4 Z80 clock cycles, maybe 10us
         BUS_reset_finish();
     }
