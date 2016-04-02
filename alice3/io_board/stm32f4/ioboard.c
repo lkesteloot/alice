@@ -3,22 +3,13 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "defs.h"
+#include <stm32f4xx_hal.h>
 
 #include "ff.h"
 #include "diskio.h"
 
-#include <stm32f4xx_hal.h>
-
-void delay_ms(int ms)
-{
-    HAL_Delay(ms);
-}
-
-void delay_100ms(unsigned char count)
-{
-    HAL_Delay(count * 100);
-}
+#include "defs.h"
+#include "delay.h"
 
 void set_GPIO_value(GPIO_TypeDef* gpio, int mask, int value)
 {
@@ -170,36 +161,6 @@ void dump_buffer_hex(int indent, const unsigned char *data, int size)
 }
 
 //----------------------------------------------------------------------------
-// From: https://kbiva.wordpress.com/2013/03/25/microsecond-delay-function-for-stm32/
-
-void DWT_Init(void) 
-{
-  if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) 
-  {
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-  }
-}
- 
-uint32_t DWT_Get(void)
-{
-  return DWT->CYCCNT;
-}
- 
-__inline
-uint8_t DWT_Compare(int32_t tp)
-{
-  return (((int32_t)DWT_Get() - tp) < 0);
-}
- 
-void DWT_Delay(uint32_t us) // microseconds
-{
-  int32_t tp = DWT_Get() + us * (SystemCoreClock/1000000);
-  while (DWT_Compare(tp));
-}
-
-//----------------------------------------------------------------------------
 // System Initialization Goop
 
 static void SystemClock_Config(void)
@@ -251,7 +212,7 @@ void system_init()
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    DWT_Init();
+    delay_init();
 }
 
 
@@ -1255,10 +1216,10 @@ void BUS_write_memory_byte(unsigned int a, unsigned char d)
     BUS_set_DATA(d);
 
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
-    DWT_Delay(1);
+    delay_us(1);
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_ACTIVE);
 
-    DWT_Delay(MEMORY_DELAY_MICROS);
+    delay_us(MEMORY_DELAY_MICROS);
 
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
@@ -1274,10 +1235,10 @@ unsigned char BUS_read_memory_byte(unsigned int a)
     BUS_set_ADDRESS(a);
 
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
-    DWT_Delay(1);
+    delay_us(1);
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
 
-    DWT_Delay(MEMORY_DELAY_MICROS);
+    delay_us(MEMORY_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
 
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
@@ -1299,7 +1260,7 @@ void BUS_write_io_byte(unsigned int a, unsigned char d)
     set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_ACTIVE);
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_ACTIVE);
 
-    DWT_Delay(IO_DELAY_MICROS);
+    delay_us(IO_DELAY_MICROS);
 
     set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
     set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
@@ -1317,7 +1278,7 @@ unsigned char BUS_read_io_byte(unsigned int a)
     set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_ACTIVE);
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
 
-    DWT_Delay(IO_DELAY_MICROS);
+    delay_us(IO_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
 
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
@@ -2454,9 +2415,9 @@ void process_local_key(unsigned char c)
             BUS_set_DATA_as_input();
             BUS_set_ADDRESS(addr);
             set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
-            DWT_Delay(1);
+            delay_us(1);
             set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
-            DWT_Delay(1);
+            delay_us(1);
 
         } else if(strcmp(gMonitorCommandLine, "low128") == 0) {
 
