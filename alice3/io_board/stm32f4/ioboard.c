@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include <stm32f4xx_hal.h>
 
@@ -13,6 +14,8 @@
 #include "leds.h"
 #include "byte_queue.h"
 #include "gpio_helpers.h"
+
+#include "monitor_queue.h"
 
 void panic_worse()
 {
@@ -43,54 +46,11 @@ static void panic(void)
     }
 }
 
+#define BELL '\a'
+
 void bell()
 {
-    putchar('\a');
-}
-
-int isprint(unsigned char a)
-{
-    return (a >= ' ') && (a <= '~');
-}
-
-unsigned char gConsoleOverflowed = 0;
-unsigned char gKeyboardOverflowed = 0;
-
-enum DebugLevels {
-    DEBUG_SILENT = 0,
-    DEBUG_ERRORS,
-    DEBUG_WARNINGS,
-    DEBUG_EVENTS,
-    DEBUG_DATA,
-    DEBUG_ALL,
-    DEBUG_INSANE = 99,
-};
-int gDebugLevel = DEBUG_WARNINGS;
-
-void dump_buffer_hex(int indent, const unsigned char *data, int size)
-{
-    int address = 0;
-    int i;
-
-    while(size > 0) {
-        int howmany = (size < 16) ? size : 16;
-
-        printf("%*s0x%04X: ", indent, "", address);
-        for(i = 0; i < howmany; i++)
-            printf("%02X ", data[i]);
-        printf("\n");
-        serial_flush();
-
-        printf("%*s        ", indent, "");
-        for(i = 0; i < howmany; i++)
-            printf(" %c ", isprint(data[i]) ? data[i] : '.');
-        printf("\n");
-        serial_flush();
-
-        size -= howmany;
-        data += howmany;
-        address += howmany;
-    }
+    putchar(BELL);
 }
 
 //----------------------------------------------------------------------------
@@ -149,27 +109,11 @@ void system_init()
 }
 
 
-//----------------------------------------------------------------------------
-// Monitor input queue
-
-#define MON_QUEUE_CAPACITY 32
-struct mon_queue_struct {
-    struct queue q;
-    unsigned char queue[MON_QUEUE_CAPACITY];
-};
-volatile struct mon_queue_struct mon_queue;
-
-// Call this from ISR, so skip di/ei
-void monitor_enqueue_key_unsafe(unsigned char d)
-{
-    if(!queue_isfull(&mon_queue.q)) {
-        queue_enq(&mon_queue.q, d);
-    }
-}
-
 
 //----------------------------------------------------------------------------
 // Console input queue
+
+unsigned char gConsoleOverflowed = 0;
 
 #define CON_QUEUE_CAPACITY 64
 struct con_queue_struct {
@@ -206,6 +150,8 @@ void console_enqueue_key_unsafe(unsigned char d)
 
 //----------------------------------------------------------------------------
 // AT and PS/2 Keyboard processing
+
+unsigned char gKeyboardOverflowed = 0;
 
 #define KBD_QUEUE_CAPACITY 16
 struct kbd_queue_struct {
@@ -1450,6 +1396,17 @@ void __io_putchar( char c )
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
     }
 }
+
+enum DebugLevels {
+    DEBUG_SILENT = 0,
+    DEBUG_ERRORS,
+    DEBUG_WARNINGS,
+    DEBUG_EVENTS,
+    DEBUG_DATA,
+    DEBUG_ALL,
+    DEBUG_INSANE = 99,
+};
+int gDebugLevel = DEBUG_WARNINGS;
 
 void logprintf(int level, char *fmt, ...)
 {

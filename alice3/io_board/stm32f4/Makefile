@@ -23,9 +23,11 @@ OBJECTS = \
         STM32Cube4/stm32f4xx_hal_spi.o \
         STM32Cube4/stm32f4xx_hal.o \
         syscalls.o \
+        ff.o \
         delay.o \
         leds.o \
-        ff.o \
+        monitor_queue.o \
+        utility.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)
