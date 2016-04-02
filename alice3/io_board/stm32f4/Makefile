@@ -28,6 +28,7 @@ OBJECTS = \
         leds.o \
         monitor_queue.o \
         console_queue.o \
+        ps2_keyboard.o \
         utility.o \
         $(NULL)
 

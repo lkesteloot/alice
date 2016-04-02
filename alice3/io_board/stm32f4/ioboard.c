@@ -18,6 +18,7 @@
 
 #include "monitor_queue.h"
 #include "console_queue.h"
+#include "ps2_keyboard.h"
 
 void panic_worse()
 {
@@ -101,274 +102,6 @@ void system_init()
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     delay_init();
-}
-
-
-//----------------------------------------------------------------------------
-// AT and PS/2 Keyboard processing
-
-unsigned char gKeyboardOverflowed = 0;
-
-#define KBD_QUEUE_CAPACITY 16
-struct kbd_queue_struct {
-    struct queue q;
-    unsigned char queue[KBD_QUEUE_CAPACITY];
-};
-volatile struct kbd_queue_struct kbd_queue;
-
-// Keyboard I/O constants
-#define KBD_BIT_COUNT 11
-
-volatile short kbd_bits = 0;
-volatile unsigned short kbd_data = 0;
-volatile char up_key_flag = 0;
-volatile char kbd_shift_status = 0;
-volatile char kbd_alt_status = 0;
-volatile char kbd_ctrl_status = 0;
-
-volatile unsigned char dump_keyboard_data = 0;
-
-#define LSHIFT_KEY 0x12
-#define RSHIFT_KEY 0x59
-#define CTRL_KEY 0x14
-#define ALT_KEY 0x11
-#define UP_KEY 0xF0
-#define EXT_KEY 0xE0
-#define EXT2_KEY 0xE1
-
-// Normal, shift, ctrl, alt
-const unsigned char kbd_table[] = {
-   '?', '?', '?', '?',
-   '9', '9', '9', '9',
-   '?', '?', '?', '?',
-   '5', '5', '5', '5',
-   '3', '3', '3', '3',
-   '1', '1', '1', '1',
-   '2', '2', '2', '2',
-   '1', '1', '1', '1',
-   '?', '?', '?', '?',
-   '1', '1', '1', '1',
-   '8', '8', '8', '8',
-   '6', '6', '6', '6',
-   '4', '4', '4', '4',
-   9,   9,   9,   9,
-   '`', '~', '`', '`',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   'q', 'Q',  17,  17,
-   '1', '!', '1', '1',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   'z', 'Z',  26,  26,
-   's', 'S',  19,  19,
-   'a', 'A',   1,   1,
-   'w', 'W',  23,  23,
-   '2', '@', '2', '2',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   'c', 'C',   3,   3,
-   'x', 'X',  24,  24,
-   'd', 'D',   4,   4,
-   'e', 'E',   5,   5,
-   '4', '$', '4', '4',
-   '3', '#', '3', '3',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   ' ', ' ', ' ', ' ' ,
-   'v', 'V',  22,  22,
-   'f', 'F',   6,   6,
-   't', 'T',  20,  20,
-   'r', 'R',  18,  18,
-   '5', '%', '5', '5',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   'n', 'N',  14,  14,
-   'b', 'B',   2,   2,
-   'h', 'H',   8,   8,
-   'g', 'G',   7,   7,
-   'y', 'Y',  25,  25,
-   '6', '^', '6', '6',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   'm', 'M',  13,  13,
-   'j', 'J',  10,  10,
-   'u', 'U',  21,  21,
-   '7', '&', '7', '7',
-   '8', '*', '8', '8',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   ',', '<', ',', ',',
-   'k', 'K',  11,  11,
-   'i', 'I',   9,   9,
-   'o', 'O',  15,  15,
-   '0', ')', '0', '0',
-   '9', '(', '9', '9',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '.', '>', '.', '.',
-   '/', '?', '/', '/',
-   'l', 'L',  12,  12,
-   ';', ':', ';', ';',
-   'p', 'P',  16,  16,
-   '-', '_', '-', '-',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   39, '"',  39,  39,
-   '?', '?', '?', '?',
-   '[', '{', '[', '[',
-   '=', '+', '=', '=',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   13,  13,  13,  13,
-   ']', '}', ']', ']',
-   '?', '?', '?', '?',
-   92, '|',  92,  92,
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   8,   8,   8,   8,
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '1', '1', '1', '1',
-   '?', '?', '?', '?',
-   '4', '4', '4', '4',
-   '7', '7', '7', '7',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-   '0', '0', '0', '0',
-   '.', '.', '.', '.',
-   '2', '2', '2', '2',
-   '5', '5', '5', '5',
-   '6', '6', '6', '6',
-   '8', '8', '8', '8',
-   27,  27,  27,  27,
-   '?', '?', '?', '?',
-   '1', '1', '1', '1',
-   '+', '+', '+', '+',
-   '3', '3', '3', '3',
-   '-', '-', '-', '-',
-   '*', '*', '*', '*',
-   '9', '9', '9', '9',
-   '?', '?', '?', '?',
-   '?', '?', '?', '?',
-};
-
-unsigned char kbd_lookup(int shift, int alt, int ctrl, unsigned char byte)
-{
-    int which = 0;
-    if(shift) which = 1;
-    else if(ctrl) which = 2;
-    else if(alt) which = 3;
-    return kbd_table[byte * 4 + which];
-}
-
-void kbd_process_byte(unsigned char kbd_byte)
-{
-    if(kbd_byte == UP_KEY) {
-        up_key_flag = 1;
-        if(dump_keyboard_data) 
-            printf("keyboard key up\n");
-    } else {
-        switch(kbd_byte) {
-            case LSHIFT_KEY:
-            case RSHIFT_KEY:
-                kbd_shift_status = !up_key_flag;
-                if(dump_keyboard_data) 
-                    printf("shift status is now %d\n", kbd_shift_status);
-                break;
-            case ALT_KEY:
-                kbd_alt_status = !up_key_flag;
-                if(dump_keyboard_data) 
-                    printf("alt status is now %d\n", kbd_alt_status);
-                break;
-            case CTRL_KEY:
-                kbd_ctrl_status = !up_key_flag;
-                if(dump_keyboard_data) 
-                    printf("ctrl status is now %d\n", kbd_ctrl_status);
-                break;
-            default:
-                if(!up_key_flag)
-                    if(!(kbd_byte & 0x80)) {
-                        unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
-                        if(dump_keyboard_data) {
-                            printf("keyboard ASCII: %02X", c);
-                            if(isprint(c))
-                                printf("(%c)\n", c);
-                            else 
-                                putchar('\n');
-                        }
-                        disable_interrupts();
-                        console_enqueue_key_unsafe(c);
-                        enable_interrupts();
-                    }
-                break;
-        }
-        up_key_flag = 0;
-    }
-}
-
-#define KEYBOARD_CLOCK_PIN_MASK GPIO_PIN_11
-#define KEYBOARD_CLOCK_PORT GPIOB
-
-#define KEYBOARD_DATA_PIN_MASK GPIO_PIN_12
-#define KEYBOARD_DATA_PORT GPIOB
-
-void KBD_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    // There's a possibility we could use USART for this
-    // and remove some CPU work
-
-    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
-
-    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
-
-    /* Enable and set EXTI Line15-10 interrupt */
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
-
-void EXTI15_10_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN_MASK);
-    NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-
-    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN_MASK;
-    unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
-
-    kbd_data = (kbd_data >> 1) | (keyboard_data << 10);
-    kbd_bits++;
-    if(kbd_bits == KBD_BIT_COUNT) {
-        if(queue_isfull(&kbd_queue.q)) {
-            gKeyboardOverflowed = 1;
-        } else {
-            queue_enq(&kbd_queue.q, (kbd_data >> 1) & 0xff);
-        }
-        kbd_data = 0;
-        kbd_bits = 0;
-    }
 }
 
 
@@ -1389,6 +1122,88 @@ void logprintf(int level, char *fmt, ...)
 }
 
 
+//----------------------------------------------------------------------------
+// AT and PS/2 Keyboard processing
+
+#define KBD_QUEUE_CAPACITY 16
+
+struct kbd_queue_struct {
+    struct queue q;
+    unsigned char queue[KBD_QUEUE_CAPACITY];
+};
+volatile struct kbd_queue_struct kbd_queue;
+
+#define KEYBOARD_CLOCK_PIN_MASK GPIO_PIN_11
+#define KEYBOARD_CLOCK_PORT GPIOB
+
+#define KEYBOARD_DATA_PIN_MASK GPIO_PIN_12
+#define KEYBOARD_DATA_PORT GPIOB
+
+// Keyboard I/O constants
+#define KBD_BIT_COUNT 11
+
+volatile short kbd_bits = 0;
+volatile unsigned short kbd_data = 0;
+void KBD_init()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    // There's a possibility we could use USART for this
+    // and remove some CPU work
+
+    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
+
+    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
+
+    /* Enable and set EXTI Line15-10 interrupt */
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+}
+
+void EXTI15_10_IRQHandler(void)
+{
+    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN_MASK);
+    NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+
+    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN_MASK;
+    unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
+
+    kbd_data = (kbd_data >> 1) | (keyboard_data << 10);
+    kbd_bits++;
+    if(kbd_bits == KBD_BIT_COUNT) {
+        if(queue_isfull(&kbd_queue.q)) {
+            gKeyboardOverflowed = 1;
+        } else {
+            queue_enq(&kbd_queue.q, (kbd_data >> 1) & 0xff);
+        }
+        kbd_data = 0;
+        kbd_bits = 0;
+    }
+}
+
+void KBD_process_queue()
+{
+    int isEmpty = queue_isempty(&kbd_queue.q);
+    if(!isEmpty) {
+        unsigned char kb = queue_deq(&kbd_queue.q);
+        if(gDumpKeyboardData)
+            logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
+        int key = PS2_process_byte(kb);
+        if(key >= 0) {
+            disable_interrupts();
+            console_enqueue_key_unsafe(key);
+            enable_interrupts();
+        }
+    }
+}
+
+
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
 
@@ -2175,8 +1990,8 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "dumpkbd") == 0) {
 
-            dump_keyboard_data = !dump_keyboard_data;
-            if(dump_keyboard_data)
+            gDumpKeyboardData = !gDumpKeyboardData;
+            if(gDumpKeyboardData)
                 printf("Dumping keyboard data...\n");
             else
                 printf("Not dumping keyboard data...\n");
@@ -2567,17 +2382,6 @@ void check_and_process_command()
     }
 }
 
-void process_keyboard_queue()
-{
-    int isEmpty = queue_isempty(&kbd_queue.q);
-    if(!isEmpty) {
-        unsigned char kb = queue_deq(&kbd_queue.q);
-        if(dump_keyboard_data)
-            logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
-        kbd_process_byte(kb);
-    }
-}
-
 void check_and_process_HALT()
 {
     static int Z80WasInHALT = 0;
@@ -2915,7 +2719,7 @@ int main()
 
         check_and_process_command();
 
-        process_keyboard_queue();
+        KBD_process_queue();
 
         check_exceptional_conditions();
 
