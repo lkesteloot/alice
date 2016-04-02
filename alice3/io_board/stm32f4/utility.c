@@ -30,3 +30,11 @@ void dump_buffer_hex(int indent, const unsigned char *data, int size)
     }
 }
 
+#define BELL '\a'
+
+void bell()
+{
+    putchar(BELL);
+}
+
+

@@ -46,13 +46,6 @@ static void panic(void)
     }
 }
 
-#define BELL '\a'
-
-void bell()
-{
-    putchar(BELL);
-}
-
 //----------------------------------------------------------------------------
 // System Initialization Goop
 
