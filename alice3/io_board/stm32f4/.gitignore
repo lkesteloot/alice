@@ -3,4 +3,5 @@
 *.hex
 *.elf
 *.o
+*.d
 Make.Out*
