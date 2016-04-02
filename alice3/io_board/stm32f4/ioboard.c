@@ -520,6 +520,7 @@ GPIOLine address_lines[] = {
 };
 int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
 
+__attribute__((optimize("unroll-loops")))
 unsigned int shuffle_address(unsigned int a)
 {
     unsigned int A = 0, B = 0, C = 0;
@@ -704,6 +705,7 @@ void EXTI2_IRQHandler(void)
     NVIC_ClearPendingIRQ(EXTI2_IRQn);
 }
 
+__attribute__((optimize("unroll-loops")))
 void BUS_set_ADDRESS_as_output()
 {
     for(int i = 0; i < address_line_count; i++) {
@@ -712,6 +714,7 @@ void BUS_set_ADDRESS_as_output()
     }
 }
 
+__attribute__((optimize("unroll-loops")))
 void BUS_set_ADDRESS_as_input()
 {
     for(int i = 0; i < address_line_count; i++) {
