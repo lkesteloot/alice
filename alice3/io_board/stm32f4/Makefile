@@ -24,6 +24,7 @@ OBJECTS = \
         STM32Cube4/stm32f4xx_hal.o \
         syscalls.o \
         ff.o \
+        diskio.o \
         delay.o \
         leds.o \
         monitor_queue.o \
