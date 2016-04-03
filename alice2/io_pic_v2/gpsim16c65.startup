@@ -1,0 +1,10 @@
+proc pic16c65a iopic
+module lib   /opt/local/lib/libgpsim_modules.dylib
+module load usart serial
+serial.txbaud = 19200
+serial.rxbaud = 19200
+node n1
+load io_pic16c65.hex
+iopic.BreakOnInvalidRegisterWrite=false
+attach n1 portc6 pin(serial.RXPIN)
+
