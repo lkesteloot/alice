@@ -2,9 +2,6 @@
 #include <ctype.h>
 #include "ps2_keyboard.h"
 
-volatile unsigned char gKeyboardOverflowed = 0;
-volatile unsigned char gDumpKeyboardData = 0;
-
 static char up_key_flag = 0;
 static char shift_status = 0;
 static char alt_status = 0;
@@ -159,37 +156,37 @@ static unsigned char kbd_lookup(int shift, int alt, int ctrl, unsigned char byte
     return keymap_table[byte * 4 + which];
 }
 
-int PS2_process_byte(unsigned char kbd_byte)
+int PS2_process_byte(int dump_data, unsigned char kbd_byte)
 {
     int result = -1;
 
     if(kbd_byte == UP_KEY) {
         up_key_flag = 1;
-        if(gDumpKeyboardData) 
+        if(dump_data) 
             printf("keyboard key up\n");
     } else {
         switch(kbd_byte) {
             case LSHIFT_KEY:
             case RSHIFT_KEY:
                 shift_status = !up_key_flag;
-                if(gDumpKeyboardData) 
+                if(dump_data) 
                     printf("shift status is now %d\n", shift_status);
                 break;
             case ALT_KEY:
                 alt_status = !up_key_flag;
-                if(gDumpKeyboardData) 
+                if(dump_data) 
                     printf("alt status is now %d\n", alt_status);
                 break;
             case CTRL_KEY:
                 ctrl_status = !up_key_flag;
-                if(gDumpKeyboardData) 
+                if(dump_data) 
                     printf("ctrl status is now %d\n", ctrl_status);
                 break;
             default:
                 if(!up_key_flag)
                     if(!(kbd_byte & 0x80)) {
                         unsigned char c = kbd_lookup(shift_status, alt_status, ctrl_status, kbd_byte);
-                        if(gDumpKeyboardData) {
+                        if(dump_data) {
                             printf("keyboard ASCII: %02X", c);
                             if(isprint(c))
                                 printf("(%c)\n", c);

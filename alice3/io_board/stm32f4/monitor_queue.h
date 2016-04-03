@@ -18,5 +18,7 @@ static inline void monitor_enqueue_key_unsafe(unsigned char d)
     }
 }
 
+void MON_init();
+
 #endif /* __MONITOR_QUEUE_H__ */
 

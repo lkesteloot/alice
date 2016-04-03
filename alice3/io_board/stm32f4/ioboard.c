@@ -18,10 +18,12 @@
 
 #include "monitor_queue.h"
 #include "console_queue.h"
-#include "ps2_keyboard.h"
 #include "uart.h"
 #include "sd_spi.h"
 #include "video.h"
+#include "keyboard.h"
+
+static int gDumpKeyboardData = 0;
 
 void panic_worse()
 {
@@ -991,88 +993,6 @@ void errorchar_flush()
 }
 
 //----------------------------------------------------------------------------
-// AT and PS/2 Keyboard processing
-
-#define KBD_QUEUE_CAPACITY 16
-
-struct kbd_queue_struct {
-    struct queue q;
-    unsigned char queue[KBD_QUEUE_CAPACITY];
-};
-volatile struct kbd_queue_struct kbd_queue;
-
-#define KEYBOARD_CLOCK_PIN_MASK GPIO_PIN_11
-#define KEYBOARD_CLOCK_PORT GPIOB
-
-#define KEYBOARD_DATA_PIN_MASK GPIO_PIN_12
-#define KEYBOARD_DATA_PORT GPIOB
-
-// Keyboard I/O constants
-#define KBD_BIT_COUNT 11
-
-volatile short kbd_bits = 0;
-volatile unsigned short kbd_data = 0;
-void KBD_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    // There's a possibility we could use USART for this
-    // and remove some CPU work
-
-    GPIO_InitStruct.Pin = KEYBOARD_CLOCK_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(KEYBOARD_CLOCK_PORT, &GPIO_InitStruct); 
-
-    GPIO_InitStruct.Pin = KEYBOARD_DATA_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(KEYBOARD_DATA_PORT, &GPIO_InitStruct); 
-
-    /* Enable and set EXTI Line15-10 interrupt */
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
-
-void EXTI15_10_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(KEYBOARD_CLOCK_PIN_MASK);
-    NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-
-    unsigned int keyboard_data_pin = GPIOB->IDR & KEYBOARD_DATA_PIN_MASK;
-    unsigned int keyboard_data = keyboard_data_pin ? 1 : 0;
-
-    kbd_data = (kbd_data >> 1) | (keyboard_data << 10);
-    kbd_bits++;
-    if(kbd_bits == KBD_BIT_COUNT) {
-        if(queue_isfull(&kbd_queue.q)) {
-            gKeyboardOverflowed = 1;
-        } else {
-            queue_enq(&kbd_queue.q, (kbd_data >> 1) & 0xff);
-        }
-        kbd_data = 0;
-        kbd_bits = 0;
-    }
-}
-
-void KBD_process_queue()
-{
-    int isEmpty = queue_isempty(&kbd_queue.q);
-    if(!isEmpty) {
-        unsigned char kb = queue_deq(&kbd_queue.q);
-        if(gDumpKeyboardData)
-            logprintf(DEBUG_DATA, "keyboard scan code: %02X\n", kb);
-        int key = PS2_process_byte(kb);
-        if(key >= 0) {
-            disable_interrupts();
-            console_enqueue_key_unsafe(key);
-            enable_interrupts();
-        }
-    }
-}
-
-
-//----------------------------------------------------------------------------
 // CP/M 8MB Disk definitions
 
 
@@ -1671,15 +1591,20 @@ void uart_received(char c)
     queue_enq(&mon_queue.q, c);
 }
 
+void console_queue_init()
+{
+    queue_init(&con_queue.q, CON_QUEUE_CAPACITY);
+}
+
 int main()
 {
     system_init();
 
-    queue_init(&mon_queue.q, MON_QUEUE_CAPACITY);
-    queue_init(&kbd_queue.q, KBD_QUEUE_CAPACITY);
-    queue_init(&con_queue.q, CON_QUEUE_CAPACITY);
-
     LED_init();
+    LED_beat_heart();
+
+    MON_init();
+    console_queue_init();
     LED_beat_heart();
 
     setbuf(stdout, NULL);
@@ -1780,6 +1705,7 @@ int main()
     SERIAL_flush();
 
     for(;;) {
+        int key;
 
         SERIAL_try_to_transmit_buffers();
         LED_beat_heart();
@@ -1790,7 +1716,12 @@ int main()
 
         check_and_process_command();
 
-        KBD_process_queue();
+        key = KBD_process_queue(gDumpKeyboardData);
+        if(key >= 0) {
+            disable_interrupts();
+            console_enqueue_key_unsafe(key);
+            enable_interrupts();
+        }
 
         check_exceptional_conditions();
 
