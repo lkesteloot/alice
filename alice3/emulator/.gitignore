@@ -1,4 +1,6 @@
 /emulator
+/hexinfo
 /sendhex
 /hex2bin
 *.o
+*dsk
