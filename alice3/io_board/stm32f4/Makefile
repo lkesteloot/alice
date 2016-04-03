@@ -35,6 +35,7 @@ OBJECTS = \
         crc7.o \
         logprintf.o \
         sd_spi.o \
+        video.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)
