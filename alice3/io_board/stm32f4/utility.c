@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include "utility.h"
 
-extern void serial_flush(void);
+extern void SERIAL_flush(void);
 
 void dump_buffer_hex(int indent, const unsigned char *data, int size)
 {
@@ -16,13 +16,13 @@ void dump_buffer_hex(int indent, const unsigned char *data, int size)
         for(i = 0; i < howmany; i++)
             printf("%02X ", data[i]);
         printf("\n");
-        serial_flush(); // XXX - printf should buffer and block and discard as necessary
+        SERIAL_flush(); // XXX - printf should buffer and block and discard as necessary
 
         printf("%*s        ", indent, "");
         for(i = 0; i < howmany; i++)
             printf(" %c ", isprint(data[i]) ? data[i] : '.');
         printf("\n");
-        serial_flush(); // XXX - printf should buffer and block and discard as necessary
+        SERIAL_flush(); // XXX - printf should buffer and block and discard as necessary
 
         size -= howmany;
         data += howmany;

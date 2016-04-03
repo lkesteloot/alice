@@ -29,7 +29,9 @@ OBJECTS = \
         monitor_queue.o \
         console_queue.o \
         ps2_keyboard.o \
+        uart.o \
         utility.o \
+        crc7.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)

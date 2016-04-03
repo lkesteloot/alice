@@ -15,10 +15,12 @@
 #include "byte_queue.h"
 #include "gpio_helpers.h"
 #include "utility.h"
+#include "crc7.h"
 
 #include "monitor_queue.h"
 #include "console_queue.h"
 #include "ps2_keyboard.h"
+#include "uart.h"
 
 void panic_worse()
 {
@@ -26,9 +28,9 @@ void panic_worse()
     for(;;);
 }
 
-void serial_flush();
+void SERIAL_flush();
 
-static void panic(void)
+void panic(void)
 {
     static int entered = 0;
 
@@ -37,9 +39,9 @@ static void panic(void)
     int pin = 0;
     for(;;) {
         if(!entered) {
-            // serial_flush() can itself panic(), so stop reentry here
+            // SERIAL_flush() can itself panic(), so stop reentry here
             entered = 1;
-            serial_flush();
+            SERIAL_flush();
             entered = 0;
         }
 
@@ -104,162 +106,6 @@ void system_init()
     delay_init();
 }
 
-
-/*--------------------------------------------------------------------------*/
-/* USART - serial comms ----------------------------------------------------*/
-
-static UART_HandleTypeDef gUARTHandle;
-
-#define TRANSMIT_BUFFER_SIZE 512
-volatile unsigned char gTransmitBuffers[2][TRANSMIT_BUFFER_SIZE];
-volatile int gNextTransmitBuffer = 0;
-volatile int gTransmitBufferLengths[2] = {0, 0};
-volatile int gUARTTransmitBusy = 0;
-
-void USART1_IRQHandler(void)
-{
-  HAL_UART_IRQHandler(&gUARTHandle);
-}
-
-void HAL_UART_MspInit(UART_HandleTypeDef *huart)
-{
-  GPIO_InitTypeDef  GPIO_InitStruct;
-  
-  /*##-1- Enable peripherals and GPIO Clocks #################################*/
-  /* Enable GPIO TX/RX clock */
-  // __HAL_RCC_GPIOB_CLK_ENABLE();
-  
-  /* Enable USART clock */
-  __HAL_RCC_USART1_CLK_ENABLE(); 
-  
-  /*##-2- Configure peripheral GPIO ##########################################*/  
-  /* UART TX GPIO pin configuration  */
-  GPIO_InitStruct.Pin       = GPIO_PIN_6;
-  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull      = GPIO_PULLUP;
-  GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-  
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    
-  /* UART RX GPIO pin configuration  */
-  GPIO_InitStruct.Pin = GPIO_PIN_7;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-    
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* NVIC for USART */
-  HAL_NVIC_SetPriority(USART1_IRQn, 3, 1);
-  HAL_NVIC_EnableIRQ(USART1_IRQn);
-}
-
-/**
-  * @brief UART MSP De-Initialization 
-  *        This function frees the hardware resources used in this example:
-  *          - Disable the Peripheral's clock
-  *          - Revert GPIO and NVIC configuration to their default state
-  * @param huart: UART handle pointer
-  * @retval None
-  */
-void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
-{
-  /*##-1- Reset peripherals ##################################################*/
-    __HAL_RCC_USART1_FORCE_RESET();
-    __HAL_RCC_USART1_RELEASE_RESET();
-
-  /*##-2- Disable peripherals and GPIO Clocks #################################*/
-  /* Configure UART Tx as alternate function  */
-  HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6);
-  /* Configure UART Rx as alternate function  */
-  HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    gUARTTransmitBusy = 0;
-}
-
-void serial_try_to_transmit_buffers()
-{
-    if(!gUARTTransmitBusy && gTransmitBufferLengths[gNextTransmitBuffer] > 0) {
-        gUARTTransmitBusy = 1;
-
-        if(HAL_UART_Transmit_IT(&gUARTHandle, (uint8_t *)&gTransmitBuffers[gNextTransmitBuffer][0], gTransmitBufferLengths[gNextTransmitBuffer]) != HAL_OK) {
-            panic();
-        }
-
-        gNextTransmitBuffer ^= 1;
-        gTransmitBufferLengths[gNextTransmitBuffer] = 0;
-    }
-}
-
-void serial_flush()
-{
-    while(gUARTTransmitBusy || gTransmitBufferLengths[gNextTransmitBuffer] > 0)
-        serial_try_to_transmit_buffers();
-}
-
-void serial_enqueue_one_char(char c)
-{
-    do {
-        // Transmit the current buffer if there is one and serial
-        // port is not busy
-        serial_try_to_transmit_buffers();
-
-        // While there's no room in the current buffer, repeat until buffer becomes available
-    } while(gTransmitBufferLengths[gNextTransmitBuffer] >= TRANSMIT_BUFFER_SIZE);
-
-    int length = gTransmitBufferLengths[gNextTransmitBuffer];
-    gTransmitBuffers[gNextTransmitBuffer][length] = c;
-    gTransmitBufferLengths[gNextTransmitBuffer]++;
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    panic();
-}
-
-volatile char gSerialCharBuffer;
-volatile char gStartAnotherUARTReceive = 1;
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    queue_enq(&mon_queue.q, gSerialCharBuffer);
-    gStartAnotherUARTReceive = 1;
-}
-
-void SERIAL_init()
-{
-    /*##-1- Configure the UART peripheral ######################################*/
-    /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
-    /* UART1 configured as follow:
-        - Word Length = 8 Bits
-        - Stop Bit = One Stop bit
-        - Parity = ODD parity
-        - BaudRate = 115200 baud
-        - Hardware flow control disabled (RTS and CTS signals) */
-    gUARTHandle.Instance          = USART1;
-    
-    gUARTHandle.Init.BaudRate     = 115200;
-    gUARTHandle.Init.WordLength   = UART_WORDLENGTH_8B;
-    gUARTHandle.Init.StopBits     = UART_STOPBITS_1;
-    gUARTHandle.Init.Parity       = UART_PARITY_NONE;
-    gUARTHandle.Init.HwFlowCtl    = UART_HWCONTROL_RTS_CTS;
-    gUARTHandle.Init.Mode         = UART_MODE_TX_RX;
-    gUARTHandle.Init.OverSampling = UART_OVERSAMPLING_16;
-      
-    if(HAL_UART_Init(&gUARTHandle) != HAL_OK)
-    {
-      /* Initialization Error */
-      panic(); 
-    }
-
-    if(HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1) != HAL_OK)
-    {
-      /* Transfer error in reception process */
-      panic();
-    }
-}
 
 //----------------------------------------------------------------------------
 // Alice 3 Bus IO communication protocol
@@ -1083,7 +929,7 @@ int gOutputDevices = OUTPUT_TO_SERIAL;
 void __io_putchar( char c )
 {
     if(gOutputDevices & OUTPUT_TO_SERIAL)
-        serial_enqueue_one_char(c);
+        SERIAL_enqueue_one_char(c);
     if(gOutputDevices & OUTPUT_TO_VIDEO) {
         if(c == '\n') // XXX
             BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
@@ -1118,7 +964,7 @@ void logprintf(int level, char *fmt, ...)
     while(*s) {
         putchar(*s++);
     }
-    serial_flush();
+    SERIAL_flush();
 
     if(!(gOutputDevices & OUTPUT_TO_VIDEO) && (level <= DEBUG_WARNINGS))
         VIDEO_output_string(dummy, 1);
@@ -1210,6 +1056,9 @@ void KBD_process_queue()
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
 
+#define SPI_SS_PIN_MASK      GPIO_PIN_8
+#define SPI_SS_PORT     GPIOA
+
 SPI_HandleTypeDef gSPIHandle;
 
 void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
@@ -1260,9 +1109,6 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
     /* Configure SPI MOSI as alternate function  */
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_15);
 }
-
-#define SPI_SS_PIN_MASK      GPIO_PIN_8
-#define SPI_SS_PORT     GPIOA
 
 void SPI_enable_sd()
 {
@@ -1315,96 +1161,6 @@ void SPI_config_for_sd()
 
 /*--------------------------------------------------------------------------*/
 /* SD card -----------------------------------------------------------------*/
-
-unsigned char crc7_add_byte(unsigned char data, unsigned char previous_crc)
-{
-    unsigned char crc = previous_crc;
-    int b;
-
-    for (b = 0; b < 8; b++) {
-        unsigned int crcbit = crc & 0x40;
-
-        if ((data & 0x80UL) != 0)
-            crcbit ^= 0x40;
-
-        data <<= 1;
-        crc <<= 1;
-
-        if (crcbit != 0)
-            crc ^= 0x09;
-    }
-
-    return crc;
-}
-
-unsigned char crc7_generate_bytes(unsigned char *b, int count)
-{
-    unsigned char crc = 0;
-    int i;
-
-    for(i = 0; i < count; i++)
-        crc = crc7_add_byte(b[i], crc);
-
-    return crc;
-}
-
-/* Linux 2.6.32 crc-itu-t.c */
-/** CRC table for the CRC ITU-T V.41 0x0x1021 (x^16 + x^12 + x^15 + 1) */
-const unsigned short crc_itu_t_table[256] = {
-    0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
-    0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
-    0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
-    0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
-    0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
-    0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
-    0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
-    0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
-    0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823,
-    0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
-    0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12,
-    0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
-    0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41,
-    0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
-    0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70,
-    0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
-    0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
-    0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
-    0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
-    0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
-    0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
-    0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-    0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
-    0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
-    0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
-    0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
-    0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
-    0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
-    0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
-    0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
-    0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
-    0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0
-};
-
-unsigned short crc_itu_t_byte(unsigned short crc, const unsigned char data)
-{
-    return (crc << 8) ^ crc_itu_t_table[((crc >> 8) ^ data) & 0xff];
-}
-
-/**
- * crc_itu_t - Compute the CRC-ITU-T for the data buffer
- *
- * @crc:     previous CRC value
- * @buffer:  data pointer
- * @len:     number of bytes in the buffer
- *
- * Returns the updated CRC value
- */
-unsigned short crc_itu_t(unsigned short crc, const unsigned char *buffer, size_t len)
-{
-    while (len--)
-        crc = crc_itu_t_byte(crc, *buffer++);
-    return crc;
-}
 
 int gSDCardTimeoutMillis = 1000;
 
@@ -2470,18 +2226,6 @@ void process_monitor_queue()
     }
 }
 
-void process_serial_polling()
-{
-    // This is terrible; UART interrupt should fill a buffer and we should examine in here, not poll
-    if(gStartAnotherUARTReceive) {
-        gStartAnotherUARTReceive = 0;
-        int result;
-        if((result = HAL_UART_Receive_IT(&gUARTHandle, (uint8_t *)&gSerialCharBuffer, 1)) != HAL_OK) {
-            /* error_code = gUARTHandle.State; */
-        }
-    }
-}
-
 int read_bootrom()
 {
     FIL f;
@@ -2548,7 +2292,7 @@ void VIDEO_wait()
             int now = HAL_GetTick();
             if(now - started > PROP_READY_TIMEOUT_MILLIS) {
                 printf("PANIC: timed out after waiting 5 seconds for PROP_READY\n");
-                serial_flush();
+                SERIAL_flush();
                 panic();
             }
         }
@@ -2598,6 +2342,11 @@ int BUS_check_RAM()
     return succeeded;
 }
 
+void uart_received(char c)
+{
+    queue_enq(&mon_queue.q, c);
+}
+
 int main()
 {
     system_init();
@@ -2618,7 +2367,7 @@ int main()
     printf("System core clock: %lu MHz\n", SystemCoreClock / 1000000);
 
     LED_beat_heart();
-    serial_flush();
+    SERIAL_flush();
 
     RESET_BUTTON_init();
 
@@ -2649,7 +2398,7 @@ int main()
     else 
         printf("SD Card interface is initialized for SPI\n");
     LED_beat_heart();
-    serial_flush();
+    SERIAL_flush();
 
     if(0) {
         test_sd_card();
@@ -2663,7 +2412,7 @@ int main()
     } else {
         printf("Mounted FATFS from SD card successfully.\n");
     }
-    serial_flush();
+    SERIAL_flush();
 
     int success = read_bootrom();
     if(!success) {
@@ -2709,14 +2458,14 @@ int main()
     }
 
     printf("* ");
-    serial_flush();
+    SERIAL_flush();
 
     for(;;) {
 
-        serial_try_to_transmit_buffers();
+        SERIAL_try_to_transmit_buffers();
         LED_beat_heart();
 
-        process_serial_polling();
+        SERIAL_poll_continue();
 
         process_monitor_queue();
 

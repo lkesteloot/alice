@@ -17,4 +17,6 @@
 #define enable_interrupts() __enable_irq()
 #define disable_interrupts() __disable_irq()
 
+extern void panic(void);
+
 #endif /* __MAIN_H__ */
