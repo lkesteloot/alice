@@ -32,6 +32,8 @@ OBJECTS = \
         uart.o \
         utility.o \
         crc7.o \
+        logprintf.o \
+        sd_spi.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <ctype.h>
 
 #include <stm32f4xx_hal.h>
@@ -16,19 +15,19 @@
 #include "gpio_helpers.h"
 #include "utility.h"
 #include "crc7.h"
+#include "logprintf.h"
 
 #include "monitor_queue.h"
 #include "console_queue.h"
 #include "ps2_keyboard.h"
 #include "uart.h"
+#include "sd_spi.h"
 
 void panic_worse()
 {
     LED_set_panic(1);
     for(;;);
 }
-
-void SERIAL_flush();
 
 void panic(void)
 {
@@ -937,39 +936,18 @@ void __io_putchar( char c )
     }
 }
 
-enum DebugLevels {
-    DEBUG_SILENT = 0,
-    DEBUG_ERRORS,
-    DEBUG_WARNINGS,
-    DEBUG_EVENTS,
-    DEBUG_DATA,
-    DEBUG_ALL,
-    DEBUG_INSANE = 99,
-};
-int gDebugLevel = DEBUG_WARNINGS;
-
-void logprintf(int level, char *fmt, ...)
+void errorchar(char c)
 {
-    va_list args;
-    static char dummy[512];
-
-    if(level > gDebugLevel)
-        return;
-
-    va_start(args, fmt);
-    vsprintf(dummy, fmt, args);
-    va_end(args);
-    
-    char *s = dummy;
-    while(*s) {
-        putchar(*s++);
-    }
-    SERIAL_flush();
-
-    if(!(gOutputDevices & OUTPUT_TO_VIDEO) && (level <= DEBUG_WARNINGS))
-        VIDEO_output_string(dummy, 1);
+    SERIAL_enqueue_one_char(c);
+    if(c == '\n') // XXX
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
+    BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
 }
 
+void errorchar_flush()
+{
+    SERIAL_flush();
+}
 
 //----------------------------------------------------------------------------
 // AT and PS/2 Keyboard processing
@@ -1053,486 +1031,6 @@ void KBD_process_queue()
 }
 
 
-/*--------------------------------------------------------------------------*/
-/* SD card -----------------------------------------------------------------*/
-
-#define SPI_SS_PIN_MASK      GPIO_PIN_8
-#define SPI_SS_PORT     GPIOA
-
-SPI_HandleTypeDef gSPIHandle;
-
-void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    /* Enable GPIO CK/TX/RX clocks */
-    // __HAL_RCC_GPIOB_CLK_ENABLE();
-    /* Enable SPI clock */
-    __HAL_RCC_SPI2_CLK_ENABLE();
-
-    /*##-2- Configure peripheral GPIO ##########################################*/
-
-    // Alternate function SPI2, high speed, push-pull
-    GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_MEDIUM;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-
-    /* SPI SCK GPIO pin configuration  */
-    GPIO_InitStruct.Pin       = GPIO_PIN_13;
-    GPIO_InitStruct.Pull      = GPIO_NOPULL; // GPIO_PULLUP;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    /* SPI MISO GPIO pin configuration  */
-    GPIO_InitStruct.Pin = GPIO_PIN_14;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull      = GPIO_NOPULL; // GPIO_PULLUP;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    /* SPI MOSI GPIO pin configuration  */
-    GPIO_InitStruct.Pin = GPIO_PIN_15;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull      = GPIO_NOPULL; // GPIO_PULLUP;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-}
-
-void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
-{
-    /*##-1- Reset peripherals ##################################################*/
-    __HAL_RCC_SPI2_FORCE_RESET();
-    __HAL_RCC_SPI2_RELEASE_RESET();
-
-    /*##-2- Disable peripherals and GPIO Clocks ################################*/
-    /* Configure SPI SCK as alternate function  */
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_13);
-    /* Configure SPI MISO as alternate function  */
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_14);
-    /* Configure SPI MOSI as alternate function  */
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_15);
-}
-
-void SPI_enable_sd()
-{
-    HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 0);     // SS true
-    delay_ms(100);
-}
-
-void SPI_disable_sd()
-{
-    HAL_GPIO_WritePin(SPI_SS_PORT, SPI_SS_PIN_MASK, 1);     // SS false
-    delay_ms(100);
-}
-
-// Postcondition: SPI configured for SD, SS high (false)
-void SPI_config_for_sd()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    gSPIHandle.Instance               = SPI2;
-
-    // SPI2 is APB1, which is 1/4 system clock, or at 168MHz, APB1 is
-    // 42MHz.  INit should be at  100KHz - 400 KHz, 128 will be 328.124Khz
-    gSPIHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
-    gSPIHandle.Init.Direction         = SPI_DIRECTION_2LINES;
-    gSPIHandle.Init.CLKPhase          = SPI_PHASE_2EDGE;
-    gSPIHandle.Init.CLKPolarity       = SPI_POLARITY_HIGH;
-    gSPIHandle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
-    gSPIHandle.Init.CRCPolynomial     = 7;
-    gSPIHandle.Init.DataSize          = SPI_DATASIZE_8BIT;
-    gSPIHandle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
-    gSPIHandle.Init.NSS               = SPI_NSS_SOFT;
-    gSPIHandle.Init.TIMode            = SPI_TIMODE_DISABLE;
-    gSPIHandle.Init.Mode              = SPI_MODE_MASTER;
-
-    if(HAL_SPI_Init(&gSPIHandle) != HAL_OK)
-    {
-        printf("failed to initialize SPI\n");
-        panic();
-    }
-
-    // SD /CS card select, slave select /SS
-    GPIO_InitStruct.Pin = SPI_SS_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // XXX change to match SPI rate?
-    HAL_GPIO_Init(SPI_SS_PORT, &GPIO_InitStruct); 
-    SPI_disable_sd();
-}
-
-
-/*--------------------------------------------------------------------------*/
-/* SD card -----------------------------------------------------------------*/
-
-int gSDCardTimeoutMillis = 1000;
-
-#define BLOCK_SIZE 512
-
-int gCachedBlockNumber = 0xffff;
-unsigned char gCachedBlock[BLOCK_SIZE];
-
-// cribbed somewhat from http://elm-chan.org/docs/mmc/mmc_e.html
-enum SDCardCommand {
-    CMD0 = 0,    // init; go to idle state
-    CMD8 = 8,    // send interface condition
-    CMD17 = 17,  // read single block
-    CMD24 = 24,  // write single block
-    CMD55 = 55,  // prefix command for application command
-    ACMD41 = 41, // application command to send operating condition
-};
-const unsigned char gSDCardResponseIDLE = 0x01;
-const unsigned char gSDCardResponseSUCCESS = 0x00;
-const unsigned char gSDCardResponseDATA_ACCEPTED = 0xE5;
-const unsigned char gSDCardToken_17_18_24 = 0xFE;
-
-void spi_bulk(unsigned char *buffer, unsigned int nlen)
-{
-    if(gDebugLevel >= DEBUG_INSANE) {
-        printf("spi_bulk write:\n");
-        dump_buffer_hex(4, buffer, nlen);
-    }
-    int result = HAL_SPI_TransmitReceive(&gSPIHandle, buffer, buffer, nlen, 1000);
-    if(result != HAL_OK){
-        printf("spi_bulk: SPI error 0x%04X\n", result);
-        panic();
-    }
-    if(gDebugLevel >= DEBUG_INSANE) {
-        printf("spi_bulk read:\n");
-        dump_buffer_hex(4, buffer, nlen);
-    }
-}
-
-void spi_writen(const unsigned char *buffer, unsigned int nlen)
-{
-    if(gDebugLevel >= DEBUG_INSANE) {
-        printf("spi_writen write:\n");
-        dump_buffer_hex(4, buffer, nlen);
-    }
-    int result = HAL_SPI_Transmit(&gSPIHandle, (unsigned char *)buffer, nlen, 1000);
-    if(result != HAL_OK){
-        logprintf(DEBUG_ERRORS, "spi_writen: SPI error 0x%04X\n", result);
-        panic();
-    }
-}
-
-void spi_readn(unsigned char *buffer, unsigned int nlen)
-{
-    memset(buffer, 0xff, nlen);
-    int result = HAL_SPI_TransmitReceive(&gSPIHandle, buffer, buffer, nlen, 1000);
-    if(result != HAL_OK){
-        logprintf(DEBUG_ERRORS, "spi_readn: SPI error 0x%04X\n", result);
-        panic();
-    }
-    if(gDebugLevel >= DEBUG_INSANE) {
-        printf("spi_readn read:\n");
-        dump_buffer_hex(4, buffer, nlen);
-    }
-}
-
-// response length must include initial R1, so 1 for CMD0
-int sdcard_send_command(enum SDCardCommand command, unsigned long parameter, unsigned char *response, int response_length)
-{
-    unsigned char command_buffer[6];
-
-    command_buffer[0] = 0xff;
-    spi_bulk(command_buffer, 1);
-
-    command_buffer[0] = 0x40 | command;
-    command_buffer[1] = (parameter >> 24) & 0xff;
-    command_buffer[2] = (parameter >> 16) & 0xff;
-    command_buffer[3] = (parameter >> 8) & 0xff;
-    command_buffer[4] = (parameter >> 0) & 0xff;
-    command_buffer[5] = ((crc7_generate_bytes(command_buffer, 5) & 0x7f) << 1) | 0x01;
-
-    logprintf(DEBUG_DATA, "command constructed: %02X %02X %02X %02X %02X %02X\n",
-        command_buffer[0], command_buffer[1], command_buffer[2],
-        command_buffer[3], command_buffer[4], command_buffer[5]);
-
-    spi_bulk(command_buffer, sizeof(command_buffer));
-    logprintf(DEBUG_ALL, "returned in buffer: %02X %02X %02X %02X %02X %02X\n",
-        command_buffer[0], command_buffer[1], command_buffer[2],
-        command_buffer[3], command_buffer[4], command_buffer[5]);
-
-    int then = HAL_GetTick();
-    do {
-        int now = HAL_GetTick();
-        if(now - then > gSDCardTimeoutMillis) {
-            logprintf(DEBUG_ERRORS, "sdcard_send_command: timed out waiting on response\n");
-            panic();
-        }
-        response[0] = 0xff;
-        spi_bulk(response, 1);
-        logprintf(DEBUG_ALL, "response 0x%02X\n", response[0]);
-    } while(response[0] & 0x80);
-
-    if(response_length > 1) {
-        spi_readn(response + 1, response_length - 1);
-    }
-
-    return 1;
-}
-
-// precondition: SD card CS is high (disabled)
-// postcondition: SD card CS is low (enabled)
-int sdcard_init()
-{
-    unsigned char response[8];
-    unsigned long OCR;
-
-    /* CS false, 80 clk pulses (read 10 bytes) */
-    unsigned char buffer[10];
-    for(unsigned int u = 0; u < sizeof(buffer); u++)
-        buffer[u] = 0xff;
-    spi_writen(buffer, sizeof(buffer));
-
-    delay_ms(100);
-    SPI_enable_sd();
-    /* interface init */
-    if(!sdcard_send_command(CMD0, 0, response, 1))
-        return 0;
-    if(response[0] != gSDCardResponseIDLE) {
-        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to enter IDLE mode, response was 0x%02X\n", response[0]);
-        return 0;
-    }
-    delay_ms(100);
-
-    /* check voltage */
-    if(!sdcard_send_command(CMD8, 0x000001AA, response, 5))
-        return 0;
-    if(response[0] != gSDCardResponseIDLE) {
-        logprintf(DEBUG_WARNINGS, "sdcard_init: failed to get OCR, response was 0x%02X\n", response[0]);
-        return 0;
-    }
-    OCR = (((unsigned long)response[1]) << 24) | (((unsigned long)response[2]) << 16) | (((unsigned long)response[3]) << 8) | (((unsigned long)response[4]) << 0);
-    logprintf(DEBUG_DATA, "sdcard_init: OCR response is 0x%08lX\n", OCR);
-
-    // should get CSD, CID, print information about them
-
-    // Ask the card to initialize itself, and wait for it to get out of idle mode.
-    int then = HAL_GetTick();
-    do {
-        int now = HAL_GetTick();
-        if(now - then > gSDCardTimeoutMillis) {
-            printf("sdcard_init: timed out waiting on transition to ACMD41\n");
-            return 0;
-        }
-        /* leading command to the ACMD41 command */
-        if(!sdcard_send_command(CMD55, 0x00000000, response, 1))
-            return 0;
-        if(response[0] != gSDCardResponseIDLE) {
-            logprintf(DEBUG_WARNINGS, "sdcard_init: not in IDLE mode for CMD55, response was 0x%02X\n", response[0]);
-            return 0;
-        }
-        /* start initialization process, set HCS (high-capacity) */
-        if(!sdcard_send_command(ACMD41, 0x40000000, response, 1))
-            return 0;
-    } while(response[0] != gSDCardResponseSUCCESS);
-    logprintf(DEBUG_ALL, "returned from ACMD41: %02X\n", response[0]);
-
-    return 1;
-}
-
-void dump_more_spi_bytes(const char *why)
-{
-    unsigned char response[8];
-    spi_readn(response, sizeof(response));
-    printf("trailing %s: %02X %02X %02X %02X %02X %02X %02X %02X\n", why,
-        response[0], response[1], response[2], response[3],
-        response[4], response[5], response[6], response[7]);
-}
-
-/* precondition: SDcard CS is low (active) */
-int sdcard_readblock(unsigned int blocknum, unsigned char *block)
-{
-    unsigned char response[8];
-
-    // Send read block command.
-    response[0] = 0xff;
-    if(!sdcard_send_command(CMD17, blocknum, response, 1))
-        return 0;
-    if(response[0] != gSDCardResponseSUCCESS) {
-        logprintf(DEBUG_ERRORS, "sdcard_readblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
-        return 0;
-    }
-
-    // Wait for the data token.
-    int then = HAL_GetTick();
-    do {
-        int now = HAL_GetTick();
-        if(now - then > gSDCardTimeoutMillis) {
-            logprintf(DEBUG_ERRORS, "sdcard_readblock: timed out waiting for data token\n");
-            return 0;
-        }
-        spi_readn(response, 1);
-        logprintf(DEBUG_ALL, "readblock response 0x%02X\n", response[0]);
-    } while(response[0] != gSDCardToken_17_18_24);
-
-    // Read data.
-    spi_readn(block, BLOCK_SIZE);
-
-    // Read CRC
-    spi_readn(response, 2);
-    logprintf(DEBUG_DATA, "CRC is 0x%02X%02X\n", response[0], response[1]);
-
-    unsigned short crc_theirs = response[0] * 256 + response[1];
-
-    // calculate our version of CRC and compare
-    unsigned short crc_ours = crc_itu_t(0, block, BLOCK_SIZE);
-
-    if(crc_theirs != crc_ours) {
-        logprintf(DEBUG_ERRORS, "CRC mismatch (theirs %04X versus ours %04X, reporting failure)\n", crc_theirs, crc_ours);
-        return 0;
-    } else {
-        logprintf(DEBUG_DATA, "CRC matches\n");
-    }
-
-    // Wait for DO to go high. I don't think we need to do this for block reads,
-    // but I don't think it'll hurt.
-    then = HAL_GetTick();
-    do {
-        int now = HAL_GetTick();
-        if(now - then > gSDCardTimeoutMillis) {
-            logprintf(DEBUG_ERRORS, "sdcard_readblock: timed out waiting on completion\n");
-            return 0;
-        }
-        spi_readn(response, 1);
-        logprintf(DEBUG_ALL, "readblock response 0x%02X\n", response[0]);
-    } while(response[0] != 0xFF);
-
-    if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("read completion");
-
-    return 1;
-}
-
-/* precondition: SDcard CS is low (active) */
-int sdcard_writeblock(unsigned int blocknum, const unsigned char *block)
-{
-    int count;
-    unsigned char response[8];
-
-    // Send write block command.
-    if(!sdcard_send_command(CMD24, blocknum, response, 1))
-        return 0;
-    if(response[0] != gSDCardResponseSUCCESS) {
-        logprintf(DEBUG_ERRORS, "sdcard_writeblock: failed to respond with SUCCESS, response was 0x%02X\n", response[0]);
-        return 0;
-    }
-    // XXX - elm-chan.org says I should be waiting >= 1byte here
-
-    // Data token.
-    response[0] = gSDCardToken_17_18_24;
-    spi_writen(response, 1);
-
-    // Send data.
-    spi_writen(block, BLOCK_SIZE);
-
-    // junk CRC
-    response[0] = 0xff;
-    response[1] = 0xff;
-    spi_writen(response, 2);
-
-    // Get DATA_ACCEPTED response from WRITE
-    spi_readn(response, 1);
-    logprintf(DEBUG_DATA, "writeblock response 0x%02X\n", response[0]);
-    if(response[0] != gSDCardResponseDATA_ACCEPTED) {
-        logprintf(DEBUG_ERRORS, "sdcard_writeblock: failed to respond with DATA_ACCEPTED, response was 0x%02X\n", response[0]);
-        return 0;
-    }
-
-    // Wait while busy (DO = low).
-    int then = HAL_GetTick();
-    count = 0;
-    do {
-        int now = HAL_GetTick();
-        if(now - then > gSDCardTimeoutMillis) {
-            logprintf(DEBUG_ERRORS, "sdcard_writeblock: timed out waiting on completion\n");
-            panic();
-        }
-        spi_readn(response, 1);
-        logprintf(DEBUG_ALL, "writeblock completion 0x%02X\n", response[0]);
-        count++;
-    } while(response[0] != 0xFF);
-    logprintf(DEBUG_DATA, "read %d SPI bytes waiting on write to complete.\n", count);
-
-    if(gDebugLevel >= DEBUG_ALL) dump_more_spi_bytes("write completion");
-
-    return 1;
-}
-
-void test_sd_card()
-{
-    int i;
-    int success;
-    int block_number;
-    static unsigned char original_block[BLOCK_SIZE];
-
-    // test SD card
-    block_number = 0;
-
-    for(;;) {
-        printf("block %d\n", block_number);
-        // printf("Reading a block\n");
-        if(!sdcard_readblock(block_number, original_block)) {
-            panic();
-        }
-        // printf("Original block:\n");
-        // dump_buffer_hex(4, original_block, BLOCK_SIZE);
-
-        for(i = 0; i < BLOCK_SIZE; i++)
-            gCachedBlock[i] = (original_block[i] + 0x55) % 256;
-
-        if(!sdcard_writeblock(block_number, gCachedBlock)) {
-            printf("PANIC: Failed writeblock\n");
-            panic();
-        }
-        // printf("Wrote junk block\n");
-
-        for(i = 0; i < BLOCK_SIZE; i++)
-            gCachedBlock[i] = 0;
-        if(!sdcard_readblock(block_number, gCachedBlock)) {
-            printf("PANIC: Failed readblock\n");
-            panic();
-        }
-
-        success = 1;
-        for(i = 0; i < BLOCK_SIZE; i++)
-            if(gCachedBlock[i] != (original_block[i] + 0x55) % 256)
-                success = 0;
-
-        if(!success) {
-            printf("whoops, error verifying write of junk to block 0\n");
-            printf("block read: %02X %02X %02X %02X\n",
-                gCachedBlock[0], gCachedBlock[1], gCachedBlock[2], gCachedBlock[3]);
-        } else {
-            printf("Verified junk block was written\n");
-        }
-
-        if(!sdcard_writeblock(block_number, original_block)) {
-            printf("PANIC: Failed writeblock\n");
-            panic();
-        }
-        // printf("Wrote original block\n");
-
-        if(!sdcard_readblock(block_number, gCachedBlock)) {
-            printf("PANIC: Failed readblock\n");
-            panic();
-        }
-
-        success = 1;
-        for(i = 0; i < BLOCK_SIZE; i++)
-            if(original_block[i] != gCachedBlock[i])
-                success = 0;
-
-        if(!success) {
-            printf("whoops, error verifying write of original to block 0\n");
-            printf("block read: %02X %02X %02X %02X\n",
-                gCachedBlock[0], gCachedBlock[1], gCachedBlock[2], gCachedBlock[3]);
-        } else {
-            printf("Verified original block was written\n");
-        }
-        block_number ++;
-    }
-}
-
-
 //----------------------------------------------------------------------------
 // FatFS device routines
 
@@ -1558,7 +1056,7 @@ DRESULT disk_read (BYTE pdrv, BYTE *buff, DWORD sector,	UINT count)
         return RES_ERROR;
 
     for(int i = 0; i < count; i++)
-        if(!sdcard_readblock(sector + i, buff + BLOCK_SIZE * i))  {
+        if(!SDCARD_readblock(sector + i, buff + SD_BLOCK_SIZE * i))  {
             logprintf(DEBUG_ERRORS, "ERROR: failed reading SD block %d\n", sector + i);
             return RES_ERROR;
         }
@@ -1572,7 +1070,7 @@ DRESULT disk_write (BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
         return RES_ERROR;
 
     for(int i = 0; i < count; i++)
-        if(!sdcard_writeblock(sector + i, buff + BLOCK_SIZE * i)) {
+        if(!SDCARD_writeblock(sector + i, buff + SD_BLOCK_SIZE * i)) {
             logprintf(DEBUG_ERRORS, "ERROR: failed reading SD block %d\n", sector + i);
             return RES_ERROR;
         }
@@ -1685,7 +1183,7 @@ int open_disk_images()
             break;
         }
 
-        if(f_size(&gDiskImageFiles[i]) != BLOCKS_PER_DISK * BLOCK_SIZE) {
+        if(f_size(&gDiskImageFiles[i]) != BLOCKS_PER_DISK * SD_BLOCK_SIZE) {
             logprintf(DEBUG_ERRORS, "ERROR: expected disk image \"%s\" to be 8MB, is %d bytes\n", gDiskImageFilenames[i], f_size(&gDiskImageFiles[i]));
             success = 0;
             break;
@@ -1744,7 +1242,7 @@ void process_local_key(unsigned char c)
 
             printf("Resetting SD card...\n");
 
-            if(!sdcard_init())
+            if(!SDCARD_init())
                 printf("Failed to start access to SD card as SPI\n");
 
         } else if(strcmp(gMonitorCommandLine, "dumpkbd") == 0) {
@@ -1844,71 +1342,15 @@ void process_local_key(unsigned char c)
             gDebugLevel = strtol(p, NULL, 0);
             printf("Debug level set to %d\n", gDebugLevel);
 
-        } else if(strncmp(gMonitorCommandLine, "spiwrite ", 9) == 0) {
-
-            char *endptr = gMonitorCommandLine + 9;
-            char *p;
-            int count = 0;
-            unsigned char buffer[16];
-            do {
-                p = endptr;
-                buffer[count] = strtol(p, &endptr, 0);
-                if(p != endptr)
-                    count++;
-            } while(endptr != p);
-            printf("Writing %d bytes\n", count);
-            dump_buffer_hex(4, buffer, count);
-
-            spi_bulk(buffer, count);
-
-            if(count == 1) {
-                printf("Byte returned: 0x%02X\n", buffer[0]);
-            } else {
-                printf("Bytes returned:\n");
-                dump_buffer_hex(4, buffer, count);
-            }
-
-        } else if(strncmp(gMonitorCommandLine, "spiread ", 8) == 0) {
-
-            char *p = gMonitorCommandLine + 8;
-            while(*p == ' ')
-                p++;
-            int count = strtol(p, NULL, 0);
-            unsigned char buffer[16];
-            if(count > sizeof(buffer)) {
-                printf("count %d is larger than available buffer, truncating to %d\n", count, sizeof(buffer));
-                count = sizeof(buffer);
-            }
-            spi_readn(buffer, count);
-            if(count == 1) {
-                printf("Byte returned: 0x%02X\n", buffer[0]);
-            } else {
-                printf("Bytes returned:\n");
-                dump_buffer_hex(4, buffer, count);
-            }
-
-        } else if(strncmp(gMonitorCommandLine, "sdss ", 5) == 0) {
-
-            char *p = gMonitorCommandLine + 4;
-            while(*p == ' ')
-                p++;
-            int ss = strtol(p, NULL, 0);
-            if(ss) {
-                SPI_enable_sd();
-                printf("/SS to SD card is enabled (GND)\n");
-            } else {
-                SPI_disable_sd();
-                printf("/SS to SD card is disabled (+3.3V)\n");
-            }
-
         } else if(strncmp(gMonitorCommandLine, "read ", 5) == 0) {
 
+            static unsigned char buffer[SD_BLOCK_SIZE];
             char *p = gMonitorCommandLine + 4;
             while(*p == ' ')
                 p++;
-            gCachedBlockNumber = strtol(p, NULL, 0);
-            if(sdcard_readblock(gCachedBlockNumber, gCachedBlock)) {
-                dump_buffer_hex(4, gCachedBlock, BLOCK_SIZE);
+            int n = strtol(p, NULL, 0);
+            if(SDCARD_readblock(n, buffer)) {
+                dump_buffer_hex(4, buffer, sizeof(buffer));
             }
 
         } else {
@@ -2393,17 +1835,12 @@ int main()
     SPI_config_for_sd();
     LED_beat_heart();
 
-    if(!sdcard_init())
-        printf("Failed to start access to SD card as SPI!!\n");
+    if(!SDCARD_init())
+        printf("Failed to start access to SD cardSPI!!\n");
     else 
-        printf("SD Card interface is initialized for SPI\n");
+        printf("Opened SD Card\n");
     LED_beat_heart();
     SERIAL_flush();
-
-    if(0) {
-        test_sd_card();
-        LED_beat_heart();
-    }
 
     FRESULT result = f_mount(&gFATVolume, "0:", 1);
     if(result != FR_OK) {
