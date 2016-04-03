@@ -1,0 +1,21 @@
+#                     Clock |  1           24 | VCC
+#                       /MW |  2           23 | NC
+#                       /MR |  3           22 | NC
+#                       A14 |  4           21 | NC
+#                       A15 |  5           20 | NC
+#                        NC |  6           19 | NC
+#                        NC |  7           18 | NC
+#                        NC |  8           17 | NC
+#                        NC |  9           16 | LORAM
+#                        NC | 10           15 | /ROME
+#                        NC | 11           14 | /RAME
+#                       GND | 12           13 | NC
+
+# pre-LORAM, read memory, low 16K
+0 {
+    INPUT   2=1 3=0 4=0 5=0
+    OUTPUT  14=0 15=1 16=0
+}
+
+
+
