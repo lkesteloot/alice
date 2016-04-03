@@ -805,6 +805,47 @@ void BUS_write_IO(int io, unsigned char byte)
     BUS_mastering_finish();
 }
 
+#define ALICE3_SRAM_SIZE (256 * 1024)
+
+int BUS_check_RAM()
+{
+    int succeeded = 1;
+
+    if((ALICE3_VERSION == ALICE3_V3) && !ALICE3_V3_ARM_IS_RAM) {
+        int t;
+
+        BUS_mastering_start();
+
+        BUS_set_DATA(0);
+        BUS_set_DATA_as_output();
+
+        t = 0;
+        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
+            BUS_write_memory_byte(a, t);
+            t = (t + 251) % 256;
+        }
+
+        BUS_set_DATA_as_input();
+
+        t = 0;
+        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
+            unsigned char q = BUS_read_memory_byte(a);
+            if(q != t) {
+                printf("BUS_check_RAM : expected 0x%02X byte at RAM address 0x%X, read 0x%02X\n", t, a, q);
+                succeeded = 0;
+                break;
+            }
+            t = (t + 251) % 256;
+        }
+
+        BUS_set_DATA(gNextByteForReading);
+        BUS_mastering_finish();
+
+    }
+
+    return succeeded;
+}
+
 
 /*--------------------------------------------------------------------------*/
 // IO writes
@@ -1658,47 +1699,6 @@ void VIDEO_wait()
 }
 
 const int gStandaloneARM = 0;
-
-#define ALICE3_SRAM_SIZE (256 * 1024)
-
-int BUS_check_RAM()
-{
-    int succeeded = 1;
-
-    if((ALICE3_VERSION == ALICE3_V3) && !ALICE3_V3_ARM_IS_RAM) {
-        int t;
-
-        BUS_mastering_start();
-
-        BUS_set_DATA(0);
-        BUS_set_DATA_as_output();
-
-        t = 0;
-        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
-            BUS_write_memory_byte(a, t);
-            t = (t + 251) % 256;
-        }
-
-        BUS_set_DATA_as_input();
-
-        t = 0;
-        for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
-            unsigned char q = BUS_read_memory_byte(a);
-            if(q != t) {
-                printf("BUS_check_RAM : expected 0x%02X byte at RAM address 0x%X, read 0x%02X\n", t, a, q);
-                succeeded = 0;
-                break;
-            }
-            t = (t + 251) % 256;
-        }
-
-        BUS_set_DATA(gNextByteForReading);
-        BUS_mastering_finish();
-
-    }
-
-    return succeeded;
-}
 
 void uart_received(char c)
 {
