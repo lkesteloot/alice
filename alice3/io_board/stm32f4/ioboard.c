@@ -111,27 +111,18 @@ void system_init()
 //----------------------------------------------------------------------------
 // Alice 3 Bus IO communication protocol
 
-#define IOBOARD_POLL_AGAIN 0x00
-#define IOBOARD_SUCCESS 0x01
-#define IOBOARD_READY 0x01
-#define IOBOARD_FAILURE 0xFF
-#define IOBOARD_NOT_READY 0xFF
-
-#define IOBOARD_CMD_NONE  0x00
-#define IOBOARD_CMD_MIN  0x01
-#define IOBOARD_CMD_READ  0x01
-#define IOBOARD_CMD_WRITE 0x02
-#define IOBOARD_CMD_CONST 0x03
-#define IOBOARD_CMD_CONIN 0x04
-#define IOBOARD_CMD_SEROUT 0x05
-#define IOBOARD_CMD_READ_SUM 0x06
-#define IOBOARD_CMD_WRITE_SUM 0x07
-#define IOBOARD_CMD_MAX 0x07
+#define RESPONSE_STREAM_EMPTY 0x00
 
 volatile unsigned char command_bytes[1 + 5 + 128 + 2]; // largest is status + write + sector + 16-bit checksum
 volatile unsigned char command_length;
 
-unsigned char gNextByteForReading = IOBOARD_POLL_AGAIN;
+int IOSERVICE_get_command(volatile unsigned char **p)
+{
+    *p = command_bytes;
+    return command_length;
+}
+
+unsigned char gNextByteForReading = RESPONSE_STREAM_EMPTY;
 volatile unsigned char response_bytes[1 + 128 + 2]; // largest is status + sector + 16-bit checksum
 volatile unsigned char response_staging_length;
 volatile unsigned char response_length;
@@ -139,12 +130,12 @@ volatile unsigned char response_index;
 volatile unsigned char response_waiting;
 volatile unsigned char gResponseWasWaiting = 0;
 
-void response_start()
+void IOSERVICE_start_response()
 {
     response_staging_length = 0;
 }
 
-void response_append(unsigned char r)
+void IOSERVICE_append_response_byte(unsigned char r)
 {
     if(response_staging_length >= sizeof(response_bytes)) {
         printf("PANIC: overflowed response buffer\n");
@@ -154,7 +145,7 @@ void response_append(unsigned char r)
 }
 
 // Caller must protect with disable_interrupts() / enable_interrupts()
-void response_finish()
+void IOSERVICE_finish_response()
 {
     gNextByteForReading = response_bytes[0];
     response_index = 1;
@@ -162,33 +153,45 @@ void response_finish()
     response_waiting = 1;
 }
 
-// Element 0 is 1 here to force stoppage on receiving a bad command
-const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
-
 // Caller must protect with disable_interrupts()/enable_interrupts() if necessary
-void command_clear()
+void IOSERVICE_clear_command()
 {
     command_length = 0;
 }
 
 void BUS_set_DATA(unsigned char data);
-void response_clear()
+void IOSERVICE_clear_response()
 {
     response_length = 0;
     response_index = 0;
     response_waiting = 0;
-    gNextByteForReading = IOBOARD_POLL_AGAIN;
+    gNextByteForReading = RESPONSE_STREAM_EMPTY;
     BUS_set_DATA(gNextByteForReading);
 }
 
 
 //----------------------------------------------------------------------------
-// Z80 reset button and /RESET signal
+// Z80 reset button ("soft reset")
 
 #define RESET_BUTTON_PORT GPIOB
 #define RESET_BUTTON_PIN_MASK GPIO_PIN_5
 #define RESET_BUTTON_IRQn EXTI9_5_IRQn
 #define RESET_BUTTON_DELAY_MS 10
+
+void RESET_BUTTON_init()
+{
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
+}
+
+
+//----------------------------------------------------------------------------
+// Z80 /RESET signal and pin
 
 #define Z80_RESET_PORT GPIOB
 #define Z80_RESET_PIN_MASK GPIO_PIN_0
@@ -222,31 +225,6 @@ void BUS_reset_finish()
 {
     gZ80IsInRESET = 0;
     HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
-}
-
-volatile int gResetTheZ80 = 0;
-
-void RESET_BUTTON_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
-
-    /* Enable and set interrupt priority */
-    HAL_NVIC_SetPriority(RESET_BUTTON_IRQn, 2, 0);
-    HAL_NVIC_EnableIRQ(RESET_BUTTON_IRQn);
-}
-
-void EXTI9_5_IRQHandler(void)
-{
-    __HAL_GPIO_EXTI_CLEAR_IT(RESET_BUTTON_PIN_MASK);
-    NVIC_ClearPendingIRQ(RESET_BUTTON_IRQn);
-
-    gResetTheZ80 = 1;
 }
 
 
@@ -304,31 +282,13 @@ void EXTI9_5_IRQHandler(void)
 #define BUS_HALT_PIN 15
 #define BUS_HALT_PORT GPIOA
 
-volatile int gZ80IsInHALT = 0;
+#define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
-void BUS_acquire_bus(int releaseReset)
-{
-    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_OUTPUT_PP);
-    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_ACTIVE);
+#define IO_BOARD_ADDR   0
+#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
 
-    if(releaseReset)
-        BUS_reset_finish();
-
-    while(HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
-}
-
-void BUS_release_bus(int startReset)
-{
-    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
-
-    if(startReset) {
-        BUS_reset_finish();
-    } else {
-        while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
-    }
-
-    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_INPUT);
-}
+const unsigned int gREAD_IO_Signals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gWRITE_IO_Signals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
 
 typedef struct GPIOLine {
     GPIO_TypeDef* gpio;
@@ -402,14 +362,6 @@ unsigned int BUS_get_shuffled_ADDRESS()
     return address;
 }
 
-#define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
-
-#define IO_BOARD_ADDR   0
-#define IO_BOARD_ADDR_PINS   (IO_BOARD_ADDR & BUS_A7_PIN_MASK)
-
-const unsigned int gREAD_IO_Signals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
-const unsigned int gWRITE_IO_Signals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
-
 void BUS_set_DATA_as_input()
 {
     GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x0;          // INPUT
@@ -475,7 +427,7 @@ void EXTI1_IRQHandler(void)
             response_index = 0;
             response_length = 0;
             response_waiting = 0;
-            gNextByteForReading = IOBOARD_POLL_AGAIN;
+            gNextByteForReading = RESPONSE_STREAM_EMPTY;
         } else if(response_length > 0) {
             gNextByteForReading = response_bytes[response_index++];
         } 
@@ -663,6 +615,30 @@ unsigned char BUS_read_io_byte(unsigned int a)
 
 int gInRESETBeforeMastering = 0;
 
+void BUS_acquire_bus(int releaseReset)
+{
+    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_OUTPUT_PP);
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_ACTIVE);
+
+    if(releaseReset)
+        BUS_reset_finish();
+
+    while(HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+}
+
+void BUS_release_bus(int startReset)
+{
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
+
+    if(startReset) {
+        BUS_reset_finish();
+    } else {
+        while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
+    }
+
+    set_GPIO_iotype(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN, GPIO_MODE_INPUT);
+}
+
 // Saves
 void BUS_mastering_start()
 {
@@ -698,8 +674,8 @@ void BUS_mastering_finish()
 
 void BUS_init()
 {
-    command_clear();
-    response_clear();
+    IOSERVICE_clear_command();
+    IOSERVICE_clear_response();
 
     GPIO_InitTypeDef  GPIO_InitStruct;
 
@@ -770,6 +746,9 @@ void BUS_init()
         HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
     }
 }
+
+//----------------------------------------------------------------------------
+// System bus high-level operations
 
 // Caller has to guarantee A and D access will not collide with
 // another peripheral; basically either Z80 BUSRQ or RESET
@@ -851,7 +830,7 @@ int BUS_check_RAM()
 
 
 /*--------------------------------------------------------------------------*/
-// IO writes
+// VIDEO board operations
 
 #define VIDEO_BOARD_OUTPUT_ADDR   0x80
 #define VIDEO_BOARD_CONTROL_ADDR   0x81
@@ -952,8 +931,8 @@ void Z80_reset()
     BUS_reset_start();
     VIDEO_start_clock();
 
-    response_clear();
-    command_clear();
+    IOSERVICE_clear_response();
+    IOSERVICE_clear_command();
 
     BUS_write_ROM_image(gZ80BootImage, gZ80BootImageLength);
 
@@ -1196,6 +1175,8 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "buffers") == 0) {
 
+            volatile unsigned char *command_bytes;
+            int command_length = IOSERVICE_get_command(&command_bytes);
             printf("Command length: %d bytes\n", command_length);
             if(command_length > 0) {
                 printf("Command buffer:\n");
@@ -1264,6 +1245,22 @@ void process_local_key(unsigned char c)
     }
 }
 
+#define IOBOARD_SUCCESS 0x01
+#define IOBOARD_READY 0x01
+#define IOBOARD_FAILURE 0xFF
+#define IOBOARD_NOT_READY 0xFF
+
+#define IOBOARD_CMD_NONE  0x00
+#define IOBOARD_CMD_MIN  0x01
+#define IOBOARD_CMD_READ  0x01
+#define IOBOARD_CMD_WRITE 0x02
+#define IOBOARD_CMD_CONST 0x03
+#define IOBOARD_CMD_CONIN 0x04
+#define IOBOARD_CMD_SEROUT 0x05
+#define IOBOARD_CMD_READ_SUM 0x06
+#define IOBOARD_CMD_WRITE_SUM 0x07
+#define IOBOARD_CMD_MAX 0x07
+
 void process_command_read(unsigned char command_request, volatile unsigned char *command_bytes)
 {
     static unsigned char buffer[128];
@@ -1276,14 +1273,14 @@ void process_command_read(unsigned char command_request, volatile unsigned char 
 
     if(disk > gDiskImageCount) { 
         logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
 
     FRESULT result = f_lseek(&gDiskImageFiles[disk], lba_sector * SECTOR_SIZE);
     if(result != FR_OK) {
         logprintf(DEBUG_ERRORS, "ERROR: couldn't seek to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
 
@@ -1291,20 +1288,20 @@ void process_command_read(unsigned char command_request, volatile unsigned char 
     result = f_read(&gDiskImageFiles[disk], buffer, SECTOR_SIZE, &wasread);
     if(result != FR_OK) {
         logprintf(DEBUG_ERRORS, "ERROR: couldn't read sector %d, track %d from \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
     if(wasread != SECTOR_SIZE) {
         logprintf(DEBUG_ERRORS, "ERROR: tried to read %lu bytes from sector %d, track %d of \"%s\", only read %ld\n", SECTOR_SIZE, gDiskImageFilenames[disk], sector, track, wasread);
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
     if(gDebugLevel >= DEBUG_ALL) dump_buffer_hex(4, buffer, SECTOR_SIZE);
 
-    response_append(IOBOARD_SUCCESS);
+    IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
 
     for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-        response_append(buffer[u]);
+        IOSERVICE_append_response_byte(buffer[u]);
 
     if(command_request == IOBOARD_CMD_READ_SUM) {
         unsigned short sum = 0;
@@ -1312,8 +1309,8 @@ void process_command_read(unsigned char command_request, volatile unsigned char 
         for(unsigned int u = 0; u < SECTOR_SIZE; u++)
             sum += buffer[u];
 
-        response_append(sum & 0xff);
-        response_append((sum >> 8) & 0xff);
+        IOSERVICE_append_response_byte(sum & 0xff);
+        IOSERVICE_append_response_byte((sum >> 8) & 0xff);
         logprintf(DEBUG_ALL, "checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
     }
 }
@@ -1329,7 +1326,7 @@ void process_command_write(unsigned char command_request, volatile unsigned char
 
     if(disk > gDiskImageCount) { 
         logprintf(DEBUG_WARNINGS, "asked for disk out of range\n");
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
 
@@ -1342,7 +1339,7 @@ void process_command_write(unsigned char command_request, volatile unsigned char
         if(sum != theirs) {
             logprintf(DEBUG_WARNINGS, "WARNING: IOBOARD_CMD_WRITE_SUM checksum does not match\n");
             // XXX retry?
-            response_append(IOBOARD_FAILURE);
+            IOSERVICE_append_response_byte(IOBOARD_FAILURE);
             return;
         }
     }
@@ -1357,64 +1354,70 @@ void process_command_write(unsigned char command_request, volatile unsigned char
     result = f_write(&gDiskImageFiles[disk], (unsigned char*)(command_bytes + 6), SECTOR_SIZE, &waswritten);
     if(result != FR_OK) {
         logprintf(DEBUG_ERRORS, "ERROR: couldn't write to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
     if(waswritten != SECTOR_SIZE) {
         logprintf(DEBUG_ERRORS, "ERROR: tried to write %lu bytes to sector %d, track %d of \"%s\", only read %ld\n", SECTOR_SIZE, gDiskImageFilenames[disk], sector, track, waswritten);
-        response_append(IOBOARD_FAILURE);
+        IOSERVICE_append_response_byte(IOBOARD_FAILURE);
         return;
     }
     // XXX Should probably set this up as a timeout, so multiple
     // sectors writes can take advantage of single block
     f_sync(&gDiskImageFiles[disk]);
 
-    response_append(IOBOARD_SUCCESS);
+    IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
 }
+
+// Element 0 is 1 here to force stoppage on receiving a bad command
+const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
 
 void check_and_process_command()
 {
     unsigned char isEmpty;
 
-    if(command_length == 0)
+    volatile unsigned char *bytes;
+    int length = IOSERVICE_get_command(&bytes);
+
+    if(length == 0)
         return;
 
-    unsigned char command = command_bytes[0];
+    unsigned char command = bytes[0];
 
     if((command < IOBOARD_CMD_MIN) || (command > IOBOARD_CMD_MAX)) {
 
         logprintf(DEBUG_ERRORS, "ERROR: Unknown command 0x%02X received\n", command);
-        command_clear();
+        IOSERVICE_clear_command();
         return;
     }
 
-    if(command_length < command_lengths[command])
+    if(length < command_lengths[command])
         return;
 
     logprintf(DEBUG_EVENTS, "complete command received.\n");
-    if(command_length > command_lengths[command]) {
+    if(length > command_lengths[command]) {
         logprintf(DEBUG_ERRORS, "ERROR: command buffer longer than expected for command.\n");
     }
 
     if(command == IOBOARD_CMD_NONE)
         return;
 
-    response_start();
+    IOSERVICE_start_response();
     LED_set_info(1);
     switch(command) {
         case IOBOARD_CMD_READ:
         case IOBOARD_CMD_READ_SUM:
-            process_command_read(command, command_bytes);
+            process_command_read(command, bytes);
             break;
 
         case IOBOARD_CMD_WRITE:
         case IOBOARD_CMD_WRITE_SUM:
-            process_command_write(command, command_bytes);
+            process_command_write(command, bytes);
             break;
 
         case IOBOARD_CMD_SEROUT: {
-            putchar(command_bytes[1]);
-            response_append(IOBOARD_SUCCESS);
+            putchar(bytes[1]);
+            IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
             break;
         }
 
@@ -1422,9 +1425,9 @@ void check_and_process_command()
             logprintf(DEBUG_EVENTS, "CONST\n");
             isEmpty = queue_isempty(&con_queue.q);
             if(!isEmpty)
-                response_append(IOBOARD_READY);
+                IOSERVICE_append_response_byte(IOBOARD_READY);
             else
-                response_append(IOBOARD_NOT_READY);
+                IOSERVICE_append_response_byte(IOBOARD_NOT_READY);
             break;
         }
 
@@ -1434,12 +1437,12 @@ void check_and_process_command()
             isEmpty = queue_isempty(&con_queue.q);
             if(!isEmpty) {
                 c = queue_deq(&con_queue.q);
-                response_append(IOBOARD_SUCCESS);
-                response_append(c);
+                IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
+                IOSERVICE_append_response_byte(c);
             } else {
                 printf("Hm, char wasn't actually ready at CONIN\n");
-                response_append(IOBOARD_SUCCESS);
-                response_append(0);
+                IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
+                IOSERVICE_append_response_byte(0);
             }
             break;
         }
@@ -1453,9 +1456,9 @@ void check_and_process_command()
 
     if(response_staging_length > 0) {
         logprintf(DEBUG_DATA, "will respond with %d\n", response_staging_length);
-        command_clear();
+        IOSERVICE_clear_command();
         disable_interrupts();
-        response_finish();
+        IOSERVICE_finish_response();
         enable_interrupts();
         gResponseWasWaiting = 1;
     }
@@ -1463,26 +1466,27 @@ void check_and_process_command()
 
 void check_and_process_HALT()
 {
-    static int Z80WasInHALT = 0;
-    gZ80IsInHALT = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
-    if(gZ80IsInHALT != Z80WasInHALT) {
+    int halted;
+    static int was_halted = 0;
+
+    halted = !HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK);
+    if(halted != was_halted) {
         gOutputDevices = OUTPUT_TO_VIDEO | OUTPUT_TO_SERIAL;
-        if(gZ80IsInHALT) {
+        if(halted) {
             logprintf(DEBUG_EVENTS, "Z80 has HALTed.\n");
         } else {
             logprintf(DEBUG_EVENTS, "Z80 has exited HALT state.\n");
         }
         gOutputDevices = OUTPUT_TO_SERIAL;
-        Z80WasInHALT = gZ80IsInHALT;
+        was_halted = halted;
     }
 }
 
 void check_and_process_soft_reset()
 {
-    if(gResetTheZ80 || HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
+    if(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK)) {
         while(HAL_GPIO_ReadPin(RESET_BUTTON_PORT, RESET_BUTTON_PIN_MASK));
         delay_ms(RESET_BUTTON_DELAY_MS);// software debounce
-        gResetTheZ80 = 0;
 
         Z80_reset();
 
