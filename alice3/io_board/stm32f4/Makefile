@@ -39,6 +39,7 @@ OBJECTS = \
         video.o \
         reset_button.o \
         bus_signals.o \
+        io_service.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)

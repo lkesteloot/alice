@@ -1,6 +1,8 @@
 #ifndef __GPIO_HELPERS__
 #define __GPIO_HELPERS__
 
+#include <stm32f4xx_hal.h>
+
 inline void set_GPIO_value(GPIO_TypeDef* gpio, int mask, int value)
 {
     unsigned long int data = value ? mask : 0;

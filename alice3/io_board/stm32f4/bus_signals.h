@@ -1,6 +1,8 @@
 #ifndef __BUS_SIGNALS_H__
 #define __BUS_SIGNALS_H__
 
+#include <stm32f4xx_hal.h>
+
 #define BUS_SIGNAL_CHECK_PORT GPIOC
 
 #define BUS_IORQ_PIN_MASK GPIO_PIN_0
@@ -69,6 +71,7 @@ void BUS_reset_finish();
 void BUS_set_ADDRESS_as_output();
 void BUS_set_ADDRESS_as_input();
 void BUS_reset_start();
+void BUS_set_DATA(unsigned char data);
 unsigned int shuffle_address(unsigned int a);
 
 #endif /* __BUS_SIGNALS_H__ */

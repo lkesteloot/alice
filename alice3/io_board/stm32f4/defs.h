@@ -19,4 +19,15 @@
 
 extern void panic(void);
 
+// XXX these should be an extern unsigned char[] set through linker
+inline void ccmram_set(unsigned int address, unsigned char b)
+{
+    ((unsigned char *)0x10000000)[address] = b;
+}
+
+inline unsigned char ccmram_get(unsigned int address)
+{
+    return ((unsigned char *)0x10000000)[address];
+}
+
 #endif /* __MAIN_H__ */

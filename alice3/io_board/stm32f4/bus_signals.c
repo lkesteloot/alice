@@ -1,4 +1,3 @@
-#include <stm32f4xx_hal.h>
 #include "gpio_helpers.h"
 #include "delay.h"
 #include "bus_signals.h"
