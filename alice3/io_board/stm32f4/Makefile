@@ -38,6 +38,7 @@ OBJECTS = \
         sd_spi.o \
         video.o \
         reset_button.o \
+        bus_signals.o \
         $(NULL)
 
 SOURCES = $(OBJECTS:.o=.c)
