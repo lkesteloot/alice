@@ -207,7 +207,7 @@ ramnotok:
 	; RAM not okay. Store the offending address at 0 and 0x8000,
 	; store unexpected value at 2 and 0x8002, then print message
 	; and halt.  Debugger can examine those addresses.  Specifically,
-	; IO monitor "1k" command will dump the low 1K.
+	; IO monitor "low128" command will dump the low 128 bytes.
         ;
         ld      (0), hl
         ld      (08000H), hl
