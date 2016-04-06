@@ -22,6 +22,7 @@
 #include "sd_spi.h"
 #include "video.h"
 #include "keyboard.h"
+#include "reset_button.h"
 
 static int gDumpKeyboardData = 0;
 
@@ -167,26 +168,6 @@ void IOSERVICE_clear_response()
     response_waiting = 0;
     gNextByteForReading = RESPONSE_STREAM_EMPTY;
     BUS_set_DATA(gNextByteForReading);
-}
-
-
-//----------------------------------------------------------------------------
-// Z80 reset button ("soft reset")
-
-#define RESET_BUTTON_PORT GPIOB
-#define RESET_BUTTON_PIN_MASK GPIO_PIN_5
-#define RESET_BUTTON_IRQn EXTI9_5_IRQn
-#define RESET_BUTTON_DELAY_MS 10
-
-void RESET_BUTTON_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = RESET_BUTTON_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(RESET_BUTTON_PORT, &GPIO_InitStruct); 
 }
 
 
