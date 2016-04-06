@@ -1,0 +1,11 @@
+#ifndef __RESET_BUTTON_H__
+#define __RESET_BUTTON_H__
+
+#define RESET_BUTTON_PORT GPIOB
+#define RESET_BUTTON_PIN_MASK GPIO_PIN_5
+#define RESET_BUTTON_IRQn EXTI9_5_IRQn
+#define RESET_BUTTON_DELAY_MS 10
+
+void RESET_BUTTON_init();
+
+#endif /* __RESET_BUTTON_H__ */
