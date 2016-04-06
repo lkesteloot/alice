@@ -170,45 +170,6 @@ void IOSERVICE_clear_response()
     BUS_set_DATA(gNextByteForReading);
 }
 
-
-//----------------------------------------------------------------------------
-// Z80 /RESET signal and pin
-
-#define Z80_RESET_PORT GPIOB
-#define Z80_RESET_PIN_MASK GPIO_PIN_0
-#define Z80_RESET_ACTIVE 0
-#define Z80_RESET_INACTIVE Z80_RESET_PIN_MASK
-#define Z80_RESET_DURATION_MS 10
-
-volatile int gZ80IsInRESET = 0;
-
-void BUS_reset_init()
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    GPIO_InitStruct.Pin = Z80_RESET_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(Z80_RESET_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
-    gZ80IsInRESET = 1;
-}
-
-void BUS_reset_start()
-{
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_ACTIVE);
-    gZ80IsInRESET = 1;
-    delay_ms(Z80_RESET_DURATION_MS);
-}
-
-void BUS_reset_finish()
-{
-    gZ80IsInRESET = 0;
-    HAL_GPIO_WritePin(Z80_RESET_PORT, Z80_RESET_PIN_MASK, Z80_RESET_INACTIVE);
-}
-
-
 //----------------------------------------------------------------------------
 // Alice 3 system bus
 
@@ -262,6 +223,12 @@ void BUS_reset_finish()
 #define BUS_HALT_PIN_MASK GPIO_PIN_15
 #define BUS_HALT_PIN 15
 #define BUS_HALT_PORT GPIOA
+
+#define BUS_RESET_PORT GPIOB
+#define BUS_RESET_PIN_MASK GPIO_PIN_0
+#define BUS_RESET_ACTIVE 0
+#define BUS_RESET_INACTIVE BUS_RESET_PIN_MASK
+#define BUS_RESET_DURATION_MS 10
 
 #define BUS_IO_MASK (BUS_IORQ_PIN_MASK | BUS_RD_PIN_MASK | BUS_WR_PIN_MASK | BUS_A7_PIN_MASK)
 
@@ -362,6 +329,131 @@ void BUS_set_DATA(unsigned char data)
 {
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
 }
+
+__attribute__((optimize("unroll-loops")))
+void BUS_set_ADDRESS_as_output()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
+    }
+}
+
+__attribute__((optimize("unroll-loops")))
+void BUS_set_ADDRESS_as_input()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
+    }
+}
+
+__attribute__((optimize("unroll-loops")))
+void BUS_set_ADDRESS(unsigned int a)
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
+    }
+}
+
+// /RESET is initially set ACTIVE
+void BUS_init()
+{
+    IOSERVICE_clear_command();
+    IOSERVICE_clear_response();
+
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    // configure PORT A0:A7 (bus D0..D7) outputs for later
+    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;   // LOW
+    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
+    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;        // no PUPD
+
+    BUS_set_DATA_as_input();
+
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+
+    // RD and WR are port C pins 1, 2 as inputs driving interrupts
+    GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
+    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
+
+    /* Enable and set EXTI Line1 Interrupt to the highest priority */
+    HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+    /* Enable and set EXTI Line2 Interrupt to the highest priority */
+    HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+    // IORQ and A7 are port C pins 0, 4, as inputs
+    GPIO_InitStruct.Pin = BUS_IORQ_PIN_MASK | BUS_A7_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
+
+    // MREQ
+    GPIO_InitStruct.Pin = BUS_MREQ_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
+
+    // HALT
+    GPIO_InitStruct.Pin = BUS_HALT_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_HALT_PORT, &GPIO_InitStruct); 
+
+    // BUSRQ
+    GPIO_InitStruct.Pin = BUS_BUSRQ_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_BUSRQ_PORT, &GPIO_InitStruct); 
+    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
+
+    // BUSAK
+    GPIO_InitStruct.Pin = BUS_BUSAK_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(BUS_BUSAK_PORT, &GPIO_InitStruct); 
+
+    // /RESET
+    GPIO_InitStruct.Pin = BUS_RESET_PIN_MASK;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(BUS_RESET_PORT, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(BUS_RESET_PORT, BUS_RESET_PIN_MASK, BUS_RESET_ACTIVE);
+
+    // Address bus pins
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        GPIO_InitStruct.Pin = 1U << line->pin;
+        HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
+    }
+}
+
+void BUS_reset_start()
+{
+    HAL_GPIO_WritePin(BUS_RESET_PORT, BUS_RESET_PIN_MASK, BUS_RESET_ACTIVE);
+    delay_ms(BUS_RESET_DURATION_MS);
+}
+
+void BUS_reset_finish()
+{
+    HAL_GPIO_WritePin(BUS_RESET_PORT, BUS_RESET_PIN_MASK, BUS_RESET_INACTIVE);
+}
+
+//----------------------------------------------------------------------------
+// Bus read and write response ISRs
 
 // XXX these should be an extern unsigned char[] set through linker
 void ccmram_set(unsigned int address, unsigned char b)
@@ -485,33 +577,6 @@ void EXTI2_IRQHandler(void)
     NVIC_ClearPendingIRQ(EXTI2_IRQn);
 }
 
-__attribute__((optimize("unroll-loops")))
-void BUS_set_ADDRESS_as_output()
-{
-    for(int i = 0; i < address_line_count; i++) {
-        GPIOLine* line = &address_lines[i];
-        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
-    }
-}
-
-__attribute__((optimize("unroll-loops")))
-void BUS_set_ADDRESS_as_input()
-{
-    for(int i = 0; i < address_line_count; i++) {
-        GPIOLine* line = &address_lines[i];
-        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
-    }
-}
-
-__attribute__((optimize("unroll-loops")))
-void BUS_set_ADDRESS(unsigned int a)
-{
-    for(int i = 0; i < address_line_count; i++) {
-        GPIOLine* line = &address_lines[i];
-        set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
-    }
-}
-
 // Caller has to guarantee A and D access will not collide with
 // another peripheral
 // Caller has to save and restore D if desired
@@ -594,6 +659,10 @@ unsigned char BUS_read_io_byte(unsigned int a)
     return d;
 }
 
+
+//----------------------------------------------------------------------------
+// System bus aggregate operations
+
 int gInRESETBeforeMastering = 0;
 
 void BUS_acquire_bus(int releaseReset)
@@ -623,7 +692,7 @@ void BUS_release_bus(int startReset)
 // Saves
 void BUS_mastering_start()
 {
-    gInRESETBeforeMastering = !HAL_GPIO_ReadPin(Z80_RESET_PORT, Z80_RESET_PIN_MASK);
+    gInRESETBeforeMastering = !HAL_GPIO_ReadPin(BUS_RESET_PORT, BUS_RESET_PIN_MASK);
     BUS_acquire_bus(gInRESETBeforeMastering);
 
     BUS_set_ADDRESS(0);
@@ -653,80 +722,6 @@ void BUS_mastering_finish()
     BUS_release_bus(gInRESETBeforeMastering);
 }
 
-void BUS_init()
-{
-    IOSERVICE_clear_command();
-    IOSERVICE_clear_response();
-
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    // configure PORT A0:A7 (bus D0..D7) outputs for later
-    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x0000;   // LOW
-    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x0000;        // PUSH_PULL
-    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;        // no PUPD
-
-    BUS_set_DATA_as_input();
-
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-
-    // RD and WR are port C pins 1, 2 as inputs driving interrupts
-    GPIO_InitStruct.Pin = BUS_RD_PIN_MASK | BUS_WR_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
-    set_GPIO_value(BUS_WR_PORT, BUS_WR_PIN_MASK, BUS_WR_INACTIVE);
-
-    /* Enable and set EXTI Line1 Interrupt to the highest priority */
-    HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
-    /* Enable and set EXTI Line2 Interrupt to the highest priority */
-    HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-    // IORQ and A7 are port C pins 0, 4, as inputs
-    GPIO_InitStruct.Pin = BUS_IORQ_PIN_MASK | BUS_A7_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_SIGNAL_CHECK_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK, BUS_IORQ_INACTIVE);
-
-    // MREQ
-    GPIO_InitStruct.Pin = BUS_MREQ_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_MREQ_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
-
-    // HALT
-    GPIO_InitStruct.Pin = BUS_HALT_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_HALT_PORT, &GPIO_InitStruct); 
-
-    // BUSRQ
-    GPIO_InitStruct.Pin = BUS_BUSRQ_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_BUSRQ_PORT, &GPIO_InitStruct); 
-    set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
-
-    // BUSAK
-    GPIO_InitStruct.Pin = BUS_BUSAK_PIN_MASK;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(BUS_BUSAK_PORT, &GPIO_InitStruct); 
-
-    // Address bus pins
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    for(int i = 0; i < address_line_count; i++) {
-        GPIOLine* line = &address_lines[i];
-        GPIO_InitStruct.Pin = 1U << line->pin;
-        HAL_GPIO_Init(line->gpio, &GPIO_InitStruct); 
-    }
-}
 
 //----------------------------------------------------------------------------
 // System bus high-level operations
@@ -1108,7 +1103,7 @@ void process_local_key(unsigned char c)
 
         } else if(strcmp(gMonitorCommandLine, "bus") == 0) {
 
-            printf("RESET %s\n", HAL_GPIO_ReadPin(Z80_RESET_PORT, Z80_RESET_PIN_MASK) ? "high" : "low");
+            printf("RESET %s\n", HAL_GPIO_ReadPin(BUS_RESET_PORT, BUS_RESET_PIN_MASK) ? "high" : "low");
             printf("HALT %s\n", HAL_GPIO_ReadPin(BUS_HALT_PORT, BUS_HALT_PIN_MASK) ? "high" : "low");
             printf("IORQ %s\n", HAL_GPIO_ReadPin(BUS_IORQ_PORT, BUS_IORQ_PIN_MASK) ? "high" : "low");
             printf("MREQ %s\n", HAL_GPIO_ReadPin(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK) ? "high" : "low");
@@ -1609,10 +1604,9 @@ int main()
         VIDEO_init();
         VIDEO_wait();
 
-	BUS_reset_init(); // Pull Z80 RESET low (active), but Z80
-			  // may not actually reset until some clock
-			  // cycles have run.  So run clock below before
-                          // trying to access bus
+	// Pulls Z80 RESET low (active), but Z80 may not actually
+	// reset until some clock cycles have run.  So run clock below
+	// before trying to access bus
         BUS_init();
 
         VIDEO_start_clock();
