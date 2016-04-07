@@ -38,14 +38,16 @@ unsigned char BUS_read_memory_byte(unsigned int a)
 {
     BUS_set_ADDRESS(a);
 
-    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
     delay_us(1);
     set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
+    delay_us(1);
+    set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
 
     delay_us(MEMORY_DELAY_MICROS);
     unsigned char d = BUS_get_DATA();
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
-    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
+    set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_INACTIVE);
     set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_INACTIVE);
 
     return d;
@@ -107,7 +109,7 @@ void BUS_release_bus(int startReset)
     set_GPIO_value(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK, BUS_BUSRQ_INACTIVE);
 
     if(startReset) {
-        BUS_reset_finish();
+        BUS_reset_start();
     } else {
         while(!HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK));
     }
