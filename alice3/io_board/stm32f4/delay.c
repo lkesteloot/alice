@@ -29,7 +29,7 @@ uint32_t DWT_Get(void)
   return DWT->CYCCNT;
 }
  
-__inline
+static __inline
 uint8_t DWT_Compare(int32_t tp)
 {
   return (((int32_t)DWT_Get() - tp) < 0);
