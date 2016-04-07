@@ -9,7 +9,7 @@
 // if 1, then ARM reads and writes only A0-A15 and reads MREQ
 // if 0, then ARM uses A0-A17 and bus mastering to access external RAM,
 //   only writes MREQ
-#define ALICE3_V3_ARM_IS_RAM 0
+#define ALICE3_V3_ARM_IS_RAM 1
 
 #define XSTR(x) STR(x)
 #define STR(x) # x
