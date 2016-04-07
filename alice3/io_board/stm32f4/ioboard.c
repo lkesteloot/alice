@@ -107,6 +107,7 @@ void system_init()
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
 
     delay_init();
 }
@@ -194,6 +195,7 @@ int BUS_check_RAM()
         int t;
 
         BUS_mastering_start();
+        // XXX verified by printf BUSAK is low here & RESET high & HALT high
 
         BUS_set_DATA(0);
         BUS_set_DATA_as_output();
@@ -201,7 +203,7 @@ int BUS_check_RAM()
         t = 0;
         for(unsigned int a = 0; a < ALICE3_SRAM_SIZE; a++) {
             BUS_write_memory_byte(a, t);
-            t = (t + 251) % 256;
+            t = (t + 1) % 251;
         }
 
         BUS_set_DATA_as_input();
@@ -214,11 +216,10 @@ int BUS_check_RAM()
                 succeeded = 0;
                 break;
             }
-            t = (t + 251) % 256;
+            t = (t + 1) % 251;
         }
 
         BUS_mastering_finish();
-
     }
 
     return succeeded;
@@ -1012,18 +1013,41 @@ int main()
 
 	// Pulls Z80 RESET low (active), but Z80 may not actually
 	// reset until some clock cycles have run.  So run clock below
-	// before trying to access bus
+	// before trying to access bus.  (As of Apr 6, 2016, the Prop runs
+        // Z80 clock continuously...)
 
         BUS_init();
 
         VIDEO_start_clock();
         VIDEO_output_string("Alice 3 I/O firmware, " IOBOARD_FIRMWARE_VERSION_STRING "\r\n", 0);
 
-        if(!BUS_check_RAM()) {
-            panic();
+        if((ALICE3_VERSION == ALICE3_V3) && !ALICE3_V3_ARM_IS_RAM) {
+            printf("RAM check...\n");
+            SERIAL_flush();
+            if(!BUS_check_RAM()) {
+                panic();
+            }
+            printf("RAM okay...\n");
+            SERIAL_flush();
         }
 
     }
+
+    // XXX debugging - print Propeller character set
+    if(0)
+        for(int i = 0; i < 256; i++) {
+            if(i % 16 == 0) {
+                char buf[16];
+                sprintf(buf, "%02X (%3d) : ", i, i);
+                VIDEO_output_string(buf, 0);
+            }
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, i);
+            if((i + 1) % 16 == 0) {
+                char buf[16];
+                sprintf(buf, "\n");
+                VIDEO_output_string(buf, 0);
+            }
+        }
 
     SPI_config_for_sd();
     LED_beat_heart();
