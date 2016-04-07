@@ -2,6 +2,7 @@
 #define __BUS_SIGNALS_H__
 
 #include <stm32f4xx_hal.h>
+#include "gpio_helpers.h"
 
 #define BUS_SIGNAL_CHECK_PORT GPIOC
 
@@ -59,19 +60,115 @@ typedef struct GPIOLine {
     int pin; 
 } GPIOLine;
 
-extern GPIOLine address_lines[];
-extern int address_line_count;
+
+static GPIOLine address_lines[] = {
+    {GPIOA, 14}, // A0
+    {GPIOA, 13}, // A1
+    {GPIOC, 5}, // A2
+    {GPIOB, 3}, // A3
+    {GPIOB, 10}, // A4
+    {GPIOB, 9}, // A5
+    {GPIOB, 8}, // A6
+    {GPIOC, 4}, // A7
+    {GPIOC, 9}, // A8
+    {GPIOB, 4}, // A9
+
+#if ALICE3_VERSION == ALICE3_V3
+
+    {GPIOC, 13}, // A10
+    {GPIOC, 12}, // A11
+    {GPIOC, 8}, // A12
+    {GPIOC, 7}, // A13
+    {GPIOC, 6}, // A14
+    {GPIOC, 3}, // A15
+
+#if ! ALICE3_V3_ARM_IS_RAM
+
+    {GPIOD, 2}, // A16
+    {GPIOC, 15}, // A17
+
+#endif // ! ALICE_V3_ARM_IS_RAM
+
+#endif // ALICE3_VERSION == ALICE3_V3
+};
+static int address_line_count = sizeof(address_lines) / sizeof(address_lines[0]);
+
+__attribute__((optimize("unroll-loops")))
+static inline unsigned int shuffle_address(unsigned int a)
+{
+    unsigned int A = 0, B = 0, C = 0;
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        int bit = (a >> i) & 0x01;
+        if(line->gpio == GPIOA)
+            A |= (bit << line->pin);
+        else if(line->gpio == GPIOB)
+            B |= (bit << line->pin);
+        else if(line->gpio == GPIOC)
+            C |= (bit << line->pin);
+    }
+    unsigned int ddr = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
+    return ddr;
+}
+
 
 void BUS_init();
-void BUS_set_DATA_as_output();
-void BUS_set_DATA_as_input();
-unsigned char BUS_get_DATA();
-void BUS_set_ADDRESS(unsigned int a);
 void BUS_reset_finish();
-void BUS_set_ADDRESS_as_output();
-void BUS_set_ADDRESS_as_input();
 void BUS_reset_start();
-void BUS_set_DATA(unsigned char data);
-unsigned int shuffle_address(unsigned int a);
+
+static inline void BUS_set_DATA_as_input()
+{
+    GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x0;          // INPUT
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+static inline void BUS_set_DATA_as_output()
+{
+    GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x5555;       // OUTPUT
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+static inline unsigned char BUS_get_DATA()
+{
+    return GPIOA->IDR & 0xff;
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+static inline void BUS_set_DATA(unsigned char data)
+{
+    GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+__attribute__((optimize("unroll-loops")))
+static inline void BUS_set_ADDRESS_as_output()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
+    }
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+__attribute__((optimize("unroll-loops")))
+static inline void BUS_set_ADDRESS_as_input()
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
+    }
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
+__attribute__((optimize("unroll-loops")))
+static inline void BUS_set_ADDRESS(unsigned int a)
+{
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
+    }
+    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+}
+
 
 #endif /* __BUS_SIGNALS_H__ */
