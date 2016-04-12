@@ -34,7 +34,8 @@ To bring up a new board:
     * Wait one second, then remove the jumper.
     * In `binaries`, run `sh install_cortex_m4_firmware.sh`.
         * The "dfu-util" program is a prerequisite.  It can be installed
-          through MacPorts as `dfu-util`, or it can be compiled from the
+	  on MacOS (our primary platform) through MacPorts as
+	  `dfu-util`, or it can be compiled from the
           source at `git://git.code.sf.net/p/dfu-util/dfu-util`.
     * To interact with the boot monitor:
         * Locate the 2-pin header closest to the MicroSD socket.
