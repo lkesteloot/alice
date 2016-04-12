@@ -2,7 +2,11 @@
 # Alice III
 
 This is the third model of the Alice machine. It runs a silicon Z80 with
-two co-processors: an ARM for I/O and a Propeller for video.
+two co-processors: an ARM for keyboard, disk, and serial port, and a Propeller for video.
+
+The 80MHz Propeller has 64K of internal RAM, drives VGA and the 5-pin Aux connector (intended for audio but wired generically to 3 Propeller pins) and thus provides opportunities for video and other experimentation. 
+
+The 168MHz STM32F415 ARM Cortex-M4 contains 192K of RAM and is connected to a PS/2 port, an SD card, and a simple UART on a 2-pin header, and has a firmware monitor that can be altered or replaced.
 
 In the `kicad` directory are various schematics and PCBs. The latest is
 `MOBO_SMD`, which uses surface mount versions of the parts.
@@ -10,9 +14,9 @@ In the `kicad` directory are various schematics and PCBs. The latest is
 To bring up a new board:
 
 * Power:
-    * Use a wall wart to provide micro-USB power. Verify that one LED is on.
-      If you have an in-line USB current meter, there should be less than
-      10 mA being pulled.
+    * Use a wall wart to provide micro-USB power. Verify that the D2 LED
+      (closest to the switches) is on.  If you have an in-line USB
+      current meter, there should be less than 10 mA being pulled.
 * Propeller:
     * Hook up the Prop Plug. The Vss pin should be closest to the corner of
       the board.
@@ -20,10 +24,24 @@ To bring up a new board:
       and program the EEPROM. After this you should be able to hook up a VGA
       monitor and see the line `Alice 3 GPU firmware`.
     * Remove the Prop Plug.
-* ARM:
+* Cortex-M4:
     * Connect your computer to the USB jack of the Alice III.
     * Short the jumper closest to the ARM.
     * Hard-reset the board (the push button closest to the LEDs).
     * Wait one second, then remove the jumper.
-    * Run this command: `sudo ./dfu-util -d 0483:df11 -a 0 -D ioboard_arm_is_ram.dfu`
+    * In `binaries`, run `sh install_cortex_m4_firmware.sh`.
+    * To interact with the boot monitor:
+	* Locate the 2-pin header closest to the MicroSD socket.
+	  There's no label on this header.
+        * Attach a serial transceiver to this header; transmit to the pin
+	  closest to the ARM, and receive from the other pin farthest.
+          E.g. connect FTDI Tx to ARM UART Rx and FTDI Rx to ARM UART Tx.
+        * When you hard reboot or power on the Alice III, you should see
+	  on the serial port "Alice 3 I/O firmware" followed by the
+	  firmware build date.
+* Z80:
+    * Format a MicroSD card for FAT32.
+    * Copy rom/rom.bin to the MicroSD card and rename to “bootrom.bin”.
+    * Copy binaries/boot.dsk and binaries/disks.txt to the MicroSD card.
+    * Install the MicroSD card in the Alice III and power on or hard reboot the Alice III.
 
