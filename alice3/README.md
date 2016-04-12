@@ -33,6 +33,9 @@ To bring up a new board:
     * Hard-reset the board (the push button closest to the LEDs).
     * Wait one second, then remove the jumper.
     * In `binaries`, run `sh install_cortex_m4_firmware.sh`.
+        * The "dfu-util" program is a prerequisite.  It can be installed
+          through MacPorts as `dfu-util`, or it can be compiled from the
+          source at `git://git.code.sf.net/p/dfu-util/dfu-util`.
     * To interact with the boot monitor:
         * Locate the 2-pin header closest to the MicroSD socket.
           There's no label on this header.
@@ -40,6 +43,7 @@ To bring up a new board:
           closest to the ARM, and receive from the other pin.
           E.g. connect FTDI Tx to the pin closer to the ARM and
           FTDI Rx to the pin further from the ARM.
+        * Connect to the serial port at 115200 baud.
         * When you hard-reset or power-on the Alice III, you should see
           on the serial port "Alice 3 I/O firmware" followed by the
           firmware build date.
