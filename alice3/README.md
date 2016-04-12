@@ -26,7 +26,7 @@ To bring up a new board:
     * Remove the Prop Plug.
 * Cortex-M4:
     * Connect your computer to the USB jack of the Alice III.
-    * Short the jumper closest to the ARM.
+    * Short the header closest to the ARM, labeled "JP1".
     * Hard-reset the board (the push button closest to the LEDs).
     * Wait one second, then remove the jumper.
     * In `binaries`, run `sh install_cortex_m4_firmware.sh`.
@@ -34,15 +34,14 @@ To bring up a new board:
 	* Locate the 2-pin header closest to the MicroSD socket.
 	  There's no label on this header.
         * Attach a serial transceiver to this header; transmit to the pin
-	  closest to the ARM, and receive from the other pin farthest.
+	  closest to the ARM, and receive from the other pin.
 	  E.g. connect FTDI Tx to the pin closer to the ARM and
 	  FTDI Rx to the pin further from the ARM.
-        * When you hard reboot or power on the Alice III, you should see
+        * When you hard-reset or power-on the Alice III, you should see
 	  on the serial port "Alice 3 I/O firmware" followed by the
 	  firmware build date.
 * Z80:
     * Format a MicroSD card for FAT32.
-    * Copy rom/rom.bin to the MicroSD card and rename to “bootrom.bin”.
-    * Copy binaries/boot.dsk and binaries/disks.txt to the MicroSD card.
-    * Install the MicroSD card in the Alice III and power on or hard reboot the Alice III.
+    * Copy `binaries/bootrom.bin`, `binaries/boot.dsk` and `binaries/disks.txt` to the MicroSD card.
+    * Install the MicroSD card in the Alice III and power-on or hard-reset the Alice III.
 
