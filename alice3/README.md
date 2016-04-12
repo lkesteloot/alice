@@ -35,7 +35,8 @@ To bring up a new board:
 	  There's no label on this header.
         * Attach a serial transceiver to this header; transmit to the pin
 	  closest to the ARM, and receive from the other pin farthest.
-          E.g. connect FTDI Tx to ARM UART Rx and FTDI Rx to ARM UART Tx.
+	  E.g. connect FTDI Tx to the pin closer to the ARM and
+	  FTDI Rx to the pin further from the ARM.
         * When you hard reboot or power on the Alice III, you should see
 	  on the serial port "Alice 3 I/O firmware" followed by the
 	  firmware build date.
