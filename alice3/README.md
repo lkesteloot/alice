@@ -4,6 +4,8 @@
 This is the third model of the Alice machine. It runs a silicon Z80 with
 two co-processors: an ARM for keyboard, disk, and serial port, and a Propeller for video.
 
+![The Alice III](alice_iii.jpg)
+
 The 80MHz Propeller has 64K of internal RAM, drives VGA and the 5-pin Aux connector (intended for audio but wired generically to 3 Propeller pins) and thus provides opportunities for video and other experimentation. 
 
 The 168MHz STM32F415 ARM Cortex-M4 contains 192K of RAM and is connected to a PS/2 port, an SD card, and a simple UART on a 2-pin header, and has a firmware monitor that can be altered or replaced.
