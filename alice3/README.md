@@ -31,7 +31,24 @@ To bring up a new board:
     * Connect your computer to the USB jack of the Alice III.
     * Short the header closest to the ARM, labeled "JP1".
     * Hard-reset the board (the push button closest to the LEDs).
-    * Wait one second, then remove the jumper.
+    * Wait one second, then remove the jumper.  If you look in your
+      USB device list, you should see the STM bootloader.  For example,
+      on MacOS X, the output of `system_profiler SPUSBDataType` should
+      contain a section similar to:
+```
+        STM32  BOOTLOADER:
+
+          Product ID: 0xdf11
+          Vendor ID: 0x0483  (STMicroelectronics)
+          Version: 22.00
+          Serial Number: 366A34573335
+          Speed: Up to 12 Mb/sec
+          Manufacturer: STMicroelectronics
+          Location ID: 0x14100000 / 20
+          Current Available (mA): 1000
+          Current Required (mA): 100
+          Extra Operating Current (mA): 0
+```
     * In `binaries`, run `sh install_cortex_m4_firmware.sh`.
         * `dfu-util` is a prerequisite.  It can be installed
 	  on MacOS (our primary platform) through MacPorts, or you
