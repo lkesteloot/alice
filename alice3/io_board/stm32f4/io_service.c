@@ -179,7 +179,6 @@ void EXTI1_IRQHandler(void)
 void EXTI2_IRQHandler(void)
 {
     unsigned int initialMREQ = BUS_MREQ_PORT->IDR;
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
     unsigned char d = BUS_get_DATA();
     __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
@@ -190,8 +189,6 @@ void EXTI2_IRQHandler(void)
         }
 
     } else if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
-
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
         unsigned int A = GPIOA->IDR;
         unsigned int B = GPIOB->IDR;

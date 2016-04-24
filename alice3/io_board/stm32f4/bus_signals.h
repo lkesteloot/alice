@@ -119,25 +119,21 @@ void BUS_reset_start();
 static inline void BUS_set_DATA_as_input()
 {
     GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x0;          // INPUT
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 static inline void BUS_set_DATA_as_output()
 {
     GPIOA->MODER = (GPIOA->MODER & ~0xffff) | 0x5555;       // OUTPUT
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 static inline unsigned char BUS_get_DATA()
 {
     return GPIOA->IDR & 0xff;
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 static inline void BUS_set_DATA(unsigned char data)
 {
     GPIOA->ODR = (GPIOA->ODR & ~0xff) | data;
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 __attribute__((optimize("unroll-loops")))
@@ -147,7 +143,6 @@ static inline void BUS_set_ADDRESS_as_output()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_OUTPUT_PP);
     }
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 __attribute__((optimize("unroll-loops")))
@@ -157,7 +152,6 @@ static inline void BUS_set_ADDRESS_as_input()
         GPIOLine* line = &address_lines[i];
         set_GPIO_iotype(line->gpio, line->pin, GPIO_MODE_INPUT);
     }
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 __attribute__((optimize("unroll-loops")))
@@ -167,7 +161,6 @@ static inline void BUS_set_ADDRESS(unsigned int a)
         GPIOLine* line = &address_lines[i];
         set_GPIO_value(line->gpio, 0x1U << line->pin, (a >> i) & 0x01);
     }
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 }
 
 

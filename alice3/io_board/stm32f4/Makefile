@@ -60,8 +60,8 @@ STM32Cube4/startup_stm32f417xx.o: STM32Cube4/startup_stm32f417xx.s
 %.o: %.c
 	$(TOOLROOT)/bin/arm-none-eabi-gcc -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $< -c -o $@ -MMD
 
-%.s: %.c
-	$(TOOLROOT)/bin/arm-none-eabi-gcc -S -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $< -c -o $@
+%.annotated: %.c
+	$(TOOLROOT)/bin/arm-none-eabi-gcc -Wa,-adhln -std=c99 -Wall $(OPT) -ISTM32Cube4 -DIOBOARD_FIRMWARE_VERSION="$(FIRMWARE_VERSION)" -fno-builtin -I$(STM32F4XX_CMSIS_INC_PATH) -D$(TARGET) $(CORTEX_M4_HWFP_CC_FLAGS)  $< -c > $@
 
 clean:
 	rm -f *.hex *.elf *.o $(OBJECTS) $(DEPS)
@@ -75,3 +75,4 @@ ioboard.dfu: ioboard.hex
 
 burn: ioboard.dfu
 	sudo ~/trees/dfu-util/src/dfu-util -d 0483:df11 -a 0 -D ioboard.dfu
+
