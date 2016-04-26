@@ -1,7 +1,10 @@
 #ifndef __KEYBOARD_H__
 #define __KEYBOARD_H__
 
-extern volatile unsigned char gKeyboardOverflowed;
+extern volatile int gKeyboardOverflowed;
+extern volatile int gKeyboardBATBadParity;
+extern volatile int gKeyboardParityError;
+extern volatile int gKeyboardRawData;
 
 void KBD_init();
 int KBD_process_queue();

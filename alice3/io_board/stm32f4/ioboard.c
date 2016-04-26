@@ -27,6 +27,8 @@
 #include "bus_aggregate.h"
 #include "io_service.h"
 
+const int gStandaloneARM = 0;
+
 static int gDumpKeyboardData = 0;
 
 void panic_worse()
@@ -346,7 +348,7 @@ void __io_putchar( char c )
 {
     if(gOutputDevices & OUTPUT_TO_SERIAL)
         SERIAL_enqueue_one_char(c);
-    if(gOutputDevices & OUTPUT_TO_VIDEO) {
+    if(!gStandaloneARM && (gOutputDevices & OUTPUT_TO_VIDEO)) {
         if(c == '\n') // XXX
             BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
@@ -356,9 +358,11 @@ void __io_putchar( char c )
 void errorchar(char c)
 {
     SERIAL_enqueue_one_char(c);
-    if(c == '\n') // XXX
-        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
-    BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
+    if(!gStandaloneARM) {
+        if(c == '\n') // XXX
+            BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '\r');
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, c);
+    }
 }
 
 void errorchar_flush()
@@ -902,6 +906,16 @@ void check_exceptional_conditions()
         logprintf(DEBUG_WARNINGS, "(%04X,%02X)", gUnclaimedWriteAddress, gUnclaimedWriteData);
         gUnclaimedWrite = 0;
     }
+
+    if(gKeyboardParityError) {
+        logprintf(DEBUG_WARNINGS, "WARNING: Keyboard data parity error, received 0x%02X\n", gKeyboardParityError - 256);
+        gKeyboardParityError = 0;
+    }
+
+    if(gKeyboardBATBadParity) {
+        logprintf(DEBUG_EVENTS, "EVENT: Received initial BAT with parity error from PS/2 keyboard\n");
+        gKeyboardBATBadParity = 0;
+    }
 }
 
 void process_monitor_queue()
@@ -968,8 +982,6 @@ int read_bootrom()
     return 1;
 }
 
-const int gStandaloneARM = 0;
-
 void uart_received(char c)
 {
     queue_enq(&mon_queue.q, c);
@@ -1007,7 +1019,12 @@ int main()
     IOSERVICE_clear_command();
     IOSERVICE_clear_response();
 
-    if(!gStandaloneARM) {
+    if(gStandaloneARM) {
+
+        printf("ARM in standalone mode; won't use Propeller or Z80.\n");
+
+    } else {
+
         VIDEO_init();
         VIDEO_wait();
 

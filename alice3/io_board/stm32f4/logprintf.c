@@ -8,6 +8,7 @@ extern void errorchar(int c);
 extern void errorchar_flush();
 
 int gDebugLevel = DEBUG_WARNINGS;
+
 void logprintf(int level, char *fmt, ...)
 {
     va_list args;

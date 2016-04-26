@@ -3,7 +3,7 @@
 
 #include "byte_queue.h"
 
-extern volatile unsigned char gKeyboardOverflowed;
+#define PS2_KBD_BAT 0xAA
 
 int PS2_process_byte(int dump_data, unsigned char kbd_byte);
 

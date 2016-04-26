@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <ctype.h>
+#include "logprintf.h"
 #include "ps2_keyboard.h"
 
-static char up_key_flag = 0;
-static char shift_status = 0;
-static char alt_status = 0;
-static char ctrl_status = 0;
+static char kbd_up_key_flag = 0;
+static char kbd_shift_status = 0;
+static char kbd_alt_status = 0;
+static char kbd_ctrl_status = 0;
 
 #define LSHIFT_KEY 0x12
 #define RSHIFT_KEY 0x59
@@ -160,36 +161,38 @@ int PS2_process_byte(int dump_data, unsigned char kbd_byte)
 {
     int result = -1;
 
-    if(kbd_byte == UP_KEY) {
-        up_key_flag = 1;
+    if(kbd_byte == PS2_KBD_BAT) {
+        // Keyboard successful assurance test
+    } else if(kbd_byte == UP_KEY) {
+        kbd_up_key_flag = 1;
         if(dump_data) 
-            printf("keyboard key up\n");
+            logprintf(DEBUG_DATA, "keyboard key up\n");
     } else {
         switch(kbd_byte) {
             case LSHIFT_KEY:
             case RSHIFT_KEY:
-                shift_status = !up_key_flag;
+                kbd_shift_status = !kbd_up_key_flag;
                 if(dump_data) 
-                    printf("shift status is now %d\n", shift_status);
+                    logprintf(DEBUG_DATA, "shift status is now %d\n", kbd_shift_status);
                 break;
             case ALT_KEY:
-                alt_status = !up_key_flag;
+                kbd_alt_status = !kbd_up_key_flag;
                 if(dump_data) 
-                    printf("alt status is now %d\n", alt_status);
+                    logprintf(DEBUG_DATA, "alt status is now %d\n", kbd_alt_status);
                 break;
             case CTRL_KEY:
-                ctrl_status = !up_key_flag;
+                kbd_ctrl_status = !kbd_up_key_flag;
                 if(dump_data) 
-                    printf("ctrl status is now %d\n", ctrl_status);
+                    logprintf(DEBUG_DATA, "ctrl status is now %d\n", kbd_ctrl_status);
                 break;
             default:
-                if(!up_key_flag)
+                if(!kbd_up_key_flag)
                     if(!(kbd_byte & 0x80)) {
-                        unsigned char c = kbd_lookup(shift_status, alt_status, ctrl_status, kbd_byte);
+                        unsigned char c = kbd_lookup(kbd_shift_status, kbd_alt_status, kbd_ctrl_status, kbd_byte);
                         if(dump_data) {
-                            printf("keyboard ASCII: %02X", c);
+                            logprintf(DEBUG_DATA, "keyboard ASCII: %02X", c);
                             if(isprint(c))
-                                printf("(%c)\n", c);
+                                logprintf(DEBUG_DATA, "(%c)\n", c);
                             else 
                                 putchar('\n');
                         }
@@ -197,9 +200,10 @@ int PS2_process_byte(int dump_data, unsigned char kbd_byte)
                     }
                 break;
         }
-        up_key_flag = 0;
+        kbd_up_key_flag = 0;
     }
 
     return result;
 }
+
 
