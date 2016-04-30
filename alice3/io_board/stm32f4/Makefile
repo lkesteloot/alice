@@ -2,9 +2,9 @@ FIRMWARE_VERSION    := $(shell date)
 
 OPT             =       -O2 -g
 
-TOOLROOT        =       $(HOME)/trees/gcc-arm-none-eabi-4_9-2015q3
-STM32FCUBEROOT  =       $(HOME)/trees/STM32Cube_FW_F4_V1.9.0
-GCC_LIB         =       $(TOOLROOT)/lib/gcc/arm-none-eabi/4.9.3
+TOOLROOT        ?=      $(HOME)/trees/gcc-arm-none-eabi-5_3-2016q1
+STM32FCUBEROOT  ?=      $(HOME)/trees/STM32Cube_FW_F4_V1.9.0
+GCC_LIB         ?=      $(TOOLROOT)/lib/gcc/arm-none-eabi/5.3.1
 
 CORTEX_M4_HWFP_CC_FLAGS = -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mlittle-endian
 TARGET = STM32F415xx
@@ -52,7 +52,7 @@ ioboard.hex: ioboard.elf
 -include $(DEPS)
 
 ioboard.elf:  $(OBJECTS) ioboard.o
-	$(TOOLROOT)/bin/arm-none-eabi-gcc $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS) -DSTM32F415xx -L$(CORTEX_M4_HWFP_LIB_PATH) -TSTM32F415RG_FLASH.ld -lm -specs=nosys.specs -Wl,--gc-sections $^ -o $@
+	$(TOOLROOT)/bin/arm-none-eabi-gcc $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS) -DSTM32F415xx -L$(CORTEX_M4_HWFP_LIB_PATH) -TSTM32F415RG_FLASH.ld -lm -Wl,--gc-sections $^ -o $@
 
 STM32Cube4/startup_stm32f417xx.o: STM32Cube4/startup_stm32f417xx.s
 	$(TOOLROOT)/bin/arm-none-eabi-gcc -Wall $(OPT) $(CORTEX_M4_HWFP_CC_FLAGS)  $< -c -o $@
@@ -74,5 +74,5 @@ ioboard.dfu: ioboard.hex
 	python dfu-convert -i ioboard.hex ioboard.dfu
 
 burn: ioboard.dfu
-	sudo ~/trees/dfu-util/src/dfu-util -d 0483:df11 -a 0 -D ioboard.dfu
+	sudo dfu-util -d 0483:df11 -a 0 -D ioboard.dfu
 
