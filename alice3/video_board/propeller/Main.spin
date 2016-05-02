@@ -19,6 +19,10 @@ CON
   chrs = cols * rows
   queue_capacity = 512
   
+  audio_left = 6
+  audio_right = 7
+
+
   CLK_PIN = 5
   PROP_READY_PIN = 0
 
@@ -27,10 +31,13 @@ OBJ
   vgatext : "VGA_driver"
   bus_interface : "Bus_interface"
   terminal : "Terminal"
+  ay : "AYcog"
 
 DAT
 
-  BootMsg byte "Alice 3 GPU firmware", 13, 10, 0
+  BootMsg byte "Alice 3 A/V firmware", 13, 10, 0
+  ' E2, B2, G#3, all 3 channels tone/no noise, all 3 channels on envelope, ~1.3s envelope, rampdown
+  BootSnd byte $7B, $01, $FD, $00, $96, $00,  $00,  $38,  $10,$10,$10,  $A1,$13,  $09,  $00,$00
 
 VAR
 
@@ -47,18 +54,14 @@ VAR
   long  queue_head
   long  queue_tail
 
-PUB start | i, j, addr, data
+  long  AYregisters
 
-  ' Start vga text driver.
-  vgatext.start(8, @screen, @colors, @cx0, @sync)
-  
-  ' Start the terminal.
-  queue_head := 0
-  queue_tail := 0
-  terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen, @cx0, @cy0)
-  
-  ' Start bus interface.
-  bus_interface.start(@queue, @queue_head, @queue_tail, queue_capacity)
+PUB start | i, j, addr, data
+  ' Sound the sound system
+  ay.resetRegisters                                    'Reset all AY registers
+  AYRegisters := ay.start(audio_right, audio_left)     'Start the emulated AY chip in one cog
+  ay.updateRegisters(@BootSnd)
+
 
   ' Configure cursor shapes and blinking.
   cm0 := %011
@@ -72,12 +75,20 @@ PUB start | i, j, addr, data
   ' Fill screen with spaces.
   repeat i from 0 to chrs - 1
     screen.byte[i] := 32
-    
+
+  ' Start vga text driver.
+  vgatext.start(8, @screen, @colors, @cx0, @sync)
+
+  ' Start the terminal.
+  queue_head := 0
+  queue_tail := 0
+  terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen, @cx0, @cy0)
+
+  ' Start bus interface and Z-80 clock
+  bus_interface.start(@queue, @queue_head, @queue_tail, queue_capacity)
+
   ' Write welcome message.
   print(@BootMsg)
-  
-  ' Start Z-80 clock.
-  cognew(@z80clock, 0)
 
   ' Tell the ARM that we're ready.
   dira[PROP_READY_PIN] := 1
@@ -90,22 +101,3 @@ PRI print(s)
     queue[queue_tail] := byte[s]
     s += 1
     queue_tail += 1
-
-DAT
-
-                        org 0
-                        
-z80clock                ' We write the clock.
-                        mov     dira, #|<CLK_PIN
-
-:loop
-                        mov     outa, #|<CLK_PIN
-                        nop
-                        nop
-                        nop
-                        nop
-                        mov     outa, #0
-                        nop
-                        nop
-                        nop
-                        jmp     #:loop
