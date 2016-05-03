@@ -110,6 +110,7 @@ unsigned int BUS_get_shuffled_ADDRESS()
     return address;
 }
 
+// RD line interrupt handler
 void EXTI1_IRQHandler(void)
 {
     if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gREAD_IO_Signals) {
@@ -176,6 +177,7 @@ void EXTI1_IRQHandler(void)
     }
 }
 
+// WR line interrupt handler
 void EXTI2_IRQHandler(void)
 {
     unsigned int initialMREQ = BUS_MREQ_PORT->IDR;
