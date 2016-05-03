@@ -177,27 +177,9 @@ struct socket_connection
                     perror("accept");
                     return false;
                 }
-                if(false && telnet_char_mode) {
-                    if(write(data_socket ,"\377\375\042\377\373\001", 6) != 6) {
-                        printf("Telnet character mode was requested but sending the sequence failed\n");
-                        close(data_socket);
-                        data_socket = -1;
-                        return false;
-                    }
-                    char c;
-                    int i = 65;
-                    while(i > 0) {
-                        ssize_t wasread;
-                        if((wasread = read(data_socket, &c, 1)) == 1) {
-                            // printf("%d\n", i);
-                            i--;
-                        } else if(wasread < 0) {
-                            // printf("Telnet character mode was requested but client socket read failed\n");
-                            // close(data_socket);
-                            // data_socket = -1;
-                            // return false;
-                        }
-                    }
+                if(telnet_char_mode) {
+                    const char msg[] = "Remember to enable telnet character mode!\n";
+                    ::send(data_socket, msg, sizeof(msg), 0);
                 }
 
             }
@@ -451,7 +433,8 @@ struct Alice3HW : board_base
             fprintf(stderr, "couldn't start listening on port %d for serial port emulation\n", server_port);
             exit(EXIT_FAILURE);
         }
-        printf("listening on port 6607 for CPM HW console emulation\n");
+        printf("Listening on port 6607 for CPM HW console emulation\n");
+        printf("Remember to enable telnet character mode!\n");
     }
     virtual void idle(void)
     {
