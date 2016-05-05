@@ -85,7 +85,7 @@ PUB start | i, j, addr, data
   terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen, @cx0, @cy0)
 
   ' Start bus interface and Z-80 clock
-  bus_interface.start(@queue, @queue_head, @queue_tail, queue_capacity)
+  bus_interface.start(@queue, @queue_head, @queue_tail, queue_capacity, AYRegisters)
 
   ' Write welcome message.
   print(@BootMsg)
