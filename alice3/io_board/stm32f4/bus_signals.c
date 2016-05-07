@@ -25,9 +25,9 @@ void BUS_init()
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     // configure PORT A0:A7 (bus D0..D7) outputs for later
-    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff);   // LOW
-    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff);        // PUSH_PULL
-    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff);        // no PUPD
+    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x5555; // HIGH
+    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x00;        // PUSH_PULL
+    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;      // no PUPD
 
     BUS_set_DATA_as_input();
 

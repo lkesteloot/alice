@@ -28,6 +28,7 @@
 #include "io_service.h"
 
 const int gStandaloneARM = 0;
+int gSnoopVideo = 1;
 
 static int gDumpKeyboardData = 0;
 
@@ -464,7 +465,7 @@ void usage()
     printf("buffers    - print summary of command and response buffers\n");
     printf("reset      - reset Z80 and clear communication buffers\n");
     printf("sdreset    - reset SD\n");
-    printf("sdss {0|1} - 1: enable SD (SS=GND), 0: disable SD (SS=3.3V)\n");
+    printf("snoop      - toggle snooping video writes\n");
     printf("spiwrite B0 [B1 ...]\n");
     printf("           - send bytes to SD SPI port and print read bytes\n");
     printf("spiread N  - read N bytes from SD SPI port\n");
@@ -501,6 +502,14 @@ void process_local_key(unsigned char c)
 
             if(!SDCARD_init())
                 printf("Failed to start access to SD card as SPI\n");
+
+        } else if(strcmp(gMonitorCommandLine, "snoop") == 0) {
+
+            gSnoopVideo = !gSnoopVideo;
+            if(gSnoopVideo)
+                printf("Snooping video writes...\n");
+            else
+                printf("Not snooping video writes...\n");
 
         } else if(strcmp(gMonitorCommandLine, "dumpkbd") == 0) {
 
@@ -878,6 +887,34 @@ void check_and_process_soft_reset()
     }
 }
 
+unsigned int ports_to_normal_address(unsigned int ports)
+{
+    unsigned int A = (ports >> 16) & 0xff;
+    unsigned int B = (ports >>  8) & 0xff;
+    unsigned int C = (ports >>  0) & 0xff;
+    unsigned int address = 0;
+    for(int i = 0; i < address_line_count; i++) {
+        GPIOLine* line = &address_lines[i];
+        int bit;
+        if(line->gpio == GPIOA)
+            bit = (A >> line->pin) & 1;
+        else if(line->gpio == GPIOB)
+            bit = (B >> line->pin) & 1;
+        else if(line->gpio == GPIOC)
+            bit = (C >> line->pin) & 1;
+        address = address | (bit << i);
+    }
+    return address;
+}
+
+unsigned int ports_to_shuffled_address(unsigned int ports)
+{
+    unsigned int A = (ports >> 16) & 0xff;
+    unsigned int B = (ports >>  8) & 0xff;
+    unsigned int C = (ports >>  0) & 0xff;
+    return BUS_compute_shuffled_ADDRESS(A, B, C);
+}
+
 void check_exceptional_conditions()
 {
     if(gConsoleOverflowed) {
@@ -896,14 +933,19 @@ void check_exceptional_conditions()
     }
 
     if(gUnclaimedRead) {
-        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, 'R' + 128);
-        logprintf(DEBUG_WARNINGS, "(%04X)", gUnclaimedReadAddress);
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '*' + 128);
+        logprintf(DEBUG_WARNINGS, "R(%04X or %04X)", 
+            ports_to_normal_address(gUnclaimedReadAddressPins),
+            ports_to_shuffled_address(gUnclaimedReadAddressPins));
         gUnclaimedRead = 0;
     }
 
     if(gUnclaimedWrite) {
-        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, 'W' + 128);
-        logprintf(DEBUG_WARNINGS, "(%04X,%02X)", gUnclaimedWriteAddress, gUnclaimedWriteData);
+        BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '*' + 128);
+        logprintf(DEBUG_WARNINGS, "W(%04X or %04X,%02X,%d)",
+            ports_to_normal_address(gUnclaimedWriteAddressPins),
+            ports_to_shuffled_address(gUnclaimedWriteAddressPins),
+            gUnclaimedWriteData, gUnclaimedWrite);
         gUnclaimedWrite = 0;
     }
 
@@ -1155,6 +1197,11 @@ int main()
         if(gResponseWasWaiting && IOSERVICE_is_response_empty()) {
             logprintf(DEBUG_EVENTS, "response packet was read\n");
             gResponseWasWaiting = 0;
+        }
+
+        if(gSnoopVideo && gVideoSnoopedWrite != -1) {
+            SERIAL_enqueue_one_char(gVideoSnoopedWrite);
+            gVideoSnoopedWrite = -1;
         }
 
         check_and_process_soft_reset();

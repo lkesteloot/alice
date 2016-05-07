@@ -86,19 +86,13 @@ void IOSERVICE_clear_response()
 const unsigned int gREAD_IO_Signals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
 const unsigned int gWRITE_IO_Signals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
 
-int gUnclaimedWrite = 0;
-unsigned int gUnclaimedWriteAddress;
-unsigned int gUnclaimedWriteData;
-int gUnclaimedRead = 0;
-unsigned int gUnclaimedReadAddress;
-int gReadWasAlreadyInactive = 0;
-
-unsigned int BUS_compute_shuffled_ADDRESS(unsigned int A, unsigned int B, unsigned C)
-{
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
-    unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
-    return address;
-}
+volatile int gUnclaimedWrite = 0;
+volatile unsigned int gUnclaimedWriteAddressPins;
+volatile unsigned int gUnclaimedWriteData;
+volatile int gUnclaimedRead = 0;
+volatile unsigned int gUnclaimedReadAddressPins;
+volatile int gReadWasAlreadyInactive = 0;
+volatile int gVideoSnoopedWrite = -1;
 
 unsigned int BUS_get_shuffled_ADDRESS()
 {
@@ -143,7 +137,6 @@ void EXTI1_IRQHandler(void)
             gNextByteForReading = response_bytes[response_index++];
         } 
 
-
     } else if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM &&
         ((BUS_MREQ_PORT->IDR & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE)) {
 
@@ -168,8 +161,15 @@ void EXTI1_IRQHandler(void)
     } else {
 
         if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
-            gUnclaimedRead = 1;
-            gUnclaimedReadAddress = BUS_get_shuffled_ADDRESS();
+	    // Only record it if there isn't a notification of a
+	    // previous one pending
+            if(!gUnclaimedRead) {
+                gUnclaimedRead = 1;
+                unsigned int A = GPIOA->IDR;
+                unsigned int B = GPIOB->IDR;
+                unsigned int C = GPIOC->IDR;
+                gUnclaimedReadAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
+            }
         }
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
@@ -180,36 +180,46 @@ void EXTI1_IRQHandler(void)
 // WR line interrupt handler
 void EXTI2_IRQHandler(void)
 {
-    unsigned int initialMREQ = BUS_MREQ_PORT->IDR;
-    unsigned char d = BUS_get_DATA();
+    // Gather all port data
+    unsigned int MREQ_port_value = BUS_MREQ_PORT->IDR;
+    unsigned int signal_port_value = BUS_SIGNAL_CHECK_PORT->IDR;
+    unsigned char data = BUS_get_DATA();
+    unsigned int A = GPIOA->IDR;
+    unsigned int B = GPIOB->IDR;
+    unsigned int C = GPIOC->IDR;
+
+    __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
+    NVIC_ClearPendingIRQ(EXTI2_IRQn);
+
     __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
 
-    if((BUS_IORQ_PORT->IDR & BUS_IORQ_PIN_MASK) == BUS_IORQ_ACTIVE) {
+    if((signal_port_value & BUS_IORQ_PIN_MASK) == BUS_IORQ_ACTIVE) {
 
-        if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gWRITE_IO_Signals) {
-            command_bytes[command_length++] = d;
+        if((signal_port_value & BUS_A7_PIN_MASK) == IO_BOARD_ADDR) {
+            command_bytes[command_length++] = data;
+        } else {
+            gVideoSnoopedWrite = data;
+            // snoop video writes
         }
 
     } else if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
 
-        unsigned int A = GPIOA->IDR;
-        unsigned int B = GPIOB->IDR;
-        unsigned int C = GPIOC->IDR;
-
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
-
         // Memory write
-        if((initialMREQ & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+        if((MREQ_port_value & BUS_MREQ_PIN_MASK) == BUS_MREQ_ACTIVE) {
+
             unsigned int address = BUS_compute_shuffled_ADDRESS(A, B, C);
-            ccmram_set(address, d);
+            ccmram_set(address, data);
+
         } else {
-            gUnclaimedWrite = 1;
-            gUnclaimedWriteAddress = BUS_compute_shuffled_ADDRESS(A, B, C);
-            gUnclaimedWriteData = d;
+
+	    // Only record it if there isn't a notification of a
+	    // previous one pending
+            if(!gUnclaimedWrite) {
+                gUnclaimedWriteAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
+                gUnclaimedWriteData = data;
+            }
+            gUnclaimedWrite++;
         }
     }
-
-    __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
-    NVIC_ClearPendingIRQ(EXTI2_IRQn);
 }
 
