@@ -11,6 +11,10 @@
 //   only writes MREQ
 #define ALICE3_V3_ARM_IS_RAM 1
 
+// if 1, print some information on missed bus RD and WR, and toggle a pin
+// at interesting times in the ISRs
+#define DEBUG_BUS_ISR 0 
+
 #define XSTR(x) STR(x)
 #define STR(x) # x
 

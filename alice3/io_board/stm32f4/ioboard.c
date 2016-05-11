@@ -462,21 +462,17 @@ void usage()
 {
     printf("help       - this help message\n");
     printf("debug N    - set debug level\n");
-    printf("buffers    - print summary of command and response buffers\n");
     printf("reset      - reset Z80 and clear communication buffers\n");
     printf("sdreset    - reset SD\n");
     printf("snoop      - toggle snooping video writes\n");
-    printf("spiwrite B0 [B1 ...]\n");
-    printf("           - send bytes to SD SPI port and print read bytes\n");
-    printf("spiread N  - read N bytes from SD SPI port\n");
     printf("dumpkbd    - toggle dumping keyboard\n");
     printf("pass       - pass monitor keys to Z80\n");
     printf("version    - print firmware build version\n");
     printf("read N     - read and dump block N\n");
-    printf("low128     - dump low 128 bytes from RAM (resetting Z80!!)\n");
     printf("bus        - print bus signals\n");
     printf("panic      - force panic\n");
     printf("flashinfo  - force flashing the info LED\n");
+    printf("low128     - dump low 128 bytes from RAM (resetting Z80!!)\n");
 }
 
 #define IOBOARD_FIRMWARE_VERSION_STRING XSTR(IOBOARD_FIRMWARE_VERSION)
@@ -543,21 +539,6 @@ void process_local_key(unsigned char c)
             printf("WR %s\n", HAL_GPIO_ReadPin(BUS_WR_PORT, BUS_WR_PIN_MASK) ? "high" : "low");
             printf("BUSRQ %s\n", HAL_GPIO_ReadPin(BUS_BUSRQ_PORT, BUS_BUSRQ_PIN_MASK) ? "high" : "low");
             printf("BUSAK %s\n", HAL_GPIO_ReadPin(BUS_BUSAK_PORT, BUS_BUSAK_PIN_MASK) ? "high" : "low");
-
-        } else if(strncmp(gMonitorCommandLine, "chaff ", 6) == 0) {
-
-            char *p = gMonitorCommandLine + 5;
-            while(*p == ' ')
-                p++;
-            int addr = strtol(p, NULL, 0);
-
-            BUS_mastering_start();
-            BUS_set_DATA_as_input();
-            BUS_set_ADDRESS(addr);
-            set_GPIO_value(BUS_MREQ_PORT, BUS_MREQ_PIN_MASK, BUS_MREQ_ACTIVE);
-            delay_us(1);
-            set_GPIO_value(BUS_RD_PORT, BUS_RD_PIN_MASK, BUS_RD_ACTIVE);
-            delay_us(1);
 
         } else if(strcmp(gMonitorCommandLine, "low128") == 0) {
 
@@ -932,7 +913,7 @@ void check_exceptional_conditions()
         gReadWasAlreadyInactive = 0;
     }
 
-    if(gUnclaimedRead) {
+    if(DEBUG_BUS_ISR && gUnclaimedRead) {
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '*' + 128);
         logprintf(DEBUG_WARNINGS, "R(%04X or %04X)", 
             ports_to_normal_address(gUnclaimedReadAddressPins),
@@ -940,7 +921,7 @@ void check_exceptional_conditions()
         gUnclaimedRead = 0;
     }
 
-    if(gUnclaimedWrite) {
+    if(DEBUG_BUS_ISR && gUnclaimedWrite) {
         BUS_write_IO(VIDEO_BOARD_OUTPUT_ADDR, '*' + 128);
         logprintf(DEBUG_WARNINGS, "W(%04X or %04X,%02X,%d)",
             ports_to_normal_address(gUnclaimedWriteAddressPins),

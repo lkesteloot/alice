@@ -107,6 +107,9 @@ unsigned int BUS_get_shuffled_ADDRESS()
 // RD line interrupt handler
 void EXTI1_IRQHandler(void)
 {
+    if(DEBUG_BUS_ISR)
+        set_GPIO_value(GPIOC, GPIO_PIN_15, 1);
+
     if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_IO_MASK) == gREAD_IO_Signals) {
 
         // Put this here even before clearing interrupt so it happens
@@ -163,23 +166,32 @@ void EXTI1_IRQHandler(void)
         if((ALICE3_VERSION == ALICE3_V3) && ALICE3_V3_ARM_IS_RAM) {
 	    // Only record it if there isn't a notification of a
 	    // previous one pending
-            if(!gUnclaimedRead) {
-                gUnclaimedRead = 1;
-                unsigned int A = GPIOA->IDR;
-                unsigned int B = GPIOB->IDR;
-                unsigned int C = GPIOC->IDR;
-                gUnclaimedReadAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
+            if(DEBUG_BUS_ISR) {
+                if(!gUnclaimedRead) {
+                    gUnclaimedRead = 1;
+                    unsigned int A = GPIOA->IDR;
+                    unsigned int B = GPIOB->IDR;
+                    unsigned int C = GPIOC->IDR;
+                    gUnclaimedReadAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
+                }
             }
         }
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
     }
+    if(DEBUG_BUS_ISR)
+        set_GPIO_value(GPIOC, GPIO_PIN_15, 0);
 }
 
 // WR line interrupt handler
 void EXTI2_IRQHandler(void)
 {
+    if(DEBUG_BUS_ISR) {
+        set_GPIO_value(GPIOC, GPIO_PIN_15, 1);
+        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    }
+
     // Gather all port data
     unsigned int MREQ_port_value = BUS_MREQ_PORT->IDR;
     unsigned int signal_port_value = BUS_SIGNAL_CHECK_PORT->IDR;
@@ -214,12 +226,17 @@ void EXTI2_IRQHandler(void)
 
 	    // Only record it if there isn't a notification of a
 	    // previous one pending
-            if(!gUnclaimedWrite) {
-                gUnclaimedWriteAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
-                gUnclaimedWriteData = data;
+            if(DEBUG_BUS_ISR) {
+                if(!gUnclaimedWrite) {
+                    gUnclaimedWriteAddressPins = (A << 16 & 0xff0000) | (B << 8 & 0xff00) | (C ^ 0xff);
+                    gUnclaimedWriteData = data;
+                }
+                gUnclaimedWrite++;
             }
-            gUnclaimedWrite++;
         }
     }
+
+    if(DEBUG_BUS_ISR)
+        set_GPIO_value(GPIOC, GPIO_PIN_15, 0);
 }
 
