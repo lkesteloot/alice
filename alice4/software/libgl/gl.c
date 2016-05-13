@@ -51,7 +51,9 @@ Boolean getbutton() {
 void getmcolor() { 
 }
 
-void getorigin() { 
+void getorigin(long *x, long *y) { 
+    *x = 0;
+    *y = 0;
 }
 
 long getplanes() { 
