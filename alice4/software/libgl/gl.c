@@ -432,7 +432,7 @@ matrix4x4f_stack projection_stack;
 static long DISPLAY_WIDTH = 800;
 static long DISPLAY_HEIGHT = 600;
 
-Screencoord the_viewport[4];
+Screencoord the_viewport[6];
 
 typedef struct world_vertex
 {
@@ -492,13 +492,27 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
         light_vertex(&current_material, tv, normal, wv->color);
 #endif
 
+    /// XXX could multiply mv and p together?
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, pv);
 
-    int viewport_width = the_viewport[1] - the_viewport[0];
-    int viewport_height = the_viewport[3] - the_viewport[2];
+    // XXX could pre-compute
+    int viewport_width = the_viewport[1] - the_viewport[0] + 1;
+    int viewport_height = the_viewport[3] - the_viewport[2] + 1;
 
-    sv->x = (pv[0] / pv[3] + 1) * viewport_width / 2 + the_viewport[0];
-    sv->y = (1 - pv[1] / pv[3]) * viewport_height / 2 + the_viewport[2];
+    float xndc, yndc, zndc;
+    xndc = pv[0] / pv[3];
+    yndc = pv[1] / pv[3];
+    zndc = pv[2] / pv[3];
+
+    float xw, yw, zw;
+    // XXX could pre-compute half width and height
+    xw = viewport_width / 2.0 * xndc + (the_viewport[0] + viewport_width / 2.0);
+    yw = viewport_height / 2.0 * yndc + (the_viewport[2] + viewport_height / 2.0);
+    zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
+
+    sv->x = xw;
+    sv->y = yw;
+    // Z?
     sv->r = clamp(wv->color[0]) * 32767;
     sv->g = clamp(wv->color[1]) * 32767;
     sv->b = clamp(wv->color[2]) * 32767;
@@ -994,7 +1008,9 @@ void polf(long n, Coord parray[ ][3]) {
         vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
 
         for(int i = 0 ; i < n; i++) {
-            vec3f_copy(worldverts[i].coord, parray[i]);
+            vec4f_set(worldverts[i].coord,
+                parray[i][0], parray[i][1], parray[i][2], 1.0
+            );
             vec3f_copy(worldverts[i].color, color);
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
@@ -1011,7 +1027,7 @@ void polf(long n, Coord parray[ ][3]) {
             // across polygon, basically turning it into a triangle strip
             // A fan might be slightly clearer
             // XXX Can IrisGL polys be concave?
-            i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 1 - i / 2);
+            i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
 
             clip_and_emit_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
         }
@@ -1270,4 +1286,6 @@ static void init_gl_state()
 
     matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
     matrix4x4f_stack_load(&projection_stack, identity_4x4f);
+    the_viewport[4] = 0.0;
+    the_viewport[5] = 1.0;
 }
