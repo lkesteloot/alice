@@ -14,6 +14,8 @@ typedef float vec3f[3];
 typedef unsigned short vec3us[3];
 typedef unsigned char vec3ub[3];
 
+static int trace_functions = 0;
+
 const matrix4x4f identity_4x4f = {
     1, 0, 0, 0,
     0, 1, 0, 0,
@@ -557,7 +559,7 @@ void send_string(char *s) {
 }
 
 void backface() {
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void callobj(Object obj) { 
@@ -576,7 +578,7 @@ void callobj(Object obj) {
 
     } else {
 
-        printf("%*scallobj %ld\n", indent, "", obj);
+        if(trace_functions) printf("%*scallobj %ld\n", indent, "", obj);
         indent += 4;
         element *p = objects[obj];
         while(p) {
@@ -627,7 +629,7 @@ void callobj(Object obj) {
                     callobj(p->callobj.obj);
                     break;
                 case TAG:
-                    printf("%*stag %ld\n", indent, "", p->tag.tag);
+                    if(trace_functions) printf("%*stag %ld\n", indent, "", p->tag.tag);
                     break;
             }
             p = p->next;
@@ -637,12 +639,12 @@ void callobj(Object obj) {
 }
 
 void clear() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
     send_byte(1);
 }
 
 void closeobj() { 
-    printf("closeobj\n");
+    if(trace_functions) printf("%*scloseobj\n", indent, "");
     cur_ptr_to_nextptr = NULL;
 }
 
@@ -659,24 +661,24 @@ void color(Colorindex color) {
         e->type = COLOR;
         e->color.color = color;
     } else {
-        printf("%*scolor %u\n", indent, "", color);
+        if(trace_functions) printf("%*scolor %u\n", indent, "", color);
     }
 }
 
 void deflinestyle() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void defpattern() {
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void doublebuffer() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void editobj(Object obj) { 
-    printf("editobj %ld\n", obj);
+    if(trace_functions) printf("editobj %ld\n", obj);
     cur_ptr_to_nextptr = &(objects[obj]);
     while(*cur_ptr_to_nextptr != NULL)
         cur_ptr_to_nextptr = &(*cur_ptr_to_nextptr)->next;
@@ -684,11 +686,11 @@ void editobj(Object obj) {
 }
 
 void frontbuffer() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void gconfig() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 Object genobj() { 
@@ -696,7 +698,7 @@ Object genobj() {
         if(!object_allocation[i]) {
             object_allocation[i] = 1;
             objects[i] = NULL;
-            printf("genobj -> %d\n", i);
+            if(trace_functions) printf("genobj -> %d\n", i);
             return i;
         }
     abort();
@@ -707,18 +709,18 @@ Tag gentag() {
         if(!tag_allocation[i]) {
             tag_allocation[i] = 1;
             ptrs_to_tagptrs[i] = NULL;
-            printf("gentag -> %d\n", i);
+            if(trace_functions) printf("gentag -> %d\n", i);
             return i;
         }
     abort();
 }
 
 Boolean getbutton() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void getmcolor() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void getorigin(long *x, long *y) { 
@@ -735,15 +737,15 @@ void getsize(long *width, long *height) {
 }
 
 long getvaluator() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void gflush() {
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void glcompat() {
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void gl_sincos(Angle angle, float *s, float *c) {
@@ -753,11 +755,11 @@ void gl_sincos(Angle angle, float *s, float *c) {
 }
 
 void gexit() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void makeobj(Object obj) { 
-    printf("makeobj %ld\n", obj);
+    if(trace_functions) printf("makeobj %ld\n", obj);
     if(objects[obj] != NULL) {
         element_free(objects[obj]);
     }
@@ -767,7 +769,7 @@ void makeobj(Object obj) {
 }
 
 void maketag(Tag tag) { 
-    printf("maketag %ld\n", tag);
+    if(trace_functions) printf("maketag %ld\n", tag);
     if(cur_ptr_to_nextptr == NULL) {
         printf("maketag : not editing\n");
         return;
@@ -780,7 +782,7 @@ void maketag(Tag tag) {
 }
 
 void mapcolor() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void multmatrix(Matrix m) { 
@@ -797,12 +799,12 @@ void multmatrix(Matrix m) {
         memcpy(e->multmatrix.m, m, sizeof(Matrix));
     } else { 
         matrix4x4f_stack_mult(&modelview_stack, (float *)m);
-        printf("%*smultmatrix\n", indent, "");
+        if(trace_functions) printf("%*smultmatrix\n", indent, "");
     }
 }
 
 void objreplace(Tag tag) { 
-    printf("objreplace %ld\n", tag);
+    if(trace_functions) printf("objreplace %ld\n", tag);
     cur_ptr_to_nextptr = &(*ptrs_to_tagptrs[tag])->next;
     replace_mode = 1;
 }
@@ -836,7 +838,7 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         m[14] = -1.0;
         m[15] = 0.0;
         matrix4x4f_stack_load(&projection_stack, m);
-        printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
+        if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
     }
 }
 
@@ -855,7 +857,7 @@ void polf(long n, Coord parray[ ][3]) {
         e->polf.parray = (Coord*) malloc(sizeof(Coord) * 3 * n);
         memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
     } else {
-        printf("%*spolf %ld\n", indent, "", n);
+        if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
     }
 }
 
@@ -874,7 +876,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
         e->polf2i.parray = (Icoord*) malloc(sizeof(Icoord) * 2 * n);
         memcpy(e->polf.parray, parray, sizeof(Icoord) * 2 * n);
     } else {
-        printf("%*spolf2i %ld\n", indent, "", n);
+        if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
     }
 }
 
@@ -890,7 +892,7 @@ void popmatrix() {
         }
         e->type = POPMATRIX;
     } else {
-        printf("%s\n", __FUNCTION__);
+        if(trace_functions) printf("%*spopmatrix\n", indent, "");
         matrix4x4f_stack_pop(&modelview_stack);
     }
 }
@@ -907,29 +909,29 @@ void pushmatrix() {
         }
         e->type = PUSHMATRIX;
     } else {
-        printf("%s\n", __FUNCTION__);
+        if(trace_functions) printf("%*spushmatrix\n", indent, "");
         matrix4x4f_stack_push(&modelview_stack);
     }
 }
 
 // We're interested in events from this device.
 void qdevice(long device) { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 long qread() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 // Non-zero if there's something in the queue. Not sure if that's
 // TRUE or the queue content.
 long qtest() { 
-    printf("%s stub\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s is just a stub\n", __FUNCTION__); warned = 1; }
     return FALSE;
 }
 
 void reshapeviewport() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void rotate(Angle ang, unsigned char axis) {
@@ -987,20 +989,20 @@ void rotate(Angle ang, unsigned char axis) {
         m[9] = t * y * z - s * x;
 
         matrix4x4f_stack_mult(&modelview_stack, m);
-        printf("%*srotate %d %c\n", indent, "", ang, axis);
+        if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
     }
 }
 
 void setpattern() { 
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void shademodel() {
-    printf("%s unimplemented\n", __FUNCTION__);
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void swapbuffers() { 
-    printf("%s\n", __FUNCTION__);
+    if(trace_functions) printf("%*sswapbuffers\n", indent, "");
     send_byte(2);
 }
 
@@ -1027,7 +1029,7 @@ void translate(Coord x, Coord y, Coord z) {
         m[14] = z;
 
         matrix4x4f_stack_mult(&modelview_stack, m);
-        printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
+        if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
     }
 }
 
@@ -1061,12 +1063,12 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
         m[11] = (far + near) / (far - near);
         matrix4x4f_stack_load(&projection_stack, m);
 
-        printf("%*swindow %f %f %f %f %f %f\n", indent, "", left, right, bottom, top, near, far);
+        if(trace_functions) printf("%*swindow %f %f %f %f %f %f\n", indent, "", left, right, bottom, top, near, far);
     }
 }
 
 long winopen(char *title) {
-    printf("%s\n", __FUNCTION__);
+    if(trace_functions) printf("%*swinopen %s\n", indent, "", title);
     open_connection();
     send_byte(0);
     send_string(title);
