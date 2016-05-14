@@ -103,6 +103,7 @@ char	*argv[];
     clear ();
     swapbuffers ();
     clear ();
+    return;
     reshapeviewport ();
     fixwindow ();
     qdevice (INPUTCHANGE);

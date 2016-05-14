@@ -7,17 +7,46 @@
 //
 
 #import "ViewController.h"
+#import "DisplayImage.h"
+#import "DisplayView.h"
+
+@interface ViewController ()
+
+@property (nonatomic) Server *server;
+@property (nonatomic) DisplayImage *displayImage;
+
+@end
 
 @implementation ViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+
+    _server = [[Server alloc] initWithDelegate:self];
+    _displayImage = [[DisplayImage alloc] init];
+
+    [self swapBuffers];
 }
 
-- (void)setRepresentedObject:(id)representedObject {
-	[super setRepresentedObject:representedObject];
+// For ServerDelegate:
+- (void)setWindowTitle:(NSString *)title {
+    // This isn't right, we don't want all windows, but mainWindow is nil here.
+    for (NSWindow *window in [NSApplication sharedApplication].windows) {
+	window.title = title;
+    }
+}
 
-	// Update the view, if already loaded.
+// For ServerDelegate:
+- (void)clear {
+    [self.displayImage clear];
+}
+
+// For ServerDelegate:
+- (void)swapBuffers {
+    NSImage *newFrontBuffer = [self.displayImage swapBuffers];
+
+    DisplayView *displayView = (DisplayView *) self.view;
+    displayView.image = newFrontBuffer;
 }
 
 @end

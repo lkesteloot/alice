@@ -547,6 +547,7 @@ void element_free(element *p)
     }
 }
 
+// Send a string as a length and the bytes. Max string length is 255.
 void send_string(char *s) {
     send_byte(strlen(s));
     while (*s != '\0') {
@@ -637,6 +638,7 @@ void callobj(Object obj) {
 
 void clear() { 
     printf("%s unimplemented\n", __FUNCTION__);
+    send_byte(1);
 }
 
 void closeobj() { 
@@ -999,7 +1001,7 @@ void shademodel() {
 
 void swapbuffers() { 
     printf("%s\n", __FUNCTION__);
-    send_byte(0x45);
+    send_byte(2);
 }
 
 void translate(Coord x, Coord y, Coord z) {

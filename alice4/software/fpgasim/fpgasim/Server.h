@@ -11,6 +11,8 @@
 @protocol ServerDelegate
 
 - (void)setWindowTitle:(NSString *)title;
+- (void)clear;
+- (void)swapBuffers;
 
 @end
 

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		4A1E0DC11CE64D9F003C1611 /* DisplayView.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E0DC01CE64D9F003C1611 /* DisplayView.m */; };
 		4A1E0DC41CE6B7D3003C1611 /* Server.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E0DC31CE6B7D3003C1611 /* Server.m */; };
+		4A1E0DC71CE6FE9D003C1611 /* DisplayImage.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E0DC61CE6FE9D003C1611 /* DisplayImage.m */; };
 		4A40BFFE1CE58FE5001B6A68 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */; };
 		4A40C0011CE58FE5001B6A68 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40C0001CE58FE5001B6A68 /* main.m */; };
 		4A40C0041CE58FE5001B6A68 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40C0031CE58FE5001B6A68 /* ViewController.m */; };
@@ -21,6 +22,8 @@
 		4A1E0DC01CE64D9F003C1611 /* DisplayView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DisplayView.m; sourceTree = "<group>"; };
 		4A1E0DC21CE6B7D3003C1611 /* Server.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Server.h; sourceTree = "<group>"; };
 		4A1E0DC31CE6B7D3003C1611 /* Server.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Server.m; sourceTree = "<group>"; };
+		4A1E0DC51CE6FE9D003C1611 /* DisplayImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DisplayImage.h; sourceTree = "<group>"; };
+		4A1E0DC61CE6FE9D003C1611 /* DisplayImage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DisplayImage.m; sourceTree = "<group>"; };
 		4A40BFF91CE58FE5001B6A68 /* fpgasim.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fpgasim.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A40BFFC1CE58FE5001B6A68 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -74,6 +77,8 @@
 				4A1E0DC01CE64D9F003C1611 /* DisplayView.m */,
 				4A1E0DC21CE6B7D3003C1611 /* Server.h */,
 				4A1E0DC31CE6B7D3003C1611 /* Server.m */,
+				4A1E0DC51CE6FE9D003C1611 /* DisplayImage.h */,
+				4A1E0DC61CE6FE9D003C1611 /* DisplayImage.m */,
 			);
 			path = fpgasim;
 			sourceTree = "<group>";
@@ -159,6 +164,7 @@
 				4A1E0DC11CE64D9F003C1611 /* DisplayView.m in Sources */,
 				4A40C0011CE58FE5001B6A68 /* main.m in Sources */,
 				4A40BFFE1CE58FE5001B6A68 /* AppDelegate.m in Sources */,
+				4A1E0DC71CE6FE9D003C1611 /* DisplayImage.m in Sources */,
 				4A1E0DC41CE6B7D3003C1611 /* Server.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -7,10 +7,9 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "Server.h"
 
-@interface ViewController : NSViewController
-
-@property (weak) IBOutlet NSImageView *imageView;
+@interface ViewController : NSViewController<ServerDelegate>
 
 @end
 

@@ -23,6 +23,8 @@ typedef enum {
 // Sent on the wire:
 typedef enum {
     COMMAND_WINOPEN = 0x00,
+    COMMAND_CLEAR = 0x01,
+    COMMAND_SWAPBUFFERS = 0x02,
 } Command;
 
 @interface Server ()
@@ -242,9 +244,18 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     switch (self.state) {
 	case STATE_COMMAND:
 	    // Initial command.
+	    NSLog(@"Got command: %02x", (int)b);
 	    switch (b) {
 		case COMMAND_WINOPEN:
 		    self.state = STATE_WINOPEN_LENGTH;
+		    break;
+
+		case COMMAND_CLEAR:
+		    [self.delegate clear];
+		    break;
+
+		case COMMAND_SWAPBUFFERS:
+		    [self.delegate swapBuffers];
 		    break;
 
 		default:

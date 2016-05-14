@@ -7,9 +7,8 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "Server.h"
 
-@interface AppDelegate : NSObject <NSApplicationDelegate, ServerDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate>
 
 
 @end
