@@ -418,7 +418,7 @@ extern void	tpoff();
 extern void	tpon();
 extern void	translate(Coord x, Coord y, Coord z);
 extern void	unqdevice();
-extern void	viewport();
+extern void	viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top);
 extern long	winattach();
 extern void	winclose();
 extern void	winconstraints();

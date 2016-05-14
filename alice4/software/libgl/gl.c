@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include <gl.h>
+#include <device.h>
 #include "connection.h"
 
 typedef float matrix4x4f[16];
@@ -16,7 +17,7 @@ typedef unsigned char vec3ub[3];
 
 static int trace_functions = 0;
 
-static unsigned char colormap[4096][3];
+static short colormap[4096][3];
 static vec3f current_color = {1, 1, 1};
 
 const matrix4x4f identity_4x4f = {
@@ -426,6 +427,8 @@ matrix4x4f_stack projection_stack;
 static long DISPLAY_WIDTH = 800;
 static long DISPLAY_HEIGHT = 600;
 
+Screencoord the_viewport[4];
+
 int indent = 0;
 
 /*
@@ -433,8 +436,8 @@ implementing a display-listable function:
     add to enum in struct element
     if parameters, add new struct to union
     if needed, add free()/dtor in element_free()
-    in function, add preamble like one in rotate()
     in callobj, add case entry with actual call
+    in function, add preamble like one in rotate()
 */
 
 typedef struct element
@@ -453,6 +456,7 @@ typedef struct element
         MULTMATRIX,
         PERSPECTIVE,
         WINDOW,
+        VIEWPORT,
     } type;
 
     union
@@ -503,6 +507,11 @@ typedef struct element
             Coord bottom, top;
             Coord near, far;
         } window;
+
+        struct {
+            Screencoord left, right;
+            Screencoord bottom, top;
+        } viewport;
     };
 
     struct element *next;
@@ -586,6 +595,14 @@ void callobj(Object obj) {
         element *p = objects[obj];
         while(p) {
             switch(p->type) {
+                case VIEWPORT:
+                    viewport(
+                        p->viewport.left,
+                        p->viewport.right,
+                        p->viewport.bottom,
+                        p->viewport.top
+                    );
+                    break;
                 case WINDOW:
                     window(
                         p->window.left,
@@ -932,19 +949,48 @@ void qdevice(long device) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-long qread() { 
+// If the queue is empty, qread() blocks.
+long qread(short *val) { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-// Non-zero if there's something in the queue. Not sure if that's
-// TRUE or the queue content.
+// Returns the device number of the first entry.
+// Returns 0 if the event queue is empty.
+// Doesn't change the queue.
 long qtest() { 
     static int warned = 0; if(!warned) { printf("%s is just a stub\n", __FUNCTION__); warned = 1; }
-    return FALSE;
+    return 0;
+}
+
+void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top)
+{
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e;
+        if(!replace_mode) {
+            e = element_new();
+            element_insert(&cur_ptr_to_nextptr, e);
+            // XXX Need to skip tags?
+        } else {
+            e = *cur_ptr_to_nextptr;
+        }
+        e->type = VIEWPORT;
+        e->viewport.left = left;
+        e->viewport.right = right;
+        e->viewport.bottom = bottom;
+        e->viewport.top = top;
+    } else {
+        the_viewport[0] = left;
+        the_viewport[1] = right;
+        the_viewport[2] = bottom;
+        the_viewport[3] = top;
+        if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
+    }
 }
 
 void reshapeviewport() { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    long xsize, ysize;
+    getsize(&xsize, &ysize);
+    viewport(0, xsize-1, 0, ysize-1);
 }
 
 void rotate(Angle ang, unsigned char axis) {
