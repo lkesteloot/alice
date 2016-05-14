@@ -103,7 +103,6 @@ char	*argv[];
     clear ();
     swapbuffers ();
     clear ();
-    return;
     reshapeviewport ();
     fixwindow ();
     qdevice (INPUTCHANGE);
@@ -141,8 +140,9 @@ new for ECLIPSE 8 bit machine  */
 
     while (TRUE) {
 
-	while (qtest ()) {
+	while (qtest () || 1) {
 	    dev = qread (&val);
+            dev = REDRAW;
 	    switch (dev) {
 		case ESCKEY:
 			if (val) break;
@@ -198,6 +198,7 @@ new for ECLIPSE 8 bit machine  */
 		    }
 		    break;
 	    }
+            exit(0);
 	}
 	if (attached) {
 

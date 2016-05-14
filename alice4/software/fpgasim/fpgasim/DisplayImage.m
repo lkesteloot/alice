@@ -12,9 +12,13 @@
 #define HEIGHT 600
 #define TILE 50
 
-@interface DisplayImage ()
+@interface DisplayImage () {
+    // We're displaying the front buffer;
+    NSImage *frontBuffer;
 
-@property (nonatomic) NSImage *image;
+    // We're drawing in the back buffer.
+    NSImage *backBuffer;
+}
 
 @end
 
@@ -24,8 +28,8 @@
     self = [super init];
 
     if (self) {
-	_image = nil;
-	[self swapBuffers];
+	frontBuffer = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
+	backBuffer = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
     }
 
     return self;
@@ -35,18 +39,22 @@
     return [NSColor colorWithRed:color[0]/255.0 green:color[1]/255.0 blue:color[2]/255.0 alpha:1.0];
 }
 
+// Returns new front buffer.
 - (NSImage *)swapBuffers {
-    NSImage *oldImage = self.image;
+    NSImage *tmp = backBuffer;
+    backBuffer = frontBuffer;
+    frontBuffer = tmp;
 
-    self.image = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
+    // We'll eventually want to remove this, since the hardware won't do it:
     [self fillCheckerboard];
 
-    return oldImage;
+    return frontBuffer;
 }
 
 - (void)fillCheckerboard {
-    [self.image lockFocus];
-    NSRect rect = NSMakeRect(0, 0, self.image.size.width, self.image.size.height);
+    @autoreleasepool {
+    [backBuffer lockFocus];
+    NSRect rect = NSMakeRect(0, 0, backBuffer.size.width, backBuffer.size.height);
     [[NSColor colorWithRed:.5 green:.5 blue:.5 alpha:1.0] set];
     NSRectFill(rect);
 
@@ -59,15 +67,18 @@
 	    }
 	}
     }
-    [self.image unlockFocus];
+    [backBuffer unlockFocus];
+    }
 }
 
 - (void)clear:(vec3ub)color {
-    [self.image lockFocus];
-    NSRect rect = NSMakeRect(0, 0, self.image.size.width, self.image.size.height);
+    @autoreleasepool {
+    [backBuffer lockFocus];
+    NSRect rect = NSMakeRect(0, 0, backBuffer.size.width, backBuffer.size.height);
     [[self colorFromBuffer:color] set];
     NSRectFill(rect);
-    [self.image unlockFocus];
+    [backBuffer unlockFocus];
+    }
 }
 
 @end

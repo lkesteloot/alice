@@ -12,6 +12,7 @@
 
 @interface DisplayImage : NSObject
 
+// Returns new front buffer:
 - (NSImage *)swapBuffers;
 - (void)clear:(vec3ub)color;
 
