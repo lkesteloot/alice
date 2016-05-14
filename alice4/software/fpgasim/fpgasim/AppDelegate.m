@@ -7,15 +7,18 @@
 //
 
 #import "AppDelegate.h"
+#import "Server.h"
 
 @interface AppDelegate ()
+
+@property (nonatomic) Server *server;
 
 @end
 
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-	// Insert code here to initialize your application
+    _server = [[Server alloc] init];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {

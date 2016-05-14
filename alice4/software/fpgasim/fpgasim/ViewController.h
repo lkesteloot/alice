@@ -10,6 +10,7 @@
 
 @interface ViewController : NSViewController
 
+@property (weak) IBOutlet NSImageView *imageView;
 
 @end
 

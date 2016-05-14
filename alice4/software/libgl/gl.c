@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <gl.h>
+#include "connection.h"
 
 static long DISPLAY_WIDTH = 800;
 static long DISPLAY_HEIGHT = 600;
@@ -375,6 +376,7 @@ void shademodel() {
 
 void swapbuffers() { 
     printf("%s unimplemented\n", __FUNCTION__);
+    send_byte(0x45);
 }
 
 void translate() { 
@@ -387,5 +389,6 @@ void window() {
 
 long winopen() { 
     printf("%s unimplemented\n", __FUNCTION__);
+    open_connection();
 }
 

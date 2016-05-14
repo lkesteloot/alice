@@ -11,9 +11,7 @@
 @implementation ViewController
 
 - (void)viewDidLoad {
-	[super viewDidLoad];
-
-	// Do any additional setup after loading the view.
+    [super viewDidLoad];
 }
 
 - (void)setRepresentedObject:(id)representedObject {

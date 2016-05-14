@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4A1E0DC11CE64D9F003C1611 /* DisplayView.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E0DC01CE64D9F003C1611 /* DisplayView.m */; };
+		4A1E0DC41CE6B7D3003C1611 /* Server.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E0DC31CE6B7D3003C1611 /* Server.m */; };
 		4A40BFFE1CE58FE5001B6A68 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */; };
 		4A40C0011CE58FE5001B6A68 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40C0001CE58FE5001B6A68 /* main.m */; };
 		4A40C0041CE58FE5001B6A68 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40C0031CE58FE5001B6A68 /* ViewController.m */; };
@@ -15,6 +17,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		4A1E0DBF1CE64D9F003C1611 /* DisplayView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DisplayView.h; sourceTree = "<group>"; };
+		4A1E0DC01CE64D9F003C1611 /* DisplayView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DisplayView.m; sourceTree = "<group>"; };
+		4A1E0DC21CE6B7D3003C1611 /* Server.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Server.h; sourceTree = "<group>"; };
+		4A1E0DC31CE6B7D3003C1611 /* Server.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Server.m; sourceTree = "<group>"; };
 		4A40BFF91CE58FE5001B6A68 /* fpgasim.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fpgasim.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A40BFFC1CE58FE5001B6A68 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -64,6 +70,10 @@
 				4A40C0071CE58FE5001B6A68 /* Main.storyboard */,
 				4A40C00A1CE58FE5001B6A68 /* Info.plist */,
 				4A40BFFF1CE58FE5001B6A68 /* Supporting Files */,
+				4A1E0DBF1CE64D9F003C1611 /* DisplayView.h */,
+				4A1E0DC01CE64D9F003C1611 /* DisplayView.m */,
+				4A1E0DC21CE6B7D3003C1611 /* Server.h */,
+				4A1E0DC31CE6B7D3003C1611 /* Server.m */,
 			);
 			path = fpgasim;
 			sourceTree = "<group>";
@@ -146,8 +156,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				4A40C0041CE58FE5001B6A68 /* ViewController.m in Sources */,
+				4A1E0DC11CE64D9F003C1611 /* DisplayView.m in Sources */,
 				4A40C0011CE58FE5001B6A68 /* main.m in Sources */,
 				4A40BFFE1CE58FE5001B6A68 /* AppDelegate.m in Sources */,
+				4A1E0DC41CE6B7D3003C1611 /* Server.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,6 +299,7 @@
 				4A40C00F1CE58FE5001B6A68 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
