@@ -14,6 +14,7 @@
 - (void)setWindowTitle:(NSString *)title;
 - (void)clear:(vec3ub)color;
 - (void)swapBuffers;
+- (void)triangle:(screen_vertex *)v;
 
 @end
 

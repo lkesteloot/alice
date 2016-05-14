@@ -454,6 +454,22 @@ float clamp(float v)
 	return v > 1.0f ? 1.0f : (v < 0.0f ? 0.0f : v);
 }
 
+// Send a string as a length and the bytes. Max string length is 255.
+void send_string(char *s) {
+    send_byte(strlen(s));
+    while (*s != '\0') {
+        send_byte(*s);
+        s++;
+    }
+}
+
+// Little-endian.
+void send_ushort(unsigned short x) {
+    printf("Sending short %d\n", x);
+    send_byte(x & 0xFF);
+    send_byte(x >> 8);
+}
+
 void per_vertex(world_vertex *wv, screen_vertex *sv)
 {
     vec4f tv;
@@ -486,6 +502,11 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     sv->r = clamp(wv->color[0]) * 32767;
     sv->g = clamp(wv->color[1]) * 32767;
     sv->b = clamp(wv->color[2]) * 32767;
+}
+
+void send_screen_vertex(screen_vertex *sv) {
+    send_ushort(sv->x);
+    send_ushort(sv->y);
 }
 
 int indent = 0;
@@ -617,15 +638,6 @@ void element_free(element *p)
         element *np = p->next;
         free(p);
         p = np;
-    }
-}
-
-// Send a string as a length and the bytes. Max string length is 255.
-void send_string(char *s) {
-    send_byte(strlen(s));
-    while (*s != '\0') {
-        send_byte(*s);
-        s++;
     }
 }
 
@@ -942,6 +954,11 @@ void clip_and_emit_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2
     per_vertex(w0, &s0);
     per_vertex(w1, &s1);
     per_vertex(w2, &s2);
+
+    send_byte(3);
+    send_screen_vertex(&s0);
+    send_screen_vertex(&s1);
+    send_screen_vertex(&s2);
 #if 0
     printf("%f %f %f %f %f ",
         s0.x / 800.0, s0.y / 600.0,

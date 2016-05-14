@@ -15,5 +15,6 @@
 // Returns new front buffer:
 - (NSImage *)swapBuffers;
 - (void)clear:(vec3ub)color;
+- (void)triangle:(screen_vertex *)v;
 
 @end

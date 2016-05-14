@@ -49,4 +49,9 @@
     displayView.image = newFrontBuffer;
 }
 
+// For ServerDelegate:
+- (void)triangle:(screen_vertex *)v {
+    [self.displayImage triangle:v];
+}
+
 @end

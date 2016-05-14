@@ -20,6 +20,7 @@ typedef enum {
     STATE_WINOPEN_LENGTH,	// Expecting length of wintitle string.
     STATE_WINOPEN_TITLE,	// Expecting next title byte.
     STATE_CLEAR,		// Expecting clear color.
+    STATE_TRIANGLE,		// Expecting three vertices.
 } State;
 
 // Sent on the wire:
@@ -27,6 +28,7 @@ typedef enum {
     COMMAND_WINOPEN = 0x00,
     COMMAND_CLEAR = 0x01,
     COMMAND_SWAPBUFFERS = 0x02,
+    COMMAND_TRIANGLE = 0x03,
 } Command;
 
 @interface Server () {
@@ -225,8 +227,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     if (eventCode & NSStreamEventHasBytesAvailable) {
 	NSLog(@"stream read");
 	uint8_t receiveBuffer[128];
-	NSInteger amount = [(NSInputStream *)stream read:buffer maxLength:sizeof(receiveBuffer)];
-	[self handleBytes:buffer ofLength:amount];
+	NSInteger amount = [(NSInputStream *)stream read:receiveBuffer maxLength:sizeof(receiveBuffer)];
+	[self handleBytes:receiveBuffer ofLength:amount];
     }
     if (eventCode & NSStreamEventHasSpaceAvailable) {
 	NSLog(@"stream write");
@@ -279,6 +281,10 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    [self.delegate swapBuffers];
 		    break;
 
+		case COMMAND_TRIANGLE:
+		    [self expectBytes:12 forState:STATE_TRIANGLE];
+		    break;
+
 		default:
 		    // Problem. Reset.
 		    NSLog(@"Got unknown command byte %02x", (int)b);
@@ -306,11 +312,32 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    self.state = STATE_COMMAND;
 	    break;
 
+	case STATE_TRIANGLE:
+	    [self gotTriangle];
+	    self.state = STATE_COMMAND;
+	    break;
+
 	default:
 	    NSLog(@"In unknown state %d", self.state);
 	    self.state = STATE_COMMAND;
 	    break;
     }
+}
+
+- (void)gotTriangle {
+    // Unpack the triangle data.
+    screen_vertex v[3];
+
+    for (int i = 0; i < 3; i++) {
+	[self unpackScreenVertex:&v[i] fromBuffer:&buffer[i*4]];
+    }
+
+    [self.delegate triangle:v];
+}
+
+- (void)unpackScreenVertex:(screen_vertex *)v fromBuffer:(unsigned char *)b {
+    v->x = b[0] + b[1]*256;
+    v->y = b[2] + b[3]*256;
 }
 
 // Start expecting a fixed number of bytes.

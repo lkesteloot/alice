@@ -52,6 +52,7 @@
 }
 
 - (void)fillCheckerboard {
+    // XXX I shouldn't need this autoreleasepool. The main loop must not be ending.
     @autoreleasepool {
     [backBuffer lockFocus];
     NSRect rect = NSMakeRect(0, 0, backBuffer.size.width, backBuffer.size.height);
@@ -78,6 +79,24 @@
     [[self colorFromBuffer:color] set];
     NSRectFill(rect);
     [backBuffer unlockFocus];
+    }
+}
+
+- (void)triangle:(screen_vertex *)v {
+    @autoreleasepool {
+	[backBuffer lockFocus];
+	NSBezierPath *path = [NSBezierPath bezierPath];
+	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
+	      v[0].x, v[0].y,
+	      v[1].x, v[1].y,
+	      v[2].x, v[2].y);
+	[path moveToPoint:NSMakePoint(v[0].x, v[0].y)];
+	[path lineToPoint:NSMakePoint(v[1].x, v[1].y)];
+	[path lineToPoint:NSMakePoint(v[2].x, v[2].y)];
+	[path closePath];
+	[[NSColor redColor] set];
+	[path fill];
+	[backBuffer unlockFocus];
     }
 }
 
