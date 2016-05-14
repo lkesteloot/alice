@@ -16,8 +16,8 @@ typedef unsigned char vec3ub[3];
 
 static int trace_functions = 0;
 
-static unsigned char colormap[4096][3];
-static vec3f current_color = {1, 1, 1};
+static vec3ub colormap[4096];
+static vec3ub current_color = {255, 255, 255};
 
 const matrix4x4f identity_4x4f = {
     1, 0, 0, 0,
@@ -664,9 +664,9 @@ void color(Colorindex color) {
         e->type = COLOR;
         e->color.color = color;
     } else {
-        current_color[0] = colormap[color][0] / 255.0;
-        current_color[1] = colormap[color][1] / 255.0;
-        current_color[2] = colormap[color][2] / 255.0;
+        current_color[0] = colormap[color][0];
+        current_color[1] = colormap[color][1];
+        current_color[2] = colormap[color][2];
         if(trace_functions) printf("%*scolor %u\n", indent, "", color);
     }
 }
