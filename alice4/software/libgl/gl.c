@@ -1,7 +1,9 @@
 
 // Alice 4 libgl implementation.
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <gl.h>
 #include "connection.h"
 
