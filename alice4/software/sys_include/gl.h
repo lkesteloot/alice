@@ -137,7 +137,7 @@ extern void	cmov2i();
 extern void	cmovi();
 extern void	cmov2s();
 extern void	cmovs();
-extern void	color();
+extern void	color(Colorindex c);
 extern void	compactify();
 extern void	crv();
 extern void	crvn();
