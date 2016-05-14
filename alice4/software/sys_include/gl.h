@@ -14,6 +14,13 @@
 
 /* graphics libary header file */
 
+/* Specified by LK 2016/05/14 - Each vertex should also have a two-bit "gender" with male, female, neutral, and prefer not to say.  [beer] */
+#define VERTEX_GENDER_MALE            0x00
+#define VERTEX_GENDER_FEMALE          0x01
+#define VERTEX_GENDER_NEUTRAL         0x02
+#define VERTEX_GENDER_PREFER_NOT_SAY  0x03
+#define VERTEX_GENDER_MASK            0x03
+
 /* maximum X and Y screen coordinates */
 
 #define XMAXSCREEN	1023
