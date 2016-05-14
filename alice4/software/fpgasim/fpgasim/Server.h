@@ -8,8 +8,14 @@
 
 #import <Foundation/Foundation.h>
 
+@protocol ServerDelegate
+
+- (void)setWindowTitle:(NSString *)title;
+
+@end
+
 @interface Server : NSObject<NSStreamDelegate>
 
-- (id)init;
+- (id)initWithDelegate:(id<ServerDelegate>)delegate;
 
 @end

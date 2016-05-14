@@ -14,21 +14,40 @@
 
 #define PORT 25423
 
+typedef enum {
+    STATE_COMMAND,              // Expecting command byte.
+    STATE_WINOPEN_LENGTH,	// Expecting length of wintitle string.
+    STATE_WINOPEN_TITLE,	// Expecting next title byte.
+} State;
+
+// Sent on the wire:
+typedef enum {
+    COMMAND_WINOPEN = 0x00,
+} Command;
+
 @interface Server ()
 
+@property (nonatomic) id<ServerDelegate> delegate;
 @property (nonatomic) NSInputStream *inputStream;
 @property (nonatomic) NSOutputStream *outputStream;
+@property (nonatomic) State state;
+@property (nonatomic) NSString *title;
+@property (nonatomic) NSInteger bytesLeft;
 
 @end
 
 @implementation Server
 
-- (id)init {
+- (id)initWithDelegate:(id<ServerDelegate>)delegate {
     self = [super init];
 
     if (self) {
+	_delegate = delegate;
 	_inputStream = nil;
 	_outputStream = nil;
+	_state = STATE_COMMAND;
+	_title = @"";
+	_bytesLeft = 0;
 
 	[self startServer];
     }
@@ -183,7 +202,6 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 }
 
 - (void)startConnectionInput:(NSInputStream *)istream output:(NSOutputStream *)ostream {
-    NSLog(@"startConnection");
     [istream setDelegate:self];
     [ostream setDelegate:self];
     [istream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:(id)kCFRunLoopCommonModes];
@@ -199,9 +217,9 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     }
     if (eventCode & NSStreamEventHasBytesAvailable) {
 	NSLog(@"stream read");
-	uint8_t buffer[1];
+	uint8_t buffer[128];
 	NSInteger amount = [(NSInputStream *)stream read:buffer maxLength:sizeof(buffer)];
-	NSLog(@"Read %ld bytes: 0x%02x", amount, (int) buffer[0]);
+	[self handleBytes:buffer ofLength:amount];
     }
     if (eventCode & NSStreamEventHasSpaceAvailable) {
 	NSLog(@"stream write");
@@ -211,6 +229,56 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     }
     if (eventCode & NSStreamEventEndEncountered) {
 	NSLog(@"stream end");
+    }
+}
+
+- (void)handleBytes:(uint8_t *)buffer ofLength:(NSInteger)len {
+    for (NSInteger i = 0; i < len; i++) {
+	[self handleByte:buffer[i]];
+    }
+}
+
+- (void)handleByte:(uint8_t)b {
+    switch (self.state) {
+	case STATE_COMMAND:
+	    // Initial command.
+	    switch (b) {
+		case COMMAND_WINOPEN:
+		    self.state = STATE_WINOPEN_LENGTH;
+		    break;
+
+		default:
+		    // Problem. Reset.
+		    NSLog(@"Got unknown command byte %02x", (int)b);
+		    self.state = STATE_COMMAND;
+		    break;
+	    }
+	    break;
+
+	case STATE_WINOPEN_LENGTH:
+	    self.bytesLeft = b;
+	    self.title = @"";
+	    if (b == 0) {
+		self.state = STATE_COMMAND;
+		[self.delegate setWindowTitle:self.title];
+	    } else {
+		self.state = STATE_WINOPEN_TITLE;
+	    }
+	    break;
+
+	case STATE_WINOPEN_TITLE:
+	    self.title = [NSString stringWithFormat:@"%@%c", self.title, b];
+	    self.bytesLeft--;
+	    if (self.bytesLeft <= 0) {
+		self.state = STATE_COMMAND;
+		[self.delegate setWindowTitle:self.title];
+	    }
+	    break;
+
+	default:
+	    NSLog(@"In unknown state %d", self.state);
+	    self.state = STATE_COMMAND;
+	    break;
     }
 }
 

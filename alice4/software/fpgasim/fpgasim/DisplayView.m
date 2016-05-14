@@ -21,15 +21,11 @@
 @implementation DisplayView
 
 - (void)awakeFromNib {
-    NSLog(@"awakeFromNib");
-
     _image = [self newDisplayImage];
 }
 
 - (void)drawRect:(NSRect)rect {
     [super drawRect:rect];
-    NSLog(@"drawRect");
-
     [self.image drawInRect:NSMakeRect(0, 0, WIDTH, HEIGHT)];
 }
 

@@ -547,6 +547,14 @@ void element_free(element *p)
     }
 }
 
+void send_string(char *s) {
+    send_byte(strlen(s));
+    while (*s != '\0') {
+        send_byte(*s);
+        s++;
+    }
+}
+
 void backface() {
     printf("%s unimplemented\n", __FUNCTION__);
 }
@@ -1055,9 +1063,11 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
     }
 }
 
-long winopen() { 
+long winopen(char *title) {
     printf("%s\n", __FUNCTION__);
     open_connection();
+    send_byte(0);
+    send_string(title);
 }
 
 static void init_gl_state() __attribute__((constructor));
