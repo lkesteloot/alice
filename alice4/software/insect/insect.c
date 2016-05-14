@@ -199,7 +199,6 @@ new for ECLIPSE 8 bit machine  */
 		    break;
 	    }
             swapbuffers();
-            exit(0);
 	}
 	if (attached) {
 
