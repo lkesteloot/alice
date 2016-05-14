@@ -16,6 +16,9 @@ typedef unsigned char vec3ub[3];
 
 static int trace_functions = 0;
 
+static unsigned char colormap[4096][3];
+static vec3f current_color = {1, 1, 1};
+
 const matrix4x4f identity_4x4f = {
     1, 0, 0, 0,
     0, 1, 0, 0,
@@ -661,6 +664,9 @@ void color(Colorindex color) {
         e->type = COLOR;
         e->color.color = color;
     } else {
+        current_color[0] = colormap[color][0] / 255.0;
+        current_color[1] = colormap[color][1] / 255.0;
+        current_color[2] = colormap[color][2] / 255.0;
         if(trace_functions) printf("%*scolor %u\n", indent, "", color);
     }
 }
@@ -678,7 +684,7 @@ void doublebuffer() {
 }
 
 void editobj(Object obj) { 
-    if(trace_functions) printf("editobj %ld\n", obj);
+    if(trace_functions) printf("%*seditobj %ld\n", indent, "", obj);
     cur_ptr_to_nextptr = &(objects[obj]);
     while(*cur_ptr_to_nextptr != NULL)
         cur_ptr_to_nextptr = &(*cur_ptr_to_nextptr)->next;
@@ -698,7 +704,7 @@ Object genobj() {
         if(!object_allocation[i]) {
             object_allocation[i] = 1;
             objects[i] = NULL;
-            if(trace_functions) printf("genobj -> %d\n", i);
+            if(trace_functions) printf("%*sgenobj -> %d\n", indent, "", i);
             return i;
         }
     abort();
@@ -709,7 +715,7 @@ Tag gentag() {
         if(!tag_allocation[i]) {
             tag_allocation[i] = 1;
             ptrs_to_tagptrs[i] = NULL;
-            if(trace_functions) printf("gentag -> %d\n", i);
+            if(trace_functions) printf("%*sgentag -> %d\n", indent, "", i);
             return i;
         }
     abort();
@@ -719,8 +725,11 @@ Boolean getbutton() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void getmcolor() { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void getmcolor(Colorindex index, short *red, short *green, short *blue) { 
+    if(trace_functions) printf("%*sgetmcolor %d\n", indent, "", index);
+    *red = colormap[index][0];
+    *green = colormap[index][1];
+    *blue = colormap[index][2];
 }
 
 void getorigin(long *x, long *y) { 
@@ -759,7 +768,7 @@ void gexit() {
 }
 
 void makeobj(Object obj) { 
-    if(trace_functions) printf("makeobj %ld\n", obj);
+    if(trace_functions) printf("%*smakeobj %ld\n", indent, "", obj);
     if(objects[obj] != NULL) {
         element_free(objects[obj]);
     }
@@ -769,7 +778,7 @@ void makeobj(Object obj) {
 }
 
 void maketag(Tag tag) { 
-    if(trace_functions) printf("maketag %ld\n", tag);
+    if(trace_functions) printf("%*smaketag %ld\n", indent, "", tag);
     if(cur_ptr_to_nextptr == NULL) {
         printf("maketag : not editing\n");
         return;
@@ -781,8 +790,12 @@ void maketag(Tag tag) {
     element_insert(&cur_ptr_to_nextptr, e);
 }
 
-void mapcolor() { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void mapcolor(Colorindex index, short red, short green, short blue) { 
+    // XXX insect only provides numbers ranging 0..255
+    if(trace_functions) printf("%*smapcolor %d %d %d %d\n", indent, "", index, red, green, blue);
+    colormap[index][0] = red;
+    colormap[index][1] = green;
+    colormap[index][2] = blue;
 }
 
 void multmatrix(Matrix m) { 
@@ -804,7 +817,7 @@ void multmatrix(Matrix m) {
 }
 
 void objreplace(Tag tag) { 
-    if(trace_functions) printf("objreplace %ld\n", tag);
+    if(trace_functions) printf("%*sobjreplace %ld\n", indent, "", tag);
     cur_ptr_to_nextptr = &(*ptrs_to_tagptrs[tag])->next;
     replace_mode = 1;
 }
@@ -1077,6 +1090,9 @@ long winopen(char *title) {
 static void init_gl_state() __attribute__((constructor));
 static void init_gl_state()
 {
+    if(getenv("TRACE_GL") != NULL)
+        trace_functions = 1;
+
     matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
     matrix4x4f_stack_load(&projection_stack, identity_4x4f);
 }
