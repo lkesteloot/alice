@@ -31,6 +31,10 @@
     return self;
 }
 
+- (NSColor *)colorFromBuffer:(vec3ub)color {
+    return [NSColor colorWithRed:color[0]/255.0 green:color[1]/255.0 blue:color[2]/255.0 alpha:1.0];
+}
+
 - (NSImage *)swapBuffers {
     NSImage *oldImage = self.image;
 
@@ -58,10 +62,10 @@
     [self.image unlockFocus];
 }
 
-- (void)clear {
+- (void)clear:(vec3ub)color {
     [self.image lockFocus];
     NSRect rect = NSMakeRect(0, 0, self.image.size.width, self.image.size.height);
-    [[NSColor colorWithRed:1 green:0 blue:0 alpha:1.0] set];
+    [[self colorFromBuffer:color] set];
     NSRectFill(rect);
     [self.image unlockFocus];
 }

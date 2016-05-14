@@ -13,11 +13,13 @@
 #import "Server.h"
 
 #define PORT 25423
+#define MAX_BUFFER 128
 
 typedef enum {
     STATE_COMMAND,              // Expecting command byte.
     STATE_WINOPEN_LENGTH,	// Expecting length of wintitle string.
     STATE_WINOPEN_TITLE,	// Expecting next title byte.
+    STATE_CLEAR,		// Expecting clear color.
 } State;
 
 // Sent on the wire:
@@ -27,14 +29,17 @@ typedef enum {
     COMMAND_SWAPBUFFERS = 0x02,
 } Command;
 
-@interface Server ()
+@interface Server () {
+    // For getting bytes from client.
+    unsigned char buffer[MAX_BUFFER];
+    int bufferLength;
+    int bytesLeft;
+}
 
 @property (nonatomic) id<ServerDelegate> delegate;
 @property (nonatomic) NSInputStream *inputStream;
 @property (nonatomic) NSOutputStream *outputStream;
 @property (nonatomic) State state;
-@property (nonatomic) NSString *title;
-@property (nonatomic) NSInteger bytesLeft;
 
 @end
 
@@ -48,8 +53,8 @@ typedef enum {
 	_inputStream = nil;
 	_outputStream = nil;
 	_state = STATE_COMMAND;
-	_title = @"";
-	_bytesLeft = 0;
+	bufferLength = 0;
+	bytesLeft = 0;
 
 	[self startServer];
     }
@@ -219,8 +224,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     }
     if (eventCode & NSStreamEventHasBytesAvailable) {
 	NSLog(@"stream read");
-	uint8_t buffer[128];
-	NSInteger amount = [(NSInputStream *)stream read:buffer maxLength:sizeof(buffer)];
+	uint8_t receiveBuffer[128];
+	NSInteger amount = [(NSInputStream *)stream read:buffer maxLength:sizeof(receiveBuffer)];
 	[self handleBytes:buffer ofLength:amount];
     }
     if (eventCode & NSStreamEventHasSpaceAvailable) {
@@ -234,13 +239,29 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     }
 }
 
-- (void)handleBytes:(uint8_t *)buffer ofLength:(NSInteger)len {
+- (void)handleBytes:(uint8_t *)receiveBuffer ofLength:(NSInteger)len {
     for (NSInteger i = 0; i < len; i++) {
-	[self handleByte:buffer[i]];
+	[self handleByte:receiveBuffer[i]];
     }
 }
 
 - (void)handleByte:(uint8_t)b {
+    // See if we're receiving a buffer.
+    if (bytesLeft > 0) {
+	if (bufferLength < MAX_BUFFER) {
+	    buffer[bufferLength++] = b;
+	    bytesLeft--;
+	    if (bytesLeft > 0) {
+		// Nothing to do right now.
+		return;
+	    }
+	} else {
+	    NSLog(@"Exceeded buffer length for state %d", self.state);
+	    self.state = STATE_COMMAND;
+	    return;
+	}
+    }
+
     switch (self.state) {
 	case STATE_COMMAND:
 	    // Initial command.
@@ -251,7 +272,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    break;
 
 		case COMMAND_CLEAR:
-		    [self.delegate clear];
+		    [self expectBytes:3 forState:STATE_CLEAR];
 		    break;
 
 		case COMMAND_SWAPBUFFERS:
@@ -267,23 +288,22 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    break;
 
 	case STATE_WINOPEN_LENGTH:
-	    self.bytesLeft = b;
-	    self.title = @"";
 	    if (b == 0) {
+		[self.delegate setWindowTitle:[self bufferAsString]];
 		self.state = STATE_COMMAND;
-		[self.delegate setWindowTitle:self.title];
 	    } else {
-		self.state = STATE_WINOPEN_TITLE;
+		[self expectBytes:b forState:STATE_WINOPEN_TITLE];
 	    }
 	    break;
 
 	case STATE_WINOPEN_TITLE:
-	    self.title = [NSString stringWithFormat:@"%@%c", self.title, b];
-	    self.bytesLeft--;
-	    if (self.bytesLeft <= 0) {
-		self.state = STATE_COMMAND;
-		[self.delegate setWindowTitle:self.title];
-	    }
+	    [self.delegate setWindowTitle:[self bufferAsString]];
+	    self.state = STATE_COMMAND;
+	    break;
+
+	case STATE_CLEAR:
+	    [self.delegate clear:buffer];
+	    self.state = STATE_COMMAND;
 	    break;
 
 	default:
@@ -291,6 +311,18 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    self.state = STATE_COMMAND;
 	    break;
     }
+}
+
+// Start expecting a fixed number of bytes.
+- (void)expectBytes:(int)byteCount forState:(State)newState {
+    self.state = newState;
+    bytesLeft = byteCount;
+    bufferLength = 0;
+}
+
+// Returns the buffer as an ASCII string.
+- (NSString *)bufferAsString {
+    return [[NSString alloc] initWithBytes:buffer length:bufferLength encoding:NSASCIIStringEncoding];
 }
 
 @end

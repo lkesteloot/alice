@@ -661,6 +661,9 @@ void callobj(Object obj) {
 void clear() { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
     send_byte(1);
+    send_byte(current_color[0]);
+    send_byte(current_color[1]);
+    send_byte(current_color[2]);
 }
 
 void closeobj() { 

@@ -8,10 +8,11 @@
 
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
+#import "BasicTypes.h"
 
 @interface DisplayImage : NSObject
 
 - (NSImage *)swapBuffers;
-- (void)clear;
+- (void)clear:(vec3ub)color;
 
 @end

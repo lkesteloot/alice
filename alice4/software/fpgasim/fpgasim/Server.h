@@ -7,11 +7,12 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "BasicTypes.h"
 
 @protocol ServerDelegate
 
 - (void)setWindowTitle:(NSString *)title;
-- (void)clear;
+- (void)clear:(vec3ub)color;
 - (void)swapBuffers;
 
 @end

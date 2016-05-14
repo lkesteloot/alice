@@ -37,8 +37,8 @@
 }
 
 // For ServerDelegate:
-- (void)clear {
-    [self.displayImage clear];
+- (void)clear:(vec3ub)color {
+    [self.displayImage clear:color];
 }
 
 // For ServerDelegate:
