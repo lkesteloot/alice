@@ -267,7 +267,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     switch (self.state) {
 	case STATE_COMMAND:
 	    // Initial command.
-	    NSLog(@"Got command: %02x", (int)b);
+	    /// NSLog(@"Got command: %02x", (int)b);
 	    switch (b) {
 		case COMMAND_WINOPEN:
 		    self.state = STATE_WINOPEN_LENGTH;
