@@ -492,6 +492,12 @@ typedef struct world_vertex
     vec4f color;
 } world_vertex;
 
+typedef struct lit_vertex
+{
+    vec4f coord;
+    vec4f color;
+} lit_vertex;
+
 typedef struct screen_vertex
 {
     unsigned short x, y;
@@ -520,10 +526,9 @@ void send_ushort(unsigned short x) {
     send_byte(x >> 8);
 }
 
-void per_vertex(world_vertex *wv, screen_vertex *sv)
+void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
 {
     vec4f tv;
-    vec4f pv;
     vec3f normal;
 
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
@@ -536,28 +541,35 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     if(color_material_enabled) {
         // XXX color_material mode
-        vec4f_copy(current_material.diffuse, wv->color);
-        vec4f_copy(current_material.ambient, wv->color);
+        vec4f_copy(current_material.diffuse, lv->color);
+        vec4f_copy(current_material.ambient, lv->color);
     }
-    if(lighting_enabled)
-        light_vertex(&current_material, tv, normal, wv->color);
+    
+    if(lighting_enabled) {
+        light_vertex(&current_material, tv, normal, lv->color);
+    } else {
+        vec4f_copy(lv->color, wv->color);
+    }
 #endif
 
     /// XXX could multiply mv and p together?
-    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, pv);
+    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, lv->coord);
     // matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
     // vec4f_print("Object", wv->coord);
     // vec4f_print("World", tv);
-    // vec4f_print("Screen", pv);
+    // vec4f_print("Screen", lv->coord);
+}
 
+void project_vertex(lit_vertex *lv, screen_vertex *sv)
+{
     // XXX could pre-compute
     int viewport_width = the_viewport[1] - the_viewport[0] + 1;
     int viewport_height = the_viewport[3] - the_viewport[2] + 1;
 
     float xndc, yndc, zndc;
-    xndc = pv[0] / pv[3];
-    yndc = pv[1] / pv[3];
-    zndc = pv[2] / pv[3];
+    xndc = lv->coord[0] / lv->coord[3];
+    yndc = lv->coord[1] / lv->coord[3];
+    zndc = lv->coord[2] / lv->coord[3];
     // printf("ndc: %g %g %g\n", xndc, yndc, zndc);
 
     float xw, yw, zw;
@@ -569,11 +581,11 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     sv->x = xw;
     sv->y = yw;
-    // Z?
-    sv->r = clamp(wv->color[0]) * 32767;
-    sv->g = clamp(wv->color[1]) * 32767;
-    sv->b = clamp(wv->color[2]) * 32767;
-    sv->a = clamp(wv->color[3]) * 32767;
+    sv->z = zw * 0xffffffff;
+    sv->r = clamp(lv->color[0]) * 32767;
+    sv->g = clamp(lv->color[1]) * 32767;
+    sv->b = clamp(lv->color[2]) * 32767;
+    sv->a = clamp(lv->color[3]) * 32767;
 }
 
 void send_screen_vertex(screen_vertex *sv) {
@@ -815,9 +827,8 @@ void callobj(Object obj) {
 void clear() { 
     if(trace_functions) printf("%*sclear\n", indent, "");
     send_byte(1);
-    send_byte(current_color[0]);
-    send_byte(current_color[1]);
-    send_byte(current_color[2]);
+    for(int i = 0; i < 3; i++)
+        send_byte(current_color[i]);
 }
 
 void closeobj() { 
@@ -832,10 +843,9 @@ void color(Colorindex color) {
         e->color.color = color;
     } else {
         if(trace_functions) printf("%*scolor %u\n", indent, "", color);
-        current_color[0] = colormap[color][0];
-        current_color[1] = colormap[color][1];
-        current_color[2] = colormap[color][2];
-        // XXX alpha in color map?
+        for(int i = 0; i < 3; i++)
+            current_color[i] = colormap[color][i];
+            // XXX alpha in color map?
     }
 }
 
@@ -1031,18 +1041,44 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
 
 #define POLY_MAX 16
 
-void clip_and_emit_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2)
+void process_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2)
 {
+    lit_vertex l0, l1, l2;
     screen_vertex s0, s1, s2;
 
-    per_vertex(w0, &s0);
-    per_vertex(w1, &s1);
-    per_vertex(w2, &s2);
+    transform_and_light_vertex(w0, &l0);
+    transform_and_light_vertex(w1, &l1);
+    transform_and_light_vertex(w2, &l2);
+
+    project_vertex(&l0, &s0);
+    project_vertex(&l1, &s1);
+    project_vertex(&l2, &s2);
 
     send_byte(3);
     send_screen_vertex(&s0);
     send_screen_vertex(&s1);
     send_screen_vertex(&s2);
+}
+
+void process_polygon(long n, world_vertex *worldverts)
+{
+    // Clip polygon to view volume
+    int i0, i1, i2;
+
+    i1 = 0;
+    i2 = n - 1;
+
+    // XXX IrisGL polys can be concave; not handled.  see concave()
+    for(int i = 0; i < n - 2; i++) {
+        i0 = i1;
+        i1 = i2;
+        // This next one means 3rd vertex alternates back and forth
+        // across polygon, basically turning it into a triangle strip
+        // A fan might be slightly clearer
+        i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
+
+        process_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
+    }
 }
 
 void polf(long n, Coord parray[ ][3]) {
@@ -1067,23 +1103,7 @@ void polf(long n, Coord parray[ ][3]) {
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
 
-        int i0, i1, i2;
-
-        i1 = 0;
-        i2 = n - 1;
-
-        for(int i = 0; i < n - 2; i++) {
-            i0 = i1;
-            i1 = i2;
-            // This next one means 3rd vertex alternates back and forth
-            // across polygon, basically turning it into a triangle strip
-            // A fan might be slightly clearer
-            // XXX Can IrisGL polys be concave?
-            i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
-
-            clip_and_emit_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
-        }
-
+        process_polygon(n, worldverts);
     }
 }
 
@@ -1097,6 +1117,8 @@ void polf2i(long n, Icoord parray[ ][2]) {
     } else {
         static world_vertex worldverts[POLY_MAX];
 
+        if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
+
         vec4f color;
         vec4f_set(color, current_color[0] / 255.0, current_color[1] / 255.0, current_color[2] / 255.0, current_color[3] / 255.0);
 
@@ -1107,24 +1129,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
 
-        int i0, i1, i2;
-
-        i1 = 0;
-        i2 = n - 1;
-
-        for(int i = 0; i < n - 2; i++) {
-            i0 = i1;
-            i1 = i2;
-            // This next one means 3rd vertex alternates back and forth
-            // across polygon, basically turning it into a triangle strip
-            // A fan might be slightly clearer
-            // XXX Can IrisGL polys be concave?
-            i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
-
-            clip_and_emit_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
-        }
-
-        if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
+        process_polygon(n, worldverts);
     }
 }
 
