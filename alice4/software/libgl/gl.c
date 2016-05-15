@@ -440,12 +440,30 @@ void matrix4x4f_stack_load(matrix4x4f_stack *stack, const matrix4x4f m)
 {
     matrix4x4f_copy(stack->s[stack->top], m);
     stack->inverse_needs_calculation = 1;
+#if 0
+    printf("matrix stack loaded\n");
+    for(int i = 0 ; i < 4; i++)
+        printf("    %f %f %f %f\n", 
+            stack->s[stack->top][i * 4 + 0],
+            stack->s[stack->top][i * 4 + 1],
+            stack->s[stack->top][i * 4 + 2],
+            stack->s[stack->top][i * 4 + 3]);
+#endif
 }
 
 void matrix4x4f_stack_mult(matrix4x4f_stack *stack, const matrix4x4f m)
 {
     matrix4x4f_mult_matrix4x4f(m, stack->s[stack->top], stack->s[stack->top]);
     stack->inverse_needs_calculation = 1;
+#if 0
+    printf("matrix stack multiplied\n");
+    for(int i = 0 ; i < 4; i++)
+        printf("    %f %f %f %f\n", 
+            stack->s[stack->top][i * 4 + 0],
+            stack->s[stack->top][i * 4 + 1],
+            stack->s[stack->top][i * 4 + 2],
+            stack->s[stack->top][i * 4 + 3]);
+#endif
 }
 
 matrix4x4f_stack modelview_stack;
@@ -498,8 +516,10 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     vec4f pv;
     vec3f normal;
 
+    // printf("input: %f %f %f %f\n", wv->coord[0], wv->coord[1], wv->coord[2], wv->coord[3]);
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
     matrix4x4f_print(matrix4x4f_stack_top(&modelview_stack));
+    // printf("after modelview: %f %f %f %f\n", tv[0], tv[1], tv[2], tv[3]);
 #if 0
     vec3f_mult_matrix4x4f(wv->normal, modelview_stack.get_inverse(), normal);
 
@@ -521,6 +541,7 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     vec4f_print("Object", wv->coord);
     vec4f_print("World", tv);
     vec4f_print("Screen", pv);
+    // printf("after projection: %f %f %f %f\n", pv[0], pv[1], pv[2], pv[3]);
 
     // XXX could pre-compute
     int viewport_width = the_viewport[1] - the_viewport[0] + 1;
@@ -984,6 +1005,13 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         m[11] = -1.0;
         m[14] = 2 * far * near / (near - far);
         m[15] = 0.0;
+        printf("projection matrix:\n");
+        for(int i = 0 ; i < 4; i++)
+            printf("    %f %f %f %f\n",
+                m[i * 4 + 0],
+                m[i * 4 + 1],
+                m[i * 4 + 2],
+                m[i * 4 + 3]);
         matrix4x4f_stack_load(&projection_stack, m);
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
     }
@@ -1002,7 +1030,7 @@ void clip_and_emit_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2
     send_screen_vertex(&s0);
     send_screen_vertex(&s1);
     send_screen_vertex(&s2);
-#if 0
+#if 1
     printf("%f %f %f %f %f ",
         s0.x / 800.0, s0.y / 600.0,
         s0.r / 32767.0, s0.g / 32767.0, s0.b / 32767.0);
@@ -1031,15 +1059,14 @@ void polf(long n, Coord parray[ ][3]) {
         e->polf.parray = (Coord*) malloc(sizeof(Coord) * 3 * n);
         memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
     } else {
-        world_vertex worldverts[POLY_MAX];
+        static world_vertex worldverts[POLY_MAX];
 
         vec3f color;
         vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
 
         for(int i = 0 ; i < n; i++) {
             vec4f_set(worldverts[i].coord,
-                parray[i][0], parray[i][1], parray[i][2], 1.0
-            );
+                parray[i][0], parray[i][1], parray[i][2], 1.0);
             vec3f_copy(worldverts[i].color, color);
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
@@ -1126,6 +1153,8 @@ void qdevice(long device) {
 // If the queue is empty, qread() blocks.
 long qread(short *val) { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    *val = 0;
+    return REDRAW;
 }
 
 // Returns the device number of the first entry.
@@ -1133,7 +1162,7 @@ long qread(short *val) {
 // Doesn't change the queue.
 long qtest() { 
     static int warned = 0; if(!warned) { printf("%s is just a stub\n", __FUNCTION__); warned = 1; }
-    return 0;
+    return REDRAW;
 }
 
 void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top)
@@ -1236,6 +1265,8 @@ void shademodel() {
 
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
+    printf(" -> ");
+    getchar();
     send_byte(2);
 }
 
@@ -1313,6 +1344,8 @@ static void init_gl_state()
     if(getenv("TRACE_GL") != NULL)
         trace_functions = 1;
 
+    matrix4x4f_stack_init(&modelview_stack);
+    matrix4x4f_stack_init(&projection_stack);
     matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
     matrix4x4f_stack_load(&projection_stack, identity_4x4f);
     the_viewport[4] = 0.0;
