@@ -95,14 +95,11 @@
 	  v[0].x, v[0].y,
 	  v[1].x, v[1].y,
 	  v[2].x, v[2].y);
-    v[0].y = 65535 - v[0].y;
-    v[1].y = 65535 - v[1].y;
-    v[2].y = 65535 - v[2].y;
     [path moveToPoint:NSMakePoint(v[0].x, v[0].y)];
     [path lineToPoint:NSMakePoint(v[1].x, v[1].y)];
     [path lineToPoint:NSMakePoint(v[2].x, v[2].y)];
     [path closePath];
-    [[NSColor colorWithRed:1 green:0 blue:0 alpha:1] set];
+    [[NSColor colorWithRed:1 green:0 blue:0 alpha:.1] set];
     [path fill];
 }
 

@@ -140,9 +140,8 @@ new for ECLIPSE 8 bit machine  */
 
     while (TRUE) {
 
-	while (qtest () || 1) {
+	while (qtest ()) {
 	    dev = qread (&val);
-            dev = REDRAW;
 	    switch (dev) {
 		case ESCKEY:
 			if (val) break;
@@ -220,6 +219,7 @@ new for ECLIPSE 8 bit machine  */
 	    draw_insect ();
 	}
 	    swapbuffers ();	    
+            exit(0);
     }
 
 }

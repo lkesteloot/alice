@@ -100,6 +100,11 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 				    (UInt8 *)&sin,
 				    sizeof(sin));
 
+    CFSocketNativeHandle native4 = CFSocketGetNative(myipv4cfsock);
+    if (native4 >= 0) {
+	int yes = 1;
+	setsockopt(native4, SOL_SOCKET, SO_REUSEADDR, (void *) &yes, sizeof(yes));
+    }
     CFSocketError error = CFSocketSetAddress(myipv4cfsock, sincfd);
     if (error == kCFSocketError) {
 	NSLog(@"Can't bind IP4");
@@ -267,7 +272,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     switch (self.state) {
 	case STATE_COMMAND:
 	    // Initial command.
-	    /// NSLog(@"Got command: %02x", (int)b);
+	    NSLog(@"Got command: %02x", (int)b);
 	    switch (b) {
 		case COMMAND_WINOPEN:
 		    self.state = STATE_WINOPEN_LENGTH;

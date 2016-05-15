@@ -20,6 +20,14 @@ static int trace_functions = 0;
 static vec3ub colormap[4096];
 static vec3ub current_color = {255, 255, 255};
 
+#define INPUT_QUEUE_SIZE 128
+static long input_queue_device[INPUT_QUEUE_SIZE];
+static short input_queue_val[INPUT_QUEUE_SIZE];
+// The next time that needs to be read:
+static int input_queue_head = 0;
+// The number of items in the queue (tail = (head + length) % len):
+static int input_queue_length = 0;
+
 const matrix4x4f identity_4x4f = {
     1, 0, 0, 0,
     0, 1, 0, 0,
@@ -111,10 +119,11 @@ void matrix4x4f_copy(matrix4x4f d, const matrix4x4f s)
     memcpy(d, s, sizeof(matrix4x4f));
 }
 
-void matrix4x4f_print(matrix4x4f m)
+void matrix4x4f_print(char *label, matrix4x4f m)
 {
     int i, j;
 
+    printf("%s:\n", label);
     for(j = 0; j < 4; j++) {
         for(i = 0; i < 4; i++) {
             printf("%6.2f ", m[j*4 + i]);
@@ -518,7 +527,7 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     // printf("input: %f %f %f %f\n", wv->coord[0], wv->coord[1], wv->coord[2], wv->coord[3]);
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
-    matrix4x4f_print(matrix4x4f_stack_top(&modelview_stack));
+    matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
     // printf("after modelview: %f %f %f %f\n", tv[0], tv[1], tv[2], tv[3]);
 #if 0
     vec3f_mult_matrix4x4f(wv->normal, modelview_stack.get_inverse(), normal);
@@ -537,7 +546,7 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     /// XXX could multiply mv and p together?
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, pv);
-    matrix4x4f_print(matrix4x4f_stack_top(&projection_stack));
+    matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
     vec4f_print("Object", wv->coord);
     vec4f_print("World", tv);
     vec4f_print("Screen", pv);
@@ -1013,6 +1022,7 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
                 m[i * 4 + 2],
                 m[i * 4 + 3]);
         matrix4x4f_stack_load(&projection_stack, m);
+        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
     }
 }
@@ -1107,6 +1117,35 @@ void polf2i(long n, Icoord parray[ ][2]) {
         e->polf2i.parray = (Icoord*) malloc(sizeof(Icoord) * 2 * n);
         memcpy(e->polf.parray, parray, sizeof(Icoord) * 2 * n);
     } else {
+        static world_vertex worldverts[POLY_MAX];
+
+        vec3f color;
+        vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
+
+        for(int i = 0 ; i < n; i++) {
+            vec4f_set(worldverts[i].coord,
+                parray[i][0], parray[i][1], 0, 1.0);
+            vec3f_copy(worldverts[i].color, color);
+            vec3f_set(worldverts[i].normal, 1, 0, 0);
+        }
+
+        int i0, i1, i2;
+
+        i1 = 0;
+        i2 = n - 1;
+
+        for(int i = 0; i < n - 2; i++) {
+            i0 = i1;
+            i1 = i2;
+            // This next one means 3rd vertex alternates back and forth
+            // across polygon, basically turning it into a triangle strip
+            // A fan might be slightly clearer
+            // XXX Can IrisGL polys be concave?
+            i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
+
+            clip_and_emit_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
+        }
+
         if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
     }
 }
@@ -1145,24 +1184,65 @@ void pushmatrix() {
     }
 }
 
+static void enqueue_device(long device, short val) {
+    printf("Enqueuing %ld %d", device, (int) val);
+    if (input_queue_length == INPUT_QUEUE_SIZE) {
+        printf("Input queue overflow.");
+    } else {
+        int tail = (input_queue_head + input_queue_length) % INPUT_QUEUE_SIZE;
+        input_queue_device[tail] = device;
+        input_queue_val[tail] = val;
+        input_queue_length++;
+    }
+}
+
 // We're interested in events from this device.
 void qdevice(long device) { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+
+    switch (device) {
+        case REDRAW:
+            // Initial redraw.
+            enqueue_device(REDRAW, 0);
+            break;
+
+        case INPUTCHANGE:
+            // Tell app that an input device is ready.
+            enqueue_device(INPUTCHANGE, 1);
+            break;
+
+        default:
+            // Nothing to do.
+            break;
+    }
 }
 
 // If the queue is empty, qread() blocks.
 long qread(short *val) { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-    *val = 0;
-    return REDRAW;
+    if (input_queue_length == 0) {
+        // We don't support blocking.
+        printf("qread() blocking unimplemented.");
+        exit(1);
+    }
+
+    *val = input_queue_val[input_queue_head];
+    long device = input_queue_device[input_queue_head];
+    input_queue_head = (input_queue_head + 1) % INPUT_QUEUE_SIZE;
+    input_queue_length--;
+    return device;
 }
 
 // Returns the device number of the first entry.
 // Returns 0 if the event queue is empty.
 // Doesn't change the queue.
 long qtest() { 
-    static int warned = 0; if(!warned) { printf("%s is just a stub\n", __FUNCTION__); warned = 1; }
-    return REDRAW;
+    if (input_queue_length == 0) {
+        // Empty queue.
+        return 0;
+    } else {
+        // Peek at the head.
+        return input_queue_device[input_queue_head];
+    }
 }
 
 void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top)
@@ -1265,9 +1345,9 @@ void shademodel() {
 
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
+    send_byte(2);
     printf(" -> ");
     getchar();
-    send_byte(2);
 }
 
 void translate(Coord x, Coord y, Coord z) {
