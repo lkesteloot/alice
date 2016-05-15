@@ -111,6 +111,19 @@ void matrix4x4f_copy(matrix4x4f d, const matrix4x4f s)
     memcpy(d, s, sizeof(matrix4x4f));
 }
 
+void matrix4x4f_print(matrix4x4f m)
+{
+    int i, j;
+
+    for(j = 0; j < 4; j++) {
+        for(i = 0; i < 4; i++) {
+            printf("%6.2f ", m[j*4 + i]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 static void matrix4x4f_mult_matrix4x4f(const matrix4x4f m1, const matrix4x4f m2, matrix4x4f r)
 {
     matrix4x4f t;
@@ -359,6 +372,15 @@ static void vec4f_mult_matrix4x4f(const vec4f in, const matrix4x4f m, vec4f out)
     vec4f_copy(out, t);
 }
 
+static void vec4f_print(char *label, const vec4f v)
+{
+    printf("%s: ", label);
+    for (int i = 0; i < 4; i++) {
+        printf("%6.2f ", v[i]);
+    }
+    printf("\n");
+}
+
 #define STACK_MAX 8
 
 typedef struct matrix4x4f_stack
@@ -477,6 +499,7 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     vec3f normal;
 
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
+    matrix4x4f_print(matrix4x4f_stack_top(&modelview_stack));
 #if 0
     vec3f_mult_matrix4x4f(wv->normal, modelview_stack.get_inverse(), normal);
 
@@ -494,6 +517,10 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     /// XXX could multiply mv and p together?
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, pv);
+    matrix4x4f_print(matrix4x4f_stack_top(&projection_stack));
+    vec4f_print("Object", wv->coord);
+    vec4f_print("World", tv);
+    vec4f_print("Screen", pv);
 
     // XXX could pre-compute
     int viewport_width = the_viewport[1] - the_viewport[0] + 1;
@@ -503,12 +530,14 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     xndc = pv[0] / pv[3];
     yndc = pv[1] / pv[3];
     zndc = pv[2] / pv[3];
+    printf("ndc: %g %g %g\n", xndc, yndc, zndc);
 
     float xw, yw, zw;
     // XXX could pre-compute half width and height
     xw = viewport_width / 2.0 * xndc + (the_viewport[0] + viewport_width / 2.0);
     yw = viewport_height / 2.0 * yndc + (the_viewport[2] + viewport_height / 2.0);
     zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
+    printf("Viewport: %g %g\n", xw, yw);
 
     sv->x = xw;
     sv->y = yw;
@@ -952,8 +981,8 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         m[0] = f / aspect;
         m[5] = f;
         m[10] = (far + near) / (near - far);
-        m[11] = 2 * far * near / (near - far);
-        m[14] = -1.0;
+        m[11] = -1.0;
+        m[14] = 2 * far * near / (near - far);
         m[15] = 0.0;
         matrix4x4f_stack_load(&projection_stack, m);
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
