@@ -227,7 +227,7 @@ extern void	getscrmask();
 extern long	getshade();
 extern void	getsize();
 extern void	gettp();
-extern long	getvaluator();
+extern long	getvaluator(long device);
 extern void	getviewport();
 extern long	getwritemask();
 extern Boolean	getzbuffer();
@@ -453,6 +453,9 @@ extern void	xfpti();
 extern void	xfpts();
 extern void	zbuffer();
 extern void	zclear();
+
+extern void glcompat(long mode, long value);
+extern void shademodel(long mode);
 
 // Added by LK because demos needed it. I don't know what the real values should be.
 #define FLAT 0
