@@ -13,12 +13,14 @@ typedef float matrix4x4f[16];
 typedef float vec4f[4];
 typedef float vec3f[3];
 typedef unsigned short vec3us[3];
+typedef unsigned short vec4us[4];
 typedef unsigned char vec3ub[3];
+typedef unsigned char vec4ub[4];
 
 static int trace_functions = 0;
 
 static vec3ub colormap[4096];
-static vec3ub current_color = {255, 255, 255};
+static vec4ub current_color = {255, 255, 255, 255};
 
 #define INPUT_QUEUE_SIZE 128
 static long input_queue_device[INPUT_QUEUE_SIZE];
@@ -494,8 +496,7 @@ typedef struct screen_vertex
 {
     unsigned short x, y;
     unsigned long z;
-    short r, g, b;
-    // vec4f texcoord;
+    short r, g, b, a;
 } screen_vertex;
 
 float clamp(float v)
@@ -572,6 +573,7 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     sv->r = clamp(wv->color[0]) * 32767;
     sv->g = clamp(wv->color[1]) * 32767;
     sv->b = clamp(wv->color[2]) * 32767;
+    sv->a = clamp(wv->color[3]) * 32767;
 }
 
 void send_screen_vertex(screen_vertex *sv) {
@@ -833,6 +835,7 @@ void color(Colorindex color) {
         current_color[0] = colormap[color][0];
         current_color[1] = colormap[color][1];
         current_color[2] = colormap[color][2];
+        // XXX alpha in color map?
     }
 }
 
@@ -1031,11 +1034,10 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
 void clip_and_emit_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2)
 {
     screen_vertex s0, s1, s2;
+
     per_vertex(w0, &s0);
     per_vertex(w1, &s1);
     per_vertex(w2, &s2);
-
-    // XXX clip?
 
     send_byte(3);
     send_screen_vertex(&s0);
@@ -1055,13 +1057,13 @@ void polf(long n, Coord parray[ ][3]) {
 
         if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
 
-        vec3f color;
-        vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
+        vec4f color;
+        vec4f_set(color, current_color[0] / 255.0, current_color[1] / 255.0, current_color[2] / 255.0, current_color[3] / 255.0);
 
         for(int i = 0 ; i < n; i++) {
             vec4f_set(worldverts[i].coord,
                 parray[i][0], parray[i][1], parray[i][2], 1.0);
-            vec3f_copy(worldverts[i].color, color);
+            vec4f_copy(worldverts[i].color, color);
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
 
@@ -1095,13 +1097,13 @@ void polf2i(long n, Icoord parray[ ][2]) {
     } else {
         static world_vertex worldverts[POLY_MAX];
 
-        vec3f color;
-        vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
+        vec4f color;
+        vec4f_set(color, current_color[0] / 255.0, current_color[1] / 255.0, current_color[2] / 255.0, current_color[3] / 255.0);
 
         for(int i = 0 ; i < n; i++) {
             vec4f_set(worldverts[i].coord,
                 parray[i][0], parray[i][1], 0, 1.0);
-            vec3f_copy(worldverts[i].color, color);
+            vec4f_copy(worldverts[i].color, color);
             vec3f_set(worldverts[i].normal, 1, 0, 0);
         }
 
