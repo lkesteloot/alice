@@ -525,10 +525,8 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     vec4f pv;
     vec3f normal;
 
-    // printf("input: %f %f %f %f\n", wv->coord[0], wv->coord[1], wv->coord[2], wv->coord[3]);
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
-    matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
-    // printf("after modelview: %f %f %f %f\n", tv[0], tv[1], tv[2], tv[3]);
+    // matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
 #if 0
     vec3f_mult_matrix4x4f(wv->normal, modelview_stack.get_inverse(), normal);
 
@@ -546,11 +544,10 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
 
     /// XXX could multiply mv and p together?
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, pv);
-    matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
-    vec4f_print("Object", wv->coord);
-    vec4f_print("World", tv);
-    vec4f_print("Screen", pv);
-    // printf("after projection: %f %f %f %f\n", pv[0], pv[1], pv[2], pv[3]);
+    // matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
+    // vec4f_print("Object", wv->coord);
+    // vec4f_print("World", tv);
+    // vec4f_print("Screen", pv);
 
     // XXX could pre-compute
     int viewport_width = the_viewport[1] - the_viewport[0] + 1;
@@ -560,14 +557,14 @@ void per_vertex(world_vertex *wv, screen_vertex *sv)
     xndc = pv[0] / pv[3];
     yndc = pv[1] / pv[3];
     zndc = pv[2] / pv[3];
-    printf("ndc: %g %g %g\n", xndc, yndc, zndc);
+    // printf("ndc: %g %g %g\n", xndc, yndc, zndc);
 
     float xw, yw, zw;
     // XXX could pre-compute half width and height
     xw = viewport_width / 2.0 * xndc + (the_viewport[0] + viewport_width / 2.0);
     yw = viewport_height / 2.0 * yndc + (the_viewport[2] + viewport_height / 2.0);
     zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
-    printf("Viewport: %g %g\n", xw, yw);
+    // printf("Viewport: %g %g\n", xw, yw);
 
     sv->x = xw;
     sv->y = yw;
@@ -718,17 +715,26 @@ void backface() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
+element *element_next_in_object()
+{
+    element *e;
+
+    if(!replace_mode) {
+        e = element_new();
+        element_insert(&cur_ptr_to_nextptr, e);
+        // XXX Need to skip tags?
+    } else {
+        e = *cur_ptr_to_nextptr;
+        cur_ptr_to_nextptr = &(*cur_ptr_to_nextptr)->next;
+    }
+
+    return e;
+}
+
 void callobj(Object obj) { 
     if(cur_ptr_to_nextptr != NULL) {
 
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = CALLOBJ;
         e->callobj.obj = obj;
 
@@ -802,8 +808,10 @@ void callobj(Object obj) {
     }
 }
 
+
+// XXX display list
 void clear() { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    if(trace_functions) printf("%*sclear\n", indent, "");
     send_byte(1);
     send_byte(current_color[0]);
     send_byte(current_color[1]);
@@ -817,21 +825,14 @@ void closeobj() {
 
 void color(Colorindex color) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = COLOR;
         e->color.color = color;
     } else {
+        if(trace_functions) printf("%*scolor %u\n", indent, "", color);
         current_color[0] = colormap[color][0];
         current_color[1] = colormap[color][1];
         current_color[2] = colormap[color][2];
-        if(trace_functions) printf("%*scolor %u\n", indent, "", color);
     }
 }
 
@@ -839,7 +840,7 @@ void deflinestyle() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void defpattern() {
+void	defpattern(long index, short size, short *mask) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -887,6 +888,7 @@ Tag gentag() {
 
 Boolean getbutton() { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    return 0;
 }
 
 void getmcolor(Colorindex index, short *red, short *green, short *blue) { 
@@ -902,6 +904,7 @@ void getorigin(long *x, long *y) {
 }
 
 long getplanes() { 
+    return 24;
 }
 
 void getsize(long *width, long *height) { 
@@ -909,15 +912,16 @@ void getsize(long *width, long *height) {
     *height = DISPLAY_HEIGHT;
 }
 
-long getvaluator() { 
+long getvaluator(long device) { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    return 0;
 }
 
 void gflush() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void glcompat() {
+void glcompat(long mode, long value) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -964,19 +968,18 @@ void mapcolor(Colorindex index, short red, short green, short blue) {
 
 void multmatrix(Matrix m) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = MULTMATRIX;
         memcpy(e->multmatrix.m, m, sizeof(Matrix));
     } else { 
+        if(trace_functions)
+        {
+        printf("%*smultmatrix\n", indent, "");
+        for(int i = 0 ; i < 4; i++)
+            printf("%*s    %f %f %f %f\n", indent, "",
+                m[i][0], m[i][1], m[i][2], m[i][3]);
+        }
         matrix4x4f_stack_mult(&modelview_stack, (float *)m);
-        if(trace_functions) printf("%*smultmatrix\n", indent, "");
     }
 }
 
@@ -988,14 +991,7 @@ void objreplace(Tag tag) {
 
 void perspective(Angle fovy_, float aspect, Coord near, Coord far) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = PERSPECTIVE;
         e->perspective.fovy = fovy_;
         e->perspective.aspect = aspect;
@@ -1014,6 +1010,7 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         m[11] = -1.0;
         m[14] = 2 * far * near / (near - far);
         m[15] = 0.0;
+#if 0
         printf("projection matrix:\n");
         for(int i = 0 ; i < 4; i++)
             printf("    %f %f %f %f\n",
@@ -1021,9 +1018,11 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
                 m[i * 4 + 1],
                 m[i * 4 + 2],
                 m[i * 4 + 3]);
+#endif
         matrix4x4f_stack_load(&projection_stack, m);
         matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
+        matrix4x4f_stack_load(&projection_stack, m);
     }
 }
 
@@ -1036,40 +1035,25 @@ void clip_and_emit_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2
     per_vertex(w1, &s1);
     per_vertex(w2, &s2);
 
+    // XXX clip?
+
     send_byte(3);
     send_screen_vertex(&s0);
     send_screen_vertex(&s1);
     send_screen_vertex(&s2);
-#if 1
-    printf("%f %f %f %f %f ",
-        s0.x / 800.0, s0.y / 600.0,
-        s0.r / 32767.0, s0.g / 32767.0, s0.b / 32767.0);
-    printf("%f %f %f %f %f ",
-        s1.x / 800.0, s1.y / 600.0,
-        s1.r / 32767.0, s1.g / 32767.0, s1.b / 32767.0);
-    printf("%f %f %f %f %f ",
-        s2.x / 800.0, s2.y / 600.0,
-        s2.r / 32767.0, s2.g / 32767.0, s2.b / 32767.0);
-    printf("\n");
-#endif
 }
 
 void polf(long n, Coord parray[ ][3]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = POLF;
         e->polf.n = n;
         e->polf.parray = (Coord*) malloc(sizeof(Coord) * 3 * n);
         memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
     } else {
         static world_vertex worldverts[POLY_MAX];
+
+        if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
 
         vec3f color;
         vec3f_set(color, current_color[0] / 255.0, current_color[0] / 255.0, current_color[0] / 255.0);
@@ -1098,20 +1082,12 @@ void polf(long n, Coord parray[ ][3]) {
             clip_and_emit_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
         }
 
-        if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
     }
 }
 
 void polf2i(long n, Icoord parray[ ][2]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = POLF2I;
         e->polf2i.n = n;
         e->polf2i.parray = (Icoord*) malloc(sizeof(Icoord) * 2 * n);
@@ -1152,14 +1128,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
 
 void popmatrix() { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = POPMATRIX;
     } else {
         if(trace_functions) printf("%*spopmatrix\n", indent, "");
@@ -1169,14 +1138,7 @@ void popmatrix() {
 
 void pushmatrix() { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = PUSHMATRIX;
     } else {
         if(trace_functions) printf("%*spushmatrix\n", indent, "");
@@ -1248,25 +1210,18 @@ long qtest() {
 void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top)
 {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = VIEWPORT;
         e->viewport.left = left;
         e->viewport.right = right;
         e->viewport.bottom = bottom;
         e->viewport.top = top;
     } else {
+        if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
         the_viewport[0] = left;
         the_viewport[1] = right;
         the_viewport[2] = bottom;
         the_viewport[3] = top;
-        if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
     }
 }
 
@@ -1278,14 +1233,7 @@ void reshapeviewport() {
 
 void rotate(Angle ang, unsigned char axis) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = ROTATE;
         e->rotate.angle = ang;
         e->rotate.axis = axis;
@@ -1330,8 +1278,8 @@ void rotate(Angle ang, unsigned char axis) {
         m[6] = t * y * z + s * x;
         m[9] = t * y * z - s * x;
 
-        matrix4x4f_stack_mult(&modelview_stack, m);
         if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
+        matrix4x4f_stack_mult(&modelview_stack, m);
     }
 }
 
@@ -1339,27 +1287,18 @@ void setpattern() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void shademodel() {
+void shademodel(long mode) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
     send_byte(2);
-    printf(" -> ");
-    getchar();
 }
 
 void translate(Coord x, Coord y, Coord z) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = TRANSLATE;
         e->translate.x = x;
         e->translate.y = y;
@@ -1372,21 +1311,14 @@ void translate(Coord x, Coord y, Coord z) {
         m[13] = y;
         m[14] = z;
 
-        matrix4x4f_stack_mult(&modelview_stack, m);
         if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
+        matrix4x4f_stack_mult(&modelview_stack, m);
     }
 }
 
 void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord far) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e;
-        if(!replace_mode) {
-            e = element_new();
-            element_insert(&cur_ptr_to_nextptr, e);
-            // XXX Need to skip tags?
-        } else {
-            e = *cur_ptr_to_nextptr;
-        }
+        element *e = element_next_in_object();
         e->type = WINDOW;
         e->window.left = left;
         e->window.right = right;
@@ -1405,9 +1337,9 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
         m[3] = (right + left) / (right - left);
         m[7] = (top + bottom) / (top - bottom);
         m[11] = (far + near) / (far - near);
+        if(trace_functions) printf("%*swindow %f %f %f %f %f %f\n", indent, "", left, right, bottom, top, near, far);
         matrix4x4f_stack_load(&projection_stack, m);
 
-        if(trace_functions) printf("%*swindow %f %f %f %f %f %f\n", indent, "", left, right, bottom, top, near, far);
     }
 }
 
