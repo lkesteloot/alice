@@ -60,7 +60,7 @@ char	*argv[];
             val;
     Boolean attached;
 
-    follow = FALSE;
+    follow = TRUE;
 	{
 		char *t, *strrchr();
 		winopen((t=strrchr(argv[0], '/')) != NULL ? t+1 : argv[0]);
