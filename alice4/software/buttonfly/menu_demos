@@ -1,0 +1,35 @@
+Image Demos
+	cat .m_image_*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
+
+Graphics Demos
+	cat .m_graphics_*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
+
+CPU Intensive Demos
+	cat .m_cpu_*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
+
+Application Demos
+	cat .m_applications_*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
+
+Tools
+	cat .m_tools*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
+
+Older Demos
+	cat .m_old_*
+	.menu. -
+	.color. .9 .5 .9
+	.highcolor. 1.0 .7 1.0
