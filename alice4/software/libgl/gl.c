@@ -1071,34 +1071,41 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
 
 #define POLY_MAX 16
 
-void process_triangle(world_vertex *w0, world_vertex *w1, world_vertex *w2)
+void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    lit_vertex l0, l1, l2;
-    screen_vertex s0, s1, s2;
-
-    transform_and_light_vertex(w0, &l0);
-    transform_and_light_vertex(w1, &l1);
-    transform_and_light_vertex(w2, &l2);
-
-    project_vertex(&l0, &s0);
-    project_vertex(&l1, &s1);
-    project_vertex(&l2, &s2);
-
     send_byte(3);
-    send_screen_vertex(&s0);
-    send_screen_vertex(&s1);
-    send_screen_vertex(&s2);
+    send_screen_vertex(s0);
+    send_screen_vertex(s1);
+    send_screen_vertex(s2);
 }
 
+long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
+{
+    for(int i = 0; i < n; i++)
+        output[i] = input[i];
+    return n;
+}
+
+// XXX IrisGL polys can be concave; not handled.  see concave()
 void process_polygon(long n, world_vertex *worldverts)
 {
-    // Clip polygon to view volume
+    static lit_vertex litverts[POLY_MAX];
+    static lit_vertex clipped[POLY_MAX];
+    static screen_vertex screenverts[POLY_MAX];
+
+    for(int i = 0; i < n; i++)
+        transform_and_light_vertex(&worldverts[i], &litverts[i]);
+
+    n = clip_polygon(n, litverts, clipped);
+
+    for(int i = 0; i < n; i++)
+        project_vertex(&clipped[i], &screenverts[i]);
+
     int i0, i1, i2;
 
     i1 = 0;
     i2 = n - 1;
 
-    // XXX IrisGL polys can be concave; not handled.  see concave()
     for(int i = 0; i < n - 2; i++) {
         i0 = i1;
         i1 = i2;
@@ -1107,7 +1114,7 @@ void process_polygon(long n, world_vertex *worldverts)
         // A fan might be slightly clearer
         i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
 
-        process_triangle(&worldverts[i0], &worldverts[i1], &worldverts[i2]);
+        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
     }
 }
 
