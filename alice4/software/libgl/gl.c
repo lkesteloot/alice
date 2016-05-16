@@ -1079,11 +1079,53 @@ void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
     send_screen_vertex(s2);
 }
 
+enum {
+    CLIP_TRIVIAL_REJECT = -1,
+    CLIP_TRIVIAL_ACCEPT = -2,
+};
+
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
-    for(int i = 0; i < n; i++)
-        output[i] = input[i];
-    return n;
+    static unsigned char in[POLY_MAX];
+    int all_out = 1;
+    int all_in = 1;
+
+    for(int i = 0; i < n; i++) {
+        in[i] =
+            (input[i].coord[0] > -input[i].coord[3]) && 
+            (input[i].coord[0] < input[i].coord[3]) && 
+            (input[i].coord[1] > -input[i].coord[3]) && 
+            (input[i].coord[1] < input[i].coord[3]) && 
+            (input[i].coord[2] > -input[i].coord[3]) && 
+            (input[i].coord[2] < input[i].coord[3]);
+        all_out = all_out && !in[i];
+        all_in = all_in && in[i];
+    }
+
+    if(all_in)
+        return CLIP_TRIVIAL_ACCEPT;
+
+    if(all_out)
+        return CLIP_TRIVIAL_REJECT;
+
+    lit_vertex *v0;
+    int in0;
+    lit_vertex *v1 = &input[n - 1];
+    int in1 = in[n - 1];
+    int n2 = 0;
+    for(int i = 0; i < n; i++) {
+        v0 = v1;
+        v1 = &input[i];
+
+        in0 = in1;
+        in1 = in[i];
+
+        if(in0)
+            output[n2++] = *v0;
+
+        /* clip segment */
+    }
+    return n2;
 }
 
 // XXX IrisGL polys can be concave; not handled.  see concave()
@@ -1091,15 +1133,24 @@ void process_polygon(long n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
     static lit_vertex clipped[POLY_MAX];
+    static lit_vertex *vp;
     static screen_vertex screenverts[POLY_MAX];
 
     for(int i = 0; i < n; i++)
         transform_and_light_vertex(&worldverts[i], &litverts[i]);
 
-    n = clip_polygon(n, litverts, clipped);
+    long r = clip_polygon(n, litverts, clipped);
+    if(r == CLIP_TRIVIAL_REJECT)
+        return;
+    else if(r == CLIP_TRIVIAL_ACCEPT) {
+        vp = litverts;
+    } else {
+        vp = clipped;
+        n = r;
+    }
 
     for(int i = 0; i < n; i++)
-        project_vertex(&clipped[i], &screenverts[i]);
+        project_vertex(&vp[i], &screenverts[i]);
 
     int i0, i1, i2;
 
