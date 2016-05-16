@@ -60,6 +60,38 @@ void send_byte(unsigned char b) {
     buffer[buffer_length++] = b;
 }
 
+unsigned char receive_byte() {
+    if (socket_fd == -1) {
+        fprintf(stderr, "Connection is not open.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    flush();
+
+    unsigned char b;
+    while (1) {
+        int len = read(socket_fd, &b, 1);
+        if (len == -1) {
+            socket_fd = -1;
+            perror("reading socket");
+            exit(0);
+        }
+
+        if (len == 0) {
+            socket_fd = -1;
+            printf("Server closed connection.\n");
+            exit(0);
+        }
+
+        if (len == 1) {
+            if (trace_network) {
+                printf("Received byte: 0x%02x\n", (int)b);
+            }
+            return b;
+        }
+    }
+}
+
 // For connection.h.
 void flush() {
     if (buffer_length > 0) {

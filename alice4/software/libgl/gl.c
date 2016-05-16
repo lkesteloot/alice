@@ -529,6 +529,37 @@ void send_ushort(unsigned short x) {
     send_byte(x >> 8);
 }
 
+// Little-endian.
+void send_ulong(unsigned long x) {
+    if (trace_network) {
+        printf("Sending long %lu\n", x);
+    }
+    send_byte(x & 0xFF);
+    send_byte((x >> 8) & 0xFF);
+    send_byte((x >> 16) & 0xFF);
+    send_byte((x >> 24) & 0xFF);
+}
+
+// Little-endian.
+unsigned short receive_ushort() {
+    unsigned char low = receive_byte();
+    unsigned char high = receive_byte();
+
+    return high*256 + low;
+}
+
+// Little-endian.
+unsigned long receive_ulong() {
+    long value = 0;
+
+    value |= receive_byte() << 0;
+    value |= receive_byte() << 8;
+    value |= receive_byte() << 16;
+    value |= receive_byte() << 24;
+
+    return value;
+}
+
 void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
 {
     vec4f tv;
@@ -938,8 +969,9 @@ void getsize(long *width, long *height) {
 }
 
 long getvaluator(long device) { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-    return 30;
+    send_byte(4);
+    send_ulong(device);
+    return receive_ulong();
 }
 
 void gflush() {
@@ -1312,6 +1344,7 @@ void shademodel(long mode) {
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
     send_byte(2);
+    flush();
 }
 
 void translate(Coord x, Coord y, Coord z) {

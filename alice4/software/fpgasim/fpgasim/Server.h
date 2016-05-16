@@ -15,6 +15,7 @@
 - (void)clear:(vec3ub)color;
 - (void)swapBuffers;
 - (void)triangle:(screen_vertex *)v;
+- (NSPoint)getMousePosition;
 
 @end
 

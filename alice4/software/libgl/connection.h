@@ -5,6 +5,7 @@
 // Interface for connection (to network or FPGA).
 void open_connection();
 void send_byte(unsigned char b);
+unsigned char receive_byte();
 void flush();
 void close_connection();
 

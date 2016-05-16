@@ -54,4 +54,10 @@
     [self.displayImage triangle:v];
 }
 
+// For ServerDelegate:
+- (NSPoint)getMousePosition {
+    NSWindow *window = [self view].window;
+    return [window mouseLocationOutsideOfEventStream];
+}
+
 @end

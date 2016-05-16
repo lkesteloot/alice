@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 
 #import "Server.h"
+#import "device.h"
 
 #define PORT 25423
 #define MAX_BUFFER 128
@@ -22,6 +23,7 @@ typedef enum {
     STATE_WINOPEN_TITLE,	// Expecting next title byte.
     STATE_CLEAR,		// Expecting clear color.
     STATE_TRIANGLE,		// Expecting three vertices.
+    STATE_GET_VALUATOR,		// Expecting unsigned long for device.
 } State;
 
 // Sent on the wire:
@@ -30,6 +32,7 @@ typedef enum {
     COMMAND_CLEAR = 0x01,
     COMMAND_SWAPBUFFERS = 0x02,
     COMMAND_TRIANGLE = 0x03,
+    COMMAND_GET_VALUATOR = 0x04,
 } Command;
 
 @interface Server () {
@@ -37,11 +40,14 @@ typedef enum {
     unsigned char buffer[MAX_BUFFER];
     int bufferLength;
     int bytesLeft;
+
+    // For sending bytes to client.
+    NSMutableData *outputBuffer;
+    NSOutputStream *outputStream;
+    BOOL canWrite;
 }
 
 @property (nonatomic) id<ServerDelegate> delegate;
-@property (nonatomic) NSInputStream *inputStream;
-@property (nonatomic) NSOutputStream *outputStream;
 @property (nonatomic) State state;
 
 @end
@@ -53,16 +59,20 @@ typedef enum {
 
     if (self) {
 	_delegate = delegate;
-	_inputStream = nil;
-	_outputStream = nil;
-	_state = STATE_COMMAND;
-	bufferLength = 0;
-	bytesLeft = 0;
-
+	[self resetState];
 	[self startServer];
     }
 
     return self;
+}
+
+- (void)resetState {
+    _state = STATE_COMMAND;
+    bufferLength = 0;
+    bytesLeft = 0;
+    outputBuffer = [NSMutableData dataWithCapacity:8];
+    outputStream = nil;
+    canWrite = NO;
 }
 
 void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info) {
@@ -190,6 +200,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 }
 
 - (void)accept:(CFSocketNativeHandle)nativeSocketHandle {
+    [self resetState];
+
     uint8_t peerName[SOCK_MAXADDRLEN];
     socklen_t namelen = sizeof(peerName);
     NSData *peer = nil;
@@ -221,6 +233,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 }
 
 - (void)startConnectionInput:(NSInputStream *)istream output:(NSOutputStream *)ostream {
+    outputStream = ostream;
+
     [istream setDelegate:self];
     [ostream setDelegate:self];
     [istream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:(id)kCFRunLoopCommonModes];
@@ -241,7 +255,9 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	[self handleBytes:receiveBuffer ofLength:amount];
     }
     if (eventCode & NSStreamEventHasSpaceAvailable) {
-	NSLog(@"stream write");
+	// NSLog(@"stream write");
+	canWrite = YES;
+	[self writeBuffer];
     }
     if (eventCode & NSStreamEventErrorOccurred) {
 	NSLog(@"stream error");
@@ -297,6 +313,10 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    [self expectBytes:BYTES_PER_VERTEX*3 forState:STATE_TRIANGLE];
 		    break;
 
+		case COMMAND_GET_VALUATOR:
+		    [self expectBytes:4 forState:STATE_GET_VALUATOR];
+		    break;
+
 		default:
 		    // Problem. Reset.
 		    NSLog(@"Got unknown command byte %02x", (int)b);
@@ -329,6 +349,30 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    self.state = STATE_COMMAND;
 	    break;
 
+	case STATE_GET_VALUATOR:
+	    {
+		unsigned long device = [self bytesToLong:buffer];
+		unsigned long value;
+		NSPoint mousePosition = [self.delegate getMousePosition];
+		switch (device) {
+		    case MOUSEX:
+			value = mousePosition.x;
+			break;
+
+		    case MOUSEY:
+			value = mousePosition.y;
+			break;
+
+		    default:
+			value = 0;
+			break;
+		}
+		[self writeLong:value];
+		[self writeBuffer];
+		self.state = STATE_COMMAND;
+	    }
+	    break;
+
 	default:
 	    NSLog(@"In unknown state %d", self.state);
 	    self.state = STATE_COMMAND;
@@ -348,8 +392,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 }
 
 - (void)unpackScreenVertex:(screen_vertex *)v fromBuffer:(unsigned char *)b {
-    v->x = b[0] + b[1]*256;
-    v->y = b[2] + b[3]*256;
+    v->x = [self bytesToShort:b];
+    v->y = [self bytesToShort:b + 2];
     v->r = b[4];
     v->g = b[5];
     v->b = b[6];
@@ -366,6 +410,39 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 // Returns the buffer as an ASCII string.
 - (NSString *)bufferAsString {
     return [[NSString alloc] initWithBytes:buffer length:bufferLength encoding:NSASCIIStringEncoding];
+}
+
+- (unsigned short)bytesToShort:(unsigned char *)b {
+    return b[0] | (b[1] << 8);
+}
+
+- (unsigned long)bytesToLong:(unsigned char *)b {
+    return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
+}
+
+- (void)writeLong:(unsigned long)value {
+    [self writeByte:(value >> 0) & 0xFF];
+    [self writeByte:(value >> 8) & 0xFF];
+    [self writeByte:(value >> 16) & 0xFF];
+    [self writeByte:(value >> 24) & 0xFF];
+}
+
+- (void)writeByte:(unsigned char)value {
+    [outputBuffer appendBytes:&value length:1];
+}
+
+- (void)writeBuffer {
+    if (canWrite && outputBuffer.length > 0) {
+	NSInteger written = [(NSOutputStream *)outputStream write:(const uint8_t *)outputBuffer.bytes maxLength:outputBuffer.length];
+	if (written == -1) {
+	    NSLog(@"Error writing to stream");
+	} else {
+	    // Delete what we wrote.
+	    [outputBuffer replaceBytesInRange:NSMakeRange(0, written) withBytes:nil length:0];
+	}
+
+	canWrite = NO;
+    }
 }
 
 @end
