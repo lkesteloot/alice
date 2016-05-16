@@ -25,7 +25,7 @@
 		4A1E0DC51CE6FE9D003C1611 /* DisplayImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DisplayImage.h; sourceTree = "<group>"; };
 		4A1E0DC61CE6FE9D003C1611 /* DisplayImage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DisplayImage.m; sourceTree = "<group>"; };
 		4A1E0DC81CE7A701003C1611 /* BasicTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BasicTypes.h; sourceTree = "<group>"; };
-		4A33A5571CE982C7009DEB3A /* device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device.h; sourceTree = "<group>"; };
+		4A33A5581CE98F49009DEB3A /* device.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = device.h; sourceTree = "<group>"; };
 		4A40BFF91CE58FE5001B6A68 /* fpgasim.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fpgasim.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A40BFFC1CE58FE5001B6A68 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -48,6 +48,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4A33A5591CE98F4F009DEB3A /* sys_include */ = {
+			isa = PBXGroup;
+			children = (
+				4A33A5581CE98F49009DEB3A /* device.h */,
+			);
+			name = sys_include;
+			sourceTree = "<group>";
+		};
+		4A33A55A1CE98F5B009DEB3A /* libgl */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = libgl;
+			sourceTree = "<group>";
+		};
 		4A40BFF01CE58FE5001B6A68 = {
 			isa = PBXGroup;
 			children = (
@@ -67,7 +82,8 @@
 		4A40BFFB1CE58FE5001B6A68 /* fpgasim */ = {
 			isa = PBXGroup;
 			children = (
-				4A33A5571CE982C7009DEB3A /* device.h */,
+				4A33A55A1CE98F5B009DEB3A /* libgl */,
+				4A33A5591CE98F4F009DEB3A /* sys_include */,
 				4A40BFFC1CE58FE5001B6A68 /* AppDelegate.h */,
 				4A40BFFD1CE58FE5001B6A68 /* AppDelegate.m */,
 				4A40C0021CE58FE5001B6A68 /* ViewController.h */,
