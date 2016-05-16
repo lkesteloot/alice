@@ -1080,50 +1080,57 @@ void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 }
 
 enum {
+    CLIP_INSIDE = 0x0,
+    CLIP_NEGATIVE = 0x1,
+    CLIP_POSITIVE = 0x2,
+};
+
+enum {
     CLIP_TRIVIAL_REJECT = -1,
     CLIP_TRIVIAL_ACCEPT = -2,
 };
 
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
-    static unsigned char in[POLY_MAX];
-    int all_out = 1;
-    int all_in = 1;
+    static unsigned char code[POLY_MAX][3];
+    int all_neg[3] = {1, 1, 1};
+    int all_pos[3] = {1, 1, 1};
+    int all_inside = 1;
 
     for(int i = 0; i < n; i++) {
-        in[i] =
-            (input[i].coord[0] > -input[i].coord[3]) && 
-            (input[i].coord[0] < input[i].coord[3]) && 
-            (input[i].coord[1] > -input[i].coord[3]) && 
-            (input[i].coord[1] < input[i].coord[3]) && 
-            (input[i].coord[2] > -input[i].coord[3]) && 
-            (input[i].coord[2] < input[i].coord[3]);
-        all_out = all_out && !in[i];
-        all_in = all_in && in[i];
+        float *c = input[i].coord;
+        for(int j = 0; j < 3; j++) {
+            code[i][j] =
+                (c[j] < -c[3]) ? CLIP_NEGATIVE :
+                ((c[j] > c[3]) ? CLIP_POSITIVE : CLIP_INSIDE);
+            all_neg[j] = all_neg[j] && (code[i][j] == CLIP_NEGATIVE);
+            all_pos[j] = all_pos[j] && (code[i][j] == CLIP_POSITIVE);
+            all_inside = all_inside && (code[i][j] == CLIP_INSIDE);
+        }
     }
 
-    if(all_in)
+    if(all_inside)
         return CLIP_TRIVIAL_ACCEPT;
 
-    if(all_out)
+    if(all_neg[0] || all_neg[1] || all_neg[2] || all_pos[0] || all_pos[1] || all_pos[2])
         return CLIP_TRIVIAL_REJECT;
 
     lit_vertex *v0;
-    int in0;
+    unsigned char *code0;
     lit_vertex *v1 = &input[n - 1];
-    int in1 = in[n - 1];
+    unsigned char *code1 = code[n - 1];
     int n2 = 0;
     for(int i = 0; i < n; i++) {
         v0 = v1;
         v1 = &input[i];
 
-        in0 = in1;
-        in1 = in[i];
+        code0 = code1;
+        code1 = code[i];
 
-        if(in0)
+        if(code0[0] == CLIP_INSIDE && code0[1] == CLIP_INSIDE && code0[2] == CLIP_INSIDE)
             output[n2++] = *v0;
 
-        /* clip segment */
+        /* clip segment against 6 planes of unit volume */
     }
     return n2;
 }
