@@ -49,4 +49,3 @@ extern char *dot_tokens[NUM_TOKENS];
 extern int token_nums[];
 extern float *spots[32];
 extern button_struct *current_button;
-extern char *malloc(), *realloc();

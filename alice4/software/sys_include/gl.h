@@ -14,13 +14,6 @@
 
 /* graphics libary header file */
 
-/* Specified by LK 2016/05/14 - Each vertex should also have a two-bit "gender" with male, female, neutral, and prefer not to say.  [beer] */
-#define VERTEX_GENDER_MALE            0x00
-#define VERTEX_GENDER_FEMALE          0x01
-#define VERTEX_GENDER_NEUTRAL         0x02
-#define VERTEX_GENDER_PREFER_NOT_SAY  0x03
-#define VERTEX_GENDER_MASK            0x03
-
 /* maximum X and Y screen coordinates */
 
 #define XMAXSCREEN	1023
@@ -461,5 +454,29 @@ extern void shademodel(long mode);
 #define FLAT 0
 #define GLC_OLDPOLYGON 0
 #define WINQUIT 0
+
+// Lighting:
+#define LMNULL 0
+#define AMBIENT 1
+#define DIFFUSE 2
+#define SPECULAR 3
+#define SHININESS 4
+#define LOCALVIEWER 5
+#define LCOLOR 6
+#define POSITION 7
+
+// lmdef():
+#define DEFMATERIAL 1
+#define DEFLIGHT 2
+#define DEFLMODEL 3
+
+// lmbind():
+#define LIGHT1 1
+#define MATERIAL 2
+#define LMODEL 3
+
+// mmode():
+#define MPROJECTION 1
+#define MVIEWING 2
 
 #endif // GLDEF

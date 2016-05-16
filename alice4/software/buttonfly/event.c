@@ -5,6 +5,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <device.h>
 #include "event.h"
 
@@ -89,7 +91,7 @@ char *arg;
 void
 event()
 {
-	void find_event(void), event_inputchange(void);
+	void find_event(void), event_inputchange(void *, int);
 	int find_update(void);
 	static int initialized = 0;
 	
@@ -131,7 +133,7 @@ find_update()
 int context, state, device;
 
 void
-event_inputchange()
+event_inputchange(void *unused1, int unused2)
 {
 	context = winget();
 }

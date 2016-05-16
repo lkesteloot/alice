@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gl.h>
 #include <math.h>
 #include <device.h>
@@ -42,16 +44,16 @@ float tv[4][4] = {
     {0.0, 0.0, 0.0, 0.0},
 };
 
+void bf_redraw(), bf_exit(), bf_selecting();
+void bf_quick(), bf_fly(), do_popup(), toggle_window();
+void flyindraw(), flyoutdraw(), selectdraw();
+void parse_args(), doclear();
+
 
 main (argc, argv)
 int	argc;
 char	*argv[];
 {
-    void bf_redraw(), bf_exit(), bf_selecting();
-    void bf_quick(), bf_fly(), do_popup(), toggle_window();
-    void flyindraw(), flyoutdraw(), selectdraw();
-    void parse_args(), doclear();
-
     rootbutton = new_button("");
     selected = rootbutton;
     parse_args(argc, argv);
@@ -162,7 +164,7 @@ char **argv;
 		if ((fp = fopen(".menu", "r")) == NULL)
 		{
 			fprintf(stderr, "%s: can't find default file .menu\n",
-				argv[0], argv[1]);
+				argv[0]);
 			exit(1);
 		}
 		current_buttons = load_buttons(fp);
@@ -327,7 +329,7 @@ short mx, my;
 	menu = newpup();
 
 	if (b != rootbutton) {
-		sprintf(t, "Do It", i);
+		sprintf(t, "Do It");
 	        addtopup(menu, t);
 	}
 
@@ -458,7 +460,7 @@ button_struct *buttons;
 
     if (buttons) do {
 	if (buttons!=selected) draw_button(buttons);
-    } while(buttons=buttons->next);
+    } while((buttons=buttons->next) != 0);
 }
 
 
@@ -646,7 +648,7 @@ char *str;
 
 	    i=0;
 
-	    while (j=chrtbl[*str][i][0]) {
+	    while ((j=chrtbl[*str][i][0]) != 0) {
 
 		switch (j) {
 
@@ -726,7 +728,7 @@ int mx, my;
 	    return (button);
 	}
 
-    } while (button = button->next);
+    } while ((button = button->next) != 0);
 
     return(NULL);
 }

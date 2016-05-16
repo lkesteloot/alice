@@ -156,7 +156,7 @@ float light2[] = {
 
 /* starting spots for different numbers of buttons.  x, y, z */
 
-float spot0[1] = {NULL};
+float spot0[1] = {0.0};
 
 float spot1[1*3] = {
     0.0, 0.0, -2.0,

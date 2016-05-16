@@ -2,6 +2,8 @@
  *	A very simple lexical analyzer for buttonfly.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "buttonfly.h"
 #include "y.tab.h"
 
