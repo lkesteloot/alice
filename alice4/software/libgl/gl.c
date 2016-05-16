@@ -1080,9 +1080,13 @@ void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 }
 
 enum {
-    CLIP_INSIDE = 0x0,
-    CLIP_NEGATIVE = 0x1,
-    CLIP_POSITIVE = 0x2,
+    CLIP_ALL_IN = 0x00,
+    CLIP_NEG_X = 0x01,
+    CLIP_POS_X = 0x02,
+    CLIP_NEG_Y = 0x04,
+    CLIP_POS_Y = 0x08,
+    CLIP_NEG_Z = 0x10,
+    CLIP_POS_Z = 0x20,
 };
 
 enum {
@@ -1092,33 +1096,35 @@ enum {
 
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
-    static unsigned char code[POLY_MAX][3];
+    static int code[POLY_MAX];
     int all_neg[3] = {1, 1, 1};
     int all_pos[3] = {1, 1, 1};
     int all_inside = 1;
+    int all_outside_one = 0xff;
 
     for(int i = 0; i < n; i++) {
         float *c = input[i].coord;
-        for(int j = 0; j < 3; j++) {
-            code[i][j] =
-                (c[j] < -c[3]) ? CLIP_NEGATIVE :
-                ((c[j] > c[3]) ? CLIP_POSITIVE : CLIP_INSIDE);
-            all_neg[j] = all_neg[j] && (code[i][j] == CLIP_NEGATIVE);
-            all_pos[j] = all_pos[j] && (code[i][j] == CLIP_POSITIVE);
-            all_inside = all_inside && (code[i][j] == CLIP_INSIDE);
-        }
+        code[i] = 0;
+        if(c[0] < -c[3]) code[i] |= CLIP_NEG_X;
+        if(c[0] > c[3]) code[i] |= CLIP_POS_X;
+        if(c[1] < -c[3]) code[i] |= CLIP_NEG_Y;
+        if(c[1] > c[3]) code[i] |= CLIP_POS_Y;
+        if(c[2] < -c[3]) code[i] |= CLIP_NEG_Z;
+        if(c[2] > c[3]) code[i] |= CLIP_POS_Z;
+        all_inside = all_inside && (code[i] == CLIP_ALL_IN);
+        all_outside_one &= code[i];
     }
 
     if(all_inside)
         return CLIP_TRIVIAL_ACCEPT;
 
-    if(all_neg[0] || all_neg[1] || all_neg[2] || all_pos[0] || all_pos[1] || all_pos[2])
+    if(all_outside_one)
         return CLIP_TRIVIAL_REJECT;
 
     lit_vertex *v0;
-    unsigned char *code0;
+    int code0;
     lit_vertex *v1 = &input[n - 1];
-    unsigned char *code1 = code[n - 1];
+    int code1 = code[n - 1];
     int n2 = 0;
     for(int i = 0; i < n; i++) {
         v0 = v1;
@@ -1127,7 +1133,7 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
         code0 = code1;
         code1 = code[i];
 
-        if(code0[0] == CLIP_INSIDE && code0[1] == CLIP_INSIDE && code0[2] == CLIP_INSIDE)
+        if(code0 == CLIP_ALL_IN)
             output[n2++] = *v0;
 
         /* clip segment against 6 planes of unit volume */
