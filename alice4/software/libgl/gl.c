@@ -74,6 +74,18 @@ void vec4f_mult(vec4f i1, vec4f i2, vec4f out)
         out[i] = i1[i] * i2[i];
 }
 
+void vec3f_blend(vec3f i1, vec3f i2, float t, vec3f out)
+{
+    for(int i = 0; i < 3; i++)
+        out[i] = i1[i] * (1 - t) + i2[i] * t;
+}
+
+void vec4f_blend(vec4f i1, vec4f i2, float t, vec4f out)
+{
+    for(int i = 0; i < 4; i++)
+        out[i] = i1[i] * (1 - t) + i2[i] * t;
+}
+
 void vec4f_add(vec4f i1, vec4f i2, vec4f out)
 {
     for(int i = 0; i < 4; i++)
@@ -1090,27 +1102,74 @@ enum {
 };
 
 enum {
-    CLIP_TRIVIAL_REJECT = -1,
-    CLIP_TRIVIAL_ACCEPT = -2,
+    CLIP_TRIVIAL_REJECT = 0,
+    CLIP_TRIVIAL_ACCEPT = -1,
 };
+
+long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
+{
+    int sign;
+    int index;
+
+    switch(plane) {
+        case CLIP_NEG_X: sign = -1; index = 0; break;
+        case CLIP_POS_X: sign = 1; index = 0; break;
+        case CLIP_NEG_Y: sign = -1; index = 1; break;
+        case CLIP_POS_Y: sign = 1; index = 1; break;
+        case CLIP_NEG_Z: sign = -1; index = 2; break;
+        case CLIP_POS_Z: sign = 1; index = 2; break;
+    }
+
+    int n2 = 0;
+    lit_vertex* v0;
+    lit_vertex* v1 = &input[n - 1];
+
+    for(int i = 0; i < n; i++) {
+        v0 = v1;
+        v1 = &input[i];
+
+        float p0 = v0->coord[index] * sign;
+        float p1 = v1->coord[index] * sign;
+        float w0 = v0->coord[3];
+        float w1 = v1->coord[3];
+
+        if(p0 < w0) {
+            output[n2++] = *v0;
+        }
+
+        float t = (-p0 + w0) / (-p0 + p1 + w0 - w1);
+        if(t > 0.0001 && t < .9999) {
+            vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
+            vec4f_blend(v0->color, v1->color, t, output[n2].color);
+            n2++;
+        }
+    }
+    return n2;
+}
+
+int classify_vertex(float *c)
+{
+    int code = 0;
+    if(c[0] < -c[3]) code |= CLIP_NEG_X;
+    if(c[0] > c[3]) code |= CLIP_POS_X;
+    if(c[1] < -c[3]) code |= CLIP_NEG_Y;
+    if(c[1] > c[3]) code |= CLIP_POS_Y;
+    if(c[2] < -c[3]) code |= CLIP_NEG_Z;
+    if(c[2] > c[3]) code |= CLIP_POS_Z;
+    return code;
+}
 
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
     static int code[POLY_MAX];
+    static lit_vertex tmp[POLY_MAX];
     int all_neg[3] = {1, 1, 1};
     int all_pos[3] = {1, 1, 1};
     int all_inside = 1;
     int all_outside_one = 0xff;
 
     for(int i = 0; i < n; i++) {
-        float *c = input[i].coord;
-        code[i] = 0;
-        if(c[0] < -c[3]) code[i] |= CLIP_NEG_X;
-        if(c[0] > c[3]) code[i] |= CLIP_POS_X;
-        if(c[1] < -c[3]) code[i] |= CLIP_NEG_Y;
-        if(c[1] > c[3]) code[i] |= CLIP_POS_Y;
-        if(c[2] < -c[3]) code[i] |= CLIP_NEG_Z;
-        if(c[2] > c[3]) code[i] |= CLIP_POS_Z;
+        code[i] = classify_vertex(input[i].coord);
         all_inside = all_inside && (code[i] == CLIP_ALL_IN);
         all_outside_one &= code[i];
     }
@@ -1121,24 +1180,19 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     if(all_outside_one)
         return CLIP_TRIVIAL_REJECT;
 
-    lit_vertex *v0;
-    int code0;
-    lit_vertex *v1 = &input[n - 1];
-    int code1 = code[n - 1];
-    int n2 = 0;
-    for(int i = 0; i < n; i++) {
-        v0 = v1;
-        v1 = &input[i];
+    n = clip_polygon_against_plane(CLIP_NEG_X, n, input, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_X, n, tmp, output);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_NEG_Y, n, output, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_Y, n, tmp, output);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
 
-        code0 = code1;
-        code1 = code[i];
-
-        if(code0 == CLIP_ALL_IN)
-            output[n2++] = *v0;
-
-        /* clip segment against 6 planes of unit volume */
-    }
-    return n2;
+    return n;
 }
 
 // XXX IrisGL polys can be concave; not handled.  see concave()
