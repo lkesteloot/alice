@@ -14,7 +14,7 @@ typedef unsigned char vec3ub[3];
 typedef struct {
     unsigned short x, y;
     unsigned long z;
-    short r, g, b;
+    unsigned char r, g, b, a;
 } screen_vertex;
 
 #endif /* BasicTypes_h */

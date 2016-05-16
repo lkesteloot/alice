@@ -106,7 +106,7 @@
     [path lineToPoint:NSMakePoint(v[1].x, v[1].y)];
     [path lineToPoint:NSMakePoint(v[2].x, v[2].y)];
     [path closePath];
-    [[NSColor colorWithRed:1 green:0 blue:0 alpha:.1] set];
+    [[NSColor colorWithRed:v[0].r/255.0 green:v[0].g/255.0 blue:v[0].b/255.0 alpha:v[0].a/255.0] set];
     [path fill];
 }
 

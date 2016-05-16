@@ -14,6 +14,7 @@
 
 #define PORT 25423
 #define MAX_BUFFER 128
+#define BYTES_PER_VERTEX 8
 
 typedef enum {
     STATE_COMMAND,              // Expecting command byte.
@@ -293,7 +294,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    break;
 
 		case COMMAND_TRIANGLE:
-		    [self expectBytes:12 forState:STATE_TRIANGLE];
+		    [self expectBytes:BYTES_PER_VERTEX*3 forState:STATE_TRIANGLE];
 		    break;
 
 		default:
@@ -340,7 +341,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     screen_vertex v[3];
 
     for (int i = 0; i < 3; i++) {
-	[self unpackScreenVertex:&v[i] fromBuffer:&buffer[i*4]];
+	[self unpackScreenVertex:&v[i] fromBuffer:&buffer[i*BYTES_PER_VERTEX]];
     }
 
     [self.delegate triangle:v];
@@ -349,6 +350,10 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 - (void)unpackScreenVertex:(screen_vertex *)v fromBuffer:(unsigned char *)b {
     v->x = b[0] + b[1]*256;
     v->y = b[2] + b[3]*256;
+    v->r = b[4];
+    v->g = b[5];
+    v->b = b[6];
+    v->a = b[7];
 }
 
 // Start expecting a fixed number of bytes.

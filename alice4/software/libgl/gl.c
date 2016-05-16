@@ -503,7 +503,7 @@ typedef struct screen_vertex
 {
     unsigned short x, y;
     unsigned long z;
-    short r, g, b, a;
+    unsigned char r, g, b, a;
 } screen_vertex;
 
 float clamp(float v)
@@ -553,6 +553,11 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     } else {
         vec4f_copy(lv->color, wv->color);
     }
+#else
+    lv->color[0] = current_color[0]/255.0;
+    lv->color[1] = current_color[1]/255.0;
+    lv->color[2] = current_color[2]/255.0;
+    lv->color[3] = current_color[3]/255.0;
 #endif
 
     /// XXX could multiply mv and p together?
@@ -585,15 +590,19 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
     sv->x = xw;
     sv->y = yw;
     sv->z = zw * 0xffffffff;
-    sv->r = clamp(lv->color[0]) * 32767;
-    sv->g = clamp(lv->color[1]) * 32767;
-    sv->b = clamp(lv->color[2]) * 32767;
-    sv->a = clamp(lv->color[3]) * 32767;
+    sv->r = clamp(lv->color[0]) * 255;
+    sv->g = clamp(lv->color[1]) * 255;
+    sv->b = clamp(lv->color[2]) * 255;
+    sv->a = clamp(lv->color[3]) * 255;
 }
 
 void send_screen_vertex(screen_vertex *sv) {
     send_ushort(sv->x);
     send_ushort(sv->y);
+    send_byte(sv->r);
+    send_byte(sv->g);
+    send_byte(sv->b);
+    send_byte(sv->a);
 }
 
 int indent = 0;
@@ -1157,7 +1166,6 @@ void pushmatrix() {
 }
 
 static void enqueue_device(long device, short val) {
-    printf("Enqueuing %ld %d", device, (int) val);
     if (input_queue_length == INPUT_QUEUE_SIZE) {
         printf("Input queue overflow.");
     } else {
