@@ -7,7 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "BasicTypes.h"
+#import "basic_types.h"
 
 @protocol ServerDelegate
 

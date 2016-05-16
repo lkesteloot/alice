@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
-#import "BasicTypes.h"
+#import "basic_types.h"
 
 @interface DisplayImage : NSObject
 
