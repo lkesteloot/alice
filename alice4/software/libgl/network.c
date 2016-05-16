@@ -12,8 +12,12 @@
 
 #include "connection.h"
 
+#define BUFFER_SIZE 1024
+
 static int socket_fd = -1;
 static int trace_network = 0;
+static unsigned char buffer[BUFFER_SIZE];
+static int buffer_length = 0;
 
 // For connection.h.
 void open_connection() {
@@ -39,6 +43,7 @@ void open_connection() {
     }
 }
 
+// For connection.h.
 void send_byte(unsigned char b) {
     if (socket_fd == -1) {
         fprintf(stderr, "Connection is not open.\n");
@@ -48,10 +53,24 @@ void send_byte(unsigned char b) {
     if (trace_network) {
         printf("Sending byte: 0x%02x\n", (int)b);
     }
-    write(socket_fd, &b, 1);
+
+    if (buffer_length == BUFFER_SIZE) {
+        flush();
+    }
+    buffer[buffer_length++] = b;
 }
 
+// For connection.h.
+void flush() {
+    if (buffer_length > 0) {
+        write(socket_fd, buffer, buffer_length);
+        buffer_length = 0;
+    }
+}
+
+// For connection.h.
 void close_connection() {
+    flush();
     shutdown(socket_fd, SHUT_RDWR);
     close(socket_fd);
 }
