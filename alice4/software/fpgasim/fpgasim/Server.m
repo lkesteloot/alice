@@ -12,6 +12,7 @@
 
 #import "Server.h"
 #import "device.h"
+#import "driver.h"
 
 #define PORT 25423
 #define MAX_BUFFER 128
@@ -25,15 +26,6 @@ typedef enum {
     STATE_TRIANGLE,		// Expecting three vertices.
     STATE_GET_VALUATOR,		// Expecting unsigned long for device.
 } State;
-
-// Sent on the wire:
-typedef enum {
-    COMMAND_WINOPEN = 0x00,
-    COMMAND_CLEAR = 0x01,
-    COMMAND_SWAPBUFFERS = 0x02,
-    COMMAND_TRIANGLE = 0x03,
-    COMMAND_GET_VALUATOR = 0x04,
-} Command;
 
 @interface Server () {
     // For getting bytes from client.

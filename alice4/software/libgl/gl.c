@@ -9,6 +9,7 @@
 #include <device.h>
 #include "connection.h"
 #include "basic_types.h"
+#include "driver.h"
 
 static int trace_functions = 0;
 static int trace_network = 0;
@@ -867,7 +868,7 @@ void callobj(Object obj) {
 // XXX display list
 void clear() { 
     if(trace_functions) printf("%*sclear\n", indent, "");
-    send_byte(1);
+    send_byte(COMMAND_CLEAR);
     for(int i = 0; i < 3; i++)
         send_byte(current_color[i]);
 }
@@ -967,7 +968,7 @@ void getsize(long *width, long *height) {
 }
 
 long getvaluator(long device) { 
-    send_byte(4);
+    send_byte(COMMAND_GET_VALUATOR);
     send_ulong(device);
     return receive_ulong();
 }
@@ -1085,7 +1086,7 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
 
 void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    send_byte(3);
+    send_byte(COMMAND_TRIANGLE);
     send_screen_vertex(s0);
     send_screen_vertex(s1);
     send_screen_vertex(s2);
@@ -1454,7 +1455,7 @@ void shademodel(long mode) {
 
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
-    send_byte(2);
+    send_byte(COMMAND_SWAPBUFFERS);
     flush();
 }
 
@@ -1508,7 +1509,7 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
 long winopen(char *title) {
     if(trace_functions) printf("%*swinopen %s\n", indent, "", title);
     open_connection();
-    send_byte(0);
+    send_byte(COMMAND_WINOPEN);
     send_string(title);
 }
 
