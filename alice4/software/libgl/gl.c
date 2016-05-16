@@ -1219,7 +1219,7 @@ void qdevice(long device) {
 long qread(short *val) { 
     if (input_queue_length == 0) {
         // We don't support blocking.
-        printf("qread() blocking unimplemented.");
+        printf("qread() blocking unimplemented.\n");
         exit(1);
     }
 
