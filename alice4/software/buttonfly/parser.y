@@ -1,12 +1,15 @@
 %{
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "buttonfly.h"
 button_struct *current_button;
 extern button_struct *buttons_input;
 extern button_struct *selected;
 
+button_struct *new_button(char *s);
+char *strip(char *s);
 
-extern char *malloc(), *realloc();
 %}
 
 %union

@@ -1411,10 +1411,6 @@ long dopup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void dot_tokens() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-}
-
 void endpolygon() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
@@ -1455,10 +1451,6 @@ void n3f() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void new_button() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-}
-
 long newpup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
@@ -1484,10 +1476,6 @@ void scale() {
 }
 
 void tie() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-}
-
-void token_nums() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
