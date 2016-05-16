@@ -18,6 +18,7 @@ typedef unsigned char vec3ub[3];
 typedef unsigned char vec4ub[4];
 
 static int trace_functions = 0;
+static int trace_network = 0;
 
 static vec3ub colormap[4096];
 static vec4ub current_color = {255, 255, 255, 255};
@@ -521,7 +522,9 @@ void send_string(char *s) {
 
 // Little-endian.
 void send_ushort(unsigned short x) {
-    printf("Sending short %d\n", x);
+    if (trace_network) {
+        printf("Sending short %d\n", x);
+    }
     send_byte(x & 0xFF);
     send_byte(x >> 8);
 }

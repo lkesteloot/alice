@@ -13,6 +13,7 @@
 #include "connection.h"
 
 static int socket_fd = -1;
+static int trace_network = 0;
 
 // For connection.h.
 void open_connection() {
@@ -44,7 +45,9 @@ void send_byte(unsigned char b) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Sending byte: 0x%02x\n", (int)b);
+    if (trace_network) {
+        printf("Sending byte: 0x%02x\n", (int)b);
+    }
     write(socket_fd, &b, 1);
 }
 

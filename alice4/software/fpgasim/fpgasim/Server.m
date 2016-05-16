@@ -234,7 +234,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	NSLog(@"stream open");
     }
     if (eventCode & NSStreamEventHasBytesAvailable) {
-	NSLog(@"stream read");
+	// NSLog(@"stream read");
 	uint8_t receiveBuffer[128];
 	NSInteger amount = [(NSInputStream *)stream read:receiveBuffer maxLength:sizeof(receiveBuffer)];
 	[self handleBytes:receiveBuffer ofLength:amount];
@@ -278,7 +278,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     switch (self.state) {
 	case STATE_COMMAND:
 	    // Initial command.
-	    NSLog(@"Got command: %02x", (int)b);
+	    // NSLog(@"Got command: %02x", (int)b);
 	    switch (b) {
 		case COMMAND_WINOPEN:
 		    self.state = STATE_WINOPEN_LENGTH;
