@@ -56,12 +56,17 @@
 
 // Returns new front buffer.
 - (NSImage *)swapBuffers {
-    NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
-    [image addRepresentation:rep];
+    // I shouldn't have to have an autorelease here. There should be one in the main loop,
+    // which we're using for everything (graphics and network). Without this autoreleasepool,
+    // we leak tons of memory.
+    @autoreleasepool {
+	NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
+	[image addRepresentation:rep];
 
-    [self newBuffer];
+	[self newBuffer];
 
-    return image;
+	return image;
+    }
 }
 
 - (void)fillCheckerboard {
@@ -74,7 +79,7 @@
     for (int y = 0; y < rect.size.height/TILE; y++) {
 	for (int x = 0; x < rect.size.width/TILE; x++) {
 	    if ((x + y) % 2 == 0) {
-		NSRect tile = NSMakeRect(x*TILE, y*TILE, 50, 50);
+		NSRect tile = NSMakeRect(x*TILE, y*TILE, TILE, TILE);
 		NSRectFill(tile);
 	    }
 	}
@@ -91,10 +96,12 @@
 - (void)triangle:(screen_vertex *)v {
     [NSGraphicsContext setCurrentContext:backContext];
     NSBezierPath *path = [NSBezierPath bezierPath];
-    NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
-	  v[0].x, v[0].y,
-	  v[1].x, v[1].y,
-	  v[2].x, v[2].y);
+    if (/* DISABLES CODE */ (NO)) {
+	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
+	      v[0].x, v[0].y,
+	      v[1].x, v[1].y,
+	      v[2].x, v[2].y);
+    }
     [path moveToPoint:NSMakePoint(v[0].x, v[0].y)];
     [path lineToPoint:NSMakePoint(v[1].x, v[1].y)];
     [path lineToPoint:NSMakePoint(v[2].x, v[2].y)];

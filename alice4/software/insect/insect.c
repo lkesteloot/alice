@@ -219,7 +219,6 @@ new for ECLIPSE 8 bit machine  */
 	    draw_insect ();
 	}
 	    swapbuffers ();	    
-            exit(0);
     }
 
 }

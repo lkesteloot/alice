@@ -927,7 +927,7 @@ void getsize(long *width, long *height) {
 
 long getvaluator(long device) { 
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-    return 0;
+    return 30;
 }
 
 void gflush() {

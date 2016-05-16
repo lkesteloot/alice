@@ -100,6 +100,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 				    (UInt8 *)&sin,
 				    sizeof(sin));
 
+    // Make it so that we can bind quickly after killing the app.
     CFSocketNativeHandle native4 = CFSocketGetNative(myipv4cfsock);
     if (native4 >= 0) {
 	int yes = 1;
@@ -157,34 +158,37 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 - (void)connected:(CFSocketCallBackType)callbackType data:(const void *)data {
     switch (callbackType) {
 	case kCFSocketNoCallBack:
-	    NSLog(@"none");
+	    NSLog(@"connected none");
 	    break;
 
 	case kCFSocketReadCallBack:
-	    NSLog(@"read");
+	    NSLog(@"connected read");
 	    break;
 
 	case kCFSocketAcceptCallBack:
-	    NSLog(@"accept");
+	    NSLog(@"connected accept");
 	    [self accept:*(CFSocketNativeHandle *)data];
 	    break;
 
 	case kCFSocketDataCallBack:
-	    NSLog(@"data");
+	    NSLog(@"connected data");
 	    break;
 
 	case kCFSocketConnectCallBack:
-	    NSLog(@"connect");
+	    NSLog(@"connected connect");
 	    break;
 
 	case kCFSocketWriteCallBack:
-	    NSLog(@"write");
+	    NSLog(@"connected write");
+	    break;
+
+	default:
+	    NSLog(@"connected unknown");
 	    break;
     }
 }
 
 - (void)accept:(CFSocketNativeHandle)nativeSocketHandle {
-    // for an AcceptCallBack, the data parameter is a pointer to a CFSocketNativeHandle
     uint8_t peerName[SOCK_MAXADDRLEN];
     socklen_t namelen = sizeof(peerName);
     NSData *peer = nil;
@@ -262,6 +266,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		// Nothing to do right now.
 		return;
 	    }
+
+	    // Fallthrough to state machine.
 	} else {
 	    NSLog(@"Exceeded buffer length for state %d", self.state);
 	    self.state = STATE_COMMAND;
@@ -300,7 +306,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 
 	case STATE_WINOPEN_LENGTH:
 	    if (b == 0) {
-		[self.delegate setWindowTitle:[self bufferAsString]];
+		[self.delegate setWindowTitle:@""];
 		self.state = STATE_COMMAND;
 	    } else {
 		[self expectBytes:b forState:STATE_WINOPEN_TITLE];
