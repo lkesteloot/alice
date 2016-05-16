@@ -43,10 +43,10 @@
 
 // For ServerDelegate:
 - (void)swapBuffers {
-    NSImage *newFrontBuffer = [self.displayImage swapBuffers];
+    NSBitmapImageRep *newFrontBuffer = [self.displayImage swapBuffers];
 
     DisplayView *displayView = (DisplayView *) self.view;
-    displayView.image = newFrontBuffer;
+    displayView.rep = newFrontBuffer;
 }
 
 // For ServerDelegate:

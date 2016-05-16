@@ -10,6 +10,6 @@
 
 @interface DisplayView : NSView
 
-@property (nonatomic) NSImage *image;
+@property (nonatomic) NSBitmapImageRep *rep;
 
 @end

@@ -55,17 +55,16 @@
 }
 
 // Returns new front buffer.
-- (NSImage *)swapBuffers {
+- (NSBitmapImageRep *)swapBuffers {
     // I shouldn't have to have an autorelease here. There should be one in the main loop,
     // which we're using for everything (graphics and network). Without this autoreleasepool,
     // we leak tons of memory.
     @autoreleasepool {
-	NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(WIDTH, HEIGHT)];
-	[image addRepresentation:rep];
+	NSBitmapImageRep *newFrontBuffer = rep;
 
 	[self newBuffer];
 
-	return image;
+	return newFrontBuffer;
     }
 }
 
@@ -94,6 +93,7 @@
 }
 
 - (void)triangle:(screen_vertex *)v {
+    @autoreleasepool {
     [NSGraphicsContext setCurrentContext:backContext];
     NSBezierPath *path = [NSBezierPath bezierPath];
     if (/* DISABLES CODE */ (NO)) {
@@ -108,6 +108,7 @@
     [path closePath];
     [[NSColor colorWithRed:v[0].r/255.0 green:v[0].g/255.0 blue:v[0].b/255.0 alpha:v[0].a/255.0] set];
     [path fill];
+    }
 }
 
 @end

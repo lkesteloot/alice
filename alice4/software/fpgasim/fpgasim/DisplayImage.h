@@ -13,7 +13,7 @@
 @interface DisplayImage : NSObject
 
 // Returns new front buffer:
-- (NSImage *)swapBuffers;
+- (NSBitmapImageRep *)swapBuffers;
 - (void)clear:(vec3ub)color;
 - (void)triangle:(screen_vertex *)v;
 

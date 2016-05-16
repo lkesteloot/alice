@@ -19,7 +19,7 @@
 @implementation DisplayView
 
 - (void)awakeFromNib {
-    _image = nil;
+    _rep = nil;
     previousFrame = nil;
     fps = 0;
 
@@ -28,8 +28,8 @@
     [textAttributes setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
 }
 
-- (void)setImage:(NSImage *)image {
-    _image = image;
+- (void)setRep:(NSBitmapImageRep *)rep {
+    _rep = rep;
     [self setNeedsDisplay:YES];
 
     // Compute FPS.
@@ -46,8 +46,8 @@
 
 - (void)drawRect:(NSRect)rect {
     [super drawRect:rect];
-    if (self.image != nil) {
-	[self.image drawInRect:NSMakeRect(0, 0, self.image.size.width, self.image.size.height)];
+    if (self.rep != nil) {
+	[self.rep drawInRect:NSMakeRect(0, 0, self.rep.size.width, self.rep.size.height)];
     }
 
     if (fps != 0) {
