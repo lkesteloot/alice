@@ -681,23 +681,23 @@ button_struct *button;
     switch (button->wc) {
 
 	case 1:
-	    move2i(-6 * strlen(button->name[0])/2, -4);
+	    move2i(-6 * (long)strlen(button->name[0])/2, -4);
 	    stroke(button->name[0]);
 	    break;
 
 	case 2:
-	    move2i(-6 * strlen(button->name[0])/2, 1);
+	    move2i(-6 * (long)strlen(button->name[0])/2, 1);
 	    stroke(button->name[0]);
-	    move2i(-6 * strlen(button->name[1])/2, -9);
+	    move2i(-6 * (long)strlen(button->name[1])/2, -9);
 	    stroke(button->name[1]);
 	    break;
 
 	case 3:
-	    move2i(-6 * strlen(button->name[0])/2, 6);
+	    move2i(-6 * (long)strlen(button->name[0])/2, 6);
 	    stroke(button->name[0]);
-	    move2i(-6 * strlen(button->name[1])/2, -4);
+	    move2i(-6 * (long)strlen(button->name[1])/2, -4);
 	    stroke(button->name[1]);
-	    move2i(-6 * strlen(button->name[2])/2, -14);
+	    move2i(-6 * (long)strlen(button->name[2])/2, -14);
 	    stroke(button->name[2]);
 	    break;
     }

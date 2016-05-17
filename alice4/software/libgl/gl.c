@@ -22,6 +22,7 @@ static int indent = 0;
 static vec3ub colormap[4096];
 static vec4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
 static vec3f current_normal = {1.0f, 1.0f, 1.0f};
+static vec4f current_position = {0.0f, 0.0f, 0.0f, 1.0};
 
 #define INPUT_QUEUE_SIZE 128
 static long input_queue_device[INPUT_QUEUE_SIZE];
@@ -168,6 +169,14 @@ static void matrix4x4f_translate(float x, float y, float z, float matrix[16])
     matrix[12] = x;
     matrix[13] = y;
     matrix[14] = z;
+}
+
+static void matrix4x4f_scale(float x, float y, float z, float matrix[16])
+{
+    matrix4x4f_copy(matrix, identity_4x4f);
+    matrix[0] = x;
+    matrix[5] = y;
+    matrix[10] = z;
 }
 
 static void matrix4x4f_rotate(float a, float x, float y, float z, float matrix[16])
@@ -619,6 +628,7 @@ static material materials[MAX_MATERIALS];
 static light lights[MAX_LIGHTS];
 static lmodel lmodels[MAX_LMODELS];
 
+static short the_linewidth = 1;
 static int lighting_enabled = 0;
 static int normalize_enabled = 0;
 static material *material_bound = NULL;
@@ -930,7 +940,67 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     return n;
 }
 
-// XXX IrisGL polys can be concave; not handled.  see concave()
+// Fake this until rasterizer implements lines
+void process_line(world_vertex *wv0, world_vertex *wv1)
+{
+    static lit_vertex litverts[2], *vp;
+    static lit_vertex clipped[2];
+    static screen_vertex screenverts[2];
+
+    transform_and_light_vertex(wv0, &litverts[0]);
+    transform_and_light_vertex(wv1, &litverts[1]);
+
+#if 0
+    long r = clip_line(litverts, clipped);
+    if(r == CLIP_TRIVIAL_REJECT)
+        return;
+    else if(r == CLIP_TRIVIAL_ACCEPT) {
+        vp = litverts;
+    } else {
+        vp = clipped;
+    }
+#else
+    vp = litverts;
+#endif
+
+    project_vertex(&vp[0], &screenverts[0]);
+    project_vertex(&vp[1], &screenverts[1]);
+
+    float dx = screenverts[1].x - screenverts[0].x;
+    float dy = screenverts[1].y - screenverts[0].y;
+    float d = sqrt(dx * dx + dy * dy);
+
+    dx /= d;
+    dy /= d;
+
+    screen_vertex linequad[4];
+    linequad[0] = screenverts[0];
+    linequad[1] = screenverts[0];
+    linequad[2] = screenverts[1];
+    linequad[3] = screenverts[1];
+
+    linequad[0].x -= dx * .5;
+    linequad[0].y -= dy * .5;
+    linequad[1].x -= dx * .5;
+    linequad[1].y -= dy * .5;
+    linequad[2].x += dx * .5;
+    linequad[2].y += dy * .5;
+    linequad[3].x += dx * .5;
+    linequad[3].y += dy * .5;
+
+    linequad[0].x +=  dy * the_linewidth * .5;
+    linequad[0].y += -dx * the_linewidth * .5;
+    linequad[1].x -=  dy * the_linewidth * .5;
+    linequad[1].y -= -dx * the_linewidth * .5;
+    linequad[2].x -=  dy * the_linewidth * .5;
+    linequad[2].y -= -dx * the_linewidth * .5;
+    linequad[3].x +=  dy * the_linewidth * .5;
+    linequad[3].y += -dx * the_linewidth * .5;
+
+    process_triangle(&linequad[0], &linequad[1], &linequad[2]);
+    process_triangle(&linequad[2], &linequad[3], &linequad[0]);
+}
+
 void process_polygon(long n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
@@ -997,6 +1067,7 @@ typedef struct element
         POPMATRIX,
         ROTATE,
         TRANSLATE,
+        SCALE,
         MULTMATRIX,
         LOOKAT,
         LOADMATRIX,
@@ -1066,6 +1137,10 @@ typedef struct element
             Angle angle;
             unsigned char axis;
         } rotate;
+
+        struct {
+            Coord x, y, z;
+        } scale;
 
         struct {
             Coord x, y, z;
@@ -1267,6 +1342,9 @@ void callobj(Object obj) {
                     break;
                 case TRANSLATE:
                     translate(p->translate.x, p->translate.y, p->translate.z);
+                    break;
+                case SCALE:
+                    scale(p->scale.x, p->scale.y, p->scale.z);
                     break;
                 case ROTATE:
                     rotate(p->rotate.angle, p->rotate.axis);
@@ -1602,7 +1680,7 @@ void qdevice(long device) {
             break;
 
         case INPUTCHANGE:
-            // Tell app that an input device is ready.
+            // Tell app that this window has received input focus
             enqueue_device(INPUTCHANGE, 1);
             break;
 
@@ -1780,6 +1858,7 @@ long winopen(char *title) {
     open_connection();
     send_byte(COMMAND_WINOPEN);
     send_string(title);
+    return 1;
 }
 
 void RGBcolor(long r, long g, long b) {
@@ -1852,8 +1931,9 @@ void keepaspect() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void linewidth() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void linewidth(short w) {
+    if(trace_functions) printf("%*slinewidth(%d);\n", indent, "", w);
+    the_linewidth = w;
 }
 
 void lmbind(short target, long index) {
@@ -2042,8 +2122,9 @@ void mmode(long mode) {
     }
 }
 
-void move2i() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void move2i(Icoord x, Icoord y) {
+    if(trace_functions) printf("%*smove2i(%ld, %ld);\n", indent, "", x, y);
+    vec4f_set(current_position, x, y, 0.0, 1.0);
 }
 
 void n3f(float n[3]) {
@@ -2069,16 +2150,44 @@ void qenter() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void rdr2i() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void rdr2i(Icoord dx, Icoord dy) {
+    if(trace_functions) printf("%*srdr2i(%ld, %ld);\n", indent, "", dx, dy);
+    world_vertex v0, v1;
+    vec4f_copy(v0.coord, current_position);
+    vec3f_copy(v0.color, current_color);
+
+    current_position[0] += dx;
+    current_position[1] += dy;
+
+    vec4f_copy(v1.coord, current_position);
+    vec3f_copy(v1.color, current_color);
+
+    int save_lighting = lighting_enabled;
+    lighting_enabled = 0;
+    process_line(&v0, &v1);
+    lighting_enabled = save_lighting;
 }
 
-void rmv2i() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void rmv2i(Icoord dx, Icoord dy) {
+    if(trace_functions) printf("%*srmv2i(%ld, %ld);\n", indent, "", dx, dy);
+    current_position[0] += dx;
+    current_position[1] += dy;
 }
 
-void scale() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void scale(float x, float y, float z) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = SCALE;
+        e->scale.x = x;
+        e->scale.y = y;
+        e->scale.z = z;
+    } else {
+        float m[16];
+
+        if(trace_functions) printf("%*sscale(%f, %f, %f);\n", indent, "", x, y, z);
+        matrix4x4f_scale(x, y, z, m);
+        matrix4x4f_stack_mult(current_stack, m);
+    }
 }
 
 void tie() {
@@ -2111,6 +2220,7 @@ void winconstraints() {
 
 long winget() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    return 1;
 }
 
 void winposition() {
