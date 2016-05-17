@@ -709,14 +709,14 @@ typedef struct lit_vertex
 void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
 {
     vec3f color;
-    vec3f_set(color, 0, 0, 0);
+    vec3f_mult(mtl->ambient, lmodel_bound->ambient, color);
 
     for(int i = 0; i < MAX_LIGHTS; i++) {
         light *l = lights_bound[i];
         if(l == NULL)
             continue;
 
-        // XXX point lights only, no ambient, no scene ambient, no emission
+        // XXX point lights only, no ambient, no emission
         // XXX OpenGL ES 1.1: 2.12.1 Lighting
         vec4f vertex_to_light;
         vec4f_subtract(l->position, coord, vertex_to_light);
@@ -1885,105 +1885,128 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
     float *p = properties;
     long next = 0;
     if(deftype == DEFMATERIAL) {
+        material *m = &materials[index];
+        if(trace_functions) printf("%*slmdef(DEFMATERIAL, %ld, %d, {\n", indent, "", index + 1, numpoints);
         while(*p != LMNULL) {
             switch((int)*p) {
                 case DIFFUSE:
-                    vec3f_set(materials[index].diffuse, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sDIFFUSE, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(m->diffuse, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case EMISSION:
-                    vec3f_set(materials[index].emission, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sEMISSION, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(m->emission, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case AMBIENT:
-                    vec3f_set(materials[index].ambient, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sAMBIENT, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(m->ambient, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case SPECULAR:
-                    vec3f_set(materials[index].specular, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sSPECULAR, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(m->specular, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case SHININESS:
-                    materials[index].shininess = p[1];
+                    if(trace_functions) printf("%*sSHININESS, %f,\n", indent + 4, "", p[1]);
+                    m->shininess = p[1];
                     p+= 2;
                     break;
                 case ALPHA:
-                    materials[index].alpha = p[1];
+                    if(trace_functions) printf("%*sALPHA, %f,\n", indent + 4, "", p[1]);
+                    m->alpha = p[1];
                     p+= 2;
                     break;
                 default:
                     abort();
             }
         }
+        if(trace_functions) printf("%*sLMNULL }\n", indent + 4, "");
     } else if(deftype == DEFLIGHT) {
+        light *l = &lights[index];
+        if(trace_functions) printf("%*slmdef(DEFLIGHT, %ld, %d, {\n", indent, "", index + 1, numpoints);
+
         while(*p != LMNULL) {
             switch((int)*p) {
                 case SPOTDIRECTION: {
                     vec3f direction;
                     vec3f transformed;
+                    if(trace_functions) printf("%*sSPOTDIRECTION, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
                     // XXX probably not right
                     vec3f_set(direction, p[0], p[1], p[2]);
                     vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
-                    vec4f_set(lights[index].spotdirection, transformed[0], transformed[1], transformed[2], 0.0f);
+                    vec4f_set(l->spotdirection, transformed[0], transformed[1], transformed[2], 0.0f);
                     p+= 4;
                     break;
                 }
                 case AMBIENT:
-                    vec3f_set(lights[index].ambient, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sAMBIENT, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(l->ambient, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case LCOLOR:
-                    vec3f_set(lights[index].color, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sLCOLOR, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(l->color, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case POSITION:
+                    if(trace_functions) printf("%*sPOSITION, %f, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3], p[4]);
                     if(p[3] == 0.0) {
                         vec3f direction;
                         vec3f transformed;
-                        // XXX probably not right
+                        // XXX may not be right
                         vec3f_set(direction, p[0], p[1], p[2]);
                         vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
-                        vec4f_set(lights[index].position, transformed[0], transformed[1], transformed[2], 0.0f);
+                        vec4f_set(l->position, transformed[0], transformed[1], transformed[2], 0.0f);
                     } else {
                         vec4f position;
                         vec4f_set(position, p[0], p[1], p[2], p[3]);
-                        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), position, lights[index].position);
+                        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), position, l->position);
                     }
                     p+= 5;
                     break;
                 case SPOTLIGHT:
-                    lights[index].spotlight[0] = p[1];
-                    lights[index].spotlight[1] = p[2];
+                    if(trace_functions) printf("%*sSPOTLIGHT, %f, %f,\n", indent + 4, "", p[1], p[2]);
+                    l->spotlight[0] = p[1];
+                    l->spotlight[1] = p[2];
                     p+= 3;
                     break;
                 default:
                     abort();
             }
         }
+        if(trace_functions) printf("%*sLMNULL }\n", indent + 4, "");
     } else if(deftype == DEFLMODEL) {
+        lmodel *lm = &lmodels[index];
+        if(trace_functions) printf("%*slmdef(DEFLMODEL, %ld, %d, {\n", indent, "", index + 1, numpoints);
         while(*p != LMNULL) {
             switch((int)*p) {
                 case LOCALVIEWER:
-                    lmodels[index].local = p[1];
+                    if(trace_functions) printf("%*sLOCALVIEWER, %f,\n", indent + 4, "", p[1]);
+                    lm->local = p[1];
                     p+= 2;
                     break;
                 case AMBIENT:
-                    vec3f_set(lmodels[index].ambient, p[1], p[2], p[3]);
+                    if(trace_functions) printf("%*sAMBIENT, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
+                    vec3f_set(lm->ambient, p[1], p[2], p[3]);
                     p+= 4;
                     break;
                 case ATTENUATION:
-                    lmodels[index].attenuation[0] = p[1];
-                    lmodels[index].attenuation[1] = p[2];
+                    if(trace_functions) printf("%*sATTENUATION, %f, %f,\n", indent + 4, "", p[1], p[2]);
+                    lm->attenuation[0] = p[1];
+                    lm->attenuation[1] = p[2];
                     p+= 3;
                     break;
                 default:
                     abort();
             }
         }
+        if(trace_functions) printf("%*sLMNULL }\n", indent + 4, "");
     } else {
         abort();
     }
-    if(trace_functions) printf("%*slmdef(%d, %ld, %d, ...)\n", indent, "", deftype, index, numpoints);
 }
 
 void loadmatrix(Matrix m) {
