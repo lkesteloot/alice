@@ -88,8 +88,9 @@
     NSRectFill(rect);
 }
 
-// Returns on which side of the line (a,b) is the vertex (x,y).
-int orientation(screen_vertex *a, screen_vertex *b, int x, int y) {
+// Returns on which side of the line (a,b) is the vertex (x,y). Or, returns
+// twice the area of the triangle defined by the three vertices.
+int edgeFunction(screen_vertex *a, screen_vertex *b, int x, int y) {
     return (b->x - a->x)*(y - a->y) - (b->y - a->y)*(x - a->x);
 }
 
@@ -156,7 +157,7 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     if (maxY > HEIGHT - 1) maxY = HEIGHT - 1;
 
     // Reverse triangle if necessary to make it counter-clockwise.
-    if (orientation(&vs[0], &vs[1], vs[2].x, vs[2].y) < 0) {
+    if (edgeFunction(&vs[0], &vs[1], vs[2].x, vs[2].y) < 0) {
 	screen_vertex tmp = vs[0];
 	vs[0] = vs[1];
 	vs[1] = tmp;
@@ -169,9 +170,10 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     int y12 = vs[2].x - vs[1].x;
     int x20 = vs[2].y - vs[0].y;
     int y20 = vs[0].x - vs[2].x;
-    int w0_row = orientation(&vs[1], &vs[2], minX, minY);
-    int w1_row = orientation(&vs[2], &vs[0], minX, minY);
-    int w2_row = orientation(&vs[0], &vs[1], minX, minY);
+    int w0_row = edgeFunction(&vs[1], &vs[2], minX, minY);
+    int w1_row = edgeFunction(&vs[2], &vs[0], minX, minY);
+    int w2_row = edgeFunction(&vs[0], &vs[1], minX, minY);
+    int area = edgeFunction(&vs[0], &vs[1], vs[2].x, vs[2].y);
 
     // The comparison value.
     int bias0 = isTopLeft(&vs[1], &vs[2]) ? 0 : 1;
@@ -187,9 +189,9 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 
 	for (int x = minX; x <= maxX; x++) {
 	    if (w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
-		p[0] = vs[0].r;
-		p[1] = vs[0].g;
-		p[2] = vs[0].b;
+		p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
+		p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
+		p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
 	    }
 
 	    w0 += x12;
