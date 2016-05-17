@@ -11,7 +11,7 @@ $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
 		-Wno-return-type \
 		-o $(APP) $(SRC) $(LIBGL_SRC)
 
-parser.tab.c: parser.y
+parser.tab.c parser.tab.h: parser.y
 	bison --defines parser.y
 
 run: $(APP)
