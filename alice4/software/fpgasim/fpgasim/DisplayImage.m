@@ -10,7 +10,11 @@
 
 #define WIDTH 800
 #define HEIGHT 600
+#define BYTES_PER_PIXEL 4
+#define STRIDE (WIDTH*4)
 #define TILE 50
+#define COCOA_TRIANGLE 0
+#define NUM_VERTICES 3
 
 @interface DisplayImage () {
     NSBitmapImageRep *rep;
@@ -53,7 +57,7 @@
 	    colorSpaceName:NSDeviceRGBColorSpace
 	    bitmapFormat:0
 	    bytesPerRow:0
-	    bitsPerPixel:32];
+	    bitsPerPixel:BYTES_PER_PIXEL*8];
 }
 
 - (NSColor *)colorFromBuffer:(vec3ub)color {
@@ -84,23 +88,92 @@
     NSRectFill(rect);
 }
 
-- (void)triangle:(screen_vertex *)v {
-    @autoreleasepool {
-    [NSGraphicsContext setCurrentContext:context];
-    NSBezierPath *path = [NSBezierPath bezierPath];
+// Returns on which side of the line (a,b) is the vertex (x,y).
+int orientation(screen_vertex *a, screen_vertex *b, int x, int y) {
+    return (b->x - a->x)*(y - a->y) - (b->y - a->y)*(x - a->x);
+}
+
+- (void)triangle:(screen_vertex *)vs {
     if (/* DISABLES CODE */ (NO)) {
 	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
-	      v[0].x, v[0].y,
-	      v[1].x, v[1].y,
-	      v[2].x, v[2].y);
+	      vs[0].x, vs[0].y,
+	      vs[1].x, vs[1].y,
+	      vs[2].x, vs[2].y);
     }
-    [path moveToPoint:NSMakePoint(v[0].x, v[0].y)];
-    [path lineToPoint:NSMakePoint(v[1].x, v[1].y)];
-    [path lineToPoint:NSMakePoint(v[2].x, v[2].y)];
-    [path closePath];
-    [[NSColor colorWithRed:v[0].r/255.0 green:v[0].g/255.0 blue:v[0].b/255.0 alpha:v[0].a/255.0] set];
-    [path fill];
+
+#if COCOA_TRIANGLE
+    @autoreleasepool {
+	[NSGraphicsContext setCurrentContext:context];
+	NSBezierPath *path = [NSBezierPath bezierPath];
+	[path moveToPoint:NSMakePoint(vs[0].x, vs[0].y)];
+	[path lineToPoint:NSMakePoint(vs[1].x, vs[1].y)];
+	[path lineToPoint:NSMakePoint(vs[2].x, vs[2].y)];
+	[path closePath];
+	[[NSColor colorWithRed:v[0].r/255.0 green:v[0].g/255.0 blue:v[0].b/255.0 alpha:v[0].a/255.0] set];
+	[path fill];
     }
+#else
+    // Find bounding box of triangle on screen.
+    int minX = WIDTH - 1;
+    int minY = HEIGHT - 1;
+    int maxX = 0;
+    int maxY = 0;
+    for (int i = 0; i < NUM_VERTICES; i++) {
+	screen_vertex *v = &vs[i];
+
+	// Temporary: Invert screen because libgl is giving us 0,0 in lower-left, but it's upper-left for us.
+	v->y = HEIGHT - 1 - v->y;
+
+	if (v->x < minX) minX = v->x;
+	if (v->x > maxX) maxX = v->x;
+	if (v->y < minY) minY = v->y;
+	if (v->y > maxY) maxY = v->y;
+    }
+
+    // Reverse triangle if necessary.
+    if (orientation(&vs[0], &vs[1], vs[2].x, vs[2].y) < 0) {
+	screen_vertex tmp = vs[0];
+	vs[0] = vs[1];
+	vs[1] = tmp;
+    }
+
+    // Set up edge equations.
+    int x01 = vs[0].y - vs[1].y;
+    int y01 = vs[1].x - vs[0].x;
+    int x12 = vs[1].y - vs[2].y;
+    int y12 = vs[2].x - vs[1].x;
+    int x20 = vs[2].y - vs[0].y;
+    int y20 = vs[0].x - vs[2].x;
+    int w0_row = orientation(&vs[1], &vs[2], minX, minY);
+    int w1_row = orientation(&vs[2], &vs[0], minX, minY);
+    int w2_row = orientation(&vs[0], &vs[1], minX, minY);
+
+    unsigned char *row_pixel = &data[(minY*WIDTH + minX)*BYTES_PER_PIXEL];
+    for (int y = minY; y <= maxY; y++) {
+	unsigned char *p = row_pixel;
+	int w0 = w0_row;
+	int w1 = w1_row;
+	int w2 = w2_row;
+
+	for (int x = minX; x <= maxX; x++) {
+	    if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+		p[0] = vs[0].r;
+		p[1] = vs[0].g;
+		p[2] = vs[0].b;
+	    }
+
+	    w0 += x12;
+	    w1 += x20;
+	    w2 += x01;
+	    p += BYTES_PER_PIXEL;
+	}
+
+	w0_row += y12;
+	w1_row += y20;
+	w2_row += y01;
+	row_pixel += STRIDE;
+    }
+#endif
 }
 
 @end

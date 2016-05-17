@@ -479,4 +479,10 @@ extern void shademodel(long mode);
 #define MPROJECTION 1
 #define MVIEWING 2
 
+void bgnpolygon();
+void c3f(float c[3]);
+void n3f(float n[3]);
+void v3f(float v[3]);
+void endpolygon();
+
 #endif // GLDEF
