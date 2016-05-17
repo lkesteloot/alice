@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "buttonfly.h"
-#include "y.tab.h"
+#include "parser.tab.h"
 
 /*
  *	Externally visible globals, used to communicate between

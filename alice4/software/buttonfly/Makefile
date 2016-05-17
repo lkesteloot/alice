@@ -1,8 +1,8 @@
-.PHONY: clean
+.PHONY: clean run
 
 APP=buttonfly
 SRC=buttonfly.c event.c lexer.c parser.tab.c
-HEADERS=bartfont.h buttonfly.h data.h event.h y.tab.h
+HEADERS=bartfont.h buttonfly.h data.h event.h parser.tab.h
 LIBGL_SRC=../libgl/gl.c ../libgl/network.c
 
 $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
@@ -12,8 +12,11 @@ $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
 		-o $(APP) $(SRC) $(LIBGL_SRC)
 
 parser.tab.c: parser.y
-	bison parser.y
+	bison --defines parser.y
+
+run: $(APP)
+	./$(APP) menu_demos
 
 clean:
-	rm -f $(APP) parser.tab.c
+	rm -f $(APP) parser.tab.c parser.tab.h
 

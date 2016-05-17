@@ -457,9 +457,9 @@ extern void endpolygon();
 extern void mmode(long mode);
 
 // Added by LK because demos needed it. I don't know what the real values should be.
-#define FLAT 0
-#define GLC_OLDPOLYGON 0
-#define WINQUIT 0
+#define FLAT 2000
+#define GLC_OLDPOLYGON 2001
+#define WINQUIT 2002
 
 // Lighting:
 #define LMNULL 0

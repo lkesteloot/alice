@@ -317,7 +317,10 @@ button_struct *button;
 		{
 		    strncpy(button->name[n], str, i);
 		    button->name[n][i]=0;
-		    strcpy(str, str+i+1);
+                    // LK: Replacing strcpy() with memmove() because overlapping
+                    // strcpy() on MacOS can cause an abort:
+		    // strcpy(str, str+i+1);
+		    memmove(str, str+i+1, strlen(str+i+1)+1);
 		    if (n<2) find_words(n+1, str, button);
 		}
 		else
