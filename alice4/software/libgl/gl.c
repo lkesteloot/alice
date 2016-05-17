@@ -485,8 +485,10 @@ void matrix4x4f_stack_mult(matrix4x4f_stack *stack, const matrix4x4f m)
 #endif
 }
 
+long matrix_mode = MSINGLE;
 matrix4x4f_stack modelview_stack;
 matrix4x4f_stack projection_stack;
+matrix4x4f_stack *current_stack;
 
 static long DISPLAY_WIDTH = 800;
 static long DISPLAY_HEIGHT = 600;
@@ -661,6 +663,8 @@ typedef struct element
         ROTATE,
         TRANSLATE,
         MULTMATRIX,
+        LOOKAT,
+        LOADMATRIX,
         PERSPECTIVE,
         WINDOW,
         VIEWPORT,
@@ -670,10 +674,15 @@ typedef struct element
         C3F,
         N3F,
         V3F,
+        MMODE,
     } type;
 
     union
     {
+        struct {
+            long mode;
+        } mmode;
+
         struct {
             float v[3];
         } v3f;
@@ -722,8 +731,22 @@ typedef struct element
         } translate;
 
         struct {
+            Coord viewx;
+            Coord viewy;
+            Coord viewz;
+            Coord pointx;
+            Coord pointy;
+            Coord pointz;
+            Angle twist;
+        } lookat;
+
+        struct {
             Matrix m;
         } multmatrix;
+
+        struct {
+            Matrix m;
+        } loadmatrix;
 
         struct {
             Angle fovy; 
@@ -824,6 +847,9 @@ void callobj(Object obj) {
         element *p = objects[obj];
         while(p) {
             switch(p->type) {
+                case MMODE:
+                    mmode(p->mmode.mode);
+                    break;
                 case V3F:
                     v3f(p->v3f.v);
                     break;
@@ -877,6 +903,20 @@ void callobj(Object obj) {
                     break;
                 case PUSHMATRIX:
                     pushmatrix();
+                    break;
+                case LOADMATRIX:
+                    loadmatrix(p->loadmatrix.m);
+                    break;
+                case LOOKAT:
+                    lookat(
+                        p->lookat.viewx,
+                        p->lookat.viewy,
+                        p->lookat.viewz,
+                        p->lookat.pointx,
+                        p->lookat.pointy,
+                        p->lookat.pointz,
+                        p->lookat.twist
+                    );
                     break;
                 case MULTMATRIX:
                     multmatrix(p->multmatrix.m);
@@ -1080,7 +1120,7 @@ void multmatrix(Matrix m) {
             printf("%*s    %f %f %f %f\n", indent, "",
                 m[i][0], m[i][1], m[i][2], m[i][3]);
         }
-        matrix4x4f_stack_mult(&modelview_stack, (float *)m);
+        matrix4x4f_stack_mult(current_stack, (float *)m);
     }
 }
 
@@ -1120,10 +1160,13 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
                 m[i * 4 + 2],
                 m[i * 4 + 3]);
 #endif
-        matrix4x4f_stack_load(&projection_stack, m);
-        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
-        matrix4x4f_stack_load(&projection_stack, m);
+        if(matrix_mode == MSINGLE) {
+            matrix4x4f_stack_load(&projection_stack, m);
+            matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
+            matrix4x4f_stack_load(&projection_stack, m);
+        } else 
+            matrix4x4f_stack_load(current_stack, m);
     }
 }
 
@@ -1340,7 +1383,7 @@ void popmatrix() {
         e->type = POPMATRIX;
     } else {
         if(trace_functions) printf("%*spopmatrix\n", indent, "");
-        matrix4x4f_stack_pop(&modelview_stack);
+        matrix4x4f_stack_pop(current_stack);
     }
 }
 
@@ -1350,7 +1393,7 @@ void pushmatrix() {
         e->type = PUSHMATRIX;
     } else {
         if(trace_functions) printf("%*spushmatrix\n", indent, "");
-        matrix4x4f_stack_push(&modelview_stack);
+        matrix4x4f_stack_push(current_stack);
     }
 }
 
@@ -1486,7 +1529,7 @@ void rotate(Angle ang, unsigned char axis) {
         m[9] = t * y * z - s * x;
 
         if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
-        matrix4x4f_stack_mult(&modelview_stack, m);
+        matrix4x4f_stack_mult(current_stack, m);
     }
 }
 
@@ -1520,7 +1563,7 @@ void translate(Coord x, Coord y, Coord z) {
         m[14] = z;
 
         if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
-        matrix4x4f_stack_mult(&modelview_stack, m);
+        matrix4x4f_stack_mult(current_stack, m);
     }
 }
 
@@ -1615,7 +1658,7 @@ void endpolygon() {
         element *e = element_next_in_object();
         e->type = ENDPOLYGON;
     } else {
-        if(trace_functions) printf("%*sendpolygon\n", indent, "");
+        if(trace_functions) printf("%*sendpolygon(); /* %d verts */\n", indent, "", polygon_vert_count);
         process_polygon(polygon_vert_count, polygon_verts);
     }
 }
@@ -1640,12 +1683,40 @@ void lmdef() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void loadmatrix() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void loadmatrix(Matrix m) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = LOADMATRIX;
+        memcpy(e->loadmatrix.m, m, sizeof(Matrix));
+    } else { 
+        if(trace_functions)
+        {
+        printf("%*sloadmatrix\n", indent, "");
+        for(int i = 0 ; i < 4; i++)
+            printf("%*s    %f %f %f %f\n", indent, "",
+                m[i][0], m[i][1], m[i][2], m[i][3]);
+        }
+        matrix4x4f_stack_load(current_stack, (float *)m);
+    }
 }
 
-void mmode() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void mmode(long mode) {
+#define MSINGLE 0
+#define MPROJECTION 1
+#define MVIEWING 2
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = MMODE;
+        e->mmode.mode = mode;
+    } else {
+        if(trace_functions) printf("%*smmode(%ld)\n", indent, "", mode);
+        matrix_mode = mode;
+        switch(mode) {
+            case MSINGLE: current_stack = &modelview_stack;
+            case MVIEWING: current_stack = &modelview_stack;
+            case MPROJECTION: current_stack = &projection_stack;
+        }
+    }
 }
 
 void move2i() {
@@ -1701,6 +1772,7 @@ void v3f(float v[3]) {
         world_vertex *wv = polygon_verts + polygon_vert_count;
         vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
         vec4f_copy(wv->color, current_color);
+        vec4f_set(wv->color, 1, 0, 0, 1);
         vec3f_copy(wv->normal, current_normal);
         polygon_vert_count++;
     }
@@ -1726,8 +1798,92 @@ void getmatrix() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void lookat() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void vec3f_cross(vec3f v0, vec3f v1, vec3f result)
+{
+    result[0] = v0[1] * v1[2] - v0[2] * v1[1];
+    result[1] = v0[2] * v1[0] - v0[0] * v1[2];
+    result[2] = v0[0] * v1[1] - v0[1] * v1[0];
+}
+
+static void matrix4x4f_rotate(float a, float x, float y, float z, float matrix[16])
+{
+    float c, s, t;
+
+    c = (float)cos(a);
+    s = (float)sin(a);
+    t = 1.0f - c;
+
+    matrix[0] = t * x * x + c;
+    matrix[1] = t * x * y + s * z;
+    matrix[2] = t * x * z - s * y;
+    matrix[3] = 0;
+
+    matrix[4] = t * x * y - s * z;
+    matrix[5] = t * y * y + c;
+    matrix[6] = t * y * z + s * x;
+    matrix[7] = 0;
+
+    matrix[8] = t * x * z + s * y;
+    matrix[9] = t * y * z - s * x;
+    matrix[10] = t * z * z + c;
+    matrix[11] = 0;
+
+    matrix[12] = 0;
+    matrix[13] = 0;
+    matrix[14] = 0;
+    matrix[15] = 1;
+}
+
+
+void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = LOOKAT;
+        e->lookat.viewx = viewx;
+        e->lookat.viewy = viewy;
+        e->lookat.viewz = viewz;
+        e->lookat.pointx = pointx;
+        e->lookat.pointy = pointy;
+        e->lookat.pointz = pointz;
+        e->lookat.twist = twist;
+    } else { 
+        if(trace_functions)
+            printf("%*slookat(%f, %f, %f, %f, %f, %f, %u)\n", indent, "",
+                viewx, viewy, viewz,
+                pointx, pointy, pointz,
+                twist);
+
+        vec3f f;
+        vec3f up;
+        f[0] = pointx - viewx;
+        f[1] = pointy - viewy;
+        f[2] = pointz - viewz;
+
+        if(f[0] != 0.0 || f[1] != 0.0) {
+            up[0] = 0.0; up[1] = 1.0; up[2] = 0.0;
+        } else {
+            up[0] = 0.0; up[1] = 0.0; up[2] = -1.0;
+        }
+
+        vec3f_normalize(f, f);
+        vec3f_normalize(up, up);
+        vec3f s, u;
+        vec3f_cross(f, up, s);
+        vec3f_cross(s, f, u);
+
+        float m[16];
+
+        m[0] =    s[0]; m[1]  =   s[1]; m[2]  =   s[2]; m[3]  = 0;
+        m[4] =    u[0]; m[5]  =   u[1]; m[6]  =   u[2]; m[7]  = 0;
+        m[8] =   -f[0]; m[9]  =  -f[1]; m[10] =  -f[2]; m[11] = 0;
+        m[12] = -viewx; m[13] = -viewy; m[14] = -viewz; m[15] = 1;
+
+        matrix4x4f_stack_mult(current_stack, (float *)m);
+
+        matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
+        matrix4x4f_stack_mult(current_stack, (float *)m);
+
+    }
 }
 
 void lsetdepth() {
@@ -1752,6 +1908,7 @@ static void init_gl_state()
     matrix4x4f_stack_init(&projection_stack);
     matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
     matrix4x4f_stack_load(&projection_stack, identity_4x4f);
+    current_stack = &modelview_stack;
     the_viewport[4] = 0.0;
     the_viewport[5] = 1.0;
 }

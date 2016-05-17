@@ -231,7 +231,7 @@ extern void	ginit();
 extern void	gselect();
 extern void	greset();
 extern void	gsync();
-extern void	gRGBcolor();
+extern void	gRGBcolor(long r, long g, long b);
 extern void	gRGBcursor();
 extern void	gRGBmask();
 extern void	imakebackground();
@@ -244,9 +244,9 @@ extern void	keepaspect();
 extern void	lampoff();
 extern void	lampon();
 extern void	linewidth();
-extern void	loadmatrix();
+extern void	loadmatrix(Matrix m);
 extern void	loadname();
-extern void	lookat();
+extern void	lookat(Coord viewx, Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist);
 extern void	lsbackup();
 extern void	lsrepeat();
 extern void	makeobj();
@@ -449,6 +449,12 @@ extern void	zclear();
 
 extern void glcompat(long mode, long value);
 extern void shademodel(long mode);
+extern void c3f(float c[3]);
+extern void n3f(float n[3]);
+extern void v3f(float v[3]);
+extern void bgnpolygon();
+extern void endpolygon();
+extern void mmode(long mode);
 
 // Added by LK because demos needed it. I don't know what the real values should be.
 #define FLAT 0
