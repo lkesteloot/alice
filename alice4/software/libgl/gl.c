@@ -15,7 +15,8 @@ static int trace_functions = 0;
 static int trace_network = 0;
 
 static vec3ub colormap[4096];
-static vec4ub current_color = {255, 255, 255, 255};
+static vec4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
+static vec3f current_normal = {1.0f, 1.0f, 1.0f};
 
 #define INPUT_QUEUE_SIZE 128
 static long input_queue_device[INPUT_QUEUE_SIZE];
@@ -584,10 +585,10 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
         vec4f_copy(lv->color, wv->color);
     }
 #else
-    lv->color[0] = current_color[0]/255.0;
-    lv->color[1] = current_color[1]/255.0;
-    lv->color[2] = current_color[2]/255.0;
-    lv->color[3] = current_color[3]/255.0;
+    lv->color[0] = current_color[0];
+    lv->color[1] = current_color[1];
+    lv->color[2] = current_color[2];
+    lv->color[3] = current_color[3];
 #endif
 
     /// XXX could multiply mv and p together?
@@ -664,10 +665,27 @@ typedef struct element
         WINDOW,
         VIEWPORT,
         RGBCOLOR,
+        BGNPOLYGON,
+        ENDPOLYGON,
+        C3F,
+        N3F,
+        V3F,
     } type;
 
     union
     {
+        struct {
+            float v[3];
+        } v3f;
+
+        struct {
+            float n[3];
+        } n3f;
+
+        struct {
+            float c[3];
+        } c3f;
+
         struct {
             long r, g, b;
         } rgbcolor;
@@ -806,6 +824,21 @@ void callobj(Object obj) {
         element *p = objects[obj];
         while(p) {
             switch(p->type) {
+                case V3F:
+                    v3f(p->v3f.v);
+                    break;
+                case C3F:
+                    c3f(p->c3f.c);
+                    break;
+                case N3F:
+                    n3f(p->n3f.n);
+                    break;
+                case ENDPOLYGON:
+                    endpolygon();
+                    break;
+                case BGNPOLYGON:
+                    bgnpolygon();
+                    break;
                 case RGBCOLOR:
                     RGBcolor(
                         p->rgbcolor.r,
@@ -882,7 +915,7 @@ void clear() {
     if(trace_functions) printf("%*sclear\n", indent, "");
     send_byte(COMMAND_CLEAR);
     for(int i = 0; i < 3; i++)
-        send_byte(current_color[i]);
+        send_byte((int)(current_color[i] * 255.0));
 }
 
 void closeobj() { 
@@ -898,7 +931,7 @@ void color(Colorindex color) {
     } else {
         if(trace_functions) printf("%*scolor %u\n", indent, "", color);
         for(int i = 0; i < 3; i++)
-            current_color[i] = colormap[color][i];
+            current_color[i] = colormap[color][i] / 255.0;
             // XXX alpha in color map?
     }
 }
@@ -1094,7 +1127,7 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
     }
 }
 
-#define POLY_MAX 16
+#define POLY_MAX 32
 
 void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
@@ -1262,7 +1295,7 @@ void polf(long n, Coord parray[ ][3]) {
         if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
 
         vec4f color;
-        vec4f_set(color, current_color[0] / 255.0, current_color[1] / 255.0, current_color[2] / 255.0, current_color[3] / 255.0);
+        vec4f_copy(color, current_color);
 
         for(int i = 0 ; i < n; i++) {
             vec4f_set(worldverts[i].coord,
@@ -1288,7 +1321,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
         if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
 
         vec4f color;
-        vec4f_set(color, current_color[0] / 255.0, current_color[1] / 255.0, current_color[2] / 255.0, current_color[3] / 255.0);
+        vec4f_copy(color, current_color);
 
         for(int i = 0 ; i < n; i++) {
             vec4f_set(worldverts[i].coord,
@@ -1549,12 +1582,28 @@ void addtopup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
+static int polygon_vert_count = 0;
+static world_vertex polygon_verts[POLY_MAX];
+
 void bgnpolygon() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = BGNPOLYGON;
+    } else {
+        if(trace_functions) printf("%*sbgnpolygon\n", indent, "");
+        polygon_vert_count = 0;
+    }
 }
 
-void c3f() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void c3f(float c[3]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = C3F;
+        vec3f_copy(e->c3f.c, c);
+    } else {
+        if(trace_functions) printf("%*sc3f({%f, %f, %f})\n", indent, "", c[0], c[1], c[2]);
+        vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
+    }
 }
 
 long dopup() {
@@ -1562,7 +1611,13 @@ long dopup() {
 }
 
 void endpolygon() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = ENDPOLYGON;
+    } else {
+        if(trace_functions) printf("%*sendpolygon\n", indent, "");
+        process_polygon(polygon_vert_count, polygon_verts);
+    }
 }
 
 void freepup() {
@@ -1597,8 +1652,15 @@ void move2i() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void n3f() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void n3f(float n[3]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = N3F;
+        vec3f_copy(e->n3f.n, n);
+    } else {
+        if(trace_functions) printf("%*sn3f({%f, %f, %f})\n", indent, "", n[0], n[1], n[2]);
+        vec3f_copy(current_normal, n);
+    }
 }
 
 long newpup() {
@@ -1629,8 +1691,19 @@ void tie() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void v3f() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void v3f(float v[3]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = V3F;
+        vec3f_copy(e->v3f.v, v);
+    } else {
+        if(trace_functions) printf("%*sv3f({%f, %f, %f})\n", indent, "", v[0], v[1], v[2]);
+        world_vertex *wv = polygon_verts + polygon_vert_count;
+        vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
+        vec4f_copy(wv->color, current_color);
+        vec3f_copy(wv->normal, current_normal);
+        polygon_vert_count++;
+    }
 }
 
 long winattach() {
