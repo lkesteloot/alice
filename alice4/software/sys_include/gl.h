@@ -455,36 +455,62 @@ extern void v3f(float v[3]);
 extern void bgnpolygon();
 extern void endpolygon();
 extern void mmode(long mode);
+extern void lmdef(short deftype, long index, short numpoints, float properties[]);
+extern void lmbind(short target, long index);
 
 // Added by LK because demos needed it. I don't know what the real values should be.
-#define FLAT 2000
 #define GLC_OLDPOLYGON 2001
 #define WINQUIT 2002
 
-// Lighting:
+// Materials
+#define DEFMATERIAL 0
 #define LMNULL 0
-#define AMBIENT 1
-#define DIFFUSE 2
-#define SPECULAR 3
-#define SHININESS 4
-#define LOCALVIEWER 5
-#define LCOLOR 6
-#define POSITION 7
+#define EMISSION 1
+#define AMBIENT 2
+#define DIFFUSE 3
+#define SPECULAR 4
+#define SHININESS 5
+#define ALPHA 7
 
-// lmdef():
-#define DEFMATERIAL 1
-#define DEFLIGHT 2
-#define DEFLMODEL 3
+// Lights
+#define DEFLIGHT 100
+#define LCOLOR 101
+#define POSITION 102
+#define SPOTDIRECTION 103
+#define SPOTLIGHT 104
+
+// Light Model
+#define DEFLMODEL 200
+#define LOCALVIEWER 201
+#define ATTENUATION 202
 
 // lmbind():
-#define LIGHT0 0
-#define LIGHT1 1
-#define MATERIAL 2
-#define LMODEL 3
+#define MATERIAL 1000
+#define LIGHT0 1100
+#define LIGHT1 1101
+#define LIGHT2 1102
+#define LIGHT3 1103
+#define LIGHT4 1104
+#define LIGHT5 1105
+#define LIGHT6 1106
+#define LIGHT7 1107
+#define LMODEL 1200
+
+// lmcolor():
+#define LMC_COLOR 0
+#define LMC_EMISSION 1
+#define LMC_AMBIENT 2
+#define LMC_DIFFUSE 3
+#define LMC_SPECULAR 4
+#define LMC_AD 5
+#define LMC_NULL 6
 
 // mmode():
 #define MSINGLE 0
 #define MPROJECTION 1
 #define MVIEWING 2
+
+#define FLAT 0
+#define GOURAUD 1
 
 #endif // GLDEF

@@ -11,8 +11,13 @@
 #include "basic_types.h"
 #include "driver.h"
 
+static long DISPLAY_WIDTH = 800;
+static long DISPLAY_HEIGHT = 600;
+#define POLY_MAX 32
+
 static int trace_functions = 0;
 static int trace_network = 0;
+static int indent = 0;
 
 static vec3ub colormap[4096];
 static vec4f current_color = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -25,6 +30,9 @@ static short input_queue_val[INPUT_QUEUE_SIZE];
 static int input_queue_head = 0;
 // The number of items in the queue (tail = (head + length) % len):
 static int input_queue_length = 0;
+
+//----------------------------------------------------------------------------
+// Vector math; vector operations, matrix operations, matrix stack operations
 
 const matrix4x4f identity_4x4f = {
     1, 0, 0, 0,
@@ -64,10 +72,22 @@ void vec4f_subtract(vec4f i1, vec4f i2, vec4f out)
         out[i] = i1[i] - i2[i];
 }
 
+void vec3f_scale(vec3f i1, float v, vec3f out)
+{
+    for(int i = 0; i < 3; i++)
+        out[i] = i1[i] * v;
+}
+
 void vec4f_scale(vec4f i1, float v, vec4f out)
 {
     for(int i = 0; i < 4; i++)
         out[i] = i1[i] * v;
+}
+
+void vec3f_mult(vec3f i1, vec3f i2, vec3f out)
+{
+    for(int i = 0; i < 3; i++)
+        out[i] = i1[i] * i2[i];
 }
 
 void vec4f_mult(vec4f i1, vec4f i2, vec4f out)
@@ -91,6 +111,12 @@ void vec4f_blend(vec4f i1, vec4f i2, float t, vec4f out)
 void vec4f_add(vec4f i1, vec4f i2, vec4f out)
 {
     for(int i = 0; i < 4; i++)
+        out[i] = i1[i] + i2[i];
+}
+
+void vec3f_add(vec3f i1, vec3f i2, vec3f out)
+{
+    for(int i = 0; i < 3; i++)
         out[i] = i1[i] + i2[i];
 }
 
@@ -124,9 +150,53 @@ void vec4f_normalize(vec4f i1, vec4f out)
         out[i] = i1[i] * d;
 }
 
+void vec3f_cross(vec3f v0, vec3f v1, vec3f result)
+{
+    result[0] = v0[1] * v1[2] - v0[2] * v1[1];
+    result[1] = v0[2] * v1[0] - v0[0] * v1[2];
+    result[2] = v0[0] * v1[1] - v0[1] * v1[0];
+}
+
 void matrix4x4f_copy(matrix4x4f d, const matrix4x4f s)
 {
     memcpy(d, s, sizeof(matrix4x4f));
+}
+
+static void matrix4x4f_translate(float x, float y, float z, float matrix[16])
+{
+    matrix4x4f_copy(matrix, identity_4x4f);
+    matrix[12] = x;
+    matrix[13] = y;
+    matrix[14] = z;
+}
+
+static void matrix4x4f_rotate(float a, float x, float y, float z, float matrix[16])
+{
+    float c, s, t;
+
+    c = (float)cos(a);
+    s = (float)sin(a);
+    t = 1.0f - c;
+
+    matrix[0] = t * x * x + c;
+    matrix[1] = t * x * y + s * z;
+    matrix[2] = t * x * z - s * y;
+    matrix[3] = 0;
+
+    matrix[4] = t * x * y - s * z;
+    matrix[5] = t * y * y + c;
+    matrix[6] = t * y * z + s * x;
+    matrix[7] = 0;
+
+    matrix[8] = t * x * z + s * y;
+    matrix[9] = t * y * z - s * x;
+    matrix[10] = t * z * z + c;
+    matrix[11] = 0;
+
+    matrix[12] = 0;
+    matrix[13] = 0;
+    matrix[14] = 0;
+    matrix[15] = 1;
 }
 
 void matrix4x4f_print(char *label, matrix4x4f m)
@@ -485,33 +555,91 @@ void matrix4x4f_stack_mult(matrix4x4f_stack *stack, const matrix4x4f m)
 #endif
 }
 
+//----------------------------------------------------------------------------
+// GL state
+
+#define MAX_MATERIALS 16
+#define MAX_LIGHTS 16
+#define MAX_LMODELS 16
+
+typedef struct material {
+    vec3f emission;
+    vec3f ambient;
+    vec3f specular;
+    vec3f diffuse;
+    float shininess;
+    float alpha;
+} material;
+
+typedef struct light {
+    vec4f position;
+    vec3f ambient;
+    vec3f color;
+    vec3f spotdirection;
+    float spotlight[2];
+} light;
+
+typedef struct lmodel {
+    float local;
+    vec3f ambient;
+    float attenuation[2];
+} lmodel;
+
+void material_init(material *m)
+{
+    // Do these reasonable defaults like OpenGL?
+    vec3f_set(m->ambient, 0.2, 0.2, 0.2);
+    vec3f_set(m->specular, 0.0, 0.0, 0.0);
+    vec3f_set(m->emission, 0.0, 0.0, 0.0);
+    vec3f_set(m->diffuse, 0.8, 0.8, 0.8);
+    m->shininess = 0.0;
+    m->alpha = 1.0;
+}
+
+void light_init(light *l)
+{
+    // Are these reasonable defaults like OpenGL or just 0's?
+    vec4f_set(l->position, 0.0, 0.0, 1.0, 0.0);
+    vec3f_set(l->ambient, 0.0, 0.0, 0.0);
+    vec3f_set(l->color, 1.0, 1.0, 1.0);
+    vec3f_set(l->spotdirection, 0.0, 0.0, -1.0);
+    l->spotlight[0] = 0;
+    l->spotlight[1] = 180.0;
+}
+
+void lmodel_init(lmodel *l)
+{
+    vec3f_set(l->ambient, 0.2, 0.2, 0.2);
+    l->local = 0.0;
+    l->attenuation[0] = 1.0;
+    l->attenuation[1] = 0.0;
+}
+
+static material materials[MAX_MATERIALS];
+static light lights[MAX_LIGHTS];
+static lmodel lmodels[MAX_LMODELS];
+
+static int lighting_enabled = 0;
+static int normalize_enabled = 0;
+static material *material_bound = NULL;
+static light *lights_bound[MAX_LIGHTS];
+static lmodel *lmodel_bound = NULL;
+
 long matrix_mode = MSINGLE;
 matrix4x4f_stack modelview_stack;
 matrix4x4f_stack projection_stack;
 matrix4x4f_stack *current_stack;
 
-static long DISPLAY_WIDTH = 800;
-static long DISPLAY_HEIGHT = 600;
-
 Screencoord the_viewport[6];
-
-typedef struct world_vertex
-{
-    vec4f coord;
-    vec3f normal;
-    vec4f color;
-} world_vertex;
-
-typedef struct lit_vertex
-{
-    vec4f coord;
-    vec4f color;
-} lit_vertex;
 
 float clamp(float v)
 {
-	return v > 1.0f ? 1.0f : (v < 0.0f ? 0.0f : v);
+    return v > 1.0f ? 1.0f : (v < 0.0f ? 0.0f : v);
 }
+
+
+//----------------------------------------------------------------------------
+// I/O operations
 
 // Send a string as a length and the bytes. Max string length is 255.
 void send_string(char *s) {
@@ -562,6 +690,62 @@ unsigned long receive_ulong() {
     return value;
 }
 
+//----------------------------------------------------------------------------
+// Transformation, lighting, clipping
+
+typedef struct world_vertex
+{
+    vec4f coord;
+    vec3f normal;
+    vec4f color;
+} world_vertex;
+
+typedef struct lit_vertex
+{
+    vec4f coord;
+    vec4f color;
+} lit_vertex;
+
+void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
+{
+    vec3f color;
+    vec3f_set(color, 0, 0, 0);
+
+    for(int i = 0; i < MAX_LIGHTS; i++) {
+        light *l = lights_bound[i];
+        if(l == NULL)
+            continue;
+
+        // XXX point lights only, no ambient, no scene ambient, no emission
+        // XXX OpenGL ES 1.1: 2.12.1 Lighting
+        vec4f vertex_to_light;
+        vec4f_subtract(l->position, coord, vertex_to_light);
+        vec4f_normalize(vertex_to_light, vertex_to_light);
+        float diff_part = vec3f_dot(normal, vertex_to_light);
+        if(diff_part >= 0)
+        {
+            /* diffuse calculation */
+            vec3f t1;
+            vec3f_mult(mtl->diffuse, l->color, t1);
+            vec3f_scale(t1, diff_part, t1);
+            vec3f_add(t1, color, color);
+
+            vec4f h;
+            h[0] = vertex_to_light[0];
+            h[1] = vertex_to_light[1];
+            h[2] = vertex_to_light[2] + 1;
+            h[3] = 0;
+            vec4f_normalize(h, h);
+            float spec_part = powf(vec3f_dot(normal, h), mtl->shininess);
+            vec3f_mult(mtl->specular, l->color, t1);
+            vec3f_scale(t1, spec_part, t1);
+            vec3f_add(t1, color, color);
+        }
+    }
+    vec4f_set(color_, color[0], color[1], color[2], mtl->alpha);
+}
+
+
 void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
 {
     vec4f tv;
@@ -569,26 +753,25 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
 
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
     // matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
-#if 0
-    vec3f_mult_matrix4x4f(wv->normal, modelview_stack.get_inverse(), normal);
-
-    if(normalize_enabled)
-        vec3f_normalize(normal, normal);
-
-    if(color_material_enabled) {
-        // XXX color_material mode
-        vec4f_copy(current_material.diffuse, lv->color);
-        vec4f_copy(current_material.ambient, lv->color);
-    }
-    
     if(lighting_enabled) {
-        light_vertex(&current_material, tv, normal, lv->color);
+        vec3f_mult_matrix4x4f(wv->normal, matrix4x4f_stack_get_inverse(&modelview_stack), normal);
+        vec3f_mult_matrix4x4f(wv->normal, matrix4x4f_stack_get_inverse(&modelview_stack), normal);
+
+        if(normalize_enabled)
+            vec3f_normalize(normal, normal);
+
+#if 0
+        if(color_material_enabled) {
+            // XXX color_material mode
+            vec4f_copy(current_material.diffuse, lv->color);
+            vec4f_copy(current_material.ambient, lv->color);
+        }
+#endif
+    
+        light_vertex(material_bound, tv, normal, lv->color);
     } else {
         vec4f_copy(lv->color, wv->color);
     }
-#else
-    vec4f_copy(lv->color, wv->color);
-#endif
 
     /// XXX could multiply mv and p together?
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, lv->coord);
@@ -635,7 +818,162 @@ void send_screen_vertex(screen_vertex *sv) {
     send_byte(sv->a);
 }
 
-int indent = 0;
+void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
+{
+    send_byte(COMMAND_TRIANGLE);
+    send_screen_vertex(s0);
+    send_screen_vertex(s1);
+    send_screen_vertex(s2);
+}
+
+enum {
+    CLIP_ALL_IN = 0x00,
+    CLIP_NEG_X = 0x01,
+    CLIP_POS_X = 0x02,
+    CLIP_NEG_Y = 0x04,
+    CLIP_POS_Y = 0x08,
+    CLIP_NEG_Z = 0x10,
+    CLIP_POS_Z = 0x20,
+};
+
+enum {
+    CLIP_TRIVIAL_REJECT = 0,
+    CLIP_TRIVIAL_ACCEPT = -1,
+};
+
+long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
+{
+    int sign;
+    int index;
+
+    switch(plane) {
+        case CLIP_NEG_X: sign = -1; index = 0; break;
+        case CLIP_POS_X: sign = 1; index = 0; break;
+        case CLIP_NEG_Y: sign = -1; index = 1; break;
+        case CLIP_POS_Y: sign = 1; index = 1; break;
+        case CLIP_NEG_Z: sign = -1; index = 2; break;
+        case CLIP_POS_Z: sign = 1; index = 2; break;
+    }
+
+    int n2 = 0;
+    lit_vertex* v0;
+    lit_vertex* v1 = &input[n - 1];
+
+    for(int i = 0; i < n; i++) {
+        v0 = v1;
+        v1 = &input[i];
+
+        float p0 = v0->coord[index] * sign;
+        float p1 = v1->coord[index] * sign;
+        float w0 = v0->coord[3];
+        float w1 = v1->coord[3];
+
+        if(p0 < w0) {
+            output[n2++] = *v0;
+        }
+
+        float t = (-p0 + w0) / (-p0 + p1 + w0 - w1);
+        if(t > 0.0001 && t < .9999) {
+            vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
+            vec4f_blend(v0->color, v1->color, t, output[n2].color);
+            n2++;
+        }
+    }
+    return n2;
+}
+
+int classify_vertex(float *c)
+{
+    int code = 0;
+    if(c[0] < -c[3]) code |= CLIP_NEG_X;
+    if(c[0] > c[3]) code |= CLIP_POS_X;
+    if(c[1] < -c[3]) code |= CLIP_NEG_Y;
+    if(c[1] > c[3]) code |= CLIP_POS_Y;
+    if(c[2] < -c[3]) code |= CLIP_NEG_Z;
+    if(c[2] > c[3]) code |= CLIP_POS_Z;
+    return code;
+}
+
+long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
+{
+    static int code[POLY_MAX];
+    static lit_vertex tmp[POLY_MAX];
+    int all_neg[3] = {1, 1, 1};
+    int all_pos[3] = {1, 1, 1};
+    int all_inside = 1;
+    int all_outside_one = 0xff;
+
+    for(int i = 0; i < n; i++) {
+        code[i] = classify_vertex(input[i].coord);
+        all_inside = all_inside && (code[i] == CLIP_ALL_IN);
+        all_outside_one &= code[i];
+    }
+
+    if(all_inside)
+        return CLIP_TRIVIAL_ACCEPT;
+
+    if(all_outside_one)
+        return CLIP_TRIVIAL_REJECT;
+
+    n = clip_polygon_against_plane(CLIP_NEG_X, n, input, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_X, n, tmp, output);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_NEG_Y, n, output, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_Y, n, tmp, output);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
+
+    return n;
+}
+
+// XXX IrisGL polys can be concave; not handled.  see concave()
+void process_polygon(long n, world_vertex *worldverts)
+{
+    static lit_vertex litverts[POLY_MAX];
+    static lit_vertex clipped[POLY_MAX];
+    static lit_vertex *vp;
+    static screen_vertex screenverts[POLY_MAX];
+
+    for(int i = 0; i < n; i++)
+        transform_and_light_vertex(&worldverts[i], &litverts[i]);
+
+    long r = clip_polygon(n, litverts, clipped);
+    if(r == CLIP_TRIVIAL_REJECT)
+        return;
+    else if(r == CLIP_TRIVIAL_ACCEPT) {
+        vp = litverts;
+    } else {
+        vp = clipped;
+        n = r;
+    }
+
+    for(int i = 0; i < n; i++)
+        project_vertex(&vp[i], &screenverts[i]);
+
+    int i0, i1, i2;
+
+    i1 = 0;
+    i2 = n - 1;
+
+    for(int i = 0; i < n - 2; i++) {
+        i0 = i1;
+        i1 = i2;
+        // This next one means 3rd vertex alternates back and forth
+        // across polygon, basically turning it into a triangle strip
+        // A fan might be slightly clearer
+        i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
+
+        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+    }
+}
+
+
+//----------------------------------------------------------------------------
+// Display list ("Object" and "Tag") management
 
 /*
 implementing a display-listable function:
@@ -672,10 +1010,16 @@ typedef struct element
         N3F,
         V3F,
         MMODE,
+        LMBIND,
     } type;
 
     union
     {
+        struct {
+            short target;
+            long index;
+        } lmbind;
+
         struct {
             long mode;
         } mmode;
@@ -810,10 +1154,6 @@ void element_free(element *p)
     }
 }
 
-void backface() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-}
-
 element *element_next_in_object()
 {
     element *e;
@@ -830,6 +1170,10 @@ element *element_next_in_object()
     return e;
 }
 
+
+//----------------------------------------------------------------------------
+// GL API calls
+
 void callobj(Object obj) { 
     if(cur_ptr_to_nextptr != NULL) {
 
@@ -844,6 +1188,9 @@ void callobj(Object obj) {
         element *p = objects[obj];
         while(p) {
             switch(p->type) {
+                case LMBIND:
+                    lmbind(p->lmbind.target, p->lmbind.index);
+                    break;
                 case MMODE:
                     mmode(p->mmode.mode);
                     break;
@@ -946,6 +1293,9 @@ void callobj(Object obj) {
     }
 }
 
+void backface() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
 
 // XXX display list
 void clear() { 
@@ -977,7 +1327,7 @@ void deflinestyle() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void	defpattern(long index, short size, short *mask) {
+void defpattern(long index, short size, short *mask) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1148,15 +1498,6 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         m[11] = -1.0;
         m[14] = 2 * far * near / (near - far);
         m[15] = 0.0;
-#if 0
-        printf("projection matrix:\n");
-        for(int i = 0 ; i < 4; i++)
-            printf("    %f %f %f %f\n",
-                m[i * 4 + 0],
-                m[i * 4 + 1],
-                m[i * 4 + 2],
-                m[i * 4 + 3]);
-#endif
         if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
         if(matrix_mode == MSINGLE) {
             matrix4x4f_stack_load(&projection_stack, m);
@@ -1164,161 +1505,6 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
             matrix4x4f_stack_load(&projection_stack, m);
         } else 
             matrix4x4f_stack_load(current_stack, m);
-    }
-}
-
-#define POLY_MAX 32
-
-void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
-{
-    send_byte(COMMAND_TRIANGLE);
-    send_screen_vertex(s0);
-    send_screen_vertex(s1);
-    send_screen_vertex(s2);
-}
-
-enum {
-    CLIP_ALL_IN = 0x00,
-    CLIP_NEG_X = 0x01,
-    CLIP_POS_X = 0x02,
-    CLIP_NEG_Y = 0x04,
-    CLIP_POS_Y = 0x08,
-    CLIP_NEG_Z = 0x10,
-    CLIP_POS_Z = 0x20,
-};
-
-enum {
-    CLIP_TRIVIAL_REJECT = 0,
-    CLIP_TRIVIAL_ACCEPT = -1,
-};
-
-long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
-{
-    int sign;
-    int index;
-
-    switch(plane) {
-        case CLIP_NEG_X: sign = -1; index = 0; break;
-        case CLIP_POS_X: sign = 1; index = 0; break;
-        case CLIP_NEG_Y: sign = -1; index = 1; break;
-        case CLIP_POS_Y: sign = 1; index = 1; break;
-        case CLIP_NEG_Z: sign = -1; index = 2; break;
-        case CLIP_POS_Z: sign = 1; index = 2; break;
-    }
-
-    int n2 = 0;
-    lit_vertex* v0;
-    lit_vertex* v1 = &input[n - 1];
-
-    for(int i = 0; i < n; i++) {
-        v0 = v1;
-        v1 = &input[i];
-
-        float p0 = v0->coord[index] * sign;
-        float p1 = v1->coord[index] * sign;
-        float w0 = v0->coord[3];
-        float w1 = v1->coord[3];
-
-        if(p0 < w0) {
-            output[n2++] = *v0;
-        }
-
-        float t = (-p0 + w0) / (-p0 + p1 + w0 - w1);
-        if(t > 0.0001 && t < .9999) {
-            vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
-            vec4f_blend(v0->color, v1->color, t, output[n2].color);
-            n2++;
-        }
-    }
-    return n2;
-}
-
-int classify_vertex(float *c)
-{
-    int code = 0;
-    if(c[0] < -c[3]) code |= CLIP_NEG_X;
-    if(c[0] > c[3]) code |= CLIP_POS_X;
-    if(c[1] < -c[3]) code |= CLIP_NEG_Y;
-    if(c[1] > c[3]) code |= CLIP_POS_Y;
-    if(c[2] < -c[3]) code |= CLIP_NEG_Z;
-    if(c[2] > c[3]) code |= CLIP_POS_Z;
-    return code;
-}
-
-long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
-{
-    static int code[POLY_MAX];
-    static lit_vertex tmp[POLY_MAX];
-    int all_neg[3] = {1, 1, 1};
-    int all_pos[3] = {1, 1, 1};
-    int all_inside = 1;
-    int all_outside_one = 0xff;
-
-    for(int i = 0; i < n; i++) {
-        code[i] = classify_vertex(input[i].coord);
-        all_inside = all_inside && (code[i] == CLIP_ALL_IN);
-        all_outside_one &= code[i];
-    }
-
-    if(all_inside)
-        return CLIP_TRIVIAL_ACCEPT;
-
-    if(all_outside_one)
-        return CLIP_TRIVIAL_REJECT;
-
-    n = clip_polygon_against_plane(CLIP_NEG_X, n, input, tmp);
-    if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_POS_X, n, tmp, output);
-    if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_NEG_Y, n, output, tmp);
-    if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_POS_Y, n, tmp, output);
-    if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
-    if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
-
-    return n;
-}
-
-// XXX IrisGL polys can be concave; not handled.  see concave()
-void process_polygon(long n, world_vertex *worldverts)
-{
-    static lit_vertex litverts[POLY_MAX];
-    static lit_vertex clipped[POLY_MAX];
-    static lit_vertex *vp;
-    static screen_vertex screenverts[POLY_MAX];
-
-    for(int i = 0; i < n; i++)
-        transform_and_light_vertex(&worldverts[i], &litverts[i]);
-
-    long r = clip_polygon(n, litverts, clipped);
-    if(r == CLIP_TRIVIAL_REJECT)
-        return;
-    else if(r == CLIP_TRIVIAL_ACCEPT) {
-        vp = litverts;
-    } else {
-        vp = clipped;
-        n = r;
-    }
-
-    for(int i = 0; i < n; i++)
-        project_vertex(&vp[i], &screenverts[i]);
-
-    int i0, i1, i2;
-
-    i1 = 0;
-    i2 = n - 1;
-
-    for(int i = 0; i < n - 2; i++) {
-        i0 = i1;
-        i1 = i2;
-        // This next one means 3rd vertex alternates back and forth
-        // across polygon, basically turning it into a triangle strip
-        // A fan might be slightly clearer
-        i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
-
-        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
     }
 }
 
@@ -1431,6 +1617,7 @@ long qread(short *val) {
     if (input_queue_length == 0) {
         // We don't support blocking.
         printf("qread() blocking unimplemented.\n");
+        return REDRAW;
         exit(1);
     }
 
@@ -1542,14 +1729,6 @@ void swapbuffers() {
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
     send_byte(COMMAND_SWAPBUFFERS);
     flush();
-}
-
-static void matrix4x4f_translate(float x, float y, float z, float matrix[16])
-{
-    matrix4x4f_copy(matrix, identity_4x4f);
-    matrix[12] = x;
-    matrix[13] = y;
-    matrix[14] = z;
 }
 
 void translate(Coord x, Coord y, Coord z) {
@@ -1677,12 +1856,134 @@ void linewidth() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void lmbind() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void lmbind(short target, long index) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = LMBIND;
+        e->lmbind.target = target;
+        e->lmbind.index = index;
+    } else { 
+        if(trace_functions) printf("%*slmbind(%d, %ld)\n", indent, "", target, index);
+
+        if(target == MATERIAL) {
+            material_bound = (index == 0) ? NULL : &materials[index - 1];
+            lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
+        } else if(target >= LIGHT0 && target <= LIGHT7) {
+            lights_bound[target - LIGHT0] = (index == 0) ? NULL : &lights[index - 1];
+        } else if(target == LMODEL) {
+            lmodel_bound = (index == 0) ? NULL : &lmodels[index - 1];
+            lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
+        } else
+            abort();
+    }
 }
 
-void lmdef() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void lmdef(short deftype, long index, short numpoints, float properties[]) {
+    if(index == 0)
+        abort();
+    index -=1;
+    float *p = properties;
+    long next = 0;
+    if(deftype == DEFMATERIAL) {
+        while(*p != LMNULL) {
+            switch((int)*p) {
+                case DIFFUSE:
+                    vec3f_set(materials[index].diffuse, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case EMISSION:
+                    vec3f_set(materials[index].emission, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case AMBIENT:
+                    vec3f_set(materials[index].ambient, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case SPECULAR:
+                    vec3f_set(materials[index].specular, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case SHININESS:
+                    materials[index].shininess = p[1];
+                    p+= 2;
+                    break;
+                case ALPHA:
+                    materials[index].alpha = p[1];
+                    p+= 2;
+                    break;
+                default:
+                    abort();
+            }
+        }
+    } else if(deftype == DEFLIGHT) {
+        while(*p != LMNULL) {
+            switch((int)*p) {
+                case SPOTDIRECTION: {
+                    vec3f direction;
+                    vec3f transformed;
+                    // XXX probably not right
+                    vec3f_set(direction, p[0], p[1], p[2]);
+                    vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
+                    vec4f_set(lights[index].spotdirection, transformed[0], transformed[1], transformed[2], 0.0f);
+                    p+= 4;
+                    break;
+                }
+                case AMBIENT:
+                    vec3f_set(lights[index].ambient, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case LCOLOR:
+                    vec3f_set(lights[index].color, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case POSITION:
+                    if(p[3] == 0.0) {
+                        vec3f direction;
+                        vec3f transformed;
+                        // XXX probably not right
+                        vec3f_set(direction, p[0], p[1], p[2]);
+                        vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
+                        vec4f_set(lights[index].position, transformed[0], transformed[1], transformed[2], 0.0f);
+                    } else {
+                        vec4f position;
+                        vec4f_set(position, p[0], p[1], p[2], p[3]);
+                        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), position, lights[index].position);
+                    }
+                    p+= 5;
+                    break;
+                case SPOTLIGHT:
+                    lights[index].spotlight[0] = p[1];
+                    lights[index].spotlight[1] = p[2];
+                    p+= 3;
+                    break;
+                default:
+                    abort();
+            }
+        }
+    } else if(deftype == DEFLMODEL) {
+        while(*p != LMNULL) {
+            switch((int)*p) {
+                case LOCALVIEWER:
+                    lmodels[index].local = p[1];
+                    p+= 2;
+                    break;
+                case AMBIENT:
+                    vec3f_set(lmodels[index].ambient, p[1], p[2], p[3]);
+                    p+= 4;
+                    break;
+                case ATTENUATION:
+                    lmodels[index].attenuation[0] = p[1];
+                    lmodels[index].attenuation[1] = p[2];
+                    p+= 3;
+                    break;
+                default:
+                    abort();
+            }
+        }
+    } else {
+        abort();
+    }
+    if(trace_functions) printf("%*slmdef(%d, %ld, %d, ...)\n", indent, "", deftype, index, numpoints);
 }
 
 void loadmatrix(Matrix m) {
@@ -1797,43 +2098,6 @@ void getmatrix() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void vec3f_cross(vec3f v0, vec3f v1, vec3f result)
-{
-    result[0] = v0[1] * v1[2] - v0[2] * v1[1];
-    result[1] = v0[2] * v1[0] - v0[0] * v1[2];
-    result[2] = v0[0] * v1[1] - v0[1] * v1[0];
-}
-
-static void matrix4x4f_rotate(float a, float x, float y, float z, float matrix[16])
-{
-    float c, s, t;
-
-    c = (float)cos(a);
-    s = (float)sin(a);
-    t = 1.0f - c;
-
-    matrix[0] = t * x * x + c;
-    matrix[1] = t * x * y + s * z;
-    matrix[2] = t * x * z - s * y;
-    matrix[3] = 0;
-
-    matrix[4] = t * x * y - s * z;
-    matrix[5] = t * y * y + c;
-    matrix[6] = t * y * z + s * x;
-    matrix[7] = 0;
-
-    matrix[8] = t * x * z + s * y;
-    matrix[9] = t * y * z - s * x;
-    matrix[10] = t * z * z + c;
-    matrix[11] = 0;
-
-    matrix[12] = 0;
-    matrix[13] = 0;
-    matrix[14] = 0;
-    matrix[15] = 1;
-}
-
-
 void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object();
@@ -1910,6 +2174,21 @@ static void init_gl_state()
     matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
     matrix4x4f_stack_load(&projection_stack, identity_4x4f);
     current_stack = &modelview_stack;
+
+    the_viewport[0] = 0.0;
+    the_viewport[1] = DISPLAY_WIDTH - 1.0;
+    the_viewport[2] = 0.0;
+    the_viewport[3] = DISPLAY_HEIGHT - 1.0;
     the_viewport[4] = 0.0;
     the_viewport[5] = 1.0;
+
+    for(int i = 0; i < MAX_MATERIALS; i++)
+        material_init(&materials[i]);
+    for(int i = 0; i < MAX_LIGHTS; i++)
+        light_init(&lights[i]);
+    for(int i = 0; i < MAX_LMODELS; i++)
+        lmodel_init(&lmodels[i]);
+
+    for(int i = 0; i < MAX_LIGHTS; i++)
+        lights_bound[i] = NULL;
 }
