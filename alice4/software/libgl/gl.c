@@ -1858,7 +1858,7 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
         f[1] = pointy - viewy;
         f[2] = pointz - viewz;
 
-        if(f[0] != 0.0 || f[1] != 0.0 || 1) {
+        if(f[0] != 0.0 || f[2] != 0.0) {
             up[0] = 0.0; up[1] = 1.0; up[2] = 0.0;
         } else {
             up[0] = 0.0; up[1] = 0.0; up[2] = -1.0;
