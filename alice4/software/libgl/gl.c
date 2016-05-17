@@ -1703,9 +1703,6 @@ void loadmatrix(Matrix m) {
 }
 
 void mmode(long mode) {
-#define MSINGLE 0
-#define MPROJECTION 1
-#define MVIEWING 2
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object();
         e->type = MMODE;
@@ -1887,7 +1884,6 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
 
         matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
         matrix4x4f_stack_mult(current_stack, (float *)m);
-
     }
 }
 
