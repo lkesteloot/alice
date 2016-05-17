@@ -111,10 +111,13 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 
 - (void)triangle:(screen_vertex *)vs {
     if (/* DISABLES CODE */ (NO)) {
-	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
+	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d), color (%d,%d,%d)",
 	      vs[0].x, vs[0].y,
 	      vs[1].x, vs[1].y,
-	      vs[2].x, vs[2].y);
+	      vs[2].x, vs[2].y,
+	      (int) vs[0].r,
+	      (int) vs[0].g,
+	      (int) vs[0].b);
     }
 
 #if COCOA_TRIANGLE

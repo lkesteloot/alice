@@ -587,10 +587,7 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
         vec4f_copy(lv->color, wv->color);
     }
 #else
-    lv->color[0] = current_color[0];
-    lv->color[1] = current_color[1];
-    lv->color[2] = current_color[2];
-    lv->color[3] = current_color[3];
+    vec4f_copy(lv->color, wv->color);
 #endif
 
     /// XXX could multiply mv and p together?
@@ -598,7 +595,7 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     // matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
     // vec4f_print("Object", wv->coord);
     // vec4f_print("World", tv);
-    // vec4f_print("Screen", lv->coord);
+    // vec4f_print("Lit", lv->coord);
 }
 
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
@@ -1547,6 +1544,14 @@ void swapbuffers() {
     flush();
 }
 
+static void matrix4x4f_translate(float x, float y, float z, float matrix[16])
+{
+    matrix4x4f_copy(matrix, identity_4x4f);
+    matrix[12] = x;
+    matrix[13] = y;
+    matrix[14] = z;
+}
+
 void translate(Coord x, Coord y, Coord z) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object();
@@ -1557,10 +1562,7 @@ void translate(Coord x, Coord y, Coord z) {
     } else {
         float m[16];
 
-        matrix4x4f_copy(m, identity_4x4f);
-        m[12] = x;
-        m[13] = y;
-        m[14] = z;
+        matrix4x4f_translate(x, y, z, m);
 
         if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
         matrix4x4f_stack_mult(current_stack, m);
@@ -1712,9 +1714,9 @@ void mmode(long mode) {
         if(trace_functions) printf("%*smmode(%ld)\n", indent, "", mode);
         matrix_mode = mode;
         switch(mode) {
-            case MSINGLE: current_stack = &modelview_stack;
-            case MVIEWING: current_stack = &modelview_stack;
-            case MPROJECTION: current_stack = &projection_stack;
+            case MSINGLE: current_stack = &modelview_stack; break;
+            case MVIEWING: current_stack = &modelview_stack; break;
+            case MPROJECTION: current_stack = &projection_stack; break;
         }
     }
 }
@@ -1859,7 +1861,7 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
         f[1] = pointy - viewy;
         f[2] = pointz - viewz;
 
-        if(f[0] != 0.0 || f[1] != 0.0) {
+        if(f[0] != 0.0 || f[1] != 0.0 || 1) {
             up[0] = 0.0; up[1] = 1.0; up[2] = 0.0;
         } else {
             up[0] = 0.0; up[1] = 0.0; up[2] = -1.0;
@@ -1873,11 +1875,14 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
 
         float m[16];
 
-        m[0] =    s[0]; m[1]  =   s[1]; m[2]  =   s[2]; m[3]  = 0;
-        m[4] =    u[0]; m[5]  =   u[1]; m[6]  =   u[2]; m[7]  = 0;
-        m[8] =   -f[0]; m[9]  =  -f[1]; m[10] =  -f[2]; m[11] = 0;
-        m[12] = -viewx; m[13] = -viewy; m[14] = -viewz; m[15] = 1;
+        m[0] =    s[0]; m[1]  =   u[0]; m[2]  =  -f[0]; m[3]  = 0;
+        m[4] =    s[1]; m[5]  =   u[1]; m[6]  =  -f[1]; m[7]  = 0;
+        m[8] =    s[2]; m[9]  =   u[2]; m[10] =  -f[2]; m[11] = 0;
+        m[12] =      0; m[13] =      0; m[14] =      0; m[15] = 1;
 
+        matrix4x4f_stack_mult(current_stack, (float *)m);
+
+        matrix4x4f_translate(-viewx, -viewy, -viewz, m);
         matrix4x4f_stack_mult(current_stack, (float *)m);
 
         matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
