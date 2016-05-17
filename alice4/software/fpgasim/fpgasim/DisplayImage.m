@@ -93,6 +93,22 @@ int orientation(screen_vertex *a, screen_vertex *b, int x, int y) {
     return (b->x - a->x)*(y - a->y) - (b->y - a->y)*(x - a->x);
 }
 
+// Returns whether this edge is the top (horizontal) edge or a left
+// edge of the triangle, as defined by D3D11.
+// https://msdn.microsoft.com/en-us/library/windows/desktop/cc627092(v=vs.85).aspx#Triangle
+//
+// Since our vertices are always in counter-clockwise order, we can
+// make some assumptions here.
+bool isTopLeft(screen_vertex *a, screen_vertex *b) {
+    if (a->y == b->y) {
+	// If it's horizontal, then it's the top one if it's going left.
+	return a->x < b->x;
+    }
+
+    // Else it's left if it's going down.
+    return a->y > b->y;
+}
+
 - (void)triangle:(screen_vertex *)vs {
     if (/* DISABLES CODE */ (NO)) {
 	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",
@@ -148,6 +164,11 @@ int orientation(screen_vertex *a, screen_vertex *b, int x, int y) {
     int w1_row = orientation(&vs[2], &vs[0], minX, minY);
     int w2_row = orientation(&vs[0], &vs[1], minX, minY);
 
+    // The comparison value.
+    int bias0 = isTopLeft(&vs[1], &vs[2]) ? 0 : 1;
+    int bias1 = isTopLeft(&vs[2], &vs[0]) ? 0 : 1;
+    int bias2 = isTopLeft(&vs[0], &vs[1]) ? 0 : 1;
+
     unsigned char *row_pixel = &data[(minY*WIDTH + minX)*BYTES_PER_PIXEL];
     for (int y = minY; y <= maxY; y++) {
 	unsigned char *p = row_pixel;
@@ -156,7 +177,7 @@ int orientation(screen_vertex *a, screen_vertex *b, int x, int y) {
 	int w2 = w2_row;
 
 	for (int x = minX; x <= maxX; x++) {
-	    if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+	    if (w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
 		p[0] = vs[0].r;
 		p[1] = vs[0].g;
 		p[2] = vs[0].b;
