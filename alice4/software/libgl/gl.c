@@ -1671,8 +1671,6 @@ static void enqueue_device(long device, short val) {
 
 // We're interested in events from this device.
 void qdevice(long device) { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
-
     switch (device) {
         case REDRAW:
             // Initial redraw.
@@ -1685,18 +1683,31 @@ void qdevice(long device) {
             break;
 
         default:
-            // Nothing to do.
+            // Send the device to the server.
+            send_byte(COMMAND_QDEVICE);
+            send_ulong(device);
             break;
+    }
+}
+
+void fetch_event_queue(int blocking) {
+    send_byte(COMMAND_QREAD);
+    send_byte(blocking);
+
+    // First is number of events.
+    int count = receive_byte();
+    for (int i = 0; i < count; i++) {
+        long device = receive_ulong();
+        long value = receive_ushort();
+        enqueue_device(device, value);
     }
 }
 
 // If the queue is empty, qread() blocks.
 long qread(short *val) { 
-    if (input_queue_length == 0) {
-        // We don't support blocking.
-        printf("qread() blocking unimplemented.\n");
-        return REDRAW;
-        exit(1);
+    while (input_queue_length == 0) {
+        // Blocking read.
+        fetch_event_queue(TRUE);
     }
 
     *val = input_queue_val[input_queue_head];
@@ -1710,6 +1721,11 @@ long qread(short *val) {
 // Returns 0 if the event queue is empty.
 // Doesn't change the queue.
 long qtest() { 
+    if (input_queue_length == 0) {
+        // Non-blocking read.
+        fetch_event_queue(FALSE);
+    }
+
     if (input_queue_length == 0) {
         // Empty queue.
         return 0;
@@ -2190,8 +2206,11 @@ void scale(float x, float y, float z) {
     }
 }
 
-void tie() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void tie(long button, long val1, long val2) {
+    send_byte(COMMAND_TIE);
+    send_ulong(button);
+    send_ulong(val1);
+    send_ulong(val2);
 }
 
 void v3f(float v[3]) {

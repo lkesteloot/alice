@@ -112,8 +112,10 @@ char	*argv[];
 	tie(RIGHTMOUSE, MOUSEX, MOUSEY);
 	add_event(ANY, RIGHTMOUSE, DOWN, do_popup, 0);
 
+#if 0  // LK: We don't want windowed mode.
     qdevice(SPACEKEY);
 	add_event(ANY, SPACEKEY, UP, toggle_window, 0);
+#endif
 
 	add_update(&flyinflag, flyindraw, 0);
 	add_update(&flyoutflag, flyoutdraw, 0);

@@ -25,6 +25,9 @@ typedef enum {
     STATE_CLEAR,		// Expecting clear color.
     STATE_TRIANGLE,		// Expecting three vertices.
     STATE_GET_VALUATOR,		// Expecting unsigned long for device.
+    STATE_QDEVICE,		// Expecting unsigned long for device.
+    STATE_TIE,			// Expecting three unsigned longs for button, val1, and val2.
+    STATE_QREAD,		// Expecting byte to mean blocking.
 } State;
 
 @interface Server () {
@@ -309,6 +312,18 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    [self expectBytes:4 forState:STATE_GET_VALUATOR];
 		    break;
 
+		case COMMAND_QDEVICE:
+		    [self expectBytes:4 forState:STATE_QDEVICE];
+		    break;
+
+		case COMMAND_TIE:
+		    [self expectBytes:12 forState:STATE_TIE];
+		    break;
+
+		case COMMAND_QREAD:
+		    [self expectBytes:1 forState:STATE_QREAD];
+		    break;
+
 		default:
 		    // Problem. Reset.
 		    NSLog(@"Got unknown command byte %02x", (int)b);
@@ -319,7 +334,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 
 	case STATE_WINOPEN_LENGTH:
 	    if (b == 0) {
-		[self.delegate setWindowTitle:@""];
+		[self.delegate winOpenWithTitle:@""];
 		self.state = STATE_COMMAND;
 	    } else {
 		[self expectBytes:b forState:STATE_WINOPEN_TITLE];
@@ -327,7 +342,7 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    break;
 
 	case STATE_WINOPEN_TITLE:
-	    [self.delegate setWindowTitle:[self bufferAsString]];
+	    [self.delegate winOpenWithTitle:[self bufferAsString]];
 	    self.state = STATE_COMMAND;
 	    break;
 
@@ -365,6 +380,21 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    }
 	    break;
 
+	case STATE_QDEVICE:
+	    [self.delegate qdevice:[self bytesToLong:buffer]];
+	    self.state = STATE_COMMAND;
+	    break;
+
+	case STATE_TIE:
+	    [self.delegate tie:[self bytesToLong:buffer] val1:[self bytesToLong:buffer + 4] val2:[self bytesToLong:buffer + 8]];
+	    self.state = STATE_COMMAND;
+	    break;
+
+	case STATE_QREAD:
+	    [self qreadBlocking:(BOOL)buffer[0]];
+	    self.state = STATE_COMMAND;
+	    break;
+
 	default:
 	    NSLog(@"In unknown state %d", self.state);
 	    self.state = STATE_COMMAND;
@@ -392,6 +422,26 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     v->a = b[7];
 }
 
+- (void)qreadBlocking:(BOOL)blocking {
+    long device;
+    short value;
+    BOOL haveEvent = [self.delegate getEvent:&device value:&value];
+
+    if (haveEvent) {
+	[self writeByte:1];
+	[self writeLong:device];
+	[self writeShort:value];
+    } else {
+	if (blocking) {
+	    // XXX Not handled. Should not reply and wait until an event is available.
+	    [self writeByte:0];
+	} else {
+	    [self writeByte:0];
+	}
+    }
+    [self writeBuffer];
+}
+
 // Start expecting a fixed number of bytes.
 - (void)expectBytes:(int)byteCount forState:(State)newState {
     self.state = newState;
@@ -417,6 +467,11 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     [self writeByte:(value >> 8) & 0xFF];
     [self writeByte:(value >> 16) & 0xFF];
     [self writeByte:(value >> 24) & 0xFF];
+}
+
+- (void)writeShort:(unsigned short)value {
+    [self writeByte:(value >> 0) & 0xFF];
+    [self writeByte:(value >> 8) & 0xFF];
 }
 
 - (void)writeByte:(unsigned char)value {

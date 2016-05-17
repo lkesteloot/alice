@@ -149,6 +149,12 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	if (v->y > maxY) maxY = v->y;
     }
 
+    // Clip to screen.
+    if (minX < 0) minX = 0;
+    if (minY < 0) minY = 0;
+    if (maxX > WIDTH - 1) maxX = WIDTH - 1;
+    if (maxY > HEIGHT - 1) maxY = HEIGHT - 1;
+
     // Reverse triangle if necessary to make it counter-clockwise.
     if (orientation(&vs[0], &vs[1], vs[2].x, vs[2].y) < 0) {
 	screen_vertex tmp = vs[0];

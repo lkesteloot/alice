@@ -413,7 +413,7 @@ extern void	textcolor();
 extern void	textinit();
 extern void	textport();
 extern void	textwritemask();
-extern void	tie();
+extern void     tie(long button, long val1, long val2);
 extern void	tpoff();
 extern void	tpon();
 extern void	translate(Coord x, Coord y, Coord z);

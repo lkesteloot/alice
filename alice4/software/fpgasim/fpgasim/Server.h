@@ -11,11 +11,14 @@
 
 @protocol ServerDelegate
 
-- (void)setWindowTitle:(NSString *)title;
+- (void)winOpenWithTitle:(NSString *)title;
 - (void)clear:(vec3ub)color;
 - (void)swapBuffers;
 - (void)triangle:(screen_vertex *)v;
 - (NSPoint)getMousePosition;
+- (void)qdevice:(long)device;
+- (void)tie:(long)button val1:(long)val1 val2:(long)val2;
+- (BOOL)getEvent:(long *)device value:(short *)value;
 
 @end
 

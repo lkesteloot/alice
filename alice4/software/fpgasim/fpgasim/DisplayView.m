@@ -28,6 +28,14 @@
     [textAttributes setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
 }
 
+- (void)mouseDown: (NSEvent*)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)mouseUp: (NSEvent*)event {
+    [self.delegate gotViewEvent:event];
+}
+
 - (void)setRep:(NSBitmapImageRep *)rep {
     _rep = rep;
 

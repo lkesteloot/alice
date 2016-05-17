@@ -8,8 +8,9 @@
 
 #import <Cocoa/Cocoa.h>
 #import "Server.h"
+#import "DisplayView.h"
 
-@interface ViewController : NSViewController<ServerDelegate>
+@interface ViewController : NSViewController<ServerDelegate,DisplayViewDelegate>
 
 @end
 

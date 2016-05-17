@@ -8,8 +8,15 @@
 
 #import <Cocoa/Cocoa.h>
 
+@protocol DisplayViewDelegate
+
+- (void)gotViewEvent:(NSEvent *)event;
+
+@end
+
 @interface DisplayView : NSView
 
+@property (nonatomic) id<DisplayViewDelegate> delegate;
 @property (nonatomic) NSBitmapImageRep *rep;
 
 @end
