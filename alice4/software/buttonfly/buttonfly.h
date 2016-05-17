@@ -1,7 +1,7 @@
 /*
  *	Type definitions, etc for buttonfly
  */
-#define random(r) (r*(float)rand()/(float)(0x7fff))
+#define random(r) (r*(float)rand()/(float)(RAND_MAX))
 
 #define WORDLENGTH 11
 
