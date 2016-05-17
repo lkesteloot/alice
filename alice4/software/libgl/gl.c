@@ -663,10 +663,15 @@ typedef struct element
         PERSPECTIVE,
         WINDOW,
         VIEWPORT,
+        RGBCOLOR,
     } type;
 
     union
     {
+        struct {
+            long r, g, b;
+        } rgbcolor;
+
         struct {
             Tag tag;
         } tag;
@@ -801,6 +806,13 @@ void callobj(Object obj) {
         element *p = objects[obj];
         while(p) {
             switch(p->type) {
+                case RGBCOLOR:
+                    RGBcolor(
+                        p->rgbcolor.r,
+                        p->rgbcolor.g,
+                        p->rgbcolor.b
+                    );
+                    break;
                 case VIEWPORT:
                     viewport(
                         p->viewport.left,
@@ -1513,8 +1525,20 @@ long winopen(char *title) {
     send_string(title);
 }
 
-void RGBcolor() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void RGBcolor(long r, long g, long b) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = RGBCOLOR;
+        e->rgbcolor.r = r;
+        e->rgbcolor.g = g;
+        e->rgbcolor.b = b;
+    } else {
+        if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
+        current_color[0] = r;
+        current_color[1] = g;
+        current_color[2] = b;
+        current_color[3] = 255;
+    }
 }
 
 void RGBmode() {
@@ -1622,6 +1646,26 @@ long winget() {
 }
 
 void winposition() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void getmatrix() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void lookat() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void lsetdepth() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void zbuffer() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void zclear() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
