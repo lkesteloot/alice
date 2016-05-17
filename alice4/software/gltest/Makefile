@@ -1,13 +1,17 @@
-.PHONY: clean
+.PHONY: clean run
 
+APP=gltest
 SRC=gltest.c
 LIBGL_SRC=../libgl/gl.c ../libgl/network.c
 
-gltest: $(SRC) $(LIBGL_SRC)
+$(APP): $(SRC) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
-		-o gltest $(SRC) $(LIBGL_SRC)
+		-o $(APP) $(SRC) $(LIBGL_SRC)
+
+run: $(APP)
+	./$(APP)
 
 clean:
-	if [ -f gltest ]; then rm gltest; fi
+	rm -f $(APP)

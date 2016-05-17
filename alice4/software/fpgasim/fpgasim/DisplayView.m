@@ -30,7 +30,6 @@
 
 - (void)setRep:(NSBitmapImageRep *)rep {
     _rep = rep;
-    [self setNeedsDisplay:YES];
 
     // Compute FPS.
     if (previousFrame != nil) {
@@ -42,17 +41,23 @@
 	}
     }
     previousFrame = [NSDate date];
+
+    // Tell the system to redraw the window.
+    [self setNeedsDisplay:YES];
 }
 
 - (void)drawRect:(NSRect)rect {
     [super drawRect:rect];
+
+    [NSGraphicsContext saveGraphicsState];
     if (self.rep != nil) {
-	[self.rep drawInRect:NSMakeRect(0, 0, self.rep.size.width, self.rep.size.height)];
+	[self.rep draw];
     }
 
     if (fps != 0) {
 	[[NSString stringWithFormat:@"%d FPS", fps] drawAtPoint:NSMakePoint(10, 10) withAttributes:textAttributes];
     }
+    [NSGraphicsContext restoreGraphicsState];
 }
 
 @end

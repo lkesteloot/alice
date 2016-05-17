@@ -14,7 +14,8 @@
 
 @interface DisplayImage () {
     NSBitmapImageRep *rep;
-    NSGraphicsContext *backContext;
+    unsigned char *data;
+    NSGraphicsContext *context;
 }
 
 @end
@@ -25,51 +26,42 @@
     self = [super init];
 
     if (self) {
-	[self newBuffer];
+	data = (unsigned char *) malloc(WIDTH*HEIGHT*4);
+	rep = [self makeRepFromData];
+	context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
+
+	// We'll eventually want to remove this, since the hardware won't do it:
+	[self fillCheckerboard];
     }
 
     return self;
 }
 
-- (void)newBuffer {
-    rep = [[NSBitmapImageRep alloc]
-	   initWithBitmapDataPlanes:NULL
-	   pixelsWide:WIDTH
-	   pixelsHigh:HEIGHT
-	   bitsPerSample:8
-	   samplesPerPixel:4
-	   hasAlpha:YES
-	   isPlanar:NO
-	   colorSpaceName:NSDeviceRGBColorSpace
-	   bitmapFormat:NSAlphaFirstBitmapFormat
-	   bytesPerRow:0
-	   bitsPerPixel:0];
-    backContext = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
+- (NSBitmapImageRep *)rep {
+    return [self makeRepFromData];
+}
 
-    // We'll eventually want to remove this, since the hardware won't do it:
-    [self fillCheckerboard];
+- (NSBitmapImageRep *)makeRepFromData {
+    return [[NSBitmapImageRep alloc]
+	    initWithBitmapDataPlanes:&data
+	    pixelsWide:WIDTH
+	    pixelsHigh:HEIGHT
+	    bitsPerSample:8
+	    samplesPerPixel:3
+	    hasAlpha:NO
+	    isPlanar:NO
+	    colorSpaceName:NSDeviceRGBColorSpace
+	    bitmapFormat:0
+	    bytesPerRow:0
+	    bitsPerPixel:32];
 }
 
 - (NSColor *)colorFromBuffer:(vec3ub)color {
     return [NSColor colorWithRed:color[0]/255.0 green:color[1]/255.0 blue:color[2]/255.0 alpha:1.0];
 }
 
-// Returns new front buffer.
-- (NSBitmapImageRep *)swapBuffers {
-    // I shouldn't have to have an autorelease here. There should be one in the main loop,
-    // which we're using for everything (graphics and network). Without this autoreleasepool,
-    // we leak tons of memory.
-    @autoreleasepool {
-	NSBitmapImageRep *newFrontBuffer = rep;
-
-	[self newBuffer];
-
-	return newFrontBuffer;
-    }
-}
-
 - (void)fillCheckerboard {
-    [NSGraphicsContext setCurrentContext:backContext];
+    [NSGraphicsContext setCurrentContext:context];
     NSRect rect = NSMakeRect(0, 0, WIDTH, HEIGHT);
     [[NSColor colorWithRed:.5 green:.5 blue:.5 alpha:1.0] set];
     NSRectFill(rect);
@@ -86,7 +78,7 @@
 }
 
 - (void)clear:(vec3ub)color {
-    [NSGraphicsContext setCurrentContext:backContext];
+    [NSGraphicsContext setCurrentContext:context];
     NSRect rect = NSMakeRect(0, 0, WIDTH, HEIGHT);
     [[self colorFromBuffer:color] set];
     NSRectFill(rect);
@@ -94,7 +86,7 @@
 
 - (void)triangle:(screen_vertex *)v {
     @autoreleasepool {
-    [NSGraphicsContext setCurrentContext:backContext];
+    [NSGraphicsContext setCurrentContext:context];
     NSBezierPath *path = [NSBezierPath bezierPath];
     if (/* DISABLES CODE */ (NO)) {
 	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d)",

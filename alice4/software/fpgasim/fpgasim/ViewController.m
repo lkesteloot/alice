@@ -13,7 +13,8 @@
 @interface ViewController ()
 
 @property (nonatomic) Server *server;
-@property (nonatomic) DisplayImage *displayImage;
+@property (nonatomic) DisplayImage *frontBuffer;
+@property (nonatomic) DisplayImage *backBuffer;
 
 @end
 
@@ -23,41 +24,41 @@
     [super viewDidLoad];
 
     _server = [[Server alloc] initWithDelegate:self];
-    _displayImage = [[DisplayImage alloc] init];
+    _frontBuffer = [[DisplayImage alloc] init];
+    _backBuffer = [[DisplayImage alloc] init];
 
+    // So that it's displayed:
     [self swapBuffers];
 }
 
 // For ServerDelegate:
 - (void)setWindowTitle:(NSString *)title {
-    // This isn't right, we don't want all windows, but mainWindow is nil here.
-    for (NSWindow *window in [NSApplication sharedApplication].windows) {
-	window.title = title;
-    }
+    self.view.window.title = title;
 }
 
 // For ServerDelegate:
 - (void)clear:(vec3ub)color {
-    [self.displayImage clear:color];
+    [self.backBuffer clear:color];
 }
 
 // For ServerDelegate:
 - (void)swapBuffers {
-    NSBitmapImageRep *newFrontBuffer = [self.displayImage swapBuffers];
+    DisplayImage *tmp = self.backBuffer;
+    self.backBuffer = self.frontBuffer;
+    self.frontBuffer = tmp;
 
     DisplayView *displayView = (DisplayView *) self.view;
-    displayView.rep = newFrontBuffer;
+    displayView.rep = self.frontBuffer.rep;
 }
 
 // For ServerDelegate:
 - (void)triangle:(screen_vertex *)v {
-    [self.displayImage triangle:v];
+    [self.backBuffer triangle:v];
 }
 
 // For ServerDelegate:
 - (NSPoint)getMousePosition {
-    NSWindow *window = [self view].window;
-    return [window mouseLocationOutsideOfEventStream];
+    return [self.view.window mouseLocationOutsideOfEventStream];
 }
 
 @end
