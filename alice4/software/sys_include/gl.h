@@ -471,11 +471,13 @@ extern void shademodel(long mode);
 #define DEFLMODEL 3
 
 // lmbind():
+#define LIGHT0 0
 #define LIGHT1 1
 #define MATERIAL 2
 #define LMODEL 3
 
 // mmode():
+#define MSINGLE 0
 #define MPROJECTION 1
 #define MVIEWING 2
 

@@ -146,7 +146,7 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	if (v->y > maxY) maxY = v->y;
     }
 
-    // Reverse triangle if necessary.
+    // Reverse triangle if necessary to make it counter-clockwise.
     if (orientation(&vs[0], &vs[1], vs[2].x, vs[2].y) < 0) {
 	screen_vertex tmp = vs[0];
 	vs[0] = vs[1];

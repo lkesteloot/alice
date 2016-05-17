@@ -5,6 +5,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gl.h>
 #include <math.h>
 #include <device.h>
@@ -441,7 +443,7 @@ Poly *polygon;
 	lmbind(MATERIAL, MAT_LOGO);
 	lighting(TRUE);
 
-	while(polygon=polygon->next) {
+	while((polygon=polygon->next) != NULL) {
 		bgnpolygon();
 		for (i=0; i<polygon->n; i++) {
 			n3f(&polygon->norm[i*3]);
