@@ -78,7 +78,8 @@ startup()
 
     shot = shots[id];
 
-    while (qread(&i) != KEYBD)
+    // LK: Skip waiting for keyboard.
+    while (0 && qread(&i) != KEYBD)
 #if NETWORKING
 	if (network)
 	    send_death();
