@@ -1529,6 +1529,10 @@ long getvaluator(long device) {
     return receive_uint32();
 }
 
+void setvaluator(Device device, short init, short min, short max) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void gflush() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
@@ -1630,6 +1634,26 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         } else 
             matrix4x4f_stack_load(current_stack, m);
     }
+}
+
+// XXX display list
+void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
+    float m[16];
+
+    matrix4x4f_copy(m, identity_4x4f);
+    m[0] =  2.0f / (right-left);
+    m[5] =  2.0f / (top-bottom);
+    m[10] = -1.0f;
+    m[12] = -(right+left) / (right-left);
+    m[13] = -(top+bottom) / (top-bottom);
+    m[15] =  1.0f;
+
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_load(&projection_stack, m);
+        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
+        matrix4x4f_stack_load(&projection_stack, m);
+    } else 
+        matrix4x4f_stack_load(current_stack, m);
 }
 
 void polf(long n, Coord parray[ ][3]) {
@@ -1734,6 +1758,10 @@ void qdevice(long device) {
             send_uint32(device);
             break;
     }
+}
+
+void unqdevice(Device device) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void fetch_event_queue(int blocking) {
@@ -2011,6 +2039,14 @@ void draw(Coord x, Coord y, Coord z) {
     lighting_enabled = save_lighting;
 }
 
+void drawi(Icoord x, Icoord y, Icoord z) {
+    draw(x, y, z);
+}
+
+void draw2i(Icoord x, Icoord y) {
+    draw(x, y, 0);
+}
+
 void pclos() {
     endpolygon();
 }
@@ -2018,6 +2054,14 @@ void pclos() {
 void pmv(Coord x, Coord y, Coord z) {
     bgnpolygon();
     pdr(x, y, z);
+}
+
+void pmv2i(Icoord x, Icoord y) {
+    pmv(x, y, 0);
+}
+
+void pmvi(Icoord x, Icoord y, Icoord z) {
+    pmv(x, y, z);
 }
 
 void pdr(Coord x, Coord y, Coord z) {
@@ -2028,6 +2072,14 @@ void pdr(Coord x, Coord y, Coord z) {
     p[2] = z;
 
     v3f(p);
+}
+
+void pdr2i(Icoord x, Icoord y) {
+    pdr(x, y, 0);
+}
+
+void pdri(Icoord x, Icoord y, Icoord z) {
+    pdr(x, y, z);
 }
 
 void pnt(Coord x, Coord y, Coord z) {
@@ -2233,9 +2285,13 @@ void move(Coord x, Coord y, Coord z) {
     vec4f_set(current_position, x, y, z, 1.0);
 }
 
+void movei(Icoord x, Icoord y, Icoord z) {
+    move(x, y, z);
+}
+
 void move2i(Icoord x, Icoord y) {
     if(trace_functions) printf("%*smove2i(%ld, %ld);\n", indent, "", x, y);
-    vec4f_set(current_position, x, y, 0.0, 1.0);
+    move(x, y, 0);
 }
 
 void n3f(float n[3]) {
@@ -2402,6 +2458,62 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
 
 void lsetdepth() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void charstr(char *str) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void circi(Icoord x, Icoord y, Icoord r) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void cmov2i(Icoord x, Icoord y) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void cursoff() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void curson() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void feedback() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+long endfeedback() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void writemask(Colorindex writemask) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void rectf(Coord x1, Coord y1, Coord x2, Coord y2) {
+    pmv(x1, y1, 0);
+    pdr(x1, y2, 0);
+    pdr(x2, y2, 0);
+    pdr(x2, y1, 0);
+    pclos();
+}
+
+void rectfi(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
+    rectf(x1, y1, x2, y2);
+}
+
+void poly(int n, Coord p[][3]) {
+    for (int i = 0; i <= n; i++) {
+        Coord *v = p[i % n];
+
+        if (i == 0) {
+            move(v[0], v[1], v[2]);
+        } else {
+            draw(v[0], v[1], v[2]);
+        }
+    }
 }
 
 // XXX display list
