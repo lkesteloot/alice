@@ -1,18 +1,15 @@
-Image Demos
-	cat m_showimg*
-	.menu. -
+Logo
+	../logo/logo
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
-Graphics Demos
-	cat m_color*
-	.menu. -
+Jello
+	../jello/jello
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
-CPU Intensive Demos
-	cat m_geo*
-	.menu. -
+Insect
+	../insect/insect
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
