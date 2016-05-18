@@ -737,7 +737,11 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
         // XXX point lights only, no ambient, no emission
         // XXX OpenGL ES 1.1: 2.12.1 Lighting
         vec4f vertex_to_light;
-        vec4f_subtract(l->position, coord, vertex_to_light);
+        if(l->position[3] == 0.0)  {
+            vec4f_copy(vertex_to_light, l->position);
+        }
+        else
+            vec4f_subtract(l->position, coord, vertex_to_light);
         vec4f_normalize(vertex_to_light, vertex_to_light);
         float diff_part = vec3f_dot(normal, vertex_to_light);
         if(diff_part >= 0)
@@ -747,7 +751,6 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
             vec3f_mult(mtl->diffuse, l->color, t1);
             vec3f_scale(t1, diff_part, t1);
             vec3f_add(t1, color, color);
-
             vec4f h;
             h[0] = vertex_to_light[0];
             h[1] = vertex_to_light[1];
@@ -978,9 +981,9 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     if(n == 0) return 0;
     n = clip_polygon_against_plane(CLIP_POS_Y, n, tmp, output);
     if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
-    if(n == 0) return 0;
     n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
 
     return n;
 }
@@ -1932,10 +1935,10 @@ void RGBcolor(long r, long g, long b) {
         e->rgbcolor.b = b;
     } else {
         if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
-        current_color[0] = r;
-        current_color[1] = g;
-        current_color[2] = b;
-        current_color[3] = 255;
+        current_color[0] = r / 255.0;
+        current_color[1] = g / 255.0;
+        current_color[2] = b / 255.0;
+        current_color[3] = 1.0;
     }
 }
 
@@ -2140,7 +2143,7 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
                     break;
                 case POSITION:
                     if(trace_functions) printf("%*sPOSITION, %f, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3], p[4]);
-                    if(p[3] == 0.0) {
+                    if(p[4] == 0.0) {
                         vec3f direction;
                         vec3f transformed;
                         // XXX may not be right
@@ -2320,7 +2323,6 @@ void v3f(float v[3]) {
         world_vertex *wv = polygon_verts + polygon_vert_count;
         vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
         vec4f_copy(wv->color, current_color);
-        vec4f_set(wv->color, 1, 0, 0, 1);
         vec3f_copy(wv->normal, current_normal);
         polygon_vert_count++;
     }
