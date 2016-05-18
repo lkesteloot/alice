@@ -925,9 +925,9 @@ long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_verte
             if(fabs(denom) > CLIP_EPSILON) {
                 float t = (-p0 + w0) / denom;
                 if(p0 < w0)
-                    t *= .999;
+                    t *= .9995;
                 if(p1 < w1)
-                    t *= 1.001;
+                    t *= 1.0005;
                 vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
                 // Should other attributes be hyperbolically interpolated?
                 vec4f_blend(v0->color, v1->color, t, output[n2].color);
