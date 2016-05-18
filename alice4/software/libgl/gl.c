@@ -887,11 +887,6 @@ enum {
     CLIP_POS_Z = 0x20,
 };
 
-enum {
-    CLIP_TRIVIAL_REJECT = 0,
-    CLIP_TRIVIAL_ACCEPT = -1, // If clip_polygon_against_plane() returns this, it stored nothing in "output".
-};
-
 #define CLIP_EPSILON .001
 
 long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
@@ -925,15 +920,18 @@ long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_verte
             output[n2++] = *v0;
         }
 
-        if((p0 < w0 && p1 > w1) || (p0 > w0 && p1 < w1)) {
+        if((p0 < w0 && p1 >= w1) || (p0 >= w0 && p1 < w1)) {
             float denom = -p0 + p1 + w0 - w1;
             if(fabs(denom) > CLIP_EPSILON) {
                 float t = (-p0 + w0) / denom;
-                if(t > 0.001 && t < .999) {
-                    vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
-                    vec4f_blend(v0->color, v1->color, t, output[n2].color);
-                    n2++;
-                }
+                if(p0 < w0)
+                    t *= .999;
+                if(p1 < w1)
+                    t *= 1.001;
+                vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
+                // Should other attributes be hyperbolically interpolated?
+                vec4f_blend(v0->color, v1->color, t, output[n2].color);
+                n2++;
             }
         }
     }
@@ -951,6 +949,11 @@ int classify_vertex(float *c)
     if(c[2] > c[3]) code |= CLIP_POS_Z;
     return code;
 }
+
+enum {
+    CLIP_TRIVIAL_REJECT = 0,
+    CLIP_TRIVIAL_ACCEPT = -1, // If clip_polygon() returns this, it stored nothing in "output".
+};
 
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
@@ -988,7 +991,6 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     return n;
 }
 
-// Fake this until rasterizer implements lines
 void process_line(world_vertex *wv0, world_vertex *wv1)
 {
     static lit_vertex litverts[2], *vp;
@@ -1014,12 +1016,13 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     project_vertex_hd(&vp[0], &screenverts[0]);
     project_vertex_hd(&vp[1], &screenverts[1]);
 
-    float dx = screenverts[1].x - screenverts[0].x;
-    float dy = screenverts[1].y - screenverts[0].y;
+// Fake this until rasterizer implements lines
+    float dx = (screenverts[1].x - screenverts[0].x);
+    float dy = (screenverts[1].y - screenverts[0].y);
     float d = sqrt(dx * dx + dy * dy);
 
-    dx = dx * 65536 / d;
-    dy = dy * 65536 / d;
+    dx = dx / d * 65536;
+    dy = dy / d * 65536;
 
     screen_vertex_hd linequad_hd[4];
     linequad_hd[0] = screenverts[0];
@@ -1027,19 +1030,20 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     linequad_hd[2] = screenverts[1];
     linequad_hd[3] = screenverts[1];
 
-    linequad_hd[0].x += -dx * .5 + dy * the_linewidth * .5;
-    linequad_hd[0].y += -dy * .5 + -dx * the_linewidth * .5;
-    linequad_hd[1].x += -dx * .5 + -dy * the_linewidth * .5;
-    linequad_hd[1].y += -dy * .5 + dx * the_linewidth * .5;
-    linequad_hd[2].x += -dx * .5 + -dy * the_linewidth * .5;
-    linequad_hd[2].y += -dy * .5 + dx * the_linewidth * .5;
-    linequad_hd[3].x += -dx * .5 + dy * the_linewidth * .5;
-    linequad_hd[3].y += -dy * .5 + -dx * the_linewidth * .5;
+    linequad_hd[0].x +=  dy * the_linewidth * .5;
+    linequad_hd[0].y += -dx * the_linewidth * .5;
+    linequad_hd[1].x += -dy * the_linewidth * .5;
+    linequad_hd[1].y +=  dx * the_linewidth * .5;
+    linequad_hd[2].x += -dy * the_linewidth * .5;
+    linequad_hd[2].y +=  dx * the_linewidth * .5;
+    linequad_hd[3].x +=  dy * the_linewidth * .5;
+    linequad_hd[3].y += -dx * the_linewidth * .5;
 
     screen_vertex linequad[4];
     for(int i = 0; i < 4; i++) {
         linequad[i].x = linequad_hd[i].x / 65536;
         linequad[i].y = linequad_hd[i].y / 65536;
+        linequad[i].z = linequad_hd[i].z;
         linequad[i].r = linequad_hd[i].r;
         linequad[i].g = linequad_hd[i].g;
         linequad[i].b = linequad_hd[i].b;
