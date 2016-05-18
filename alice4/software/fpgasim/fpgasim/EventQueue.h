@@ -14,12 +14,12 @@
 
 // Setup
 - (void)reset;
-- (void)qdevice:(long)device;
-- (void)tie:(long)button val1:(long)val1 val2:(long)val2;
+- (void)qdevice:(uint32_t)device;
+- (void)tie:(uint32_t)button val1:(uint32_t)val1 val2:(uint32_t)val2;
 
 // Queue handling.
-- (void)addEvent:(long)device value:(short)value mouseX:(short)x mouseY:(short)y;
+- (void)addEvent:(uint32_t)device value:(uint16_t)value mouseX:(uint16_t)x mouseY:(uint16_t)y;
 // Returns YES if there's an event, NO otherwise.
-- (BOOL)getEvent:(long *)device value:(short *)value;
+- (BOOL)getEvent:(uint32_t *)device value:(uint16_t *)value;
 
 @end

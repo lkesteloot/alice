@@ -4,8 +4,8 @@
 
 // Interface for connection (to network or FPGA).
 void open_connection();
-void send_byte(unsigned char b);
-unsigned char receive_byte();
+void send_uint8(unsigned char b);
+unsigned char receive_uint8();
 void flush();
 void close_connection();
 

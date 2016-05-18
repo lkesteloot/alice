@@ -17,6 +17,7 @@
 @property (nonatomic) EventQueue *eventQueue;
 @property (nonatomic) DisplayImage *frontBuffer;
 @property (nonatomic) DisplayImage *backBuffer;
+@property (nonatomic) BOOL zbufferEnabled;
 
 @end
 
@@ -32,15 +33,21 @@
     _eventQueue = [[EventQueue alloc] init];
     _frontBuffer = [[DisplayImage alloc] init];
     _backBuffer = [[DisplayImage alloc] init];
+    [self resetState];
 
     // So that it's displayed:
     [self swapBuffers];
 }
 
+- (void)resetState {
+    [_eventQueue reset];
+    self.zbufferEnabled = NO;
+}
+
 // For DisplayViewDelegate:
 - (void)gotViewEvent:(NSEvent *)event {
-    long device;
-    short value;
+    uint32_t device;
+    uint16_t value;
 
     switch (event.type) {
 	case NSLeftMouseDown:
@@ -76,7 +83,7 @@
 
 // For ServerDelegate:
 - (void)winOpenWithTitle:(NSString *)title {
-    [_eventQueue reset];
+    [self resetState];
     self.view.window.title = title;
 }
 
@@ -97,7 +104,7 @@
 
 // For ServerDelegate:
 - (void)triangle:(screen_vertex *)v {
-    [self.backBuffer triangle:v];
+    [self.backBuffer triangle:v enableZbuffer:self.zbufferEnabled];
 }
 
 // For ServerDelegate:
@@ -106,18 +113,28 @@
 }
 
 // For ServerDelegate:
-- (void)qdevice:(long)device {
+- (void)qdevice:(uint32_t)device {
     [_eventQueue qdevice:device];
 }
 
 // For ServerDelegate:
-- (void)tie:(long)button val1:(long)val1 val2:(long)val2 {
+- (void)tie:(uint32_t)button val1:(uint32_t)val1 val2:(uint32_t)val2 {
     [_eventQueue tie:button val1:val1 val2:val2];
 }
 
 // For ServerDelegate:
-- (BOOL)getEvent:(long *)device value:(short *)value {
+- (BOOL)getEvent:(uint32_t *)device value:(uint16_t *)value {
     return [_eventQueue getEvent:device value:value];
+}
+
+// For ServerDelegate:
+- (void)zbuffer:(BOOL)enable {
+    self.zbufferEnabled = enable;
+}
+
+// For ServerDelegate:
+- (void)zclear {
+    [self.backBuffer zclear];
 }
 
 @end

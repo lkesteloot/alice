@@ -5,7 +5,9 @@
 // Single byte sent for each command to the GPU.
 typedef enum {
     // Graphics commands (to real FPGA).
+    COMMAND_ZBUFFER,
     COMMAND_CLEAR,
+    COMMAND_ZCLEAR,
     COMMAND_SWAPBUFFERS,
     COMMAND_TRIANGLE,
 

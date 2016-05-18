@@ -444,7 +444,7 @@ extern void	xfpt4i();
 extern void	xfpt4s();
 extern void	xfpti();
 extern void	xfpts();
-extern void	zbuffer();
+extern void	zbuffer(int enable);
 extern void	zclear();
 
 extern void glcompat(long mode, long value);

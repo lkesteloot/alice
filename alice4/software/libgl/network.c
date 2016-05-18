@@ -16,7 +16,7 @@
 
 static int socket_fd = -1;
 static int trace_network = 0;
-static unsigned char buffer[BUFFER_SIZE];
+static uint8_t buffer[BUFFER_SIZE];
 static int buffer_length = 0;
 
 // For connection.h.
@@ -44,7 +44,7 @@ void open_connection() {
 }
 
 // For connection.h.
-void send_byte(unsigned char b) {
+void send_uint8(uint8_t b) {
     if (socket_fd == -1) {
         fprintf(stderr, "Connection is not open.\n");
         exit(EXIT_FAILURE);
@@ -60,7 +60,7 @@ void send_byte(unsigned char b) {
     buffer[buffer_length++] = b;
 }
 
-unsigned char receive_byte() {
+uint8_t receive_uint8() {
     if (socket_fd == -1) {
         fprintf(stderr, "Connection is not open.\n");
         exit(EXIT_FAILURE);
@@ -68,7 +68,7 @@ unsigned char receive_byte() {
 
     flush();
 
-    unsigned char b;
+    uint8_t b;
     while (1) {
         int len = read(socket_fd, &b, 1);
         if (len == -1) {

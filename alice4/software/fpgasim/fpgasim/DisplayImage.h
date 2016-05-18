@@ -15,6 +15,7 @@
 @property (nonatomic,readonly) NSBitmapImageRep *rep;
 
 - (void)clear:(vec3ub)color;
-- (void)triangle:(screen_vertex *)v;
+- (void)zclear;
+- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer;
 
 @end

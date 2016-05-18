@@ -16,9 +16,11 @@
 - (void)swapBuffers;
 - (void)triangle:(screen_vertex *)v;
 - (NSPoint)getMousePosition;
-- (void)qdevice:(long)device;
-- (void)tie:(long)button val1:(long)val1 val2:(long)val2;
-- (BOOL)getEvent:(long *)device value:(short *)value;
+- (void)qdevice:(uint32_t)device;
+- (void)tie:(uint32_t)button val1:(uint32_t)val1 val2:(uint32_t)val2;
+- (BOOL)getEvent:(uint32_t *)device value:(uint16_t *)value;
+- (void)zbuffer:(BOOL)enable;
+- (void)zclear;
 
 @end
 

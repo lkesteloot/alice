@@ -11,15 +11,15 @@
 
 @interface QueuedDevice : NSObject
 
-@property (nonatomic) long device;
-@property (nonatomic) long val1;  // Optional for tie() command.
-@property (nonatomic) long val2;
+@property (nonatomic) uint32_t device;
+@property (nonatomic) uint32_t val1;  // Optional for tie() command.
+@property (nonatomic) uint32_t val2;
 
 @end
 
 @implementation QueuedDevice
 
-- (id)init:(long)device val1:(long)val1 val2:(long)val2 {
+- (id)init:(uint32_t)device val1:(uint32_t)val1 val2:(uint32_t)val2 {
     self = [super init];
 
     if (self) {
@@ -37,14 +37,14 @@
 
 @interface Event : NSObject
 
-@property (nonatomic) long device;
-@property (nonatomic) short value;
+@property (nonatomic) uint32_t device;
+@property (nonatomic) uint16_t value;
 
 @end
 
 @implementation Event
 
-- (id)init:(long)device value:(short)value {
+- (id)init:(uint32_t)device value:(uint16_t)value {
     self = [super init];
 
     if (self) {
@@ -78,7 +78,7 @@
     return self;
 }
 
-- (QueuedDevice *)getQueuedDevice:(long)device {
+- (QueuedDevice *)getQueuedDevice:(uint32_t)device {
     // Linear search is fine, we won't have that many of these.
     for (QueuedDevice *queuedDevice in _queuedDevices) {
 	if (queuedDevice.device == device) {
@@ -94,14 +94,14 @@
     _events = [NSMutableArray array];
 }
 
-- (void)qdevice:(long)device {
+- (void)qdevice:(uint32_t)device {
     QueuedDevice *queuedDevice = [self getQueuedDevice:device];
     if (queuedDevice == nil) {
 	[_queuedDevices addObject:[[QueuedDevice alloc] init:device val1:0 val2:0]];
     }
 }
 
-- (void)tie:(long)button val1:(long)val1 val2:(long)val2 {
+- (void)tie:(uint32_t)button val1:(uint32_t)val1 val2:(uint32_t)val2 {
     QueuedDevice *queuedDevice = [self getQueuedDevice:button];
     if (queuedDevice == nil) {
 	// Not sure if we're supposed to qdevice here.
@@ -112,7 +112,7 @@
     }
 }
 
-- (void)addEvent:(long)device value:(short)value mouseX:(short)x mouseY:(short)y {
+- (void)addEvent:(uint32_t)device value:(uint16_t)value mouseX:(uint16_t)x mouseY:(uint16_t)y {
     QueuedDevice *queuedDevice = [self getQueuedDevice:device];
     if (queuedDevice != nil) {
 	[_events addObject:[[Event alloc] init:device value:value]];
@@ -133,7 +133,7 @@
     }
 }
 
-- (BOOL)getEvent:(long *)device value:(short *)value {
+- (BOOL)getEvent:(uint32_t *)device value:(uint16_t *)value {
     if (_events.count == 0) {
 	return NO;
     } else {

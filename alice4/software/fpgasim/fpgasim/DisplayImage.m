@@ -17,8 +17,9 @@
 #define NUM_VERTICES 3
 
 @interface DisplayImage () {
+    uint8_t *data;
+    uint32_t *zbuffer;
     NSBitmapImageRep *rep;
-    unsigned char *data;
     NSGraphicsContext *context;
 }
 
@@ -30,7 +31,8 @@
     self = [super init];
 
     if (self) {
-	data = (unsigned char *) malloc(WIDTH*HEIGHT*4);
+	data = (uint8_t *) malloc(WIDTH*HEIGHT*4);
+	zbuffer = (uint32_t *) malloc(WIDTH*HEIGHT*sizeof(uint32_t));
 	rep = [self makeRepFromData];
 	context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
 
@@ -88,6 +90,15 @@
     NSRectFill(rect);
 }
 
+- (void)zclear {
+    uint32_t *p = zbuffer;
+    int count = WIDTH*HEIGHT;
+
+    while (count-- > 0) {
+	*p++ = 0xFFFFFFFF;
+    }
+}
+
 // Returns on which side of the line (a,b) is the vertex (x,y). Or, returns
 // twice the area of the triangle defined by the three vertices.
 int edgeFunction(screen_vertex *a, screen_vertex *b, int x, int y) {
@@ -110,7 +121,7 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     return a->y > b->y;
 }
 
-- (void)triangle:(screen_vertex *)vs {
+- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer {
     if (/* DISABLES CODE */ (NO)) {
 	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d), color (%d,%d,%d)",
 	      vs[0].x, vs[0].y,
@@ -180,30 +191,51 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     int bias1 = isTopLeft(&vs[2], &vs[0]) ? 0 : 1;
     int bias2 = isTopLeft(&vs[0], &vs[1]) ? 0 : 1;
 
-    unsigned char *row_pixel = &data[(minY*WIDTH + minX)*BYTES_PER_PIXEL];
+    uint8_t *row_pixel = &data[(minY*WIDTH + minX)*BYTES_PER_PIXEL];
+    uint32_t *row_zptr = &zbuffer[minY*WIDTH + minX];
     for (int y = minY; y <= maxY; y++) {
-	unsigned char *p = row_pixel;
+	uint8_t *p = row_pixel;
+	uint32_t *zptr = row_zptr;
 	int w0 = w0_row;
 	int w1 = w1_row;
 	int w2 = w2_row;
 
 	for (int x = minX; x <= maxX; x++) {
 	    if (w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
-		p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
-		p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
-		p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
+		BOOL drawPixel;
+		uint32_t z;
+
+		if (enableZbuffer) {
+		    z = (uint32_t)(((uint64_t)w0*vs[0].z + (uint64_t)w1*vs[1].z + (uint64_t)w2*vs[2].z)/area);
+		    drawPixel = z <= *zptr;
+		} else {
+		    // Not sure this is correct. The man page of zbuffer() says that it only affects writing.
+		    z = 0;
+		    drawPixel = YES;
+		}
+
+		if (drawPixel) {
+		    p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
+		    p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
+		    p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
+		    if (enableZbuffer) {
+			*zptr = z;
+		    }
+		}
 	    }
 
 	    w0 += x12;
 	    w1 += x20;
 	    w2 += x01;
 	    p += BYTES_PER_PIXEL;
+	    zptr++;
 	}
 
 	w0_row += y12;
 	w1_row += y20;
 	w2_row += y01;
 	row_pixel += STRIDE;
+	row_zptr += WIDTH;
     }
 #endif
 }

@@ -25,7 +25,7 @@ static vec3f current_normal = {1.0f, 1.0f, 1.0f};
 static vec4f current_position = {0.0f, 0.0f, 0.0f, 1.0};
 
 #define INPUT_QUEUE_SIZE 128
-static long input_queue_device[INPUT_QUEUE_SIZE];
+static uint32_t input_queue_device[INPUT_QUEUE_SIZE];
 static short input_queue_val[INPUT_QUEUE_SIZE];
 // The next time that needs to be read:
 static int input_queue_head = 0;
@@ -653,49 +653,49 @@ float clamp(float v)
 
 // Send a string as a length and the bytes. Max string length is 255.
 void send_string(char *s) {
-    send_byte(strlen(s));
+    send_uint8(strlen(s));
     while (*s != '\0') {
-        send_byte(*s);
+        send_uint8(*s);
         s++;
     }
 }
 
 // Little-endian.
-void send_ushort(unsigned short x) {
+void send_uint16(unsigned short x) {
     if (trace_network) {
         printf("Sending short %d\n", x);
     }
-    send_byte(x & 0xFF);
-    send_byte(x >> 8);
+    send_uint8(x & 0xFF);
+    send_uint8(x >> 8);
 }
 
 // Little-endian.
-void send_ulong(unsigned long x) {
+void send_uint32(uint32_t x) {
     if (trace_network) {
-        printf("Sending long %lu\n", x);
+        printf("Sending long %u\n", x);
     }
-    send_byte(x & 0xFF);
-    send_byte((x >> 8) & 0xFF);
-    send_byte((x >> 16) & 0xFF);
-    send_byte((x >> 24) & 0xFF);
+    send_uint8(x & 0xFF);
+    send_uint8((x >> 8) & 0xFF);
+    send_uint8((x >> 16) & 0xFF);
+    send_uint8((x >> 24) & 0xFF);
 }
 
 // Little-endian.
-unsigned short receive_ushort() {
-    unsigned char low = receive_byte();
-    unsigned char high = receive_byte();
+unsigned short receive_uint16() {
+    unsigned char low = receive_uint8();
+    unsigned char high = receive_uint8();
 
     return high*256 + low;
 }
 
 // Little-endian.
-unsigned long receive_ulong() {
+uint32_t receive_uint32() {
     long value = 0;
 
-    value |= receive_byte() << 0;
-    value |= receive_byte() << 8;
-    value |= receive_byte() << 16;
-    value |= receive_byte() << 24;
+    value |= receive_uint8() << 0;
+    value |= receive_uint8() << 8;
+    value |= receive_uint8() << 16;
+    value |= receive_uint8() << 24;
 
     return value;
 }
@@ -820,17 +820,18 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
 }
 
 void send_screen_vertex(screen_vertex *sv) {
-    send_ushort(sv->x);
-    send_ushort(sv->y);
-    send_byte(sv->r);
-    send_byte(sv->g);
-    send_byte(sv->b);
-    send_byte(sv->a);
+    send_uint16(sv->x);
+    send_uint16(sv->y);
+    send_uint32(sv->z);
+    send_uint8(sv->r);
+    send_uint8(sv->g);
+    send_uint8(sv->b);
+    send_uint8(sv->a);
 }
 
 void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    send_byte(COMMAND_TRIANGLE);
+    send_uint8(COMMAND_TRIANGLE);
     send_screen_vertex(s0);
     send_screen_vertex(s1);
     send_screen_vertex(s2);
@@ -1378,9 +1379,9 @@ void backface() {
 // XXX display list
 void clear() { 
     if(trace_functions) printf("%*sclear\n", indent, "");
-    send_byte(COMMAND_CLEAR);
+    send_uint8(COMMAND_CLEAR);
     for(int i = 0; i < 3; i++)
-        send_byte((int)(current_color[i] * 255.0));
+        send_uint8((int)(current_color[i] * 255.0));
 }
 
 void closeobj() { 
@@ -1478,9 +1479,9 @@ void getsize(long *width, long *height) {
 }
 
 long getvaluator(long device) { 
-    send_byte(COMMAND_GET_VALUATOR);
-    send_ulong(device);
-    return receive_ulong();
+    send_uint8(COMMAND_GET_VALUATOR);
+    send_uint32(device);
+    return receive_uint32();
 }
 
 void gflush() {
@@ -1684,21 +1685,21 @@ void qdevice(long device) {
 
         default:
             // Send the device to the server.
-            send_byte(COMMAND_QDEVICE);
-            send_ulong(device);
+            send_uint8(COMMAND_QDEVICE);
+            send_uint32(device);
             break;
     }
 }
 
 void fetch_event_queue(int blocking) {
-    send_byte(COMMAND_QREAD);
-    send_byte(blocking);
+    send_uint8(COMMAND_QREAD);
+    send_uint8(blocking);
 
     // First is number of events.
-    int count = receive_byte();
+    int count = receive_uint8();
     for (int i = 0; i < count; i++) {
-        long device = receive_ulong();
-        long value = receive_ushort();
+        long device = receive_uint32();
+        long value = receive_uint16();
         enqueue_device(device, value);
     }
 }
@@ -1821,7 +1822,7 @@ void shademodel(long mode) {
 
 void swapbuffers() { 
     if(trace_functions) printf("%*sswapbuffers\n", indent, "");
-    send_byte(COMMAND_SWAPBUFFERS);
+    send_uint8(COMMAND_SWAPBUFFERS);
     flush();
 }
 
@@ -1872,7 +1873,7 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
 long winopen(char *title) {
     if(trace_functions) printf("%*swinopen %s\n", indent, "", title);
     open_connection();
-    send_byte(COMMAND_WINOPEN);
+    send_uint8(COMMAND_WINOPEN);
     send_string(title);
     return 1;
 }
@@ -2207,10 +2208,10 @@ void scale(float x, float y, float z) {
 }
 
 void tie(long button, long val1, long val2) {
-    send_byte(COMMAND_TIE);
-    send_ulong(button);
-    send_ulong(val1);
-    send_ulong(val2);
+    send_uint8(COMMAND_TIE);
+    send_uint32(button);
+    send_uint32(val1);
+    send_uint32(val2);
 }
 
 void v3f(float v[3]) {
@@ -2307,12 +2308,15 @@ void lsetdepth() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void zbuffer() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+// XXX display list
+void zbuffer(int enable) {
+    send_uint8(COMMAND_ZBUFFER);
+    send_uint8(enable);
 }
 
+// XXX display list
 void zclear() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    send_uint8(COMMAND_ZCLEAR);
 }
 
 static void init_gl_state() __attribute__((constructor));

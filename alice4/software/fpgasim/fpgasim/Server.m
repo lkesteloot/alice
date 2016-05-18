@@ -16,7 +16,7 @@
 
 #define PORT 25423
 #define MAX_BUFFER 128
-#define BYTES_PER_VERTEX 8
+#define BYTES_PER_VERTEX 12
 
 typedef enum {
     STATE_COMMAND,              // Expecting command byte.
@@ -24,15 +24,16 @@ typedef enum {
     STATE_WINOPEN_TITLE,	// Expecting next title byte.
     STATE_CLEAR,		// Expecting clear color.
     STATE_TRIANGLE,		// Expecting three vertices.
-    STATE_GET_VALUATOR,		// Expecting unsigned long for device.
-    STATE_QDEVICE,		// Expecting unsigned long for device.
-    STATE_TIE,			// Expecting three unsigned longs for button, val1, and val2.
+    STATE_GET_VALUATOR,		// Expecting uint32_t for device.
+    STATE_QDEVICE,		// Expecting uint32_t for device.
+    STATE_TIE,			// Expecting three uint32_t for button, val1, and val2.
     STATE_QREAD,		// Expecting byte to mean blocking.
+    STATE_ZBUFFER,		// Expecting byte to mean enable.
 } State;
 
 @interface Server () {
     // For getting bytes from client.
-    unsigned char buffer[MAX_BUFFER];
+    uint8_t buffer[MAX_BUFFER];
     int bufferLength;
     int bytesLeft;
 
@@ -324,6 +325,14 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    [self expectBytes:1 forState:STATE_QREAD];
 		    break;
 
+		case COMMAND_ZBUFFER:
+		    [self expectBytes:1 forState:STATE_ZBUFFER];
+		    break;
+
+		case COMMAND_ZCLEAR:
+		    [self.delegate zclear];
+		    break;
+
 		default:
 		    // Problem. Reset.
 		    NSLog(@"Got unknown command byte %02x", (int)b);
@@ -358,8 +367,8 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 
 	case STATE_GET_VALUATOR:
 	    {
-		unsigned long device = [self bytesToLong:buffer];
-		unsigned long value;
+		uint32_t device = [self bytesToUInt32:buffer];
+		uint32_t value;
 		NSPoint mousePosition = [self.delegate getMousePosition];
 		switch (device) {
 		    case MOUSEX:
@@ -374,24 +383,29 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 			value = 0;
 			break;
 		}
-		[self writeLong:value];
+		[self writeUInt32:value];
 		[self writeBuffer];
 		self.state = STATE_COMMAND;
 	    }
 	    break;
 
 	case STATE_QDEVICE:
-	    [self.delegate qdevice:[self bytesToLong:buffer]];
+	    [self.delegate qdevice:[self bytesToUInt32:buffer]];
 	    self.state = STATE_COMMAND;
 	    break;
 
 	case STATE_TIE:
-	    [self.delegate tie:[self bytesToLong:buffer] val1:[self bytesToLong:buffer + 4] val2:[self bytesToLong:buffer + 8]];
+	    [self.delegate tie:[self bytesToUInt32:buffer] val1:[self bytesToUInt32:buffer + 4] val2:[self bytesToUInt32:buffer + 8]];
 	    self.state = STATE_COMMAND;
 	    break;
 
 	case STATE_QREAD:
 	    [self qreadBlocking:(BOOL)buffer[0]];
+	    self.state = STATE_COMMAND;
+	    break;
+
+	case STATE_ZBUFFER:
+	    [self.delegate zbuffer:(BOOL)buffer[0]];
 	    self.state = STATE_COMMAND;
 	    break;
 
@@ -413,30 +427,31 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     [self.delegate triangle:v];
 }
 
-- (void)unpackScreenVertex:(screen_vertex *)v fromBuffer:(unsigned char *)b {
-    v->x = [self bytesToShort:b];
-    v->y = [self bytesToShort:b + 2];
-    v->r = b[4];
-    v->g = b[5];
-    v->b = b[6];
-    v->a = b[7];
+- (void)unpackScreenVertex:(screen_vertex *)v fromBuffer:(uint8_t *)b {
+    v->x = [self bytesToUInt16:b];
+    v->y = [self bytesToUInt16:b + 2];
+    v->z = [self bytesToUInt32:b + 4];
+    v->r = b[8];
+    v->g = b[9];
+    v->b = b[10];
+    v->a = b[11];
 }
 
 - (void)qreadBlocking:(BOOL)blocking {
-    long device;
-    short value;
+    uint32_t device;
+    uint16_t value;
     BOOL haveEvent = [self.delegate getEvent:&device value:&value];
 
     if (haveEvent) {
-	[self writeByte:1];
-	[self writeLong:device];
-	[self writeShort:value];
+	[self writeUInt8:1];
+	[self writeUInt32:device];
+	[self writeUInt16:value];
     } else {
 	if (blocking) {
 	    // XXX Not handled. Should not reply and wait until an event is available.
-	    [self writeByte:0];
+	    [self writeUInt8:0];
 	} else {
-	    [self writeByte:0];
+	    [self writeUInt8:0];
 	}
     }
     [self writeBuffer];
@@ -454,27 +469,27 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
     return [[NSString alloc] initWithBytes:buffer length:bufferLength encoding:NSASCIIStringEncoding];
 }
 
-- (unsigned short)bytesToShort:(unsigned char *)b {
+- (uint16_t)bytesToUInt16:(uint8_t *)b {
     return b[0] | (b[1] << 8);
 }
 
-- (unsigned long)bytesToLong:(unsigned char *)b {
+- (uint32_t)bytesToUInt32:(uint8_t *)b {
     return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
 }
 
-- (void)writeLong:(unsigned long)value {
-    [self writeByte:(value >> 0) & 0xFF];
-    [self writeByte:(value >> 8) & 0xFF];
-    [self writeByte:(value >> 16) & 0xFF];
-    [self writeByte:(value >> 24) & 0xFF];
+- (void)writeUInt32:(uint32_t)value {
+    [self writeUInt8:(value >> 0) & 0xFF];
+    [self writeUInt8:(value >> 8) & 0xFF];
+    [self writeUInt8:(value >> 16) & 0xFF];
+    [self writeUInt8:(value >> 24) & 0xFF];
 }
 
-- (void)writeShort:(unsigned short)value {
-    [self writeByte:(value >> 0) & 0xFF];
-    [self writeByte:(value >> 8) & 0xFF];
+- (void)writeUInt16:(uint16_t)value {
+    [self writeUInt8:(value >> 0) & 0xFF];
+    [self writeUInt8:(value >> 8) & 0xFF];
 }
 
-- (void)writeByte:(unsigned char)value {
+- (void)writeUInt8:(uint8_t)value {
     [outputBuffer appendBytes:&value length:1];
 }
 
