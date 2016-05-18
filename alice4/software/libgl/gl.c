@@ -1151,6 +1151,8 @@ typedef struct element
         COLOR,
         POLF,
         POLF2I,
+        CLEAR,
+        CIRCI,
         PUSHMATRIX,
         POPMATRIX,
         ROTATE,
@@ -1174,6 +1176,10 @@ typedef struct element
 
     union
     {
+        struct {
+            Icoord x, y, r;
+        } circi;
+
         struct {
             short target;
             long index;
@@ -1408,6 +1414,12 @@ void callobj(Object obj) {
                 case POPMATRIX:
                     popmatrix();
                     break;
+                case CIRCI:
+                    circi(p->circi.x, p->circi.y, p->circi.r);
+                    break;
+                case CLEAR:
+                    clear();
+                    break;
                 case PUSHMATRIX:
                     pushmatrix();
                     break;
@@ -1452,6 +1464,9 @@ void callobj(Object obj) {
                 case TAG:
                     if(trace_functions) printf("%*stag %ld\n", indent, "", p->tag.tag);
                     break;
+                default:
+                    printf("encountered unknown Object type, %s:%d\n", __FILE__, __LINE__);
+                    abort();
             }
             p = p->next;
         }
@@ -1463,12 +1478,16 @@ void backface() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-// XXX display list
 void clear() { 
-    if(trace_functions) printf("%*sclear\n", indent, "");
-    send_uint8(COMMAND_CLEAR);
-    for(int i = 0; i < 3; i++)
-        send_uint8((int)(current_color[i] * 255.0));
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = CLEAR;
+    } else {
+        if(trace_functions) printf("%*sclear();\n", indent, "");
+        send_uint8(COMMAND_CLEAR);
+        for(int i = 0; i < 3; i++)
+            send_uint8((int)(current_color[i] * 255.0));
+    }
 }
 
 void closeobj() { 
@@ -2505,8 +2524,42 @@ void charstr(char *str) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
+#define CIRCLE_SEGMENTS 80
+static float circle_verts[CIRCLE_SEGMENTS][2];
+
 void circi(Icoord x, Icoord y, Icoord r) {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object();
+        e->type = CIRCI;
+        e->circi.x = x;
+        e->circi.y = y;
+        e->circi.r = r;
+    } else {
+        if(trace_functions) printf("%*scirci(%ld, %ld, %ld);\n", indent, "", x, y, r);
+        world_vertex v0, v1;
+
+        vec3f_copy(v0.color, current_color);
+        vec3f_copy(v1.color, current_color);
+
+        int save_lighting = lighting_enabled;
+        lighting_enabled = 0;
+
+        v0.coord[2] = 0.0;
+        v0.coord[3] = 1.0;
+        v1.coord[2] = 0.0;
+        v1.coord[3] = 1.0;
+
+        for(int i = 0; i < CIRCLE_SEGMENTS; i++) {  
+            v0.coord[0] = x + r * circle_verts[i][0];
+            v0.coord[1] = y + r * circle_verts[i][1];
+            v1.coord[0] = x + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][0];
+            v1.coord[1] = y + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][1];
+
+            process_line(&v0, &v1);
+        }
+
+        lighting_enabled = save_lighting;
+    }
 }
 
 void cmov2i(Icoord x, Icoord y) {
@@ -2596,4 +2649,10 @@ static void init_gl_state()
 
     for(int i = 0; i < MAX_LIGHTS; i++)
         lights_bound[i] = NULL;
+
+    for(int i = 0; i < CIRCLE_SEGMENTS; i++) {
+        float a = i * M_PI * 2 / CIRCLE_SEGMENTS;
+        circle_verts[i][0] = cos(a);
+        circle_verts[i][1] = sin(a);
+    }
 }
