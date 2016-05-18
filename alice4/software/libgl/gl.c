@@ -1960,10 +1960,10 @@ void RGBcolor(long r, long g, long b) {
         e->rgbcolor.b = b;
     } else {
         if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
-        current_color[0] = r;
-        current_color[1] = g;
-        current_color[2] = b;
-        current_color[3] = 255;
+        current_color[0] = r/255.0;
+        current_color[1] = g/255.0;
+        current_color[2] = b/255.0;
+        current_color[3] = 1.0;
     }
 }
 
@@ -2376,7 +2376,6 @@ void v3f(float v[3]) {
         world_vertex *wv = polygon_verts + polygon_vert_count;
         vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
         vec4f_copy(wv->color, current_color);
-        vec4f_set(wv->color, 1, 0, 0, 1);
         vec3f_copy(wv->normal, current_normal);
         polygon_vert_count++;
     }
