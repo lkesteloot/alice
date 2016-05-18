@@ -721,14 +721,6 @@ typedef struct lit_vertex
     vec4f color;
 } lit_vertex;
 
-typedef struct screen_vertex_hd
-{
-    uint32_t x, y;
-    uint32_t z;
-    uint8_t r, g, b, a;
-} screen_vertex_hd;
-
-
 void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
 {
     vec3f color;
@@ -808,34 +800,6 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     // vec4f_print("Lit", lv->coord);
 }
 
-void project_vertex_hd(lit_vertex *lv, screen_vertex_hd *sv)
-{
-    // XXX could pre-compute
-    int viewport_width = the_viewport[1] - the_viewport[0] + 1;
-    int viewport_height = the_viewport[3] - the_viewport[2] + 1;
-
-    float xndc, yndc, zndc;
-    xndc = lv->coord[0] / lv->coord[3];
-    yndc = lv->coord[1] / lv->coord[3];
-    zndc = lv->coord[2] / lv->coord[3];
-    // printf("ndc: %g %g %g\n", xndc, yndc, zndc);
-
-    float xw, yw, zw;
-    // XXX could pre-compute half width and height
-    xw = viewport_width / 2.0 * xndc + (the_viewport[0] + viewport_width / 2.0);
-    yw = viewport_height / 2.0 * yndc + (the_viewport[2] + viewport_height / 2.0);
-    zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
-    // printf("Viewport: %g %g\n", xw, yw);
-
-    sv->x = clamp(xw, 0, DISPLAY_WIDTH - 1) * 65536;
-    sv->y = clamp(yw, 0, DISPLAY_HEIGHT - 1) * 65536;
-    sv->z = zw * 0xffffffff;
-    sv->r = unitclamp(lv->color[0]) * 255;
-    sv->g = unitclamp(lv->color[1]) * 255;
-    sv->b = unitclamp(lv->color[2]) * 255;
-    sv->a = unitclamp(lv->color[3]) * 255;
-}
-
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
 {
     // XXX could pre-compute
@@ -855,8 +819,8 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
     zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
     // printf("Viewport: %g %g\n", xw, yw);
 
-    sv->x = clamp(xw, 0, DISPLAY_WIDTH - 1);
-    sv->y = clamp(yw, 0, DISPLAY_HEIGHT - 1);
+    sv->x = clamp(xw, 0, DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE;
+    sv->y = clamp(yw, 0, DISPLAY_HEIGHT - 1) * SCREEN_VERTEX_V2_SCALE;
     sv->z = zw * 0xffffffff;
     sv->r = unitclamp(lv->color[0]) * 255;
     sv->g = unitclamp(lv->color[1]) * 255;
@@ -865,8 +829,8 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
 }
 
 void send_screen_vertex(screen_vertex *sv) {
-    send_uint16(sv->x);
-    send_uint16(sv->y);
+    send_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
+    send_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
     send_uint32(sv->z);
     send_uint8(sv->r);
     send_uint8(sv->g);
@@ -877,6 +841,7 @@ void send_screen_vertex(screen_vertex *sv) {
 void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
     send_uint8(COMMAND_TRIANGLE);
+
     send_screen_vertex(s0);
     send_screen_vertex(s1);
     send_screen_vertex(s2);
@@ -1074,11 +1039,17 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     return n;
 }
 
+void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
+{
+    v->x = clamp(v->x + dx, 0, (DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE);
+    v->y = clamp(v->y + dy, 0, (DISPLAY_HEIGHT - 1) * SCREEN_VERTEX_V2_SCALE);
+}
+
 void process_line(world_vertex *wv0, world_vertex *wv1)
 {
     static lit_vertex litverts[2], *vp;
     static lit_vertex clipped[2];
-    static screen_vertex_hd screenverts[2];
+    static screen_vertex screenverts[2];
 
     transform_and_light_vertex(wv0, &litverts[0]);
     transform_and_light_vertex(wv1, &litverts[1]);
@@ -1092,45 +1063,30 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
         vp = clipped;
     }
 
-    project_vertex_hd(&vp[0], &screenverts[0]);
-    project_vertex_hd(&vp[1], &screenverts[1]);
+    project_vertex(&vp[0], &screenverts[0]);
+    project_vertex(&vp[1], &screenverts[1]);
 
 // Fake this with screen quads until rasterizer implements lines
     float dx = (screenverts[1].x - screenverts[0].x);
     float dy = (screenverts[1].y - screenverts[0].y);
     float d = sqrt(dx * dx + dy * dy);
 
-    dx = dx / d * 65536;
-    dy = dy / d * 65536;
+    dx = dx / d * SCREEN_VERTEX_V2_SCALE;
+    dy = dy / d * SCREEN_VERTEX_V2_SCALE;
 
-    screen_vertex_hd q[4];
+    screen_vertex q[4];
     q[0] = screenverts[0];
     q[1] = screenverts[0];
     q[2] = screenverts[1];
     q[3] = screenverts[1];
 
-    q[0].x = clamp(q[0].x +  dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
-    q[0].y = clamp(q[0].y + -dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
-    q[1].x = clamp(q[1].x + -dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
-    q[1].y = clamp(q[1].y +  dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
-    q[2].x = clamp(q[2].x + -dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
-    q[2].y = clamp(q[2].y +  dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
-    q[3].x = clamp(q[3].x +  dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
-    q[3].y = clamp(q[3].y + -dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
+    screen_vertex_offset_with_clamp(&q[0],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
+    screen_vertex_offset_with_clamp(&q[1], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
+    screen_vertex_offset_with_clamp(&q[2], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
+    screen_vertex_offset_with_clamp(&q[3],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
 
-    screen_vertex linequad[4];
-    for(int i = 0; i < 4; i++) {
-        linequad[i].x = q[i].x / 65536;
-        linequad[i].y = q[i].y / 65536;
-        linequad[i].z = q[i].z;
-        linequad[i].r = q[i].r;
-        linequad[i].g = q[i].g;
-        linequad[i].b = q[i].b;
-        linequad[i].a = q[i].a;
-    }
-
-    process_triangle(&linequad[0], &linequad[1], &linequad[2]);
-    process_triangle(&linequad[2], &linequad[3], &linequad[0]);
+    process_triangle(&q[0], &q[1], &q[2]);
+    process_triangle(&q[2], &q[3], &q[0]);
 }
 
 void process_polygon(long n, world_vertex *worldverts)

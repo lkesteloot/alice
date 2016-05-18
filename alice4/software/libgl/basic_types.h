@@ -17,4 +17,6 @@ typedef struct screen_vertex
     uint8_t r, g, b, a;
 } screen_vertex;
 
+#define SCREEN_VERTEX_V2_SCALE 32
+
 #endif // __BASIC_TYPES_H__
