@@ -1,4 +1,0 @@
-#! /bin/csh -f
-/usr/demos/bin/jello
-
-journalplay /usr/demos/data/journal/jello.j

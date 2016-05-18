@@ -3,6 +3,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gl.h>
 #include <math.h>
 #include <device.h>
@@ -204,6 +206,8 @@ Atom *a1, *a2, *a3;
     new->vertex[0] = a1;
     new->vertex[1] = a2;
     new->vertex[2] = a3;
+
+    return new;
 }
 
 Poly *new_polygon() {
@@ -523,7 +527,7 @@ Atom *atom;
 		atom->acc[X] = grav_vec[X];
 		atom->acc[Y] = grav_vec[Y];
 		atom->acc[Z] = grav_vec[Z];
-	    } while (atom = atom->next);
+	    } while ((atom = atom->next) != NULL);
 	}
 }
 
@@ -569,7 +573,7 @@ Conec *conec;
 		conec->tu->acc[Y] += ay;
 		conec->tu->acc[Z] += az;
 
-	} while (conec = conec->next);
+	} while ((conec = conec->next) != NULL);
 }
 
 
@@ -614,7 +618,7 @@ Atom *atom;
 	    atom->vel[Y] *= fric;
 	}
 
-    } while (atom = atom->next);
+    } while ((atom = atom->next) != NULL);
 }
 
 
@@ -633,7 +637,7 @@ Atom *atom;
 		atom->vel[Z] *= damp;
 
 
-	    } while (atom = atom->next);
+	    } while ((atom = atom->next) != NULL);
 	}
 }
 
@@ -648,7 +652,7 @@ Atom *atom;
 		atom->pos[Y] += atom->vel[Y];
 		atom->pos[Z] += atom->vel[Z];
 
-	    } while (atom = atom->next);
+	    } while ((atom = atom->next) != NULL);
 	}
 }
 
@@ -1023,7 +1027,7 @@ find_surface()
 
 	do {
 	    if (conec->from == atom || conec->tu == atom) i++;
-	} while (conec = conec->next);
+	} while ((conec = conec->next) != NULL);
 
 	if (i<12) {
 	    atom->surf = surface_atoms;
@@ -1032,35 +1036,35 @@ find_surface()
 	    atom->center = TRUE;
 	}
 
-    } while (atom = atom->next);
+    } while ((atom = atom->next) != NULL);
 
     a1 = surface_atoms;
 
     do {
 
 	a2 = a1;
-	while (a2 = a2->surf) {
+	while ((a2 = a2->surf) != NULL) {
 
 	    a3 = a2;
-	    while (a3 = a3->surf) {
+	    while ((a3 = a3->surf) != NULL) {
 
 		c1 = jello_conec;
 		do {
 
-		    if (c1->from==a1 && c1->tu==a2 || 
-			c1->tu==a1 && c1->from==a2) {
+		    if ((c1->from==a1 && c1->tu==a2) ||
+			(c1->tu==a1 && c1->from==a2)) {
 
 			c2 = jello_conec;
 			do {
 
-			    if (c2->from==a2 && c2->tu==a3 ||
-				c2->tu==a2 && c2->from==a3) {
+			    if ((c2->from==a2 && c2->tu==a3) ||
+				(c2->tu==a2 && c2->from==a3)) {
 
 				c3 = jello_conec;
 				do {
 
-				    if (c3->from==a3 && c3->tu==a1 ||
-					c3->tu==a3 && c3->from==a1) {
+				    if ((c3->from==a3 && c3->tu==a1) ||
+					(c3->tu==a3 && c3->from==a1)) {
 
 					triangle =
 					new_triangle(triangle, a1,
@@ -1068,15 +1072,15 @@ find_surface()
 
 					face_right(triangle);
 				    }
-				} while (c3=c3->next);
+				} while ((c3=c3->next) != NULL);
 			    }
-			} while (c2=c2->next);
+			} while ((c2=c2->next) != NULL);
 		    }
-		} while (c1=c1->next);
+		} while ((c1=c1->next) != NULL);
 	    }
 	}
 
-    } while (a1 = a1->surf);
+    } while ((a1 = a1->surf) != NULL);
 
     surface_triangles = triangle;
 }
@@ -1089,7 +1093,7 @@ Atom *atom;
 
 	if (atom) do {
 	    pnt(atom->pos[X], atom->pos[Y], atom->pos[Z]);
-	} while (atom = atom->next);
+	} while ((atom = atom->next) != NULL);
 
 }
 
@@ -1101,7 +1105,7 @@ Atom *atom;
 
 	if (atom) do {
 	    pnt(atom->pos[X], atom->pos[Y], atom->pos[Z]);
-	} while (atom = atom->surf);
+	} while ((atom = atom->surf) != NULL);
 
 }
 
@@ -1153,7 +1157,7 @@ Triangle *triangle;
 
 	polf(3, polygon);
 
-    } while (triangle=triangle->next);
+    } while ((triangle=triangle->next) != NULL);
 
 }
 
@@ -1183,7 +1187,7 @@ Triangle *triangle;
 
 	pclos();
 
-    } while (triangle=triangle->next);
+    } while ((triangle=triangle->next) != NULL);
 
     setpattern(0);
 }
@@ -1227,7 +1231,7 @@ Triangle *triangle;
 
 	pclos();
 
-    } while (triangle=triangle->next);
+    } while ((triangle=triangle->next) != NULL);
 
 }
 
@@ -1247,7 +1251,7 @@ Conec *conec;
 	     conec->tu->pos[Y],
 	     conec->tu->pos[Z]);
 
-    } while (conec = conec->next);
+    } while ((conec = conec->next) != NULL);
 }
 
 

@@ -1926,6 +1926,10 @@ void c3f(float c[3]) {
     }
 }
 
+long defpup(char *menu) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 long dopup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
@@ -1941,6 +1945,47 @@ void endpolygon() {
 }
 
 void freepup() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void draw(Coord x, Coord y, Coord z) {
+    world_vertex v0, v1;
+    vec4f_copy(v0.coord, current_position);
+    vec3f_copy(v0.color, current_color);
+
+    current_position[0] = x;
+    current_position[1] = y;
+    current_position[2] = z;
+
+    vec4f_copy(v1.coord, current_position);
+    vec3f_copy(v1.color, current_color);
+
+    int save_lighting = lighting_enabled;
+    lighting_enabled = 0;
+    process_line(&v0, &v1);
+    lighting_enabled = save_lighting;
+}
+
+void pclos() {
+    endpolygon();
+}
+
+void pmv(Coord x, Coord y, Coord z) {
+    bgnpolygon();
+    pdr(x, y, z);
+}
+
+void pdr(Coord x, Coord y, Coord z) {
+    vec3f p;
+
+    p[0] = x;
+    p[1] = y;
+    p[2] = z;
+
+    v3f(p);
+}
+
+void pnt(Coord x, Coord y, Coord z) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2137,6 +2182,10 @@ void mmode(long mode) {
             case MPROJECTION: current_stack = &projection_stack; break;
         }
     }
+}
+
+void move(Coord x, Coord y, Coord z) {
+    vec4f_set(current_position, x, y, z, 1.0);
 }
 
 void move2i(Icoord x, Icoord y) {
