@@ -630,7 +630,7 @@ static lmodel lmodels[MAX_LMODELS];
 
 static short the_linewidth = 1;
 static int lighting_enabled = 0;
-static int normalize_enabled = 0;
+static int normalize_enabled = 1;
 static material *material_bound = NULL;
 static light *lights_bound[MAX_LIGHTS];
 static lmodel *lmodel_bound = NULL;
@@ -716,6 +716,14 @@ typedef struct lit_vertex
     vec4f color;
 } lit_vertex;
 
+typedef struct screen_vertex_hd
+{
+    uint32_t x, y;
+    uint32_t z;
+    uint8_t r, g, b, a;
+} screen_vertex_hd;
+
+
 void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
 {
     vec3f color;
@@ -746,15 +754,17 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
             h[2] = vertex_to_light[2] + 1;
             h[3] = 0;
             vec4f_normalize(h, h);
-            float spec_part = powf(vec3f_dot(normal, h), mtl->shininess);
-            vec3f_mult(mtl->specular, l->color, t1);
-            vec3f_scale(t1, spec_part, t1);
-            vec3f_add(t1, color, color);
+            float n_dot_h = vec3f_dot(normal, h);
+            if(n_dot_h > 0.0) {
+                float spec_part = powf(n_dot_h, mtl->shininess);
+                vec3f_mult(mtl->specular, l->color, t1);
+                vec3f_scale(t1, spec_part, t1);
+                vec3f_add(t1, color, color);
+            }
         }
     }
     vec4f_set(color_, color[0], color[1], color[2], mtl->alpha);
 }
-
 
 void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
 {
@@ -764,7 +774,6 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
     // matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
     if(lighting_enabled) {
-        vec3f_mult_matrix4x4f(wv->normal, matrix4x4f_stack_get_inverse(&modelview_stack), normal);
         vec3f_mult_matrix4x4f(wv->normal, matrix4x4f_stack_get_inverse(&modelview_stack), normal);
 
         if(normalize_enabled)
@@ -789,6 +798,34 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     // vec4f_print("Object", wv->coord);
     // vec4f_print("World", tv);
     // vec4f_print("Lit", lv->coord);
+}
+
+void project_vertex_hd(lit_vertex *lv, screen_vertex_hd *sv)
+{
+    // XXX could pre-compute
+    int viewport_width = the_viewport[1] - the_viewport[0] + 1;
+    int viewport_height = the_viewport[3] - the_viewport[2] + 1;
+
+    float xndc, yndc, zndc;
+    xndc = lv->coord[0] / lv->coord[3];
+    yndc = lv->coord[1] / lv->coord[3];
+    zndc = lv->coord[2] / lv->coord[3];
+    // printf("ndc: %g %g %g\n", xndc, yndc, zndc);
+
+    float xw, yw, zw;
+    // XXX could pre-compute half width and height
+    xw = viewport_width / 2.0 * xndc + (the_viewport[0] + viewport_width / 2.0);
+    yw = viewport_height / 2.0 * yndc + (the_viewport[2] + viewport_height / 2.0);
+    zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
+    // printf("Viewport: %g %g\n", xw, yw);
+
+    sv->x = xw * 65536;
+    sv->y = yw * 65536;
+    sv->z = zw * 0xffffffff;
+    sv->r = clamp(lv->color[0]) * 255;
+    sv->g = clamp(lv->color[1]) * 255;
+    sv->b = clamp(lv->color[2]) * 255;
+    sv->a = clamp(lv->color[3]) * 255;
 }
 
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
@@ -849,8 +886,10 @@ enum {
 
 enum {
     CLIP_TRIVIAL_REJECT = 0,
-    CLIP_TRIVIAL_ACCEPT = -1,
+    CLIP_TRIVIAL_ACCEPT = -1, // If clip_polygon_against_plane() returns this, it stored nothing in "output".
 };
+
+#define CLIP_EPSILON .001
 
 long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
 {
@@ -883,11 +922,16 @@ long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_verte
             output[n2++] = *v0;
         }
 
-        float t = (-p0 + w0) / (-p0 + p1 + w0 - w1);
-        if(t > 0.0001 && t < .9999) {
-            vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
-            vec4f_blend(v0->color, v1->color, t, output[n2].color);
-            n2++;
+        if((p0 < w0 && p1 > w1) || (p0 > w0 && p1 < w1)) {
+            float denom = -p0 + p1 + w0 - w1;
+            if(fabs(denom) > CLIP_EPSILON) {
+                float t = (-p0 + w0) / denom;
+                if(t > 0.001 && t < .999) {
+                    vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
+                    vec4f_blend(v0->color, v1->color, t, output[n2].color);
+                    n2++;
+                }
+            }
         }
     }
     return n2;
@@ -934,9 +978,9 @@ long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
     if(n == 0) return 0;
     n = clip_polygon_against_plane(CLIP_POS_Y, n, tmp, output);
     if(n == 0) return 0;
-    n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
-    if(n == 0) return 0;
     n = clip_polygon_against_plane(CLIP_POS_Z, n, tmp, output);
+    if(n == 0) return 0;
+    n = clip_polygon_against_plane(CLIP_NEG_Z, n, output, tmp);
 
     return n;
 }
@@ -946,7 +990,7 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
 {
     static lit_vertex litverts[2], *vp;
     static lit_vertex clipped[2];
-    static screen_vertex screenverts[2];
+    static screen_vertex_hd screenverts[2];
 
     transform_and_light_vertex(wv0, &litverts[0]);
     transform_and_light_vertex(wv1, &litverts[1]);
@@ -964,39 +1008,40 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     vp = litverts;
 #endif
 
-    project_vertex(&vp[0], &screenverts[0]);
-    project_vertex(&vp[1], &screenverts[1]);
+    project_vertex_hd(&vp[0], &screenverts[0]);
+    project_vertex_hd(&vp[1], &screenverts[1]);
 
     float dx = screenverts[1].x - screenverts[0].x;
     float dy = screenverts[1].y - screenverts[0].y;
     float d = sqrt(dx * dx + dy * dy);
 
-    dx /= d;
-    dy /= d;
+    dx = dx * 65536 / d;
+    dy = dy * 65536 / d;
+
+    screen_vertex_hd linequad_hd[4];
+    linequad_hd[0] = screenverts[0];
+    linequad_hd[1] = screenverts[0];
+    linequad_hd[2] = screenverts[1];
+    linequad_hd[3] = screenverts[1];
+
+    linequad_hd[0].x += -dx * .5 + dy * the_linewidth * .5;
+    linequad_hd[0].y += -dy * .5 + -dx * the_linewidth * .5;
+    linequad_hd[1].x += -dx * .5 + -dy * the_linewidth * .5;
+    linequad_hd[1].y += -dy * .5 + dx * the_linewidth * .5;
+    linequad_hd[2].x += -dx * .5 + -dy * the_linewidth * .5;
+    linequad_hd[2].y += -dy * .5 + dx * the_linewidth * .5;
+    linequad_hd[3].x += -dx * .5 + dy * the_linewidth * .5;
+    linequad_hd[3].y += -dy * .5 + -dx * the_linewidth * .5;
 
     screen_vertex linequad[4];
-    linequad[0] = screenverts[0];
-    linequad[1] = screenverts[0];
-    linequad[2] = screenverts[1];
-    linequad[3] = screenverts[1];
-
-    linequad[0].x -= dx * .5;
-    linequad[0].y -= dy * .5;
-    linequad[1].x -= dx * .5;
-    linequad[1].y -= dy * .5;
-    linequad[2].x += dx * .5;
-    linequad[2].y += dy * .5;
-    linequad[3].x += dx * .5;
-    linequad[3].y += dy * .5;
-
-    linequad[0].x +=  dy * the_linewidth * .5;
-    linequad[0].y += -dx * the_linewidth * .5;
-    linequad[1].x -=  dy * the_linewidth * .5;
-    linequad[1].y -= -dx * the_linewidth * .5;
-    linequad[2].x -=  dy * the_linewidth * .5;
-    linequad[2].y -= -dx * the_linewidth * .5;
-    linequad[3].x +=  dy * the_linewidth * .5;
-    linequad[3].y += -dx * the_linewidth * .5;
+    for(int i = 0; i < 4; i++) {
+        linequad[i].x = linequad_hd[i].x / 65536;
+        linequad[i].y = linequad_hd[i].y / 65536;
+        linequad[i].r = linequad_hd[i].r;
+        linequad[i].g = linequad_hd[i].g;
+        linequad[i].b = linequad_hd[i].b;
+        linequad[i].a = linequad_hd[i].a;
+    }
 
     process_triangle(&linequad[0], &linequad[1], &linequad[2]);
     process_triangle(&linequad[2], &linequad[3], &linequad[0]);
@@ -2270,6 +2315,8 @@ void v3f(float v[3]) {
         vec3f_copy(e->v3f.v, v);
     } else {
         if(trace_functions) printf("%*sv3f({%f, %f, %f})\n", indent, "", v[0], v[1], v[2]);
+        if(polygon_vert_count > POLY_MAX - 2)
+            abort();
         world_vertex *wv = polygon_verts + polygon_vert_count;
         vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
         vec4f_copy(wv->color, current_color);
