@@ -642,9 +642,14 @@ matrix4x4f_stack *current_stack;
 
 Screencoord the_viewport[6];
 
-float clamp(float v)
+float unitclamp(float v)
 {
     return v > 1.0f ? 1.0f : (v < 0.0f ? 0.0f : v);
+}
+
+float clamp(float v, float low, float high)
+{
+    return v > high ? high : (v < low ? low : v);
 }
 
 
@@ -822,13 +827,13 @@ void project_vertex_hd(lit_vertex *lv, screen_vertex_hd *sv)
     zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
     // printf("Viewport: %g %g\n", xw, yw);
 
-    sv->x = xw * 65536;
-    sv->y = yw * 65536;
+    sv->x = clamp(xw, 0, DISPLAY_WIDTH - 1) * 65536;
+    sv->y = clamp(yw, 0, DISPLAY_HEIGHT - 1) * 65536;
     sv->z = zw * 0xffffffff;
-    sv->r = clamp(lv->color[0]) * 255;
-    sv->g = clamp(lv->color[1]) * 255;
-    sv->b = clamp(lv->color[2]) * 255;
-    sv->a = clamp(lv->color[3]) * 255;
+    sv->r = unitclamp(lv->color[0]) * 255;
+    sv->g = unitclamp(lv->color[1]) * 255;
+    sv->b = unitclamp(lv->color[2]) * 255;
+    sv->a = unitclamp(lv->color[3]) * 255;
 }
 
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
@@ -850,13 +855,13 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
     zw = (the_viewport[5] - the_viewport[4]) / 2.0 * zndc + (the_viewport[5] + the_viewport[4]) / 2.0;
     // printf("Viewport: %g %g\n", xw, yw);
 
-    sv->x = xw;
-    sv->y = yw;
+    sv->x = clamp(xw, 0, DISPLAY_WIDTH - 1);
+    sv->y = clamp(yw, 0, DISPLAY_HEIGHT - 1);
     sv->z = zw * 0xffffffff;
-    sv->r = clamp(lv->color[0]) * 255;
-    sv->g = clamp(lv->color[1]) * 255;
-    sv->b = clamp(lv->color[2]) * 255;
-    sv->a = clamp(lv->color[3]) * 255;
+    sv->r = unitclamp(lv->color[0]) * 255;
+    sv->g = unitclamp(lv->color[1]) * 255;
+    sv->b = unitclamp(lv->color[2]) * 255;
+    sv->a = unitclamp(lv->color[3]) * 255;
 }
 
 void send_screen_vertex(screen_vertex *sv) {
@@ -889,19 +894,63 @@ enum {
 
 #define CLIP_EPSILON .001
 
+void plane_to_clip_params(int plane, int *sign, int *index)
+{
+    switch(plane) {
+        case CLIP_NEG_X: *sign = -1; *index = 0; break;
+        case CLIP_POS_X: *sign = 1; *index = 0; break;
+        case CLIP_NEG_Y: *sign = -1; *index = 1; break;
+        case CLIP_POS_Y: *sign = 1; *index = 1; break;
+        case CLIP_NEG_Z: *sign = -1; *index = 2; break;
+        case CLIP_POS_Z: *sign = 1; *index = 2; break;
+    }
+}
+
+long clip_line_against_plane(long plane, lit_vertex *input, lit_vertex *output)
+{
+    int sign;
+    int index;
+
+    plane_to_clip_params(plane, &sign, &index);
+
+    float p0 = input[0].coord[index] * sign;
+    float p1 = input[1].coord[index] * sign;
+    float w0 = input[0].coord[3];
+    float w1 = input[1].coord[3];
+
+    if(p0 > w0 && p1 > w1)
+        return 0;
+
+    int n = 0;
+
+    if(p0 < w0) {
+        output[n++] = input[0];
+    }
+
+    if((p0 < w0 && p1 >= w1) || (p0 >= w0 && p1 < w1)) {
+        float denom = -p0 + p1 + w0 - w1;
+        if(fabs(denom) > CLIP_EPSILON) {
+            float t = (-p0 + w0) / denom;
+            vec4f_blend(input[0].coord, input[1].coord, t, output[n].coord);
+            // Should other attributes be hyperbolically interpolated?
+            vec4f_blend(input[0].color, input[1].color, t, output[n].color);
+            n++;
+        }
+    }
+
+    if(p1 < w1) {
+        output[n++] = input[1];
+    }
+
+    return 1;
+}
+
 long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
 {
     int sign;
     int index;
 
-    switch(plane) {
-        case CLIP_NEG_X: sign = -1; index = 0; break;
-        case CLIP_POS_X: sign = 1; index = 0; break;
-        case CLIP_NEG_Y: sign = -1; index = 1; break;
-        case CLIP_POS_Y: sign = 1; index = 1; break;
-        case CLIP_NEG_Z: sign = -1; index = 2; break;
-        case CLIP_POS_Z: sign = 1; index = 2; break;
-    }
+    plane_to_clip_params(plane, &sign, &index);
 
     int n2 = 0;
     lit_vertex* v0;
@@ -924,10 +973,6 @@ long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_verte
             float denom = -p0 + p1 + w0 - w1;
             if(fabs(denom) > CLIP_EPSILON) {
                 float t = (-p0 + w0) / denom;
-                if(p0 < w0)
-                    t *= .9995;
-                if(p1 < w1)
-                    t *= 1.0005;
                 vec4f_blend(v0->coord, v1->coord, t, output[n2].coord);
                 // Should other attributes be hyperbolically interpolated?
                 vec4f_blend(v0->color, v1->color, t, output[n2].color);
@@ -954,6 +999,44 @@ enum {
     CLIP_TRIVIAL_REJECT = 0,
     CLIP_TRIVIAL_ACCEPT = -1, // If clip_polygon() returns this, it stored nothing in "output".
 };
+
+long clip_line(lit_vertex *input, lit_vertex *output)
+{
+    static int code[2];
+    static lit_vertex tmp[2];
+    int all_neg[3] = {1, 1, 1};
+    int all_pos[3] = {1, 1, 1};
+    int all_inside = 1;
+    int all_outside_one = 0xff;
+
+    for(int i = 0; i < 2; i++) {
+        code[i] = classify_vertex(input[i].coord);
+        all_inside = all_inside && (code[i] == CLIP_ALL_IN);
+        all_outside_one &= code[i];
+    }
+
+    if(all_inside)
+        return CLIP_TRIVIAL_ACCEPT;
+
+    if(all_outside_one)
+        return CLIP_TRIVIAL_REJECT;
+
+    int n;
+
+    n = clip_line_against_plane(CLIP_NEG_X, input, tmp);
+    if(n == 0) return 0;
+    n = clip_line_against_plane(CLIP_POS_X, tmp, output);
+    if(n == 0) return 0;
+    n = clip_line_against_plane(CLIP_NEG_Y, output, tmp);
+    if(n == 0) return 0;
+    n = clip_line_against_plane(CLIP_POS_Y, tmp, output);
+    if(n == 0) return 0;
+    n = clip_line_against_plane(CLIP_NEG_Z, output, tmp);
+    if(n == 0) return 0;
+    n = clip_line_against_plane(CLIP_POS_Z, tmp, output);
+
+    return n;
+}
 
 long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
 {
@@ -1000,7 +1083,6 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     transform_and_light_vertex(wv0, &litverts[0]);
     transform_and_light_vertex(wv1, &litverts[1]);
 
-#if 0
     long r = clip_line(litverts, clipped);
     if(r == CLIP_TRIVIAL_REJECT)
         return;
@@ -1009,14 +1091,11 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     } else {
         vp = clipped;
     }
-#else
-    vp = litverts;
-#endif
 
     project_vertex_hd(&vp[0], &screenverts[0]);
     project_vertex_hd(&vp[1], &screenverts[1]);
 
-// Fake this until rasterizer implements lines
+// Fake this with screen quads until rasterizer implements lines
     float dx = (screenverts[1].x - screenverts[0].x);
     float dy = (screenverts[1].y - screenverts[0].y);
     float d = sqrt(dx * dx + dy * dy);
@@ -1024,30 +1103,30 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     dx = dx / d * 65536;
     dy = dy / d * 65536;
 
-    screen_vertex_hd linequad_hd[4];
-    linequad_hd[0] = screenverts[0];
-    linequad_hd[1] = screenverts[0];
-    linequad_hd[2] = screenverts[1];
-    linequad_hd[3] = screenverts[1];
+    screen_vertex_hd q[4];
+    q[0] = screenverts[0];
+    q[1] = screenverts[0];
+    q[2] = screenverts[1];
+    q[3] = screenverts[1];
 
-    linequad_hd[0].x +=  dy * the_linewidth * .5;
-    linequad_hd[0].y += -dx * the_linewidth * .5;
-    linequad_hd[1].x += -dy * the_linewidth * .5;
-    linequad_hd[1].y +=  dx * the_linewidth * .5;
-    linequad_hd[2].x += -dy * the_linewidth * .5;
-    linequad_hd[2].y +=  dx * the_linewidth * .5;
-    linequad_hd[3].x +=  dy * the_linewidth * .5;
-    linequad_hd[3].y += -dx * the_linewidth * .5;
+    q[0].x = clamp(q[0].x +  dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
+    q[0].y = clamp(q[0].y + -dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
+    q[1].x = clamp(q[1].x + -dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
+    q[1].y = clamp(q[1].y +  dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
+    q[2].x = clamp(q[2].x + -dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
+    q[2].y = clamp(q[2].y +  dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
+    q[3].x = clamp(q[3].x +  dy * the_linewidth * .5, 0, (DISPLAY_WIDTH - 1) * 65536);
+    q[3].y = clamp(q[3].y + -dx * the_linewidth * .5, 0, (DISPLAY_HEIGHT - 1) * 65536);
 
     screen_vertex linequad[4];
     for(int i = 0; i < 4; i++) {
-        linequad[i].x = linequad_hd[i].x / 65536;
-        linequad[i].y = linequad_hd[i].y / 65536;
-        linequad[i].z = linequad_hd[i].z;
-        linequad[i].r = linequad_hd[i].r;
-        linequad[i].g = linequad_hd[i].g;
-        linequad[i].b = linequad_hd[i].b;
-        linequad[i].a = linequad_hd[i].a;
+        linequad[i].x = q[i].x / 65536;
+        linequad[i].y = q[i].y / 65536;
+        linequad[i].z = q[i].z;
+        linequad[i].r = q[i].r;
+        linequad[i].g = q[i].g;
+        linequad[i].b = q[i].b;
+        linequad[i].a = q[i].a;
     }
 
     process_triangle(&linequad[0], &linequad[1], &linequad[2]);
