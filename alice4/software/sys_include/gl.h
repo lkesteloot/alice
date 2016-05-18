@@ -152,7 +152,7 @@ extern void	dbtext();
 extern void	defbasis();
 extern void	defcursor();
 extern void	deflinestyle();
-extern void	defpattern(long index, short size, short *mask);
+extern void	defpattern(long index, short size, Pattern16 mask);
 extern long     defpup(char *menu);
 extern void	defrasterfont();
 extern void	delobj();

@@ -2,6 +2,7 @@
 #include <gl.h>
 #include <device.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/times.h>
 
@@ -17,7 +18,9 @@ int tilt = FALSE;
 int loops = 0;
 long starttime;
 int mech_type = GREEN_MECH;
+#if NETWORKING
 int network = FALSE;
+#endif
 
 #ifdef CLOVER
 Cursor null_cur = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -46,9 +49,11 @@ main(argc, argv)
 		case 'g':
 		    mech_type = GREEN_MECH;
 		    break;
+#if NETWORKING
 		case 'n':
 		    network = TRUE;
 		    break;
+#endif
 		case 'd':
 		    player[0].id = 0;
 		    player[1].id = 1;
@@ -161,7 +166,7 @@ main(argc, argv)
     /*
      *  set up world view
      */
-    perspective(400, XMAXSCREEN.0/YMAXSCREEN, 0.01, 10000.0);
+    perspective(400, (float)XMAXSCREEN/YMAXSCREEN, 0.01, 10000.0);
     lookat(0.0, 0.98, 0.0, 0.0, 0.98, -1.0, 0.0);
 
     setvaluator(MOUSEX, MOUSE_CENT, -200+MOUSE_CENT, 200+MOUSE_CENT);
@@ -197,8 +202,10 @@ main(argc, argv)
 		case ESCKEY:
 			if (!val)
 			{	/* Exit on ESC key going UP */
+#if NETWORKING
 			    if (network)
 				send_death();
+#endif
 			    restore_map();	/* restore the color map */
 			    curson();
 			    setvaluator(MOUSEX, 512, 0, XMAXSCREEN);
@@ -298,8 +305,10 @@ main(argc, argv)
 	}
 
 	was_shot = FALSE;
+#if NETWORKING
 	if (network)
 	    read_net();
+#endif
 	pushmatrix();
 	if ((player[id].type & EXPLODE) &&
 	    !(player[id].type & DEAD))
@@ -361,8 +370,10 @@ main(argc, argv)
 	if ((player[id].type & EXPLODE) && !(player[id].type & DEAD))
 	    explode(&player[id]);
 
+#if NETWORKING
 	if (network)
 	    send_my_stuff();
+#endif
 
 	for (i=0; i<MAXPLAYERS; i++)
 	    if (player[i].type)
@@ -405,8 +416,10 @@ main(argc, argv)
 	    did_colide = FALSE;
 	}
 
+#if NETWORKING
 	if (network)
 	    exit_comm();
+#endif
 
     	swapbuffers();
 	color(SKY);

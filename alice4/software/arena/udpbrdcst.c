@@ -1,3 +1,7 @@
+
+#if NETWORKING
+
+
 #include <sys/types.h>
 #ifdef CLOVER
 #include <bsd/sys/socket.h>
@@ -142,3 +146,6 @@ recvbroadcast (broadcastsocket, message, messagelength, ignoreown)
 
     return(charcount);
 }
+
+
+#endif // NETWORKING

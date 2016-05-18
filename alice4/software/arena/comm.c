@@ -1,6 +1,12 @@
+
+#if NETWORKING
+
+
+
 #include 	<gl.h>
 #include 	<device.h>
 #include	<stdio.h>
+#include	<stdlib.h>
 #include	"udpbrdcst.h"
 #include	<sys/times.h>
 #include	"arena.h"
@@ -160,3 +166,5 @@ udp_warning()
     printf("on your network, running arena -n on your network may bring\n");
     printf("them to a halt.  VAXes are known to have this problem.\n");
 }
+
+#endif // NETWORKING

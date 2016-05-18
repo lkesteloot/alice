@@ -2,6 +2,8 @@
 #else
 #define UDPBRDCSTDEF
 
+#if NETWORKING
+
 #include <sys/types.h>
 #ifdef CLOVER
 #include <bsd/sys/socket.h>
@@ -26,5 +28,7 @@ extern int sendbroadcast(/* int socketfiledes, char *message,
 
 extern int recvbroadcast(/* int socketfiledes, char *messagebuf,
 			    int messagebuflen, int ignoreownflag */);
+
+#endif // NETWORKING
 
 #endif /* UDPBRDCSTDEF */

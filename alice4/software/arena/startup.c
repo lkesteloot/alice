@@ -27,8 +27,10 @@ char *intro[INTRO] = {
 "The playing field is square and approximately one kilometer on a side.  There",
 "is a maze in the center of the arena with entrances north and south",
 "",
+#if NETWORKING
 "Use -n option to play over the network.",
 "",
+#endif
 "Commands",
 "",
 "z/Z - optics zoom in (telescopic) / zoom out (wide angle)",
@@ -63,9 +65,11 @@ startup()
 
     qdevice(KEYBD);
 
+#if NETWORKING
     if (network)
         init_comm();
     else
+#endif
     {
 	id = 0;
 	player[0].id = 0;
@@ -75,8 +79,12 @@ startup()
     shot = shots[id];
 
     while (qread(&i) != KEYBD)
+#if NETWORKING
 	if (network)
 	    send_death();
+#else
+        ;
+#endif
 
     unqdevice(KEYBD);
 }

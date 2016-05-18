@@ -1406,7 +1406,7 @@ void deflinestyle() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void defpattern(long index, short size, short *mask) {
+void defpattern(long index, short size, Pattern16 mask) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 

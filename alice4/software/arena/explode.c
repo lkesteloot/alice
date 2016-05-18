@@ -1,8 +1,8 @@
 
+#include <stdlib.h>
 #include <gl.h>
 #include "arena.h"
 
-extern long float drand48();
 extern Object cannon_hit[3];
 
 explode(v)
