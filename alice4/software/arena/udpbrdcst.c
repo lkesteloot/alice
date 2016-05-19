@@ -10,9 +10,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #endif
-#include <bsd/netdb.h>
+#include <netdb.h>
 #include <sys/time.h>
-#include <sys/termio.h>
+// #include <sys/termio.h>
+#include <sys/filio.h> // Was termio
 #include <errno.h>
 
 
