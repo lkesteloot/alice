@@ -205,7 +205,7 @@ extern long	getlsrepeat();
 extern long	getlstyle();
 extern long	getlwidth();
 extern long	getmap();
-extern void	getmatrix();
+extern void	getmatrix(Matrix m);
 extern void	getmcolor(Colorindex index, short *red, short *green, short *blue);
 extern long	getmem();
 extern long	getmonitor();

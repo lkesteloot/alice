@@ -2459,8 +2459,13 @@ void winposition() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void getmatrix() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void getmatrix(Matrix m) {
+    if(trace_functions)
+        printf("%*sgetmatrix(...);\n", indent, "");
+    if(matrix_mode == MSINGLE)
+        matrix4x4f_copy((float*)m, matrix4x4f_stack_top(&modelview_stack));
+    else 
+        matrix4x4f_copy((float*)m, matrix4x4f_stack_top(current_stack));
 }
 
 void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist) {
