@@ -8,6 +8,13 @@ extern const matrix4x4f identity_4x4f;
 //----------------------------------------------------------------------------
 // Vector math; vector operations, matrix operations, matrix stack operations
 
+inline void vec3ub_set(vec3ub v, uint8_t x, uint8_t y, uint8_t z)
+{
+    v[0] = x;
+    v[1] = y;
+    v[2] = z;
+}
+
 inline void vec3f_set(vec3f v, float x, float y, float z)
 {
     v[0] = x;
