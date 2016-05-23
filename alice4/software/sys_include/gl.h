@@ -513,4 +513,6 @@ extern void lmbind(short target, long index);
 #define FLAT 0
 #define GOURAUD 1
 
+#define ZF_GEQUAL 6
+
 #endif // GLDEF
