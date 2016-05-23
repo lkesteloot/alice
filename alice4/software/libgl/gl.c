@@ -1,3 +1,33 @@
+// make all implemented functions have trace
+// make all tracefunctions look like C-ish
+// All i functions call f functions
+// RECORD macro checks display list mode, make, store object...?
+// fix all int usage
+// make trace() function
+// consistent function start
+// Need display-listing:
+//      reshapeviewport?
+//      draw
+//      swapbuffers?
+//      pclos
+//      mov
+//      pmv
+//      pmv2i
+//      pmvi
+//      pdr
+//      pdr2i
+//      pdri
+//      linewidth
+//      move
+//      movei
+//      rdr2i
+//      rmv2i
+//      rectf
+//      recti
+//      poly
+//      zbuffer
+//      zclear
+
 
 // Alice 4 libgl implementation.
 
@@ -681,7 +711,7 @@ implementing a display-listable function:
 
 typedef struct element
 {
-    enum
+    enum object_type
     {
         TAG,
         CALLOBJ,
@@ -893,7 +923,7 @@ void element_free(element *p)
     }
 }
 
-element *element_next_in_object()
+element *element_next_in_object(enum object_type t)
 {
     element *e;
 
@@ -905,6 +935,7 @@ element *element_next_in_object()
         e = *cur_ptr_to_nextptr;
         cur_ptr_to_nextptr = &(*cur_ptr_to_nextptr)->next;
     }
+    e->type = t;
 
     return e;
 }
@@ -915,155 +946,152 @@ element *element_next_in_object()
 
 void callobj(Object obj) { 
     if(cur_ptr_to_nextptr != NULL) {
-
-        element *e = element_next_in_object();
-        e->type = CALLOBJ;
+        element *e = element_next_in_object(CALLOBJ);
         e->callobj.obj = obj;
-
-    } else {
-
-        if(trace_functions) printf("%*scallobj %ld\n", indent, "", obj);
-        indent += 4;
-        element *p = objects[obj];
-        while(p) {
-            switch(p->type) {
-                case LMBIND:
-                    lmbind(p->lmbind.target, p->lmbind.index);
-                    break;
-                case MMODE:
-                    mmode(p->mmode.mode);
-                    break;
-                case V3F:
-                    v3f(p->v3f.v);
-                    break;
-                case C3F:
-                    c3f(p->c3f.c);
-                    break;
-                case N3F:
-                    n3f(p->n3f.n);
-                    break;
-                case ENDPOLYGON:
-                    endpolygon();
-                    break;
-                case BGNPOLYGON:
-                    bgnpolygon();
-                    break;
-                case RGBCOLOR:
-                    RGBcolor(
-                        p->rgbcolor.r,
-                        p->rgbcolor.g,
-                        p->rgbcolor.b
-                    );
-                    break;
-                case VIEWPORT:
-                    viewport(
-                        p->viewport.left,
-                        p->viewport.right,
-                        p->viewport.bottom,
-                        p->viewport.top
-                    );
-                    break;
-                case ORTHO2:
-                    ortho2(
-                        p->ortho2.left,
-                        p->ortho2.right,
-                        p->ortho2.bottom,
-                        p->ortho2.top);
-                    break;
-                case WINDOW:
-                    window(
-                        p->window.left,
-                        p->window.right,
-                        p->window.bottom,
-                        p->window.top,
-                        p->window.near,
-                        p->window.far
-                    );
-                    break;
-                case PERSPECTIVE:
-                    perspective(
-                        p->perspective.fovy,
-                        p->perspective.aspect,
-                        p->perspective.near,
-                        p->perspective.far
-                    );
-                    break;
-                case POPMATRIX:
-                    popmatrix();
-                    break;
-                case CIRCI:
-                    circi(p->circi.x, p->circi.y, p->circi.r);
-                    break;
-                case CLEAR:
-                    clear();
-                    break;
-                case PUSHMATRIX:
-                    pushmatrix();
-                    break;
-                case LOADMATRIX:
-                    loadmatrix(p->loadmatrix.m);
-                    break;
-                case LOOKAT:
-                    lookat(
-                        p->lookat.viewx,
-                        p->lookat.viewy,
-                        p->lookat.viewz,
-                        p->lookat.pointx,
-                        p->lookat.pointy,
-                        p->lookat.pointz,
-                        p->lookat.twist
-                    );
-                    break;
-                case MULTMATRIX:
-                    multmatrix(p->multmatrix.m);
-                    break;
-                case TRANSLATE:
-                    translate(p->translate.x, p->translate.y, p->translate.z);
-                    break;
-                case SCALE:
-                    scale(p->scale.x, p->scale.y, p->scale.z);
-                    break;
-                case ROTATE:
-                    rotate(p->rotate.angle, p->rotate.axis);
-                    break;
-                case POLF2I:
-                    polf2i(p->polf2i.n, p->polf2i.parray);
-                    break;
-                case POLF:
-                    polf(p->polf.n, p->polf.parray);
-                    break;
-                case COLOR:
-                    color(p->color.color);
-                    break;
-                case CALLOBJ:
-                    callobj(p->callobj.obj);
-                    break;
-                case CHARSTR:
-                    charstr(p->charstr.str);
-                    break;
-                case WRITEMASK:
-                    writemask(p->writemask.mask);
-                    break;
-                case CMOV2I:
-                    cmov2i(p->cmov2i.x, p->cmov2i.y);
-                    break;
-                case DRAW2I:
-                    draw2i(p->draw2i.x, p->draw2i.y);
-                    break;
-                case MOVE2I:
-                    move2i(p->move2i.x, p->move2i.y);
-                    break;
-                case TAG:
-                    if(trace_functions) printf("%*stag %ld\n", indent, "", p->tag.tag);
-                    break;
-                default:
-                    printf("encountered unknown Object type, %s:%d\n", __FILE__, __LINE__);
-                    abort();
-            }
-            p = p->next;
-        }
-        indent -= 4;
+        return;
     }
+
+    if(trace_functions) printf("%*scallobj %ld\n", indent, "", obj);
+    indent += 4;
+    element *p = objects[obj];
+    while(p) {
+        switch(p->type) {
+            case LMBIND:
+                lmbind(p->lmbind.target, p->lmbind.index);
+                break;
+            case MMODE:
+                mmode(p->mmode.mode);
+                break;
+            case V3F:
+                v3f(p->v3f.v);
+                break;
+            case C3F:
+                c3f(p->c3f.c);
+                break;
+            case N3F:
+                n3f(p->n3f.n);
+                break;
+            case ENDPOLYGON:
+                endpolygon();
+                break;
+            case BGNPOLYGON:
+                bgnpolygon();
+                break;
+            case RGBCOLOR:
+                RGBcolor(
+                    p->rgbcolor.r,
+                    p->rgbcolor.g,
+                    p->rgbcolor.b
+                );
+                break;
+            case VIEWPORT:
+                viewport(
+                    p->viewport.left,
+                    p->viewport.right,
+                    p->viewport.bottom,
+                    p->viewport.top
+                );
+                break;
+            case ORTHO2:
+                ortho2(
+                    p->ortho2.left,
+                    p->ortho2.right,
+                    p->ortho2.bottom,
+                    p->ortho2.top);
+                break;
+            case WINDOW:
+                window(
+                    p->window.left,
+                    p->window.right,
+                    p->window.bottom,
+                    p->window.top,
+                    p->window.near,
+                    p->window.far
+                );
+                break;
+            case PERSPECTIVE:
+                perspective(
+                    p->perspective.fovy,
+                    p->perspective.aspect,
+                    p->perspective.near,
+                    p->perspective.far
+                );
+                break;
+            case POPMATRIX:
+                popmatrix();
+                break;
+            case CIRCI:
+                circi(p->circi.x, p->circi.y, p->circi.r);
+                break;
+            case CLEAR:
+                clear();
+                break;
+            case PUSHMATRIX:
+                pushmatrix();
+                break;
+            case LOADMATRIX:
+                loadmatrix(p->loadmatrix.m);
+                break;
+            case LOOKAT:
+                lookat(
+                    p->lookat.viewx,
+                    p->lookat.viewy,
+                    p->lookat.viewz,
+                    p->lookat.pointx,
+                    p->lookat.pointy,
+                    p->lookat.pointz,
+                    p->lookat.twist
+                );
+                break;
+            case MULTMATRIX:
+                multmatrix(p->multmatrix.m);
+                break;
+            case TRANSLATE:
+                translate(p->translate.x, p->translate.y, p->translate.z);
+                break;
+            case SCALE:
+                scale(p->scale.x, p->scale.y, p->scale.z);
+                break;
+            case ROTATE:
+                rotate(p->rotate.angle, p->rotate.axis);
+                break;
+            case POLF2I:
+                polf2i(p->polf2i.n, p->polf2i.parray);
+                break;
+            case POLF:
+                polf(p->polf.n, p->polf.parray);
+                break;
+            case COLOR:
+                color(p->color.color);
+                break;
+            case CALLOBJ:
+                callobj(p->callobj.obj);
+                break;
+            case CHARSTR:
+                charstr(p->charstr.str);
+                break;
+            case WRITEMASK:
+                writemask(p->writemask.mask);
+                break;
+            case CMOV2I:
+                cmov2i(p->cmov2i.x, p->cmov2i.y);
+                break;
+            case DRAW2I:
+                draw2i(p->draw2i.x, p->draw2i.y);
+                break;
+            case MOVE2I:
+                move2i(p->move2i.x, p->move2i.y);
+                break;
+            case TAG:
+                if(trace_functions) printf("%*stag %ld\n", indent, "", p->tag.tag);
+                break;
+            default:
+                printf("encountered unknown Object type, %s:%d\n", __FILE__, __LINE__);
+                abort();
+        }
+        p = p->next;
+    }
+    indent -= 4;
 }
 
 void backface() {
@@ -1072,13 +1100,14 @@ void backface() {
 
 void clear() { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = CLEAR;
-    } else {
-        if(trace_functions) printf("%*sclear();\n", indent, "");
-        send_uint8(COMMAND_CLEAR);
-        for(int i = 0; i < 3; i++)
-            send_uint8((int)(current_color[i] * 255.0));
+        element *e = element_next_in_object(CLEAR);
+        return;
+    }
+
+    if(trace_functions) printf("%*sclear();\n", indent, "");
+    send_uint8(COMMAND_CLEAR);
+    for(int i = 0; i < 3; i++)
+        send_uint8((int)(current_color[i] * 255.0));
 }
 
 void closeobj() { 
@@ -1088,16 +1117,16 @@ void closeobj() {
 
 void color(Colorindex color) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = COLOR;
+        element *e = element_next_in_object(COLOR);
         e->color.color = color;
-    } else {
-        if(trace_functions) printf("%*scolor %u\n", indent, "", color);
-        current_color_index = color;
-        for(int i = 0; i < 3; i++)
-            current_color[i] = colormap[color][i] / 255.0;
-        // XXX alpha in color map?
+        return;
     }
+
+    if(trace_functions) printf("%*scolor %u\n", indent, "", color);
+    current_color_index = color;
+    for(int i = 0; i < 3; i++)
+        current_color[i] = colormap[color][i] / 255.0;
+    // XXX alpha in color map?
 }
 
 void deflinestyle() { 
@@ -1114,6 +1143,7 @@ void doublebuffer() {
 
 void editobj(Object obj) { 
     if(trace_functions) printf("%*seditobj %ld\n", indent, "", obj);
+
     cur_ptr_to_nextptr = &(objects[obj]);
     while(*cur_ptr_to_nextptr != NULL)
         cur_ptr_to_nextptr = &(*cur_ptr_to_nextptr)->next;
@@ -1156,27 +1186,31 @@ Boolean getbutton() {
 }
 
 void getmcolor(Colorindex index, short *red, short *green, short *blue) { 
-    if(trace_functions) printf("%*sgetmcolor %d\n", indent, "", index);
+    if(trace_functions) printf("%*sgetmcolor(%d);\n", indent, "", index);
     *red = colormap[index][0];
     *green = colormap[index][1];
     *blue = colormap[index][2];
 }
 
 void getorigin(long *x, long *y) { 
+    if(trace_functions) printf("%*sgetorigin();\n", indent, "");
     *x = 0;
     *y = 0;
 }
 
 long getplanes() { 
+    if(trace_functions) printf("%*sgetplanes();\n", indent, "");
     return 24;
 }
 
 void getsize(long *width, long *height) { 
+    if(trace_functions) printf("%*sgetsize();\n", indent, "");
     *width = DISPLAY_WIDTH;
     *height = DISPLAY_HEIGHT;
 }
 
 long getvaluator(long device) { 
+    if(trace_functions) printf("%*sgetvaluator(%ld);\n", indent, "", device);
     send_uint8(COMMAND_GET_VALUATOR);
     send_uint32(device);
     return receive_uint32();
@@ -1237,19 +1271,19 @@ void mapcolor(Colorindex index, short red, short green, short blue) {
 
 void multmatrix(Matrix m) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = MULTMATRIX;
+        element *e = element_next_in_object(MULTMATRIX);
         memcpy(e->multmatrix.m, m, sizeof(Matrix));
-    } else { 
-        if(trace_functions)
-        {
+        return;
+    }
+
+    if(trace_functions) {
         printf("%*smultmatrix\n", indent, "");
         for(int i = 0 ; i < 4; i++)
             printf("%*s    %f %f %f %f\n", indent, "",
                 m[i][0], m[i][1], m[i][2], m[i][3]);
-        }
-        matrix4x4f_stack_mult(current_stack, (float *)m);
     }
+
+    matrix4x4f_stack_mult(current_stack, (float *)m);
 }
 
 void objreplace(Tag tag) { 
@@ -1260,135 +1294,136 @@ void objreplace(Tag tag) {
 
 void perspective(Angle fovy_, float aspect, Coord near, Coord far) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = PERSPECTIVE;
+        element *e = element_next_in_object(PERSPECTIVE);
         e->perspective.fovy = fovy_;
         e->perspective.aspect = aspect;
         e->perspective.near = near;
         e->perspective.far = far;
-    } else {
-        float m[16];
-        float fovy = fovy_ / 1800.0 * M_PI;
-
-        float f = 1.0 / tan(fovy / 2.0);
-
-        matrix4x4f_copy(m, identity_4x4f);
-        m[0] = f / aspect;
-        m[5] = f;
-        m[10] = (far + near) / (near - far);
-        m[11] = -1.0;
-        m[14] = 2 * far * near / (near - far);
-        m[15] = 0.0;
-        if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
-        if(matrix_mode == MSINGLE) {
-            matrix4x4f_stack_load(&projection_stack, m);
-            matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
-            matrix4x4f_stack_load(&projection_stack, m);
-        } else 
-            matrix4x4f_stack_load(current_stack, m);
+        return;
     }
+
+    float m[16];
+    float fovy = fovy_ / 1800.0 * M_PI;
+
+    float f = 1.0 / tan(fovy / 2.0);
+
+    matrix4x4f_copy(m, identity_4x4f);
+    m[0] = f / aspect;
+    m[5] = f;
+    m[10] = (far + near) / (near - far);
+    m[11] = -1.0;
+    m[14] = 2 * far * near / (near - far);
+    m[15] = 0.0;
+    if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_load(&projection_stack, m);
+        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
+        matrix4x4f_stack_load(&projection_stack, m);
+    } else 
+        matrix4x4f_stack_load(current_stack, m);
 }
 
 // XXX display list
 void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = ORTHO2;
+        element *e = element_next_in_object(ORTHO2);
         e->window.left = left;
         e->window.right = right;
         e->window.bottom = bottom;
         e->window.top = top;
-    } else {
-        if(trace_functions) printf("%*sortho2(%f, %f, %f, %f);\n", indent, "", left, right, bottom, top);
-        float m[16];
-
-        matrix4x4f_copy(m, identity_4x4f);
-        m[0] =  2.0f / (right-left);
-        m[5] =  2.0f / (top-bottom);
-        m[10] = -1.0f;
-        m[12] = -(right+left) / (right-left);
-        m[13] = -(top+bottom) / (top-bottom);
-        m[15] =  1.0f;
-
-        if(matrix_mode == MSINGLE) {
-            matrix4x4f_stack_load(&projection_stack, m);
-            matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
-            matrix4x4f_stack_load(&projection_stack, m);
-        } else 
-            matrix4x4f_stack_load(current_stack, m);
+        return;
     }
+
+    if(trace_functions) printf("%*sortho2(%f, %f, %f, %f);\n", indent, "", left, right, bottom, top);
+
+    float m[16];
+
+    matrix4x4f_copy(m, identity_4x4f);
+    m[0] =  2.0f / (right-left);
+    m[5] =  2.0f / (top-bottom);
+    m[10] = -1.0f;
+    m[12] = -(right+left) / (right-left);
+    m[13] = -(top+bottom) / (top-bottom);
+    m[15] =  1.0f;
+
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_load(&projection_stack, m);
+        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
+        matrix4x4f_stack_load(&projection_stack, m);
+    } else 
+        matrix4x4f_stack_load(current_stack, m);
 }
 
 void polf(long n, Coord parray[ ][3]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = POLF;
+        element *e = element_next_in_object(POLF);
         e->polf.n = n;
         e->polf.parray = (Coord*) malloc(sizeof(Coord) * 3 * n);
         memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
-    } else {
-        static world_vertex worldverts[POLY_MAX];
-
-        if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
-
-        vec4f color;
-        vec4f_copy(color, current_color);
-
-        for(int i = 0 ; i < n; i++) {
-            vec4f_set(worldverts[i].coord,
-                parray[i][0], parray[i][1], parray[i][2], 1.0);
-            vec4f_copy(worldverts[i].color, color);
-            vec3f_set(worldverts[i].normal, 1, 0, 0);
-        }
-
-        process_polygon(n, worldverts);
+        return;
     }
+
+    if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
+
+    static world_vertex worldverts[POLY_MAX];
+    vec4f color;
+    vec4f_copy(color, current_color);
+
+    for(int i = 0 ; i < n; i++) {
+        vec4f_set(worldverts[i].coord,
+            parray[i][0], parray[i][1], parray[i][2], 1.0);
+        vec4f_copy(worldverts[i].color, color);
+        vec3f_set(worldverts[i].normal, 1, 0, 0);
+    }
+
+    process_polygon(n, worldverts);
 }
 
 void polf2i(long n, Icoord parray[ ][2]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = POLF2I;
+        element *e = element_next_in_object(POLF2I);
         e->polf2i.n = n;
         e->polf2i.parray = (Icoord*) malloc(sizeof(Icoord) * 2 * n);
         memcpy(e->polf.parray, parray, sizeof(Icoord) * 2 * n);
-    } else {
-        static world_vertex worldverts[POLY_MAX];
-
-        if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
-
-        vec4f color;
-        vec4f_copy(color, current_color);
-
-        for(int i = 0 ; i < n; i++) {
-            vec4f_set(worldverts[i].coord,
-                parray[i][0], parray[i][1], 0, 1.0);
-            vec4f_copy(worldverts[i].color, color);
-            vec3f_set(worldverts[i].normal, 1, 0, 0);
-        }
-
-        process_polygon(n, worldverts);
+        return;
     }
+
+    if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
+
+    static world_vertex worldverts[POLY_MAX];
+    vec4f color;
+    vec4f_copy(color, current_color);
+
+    for(int i = 0 ; i < n; i++) {
+        vec4f_set(worldverts[i].coord,
+            parray[i][0], parray[i][1], 0, 1.0);
+        vec4f_copy(worldverts[i].color, color);
+        vec3f_set(worldverts[i].normal, 1, 0, 0);
+    }
+
+    process_polygon(n, worldverts);
 }
 
 void popmatrix() { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = POPMATRIX;
-    } else {
-        if(trace_functions) printf("%*spopmatrix\n", indent, "");
-        matrix4x4f_stack_pop(current_stack);
+        element *e = element_next_in_object(POPMATRIX);
+        return;
     }
+
+    if(trace_functions) printf("%*spopmatrix\n", indent, "");
+
+    matrix4x4f_stack_pop(current_stack);
 }
 
 void pushmatrix() { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = PUSHMATRIX;
-    } else {
-        if(trace_functions) printf("%*spushmatrix\n", indent, "");
-        matrix4x4f_stack_push(current_stack);
+        element *e = element_next_in_object(PUSHMATRIX);
+        return;
     }
+
+    if(trace_functions) printf("%*spushmatrix\n", indent, "");
+
+    matrix4x4f_stack_push(current_stack);
 }
 
 static void enqueue_device(long device, short val) {
@@ -1475,21 +1510,23 @@ long qtest() {
 void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoord top)
 {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = VIEWPORT;
+        element *e = element_next_in_object(VIEWPORT);
         e->viewport.left = left;
         e->viewport.right = right;
         e->viewport.bottom = bottom;
         e->viewport.top = top;
-    } else {
-        if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
-        the_viewport[0] = left;
-        the_viewport[1] = right;
-        the_viewport[2] = bottom;
-        the_viewport[3] = top;
+        return;
     }
-}
 
+    if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
+
+    the_viewport[0] = left;
+    the_viewport[1] = right;
+    the_viewport[2] = bottom;
+    the_viewport[3] = top;
+}
+ 
+// XXX display-listable?
 void reshapeviewport() { 
     long xsize, ysize;
     getsize(&xsize, &ysize);
@@ -1498,54 +1535,55 @@ void reshapeviewport() {
 
 void rotate(Angle ang, unsigned char axis) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = ROTATE;
+        element *e = element_next_in_object(ROTATE);
         e->rotate.angle = ang;
         e->rotate.axis = axis;
-    } else {
-        float m[16];
-
-        matrix4x4f_copy(m, identity_4x4f);
-
-        float s;
-        float c;
-        float t;
-        float d;
-        float x = 0.0, y = 0.0, z = 0.0;
-
-        if(axis == 'x' || axis == 'X') {
-            x = 1.0;
-        } else if(axis == 'y' || axis == 'Y') {
-            y = 1.0;
-        } else {
-            z = 1.0;
-        }
-
-        float angle = ang / 1800.0 * M_PI;
-        d = sqrtf(x * x + y * y + z * z);
-        x /= d;
-        y /= d;
-        z /= d;
-
-        /*
-         * Rotation around axis from Graphics Gems 1, p.466
-         */
-        s = sinf(angle);
-        c = cosf(angle);
-        t = 1 - cosf(angle);
-        m[0] = t * x * x + c;
-        m[5] = t * y * y + c;
-        m[10] = t * z * z + c;
-        m[1] = t * x * y + s * z;
-        m[4] = t * x * y - s * z;
-        m[2] = t * x * z - s * y;
-        m[8] = t * x * z + s * y;
-        m[6] = t * y * z + s * x;
-        m[9] = t * y * z - s * x;
-
-        if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
-        matrix4x4f_stack_mult(current_stack, m);
+        return;
     }
+
+    if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
+
+    float m[16];
+
+    matrix4x4f_copy(m, identity_4x4f);
+
+    float s;
+    float c;
+    float t;
+    float d;
+    float x = 0.0, y = 0.0, z = 0.0;
+
+    if(axis == 'x' || axis == 'X') {
+        x = 1.0;
+    } else if(axis == 'y' || axis == 'Y') {
+        y = 1.0;
+    } else {
+        z = 1.0;
+    }
+
+    float angle = ang / 1800.0 * M_PI;
+    d = sqrtf(x * x + y * y + z * z);
+    x /= d;
+    y /= d;
+    z /= d;
+
+    /*
+     * Rotation around axis from Graphics Gems 1, p.466
+     */
+    s = sinf(angle);
+    c = cosf(angle);
+    t = 1 - cosf(angle);
+    m[0] = t * x * x + c;
+    m[5] = t * y * y + c;
+    m[10] = t * z * z + c;
+    m[1] = t * x * y + s * z;
+    m[4] = t * x * y - s * z;
+    m[2] = t * x * z - s * y;
+    m[8] = t * x * z + s * y;
+    m[6] = t * y * z + s * x;
+    m[9] = t * y * z - s * x;
+
+    matrix4x4f_stack_mult(current_stack, m);
 }
 
 void setpattern() { 
@@ -1567,47 +1605,46 @@ void swapbuffers() {
 
 void translate(Coord x, Coord y, Coord z) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = TRANSLATE;
+        element *e = element_next_in_object(TRANSLATE);
         e->translate.x = x;
         e->translate.y = y;
         e->translate.z = z;
-    } else {
-        float m[16];
-
-        matrix4x4f_translate(x, y, z, m);
-
-        if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
-        matrix4x4f_stack_mult(current_stack, m);
+        return;
     }
+
+    if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
+
+    float m[16];
+
+    matrix4x4f_translate(x, y, z, m);
+    matrix4x4f_stack_mult(current_stack, m);
 }
 
 void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord far) { 
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = WINDOW;
+        element *e = element_next_in_object(WINDOW);
         e->window.left = left;
         e->window.right = right;
         e->window.bottom = bottom;
         e->window.top = top;
         e->window.near = near;
         e->window.left = left;
-    } else {
-        float m[16];
-
-        matrix4x4f_copy(m, identity_4x4f);
-
-        m[0] = 2 * near / (right - left);
-        m[5] = 2 * near / (top - bottom);
-        m[8] = (right + left) / (right - left);
-        m[9] = (top + bottom) / (top - bottom);
-        m[10] = - (far + near) / (far - near);
-        m[14] = - 2 * far * near / (far - near);
-
-        if(trace_functions) printf("%*swindow(%f, %f, %f, %f, %f, %f);\n", indent, "", left, right, bottom, top, near, far);
-        matrix4x4f_stack_load(&projection_stack, m);
-
+        return;
     }
+
+    if(trace_functions) printf("%*swindow(%f, %f, %f, %f, %f, %f);\n", indent, "", left, right, bottom, top, near, far);
+
+    float m[16];
+
+    matrix4x4f_copy(m, identity_4x4f);
+
+    m[0] = 2 * near / (right - left);
+    m[5] = 2 * near / (top - bottom);
+    m[8] = (right + left) / (right - left);
+    m[9] = (top + bottom) / (top - bottom);
+    m[10] = - (far + near) / (far - near);
+    m[14] = - 2 * far * near / (far - near);
+    matrix4x4f_stack_load(&projection_stack, m);
 }
 
 long winopen(char *title) {
@@ -1620,18 +1657,19 @@ long winopen(char *title) {
 
 void RGBcolor(long r, long g, long b) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = RGBCOLOR;
+        element *e = element_next_in_object(RGBCOLOR);
         e->rgbcolor.r = r;
         e->rgbcolor.g = g;
         e->rgbcolor.b = b;
-    } else {
-        if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
-        current_color[0] = r / 255.0;
-        current_color[1] = g / 255.0;
-        current_color[2] = b / 255.0;
-        current_color[3] = 1.0;
+        return;
     }
+
+    if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
+
+    current_color[0] = r / 255.0;
+    current_color[1] = g / 255.0;
+    current_color[2] = b / 255.0;
+    current_color[3] = 1.0;
 }
 
 void RGBmode() {
@@ -1647,23 +1685,25 @@ static world_vertex polygon_verts[POLY_MAX];
 
 void bgnpolygon() {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = BGNPOLYGON;
-    } else {
-        if(trace_functions) printf("%*sbgnpolygon\n", indent, "");
-        polygon_vert_count = 0;
+        element *e = element_next_in_object(BGNPOLYGON);
+        return;
     }
+
+    if(trace_functions) printf("%*sbgnpolygon\n", indent, "");
+
+    polygon_vert_count = 0;
 }
 
 void c3f(float c[3]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = C3F;
+        element *e = element_next_in_object(C3F);
         vec3f_copy(e->c3f.c, c);
-    } else {
-        if(trace_functions) printf("%*sc3f({%f, %f, %f})\n", indent, "", c[0], c[1], c[2]);
-        vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
+        return;
     }
+    
+    if(trace_functions) printf("%*sc3f({%f, %f, %f})\n", indent, "", c[0], c[1], c[2]);
+
+    vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
 }
 
 long defpup(char *menu) {
@@ -1676,12 +1716,13 @@ long dopup() {
 
 void endpolygon() {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = ENDPOLYGON;
-    } else {
-        if(trace_functions) printf("%*sendpolygon(); /* %d verts */\n", indent, "", polygon_vert_count);
-        process_polygon(polygon_vert_count, polygon_verts);
+        element *e = element_next_in_object(ENDPOLYGON);
+        return;
     }
+
+    if(trace_functions) printf("%*sendpolygon(); /* %d verts */\n", indent, "", polygon_vert_count);
+
+    process_polygon(polygon_vert_count, polygon_verts);
 }
 
 void freepup() {
@@ -1712,14 +1753,15 @@ void drawi(Icoord x, Icoord y, Icoord z) {
 
 void draw2i(Icoord x, Icoord y) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = DRAW2I;
+        element *e = element_next_in_object(DRAW2I);
         e->draw2i.x = x;
         e->draw2i.y = y;
-    } else {
-        if(trace_functions) printf("%*sdraw2i(%ld, %ld);\n", indent, "", x, y);
-        draw(x, y, 0);
+        return;
     }
+
+    if(trace_functions) printf("%*sdraw2i(%ld, %ld);\n", indent, "", x, y);
+
+    draw(x, y, 0);
 }
 
 void pclos() {
@@ -1772,24 +1814,24 @@ void linewidth(short w) {
 
 void lmbind(short target, long index) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = LMBIND;
+        element *e = element_next_in_object(LMBIND);
         e->lmbind.target = target;
         e->lmbind.index = index;
-    } else { 
-        if(trace_functions) printf("%*slmbind(%d, %ld)\n", indent, "", target, index);
-
-        if(target == MATERIAL) {
-            material_bound = (index == 0) ? NULL : &materials[index - 1];
-            lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
-        } else if(target >= LIGHT0 && target <= LIGHT7) {
-            lights_bound[target - LIGHT0] = (index == 0) ? NULL : &lights[index - 1];
-        } else if(target == LMODEL) {
-            lmodel_bound = (index == 0) ? NULL : &lmodels[index - 1];
-            lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
-        } else
-            abort();
+        return;
     }
+
+    if(trace_functions) printf("%*slmbind(%d, %ld)\n", indent, "", target, index);
+
+    if(target == MATERIAL) {
+        material_bound = (index == 0) ? NULL : &materials[index - 1];
+        lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
+    } else if(target >= LIGHT0 && target <= LIGHT7) {
+        lights_bound[target - LIGHT0] = (index == 0) ? NULL : &lights[index - 1];
+    } else if(target == LMODEL) {
+        lmodel_bound = (index == 0) ? NULL : &lmodels[index - 1];
+        lighting_enabled = (material_bound != NULL) && (lmodel_bound != NULL);
+    } else
+        abort();
 }
 
 void lmdef(short deftype, long index, short numpoints, float properties[]) {
@@ -1925,34 +1967,36 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
 
 void loadmatrix(Matrix m) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = LOADMATRIX;
+        element *e = element_next_in_object(LOADMATRIX);
         memcpy(e->loadmatrix.m, m, sizeof(Matrix));
-    } else { 
-        if(trace_functions)
-        {
+        return;
+    }
+
+    if(trace_functions)
+    {
         printf("%*sloadmatrix\n", indent, "");
         for(int i = 0 ; i < 4; i++)
             printf("%*s    %f %f %f %f\n", indent, "",
                 m[i][0], m[i][1], m[i][2], m[i][3]);
-        }
-        matrix4x4f_stack_load(current_stack, (float *)m);
     }
+
+    matrix4x4f_stack_load(current_stack, (float *)m);
 }
 
 void mmode(long mode) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = MMODE;
+        element *e = element_next_in_object(MMODE);
         e->mmode.mode = mode;
-    } else {
-        if(trace_functions) printf("%*smmode(%ld)\n", indent, "", mode);
-        matrix_mode = mode;
-        switch(mode) {
-            case MSINGLE: current_stack = &modelview_stack; break;
-            case MVIEWING: current_stack = &modelview_stack; break;
-            case MPROJECTION: current_stack = &projection_stack; break;
-        }
+        return;
+    }
+
+    if(trace_functions) printf("%*smmode(%ld)\n", indent, "", mode);
+
+    matrix_mode = mode;
+    switch(mode) {
+        case MSINGLE: current_stack = &modelview_stack; break;
+        case MVIEWING: current_stack = &modelview_stack; break;
+        case MPROJECTION: current_stack = &projection_stack; break;
     }
 }
 
@@ -1966,25 +2010,27 @@ void movei(Icoord x, Icoord y, Icoord z) {
 
 void move2i(Icoord x, Icoord y) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = MOVE2I;
+        element *e = element_next_in_object(MOVE2I);
         e->move2i.x = x;
         e->move2i.y = y;
-    } else {
-        if(trace_functions) printf("%*smove2i(%ld, %ld);\n", indent, "", x, y);
-        move(x, y, 0);
+        return;
     }
+
+    if(trace_functions) printf("%*smove2i(%ld, %ld);\n", indent, "", x, y);
+
+    move(x, y, 0);
 }
 
 void n3f(float n[3]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = N3F;
+        element *e = element_next_in_object(N3F);
         vec3f_copy(e->n3f.n, n);
-    } else {
-        if(trace_functions) printf("%*sn3f({%f, %f, %f})\n", indent, "", n[0], n[1], n[2]);
-        vec3f_copy(current_normal, n);
+        return;
     }
+
+    if(trace_functions) printf("%*sn3f({%f, %f, %f})\n", indent, "", n[0], n[1], n[2]);
+
+    vec3f_copy(current_normal, n);
 }
 
 long newpup() {
@@ -2001,6 +2047,7 @@ void qenter() {
 
 void rdr2i(Icoord dx, Icoord dy) {
     if(trace_functions) printf("%*srdr2i(%ld, %ld);\n", indent, "", dx, dy);
+
     world_vertex v0, v1;
     vec4f_copy(v0.coord, current_position);
     vec3f_copy(v0.color, current_color);
@@ -2025,18 +2072,19 @@ void rmv2i(Icoord dx, Icoord dy) {
 
 void scale(float x, float y, float z) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = SCALE;
+        element *e = element_next_in_object(SCALE);
         e->scale.x = x;
         e->scale.y = y;
         e->scale.z = z;
-    } else {
-        float m[16];
-
-        if(trace_functions) printf("%*sscale(%f, %f, %f);\n", indent, "", x, y, z);
-        matrix4x4f_scale(x, y, z, m);
-        matrix4x4f_stack_mult(current_stack, m);
+        return;
     }
+
+    if(trace_functions) printf("%*sscale(%f, %f, %f);\n", indent, "", x, y, z);
+
+    float m[16];
+
+    matrix4x4f_scale(x, y, z, m);
+    matrix4x4f_stack_mult(current_stack, m);
 }
 
 void tie(long button, long val1, long val2) {
@@ -2048,19 +2096,20 @@ void tie(long button, long val1, long val2) {
 
 void v3f(float v[3]) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = V3F;
+        element *e = element_next_in_object(V3F);
         vec3f_copy(e->v3f.v, v);
-    } else {
-        if(trace_functions) printf("%*sv3f({%f, %f, %f})\n", indent, "", v[0], v[1], v[2]);
-        if(polygon_vert_count > POLY_MAX - 2)
-            abort();
-        world_vertex *wv = polygon_verts + polygon_vert_count;
-        vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
-        vec4f_copy(wv->color, current_color);
-        vec3f_copy(wv->normal, current_normal);
-        polygon_vert_count++;
+        return;
     }
+
+    if(trace_functions) printf("%*sv3f({%f, %f, %f})\n", indent, "", v[0], v[1], v[2]);
+
+    if(polygon_vert_count > POLY_MAX - 2)
+        abort();
+    world_vertex *wv = polygon_verts + polygon_vert_count;
+    vec4f_set(wv->coord, v[0], v[1], v[2], 1.0f);
+    vec4f_copy(wv->color, current_color);
+    vec3f_copy(wv->normal, current_normal);
+    polygon_vert_count++;
 }
 
 long winattach() {
@@ -2082,7 +2131,7 @@ void winposition() {
 
 void getmatrix(Matrix m) {
     if(trace_functions)
-        printf("%*sgetmatrix(...);\n", indent, "");
+        printf("%*sgetmatrix();\n", indent, "");
     if(matrix_mode == MSINGLE)
         matrix4x4f_copy((float*)m, matrix4x4f_stack_top(&modelview_stack));
     else 
@@ -2091,8 +2140,7 @@ void getmatrix(Matrix m) {
 
 void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = LOOKAT;
+        element *e = element_next_in_object(LOOKAT);
         e->lookat.viewx = viewx;
         e->lookat.viewy = viewy;
         e->lookat.viewz = viewz;
@@ -2100,46 +2148,47 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
         e->lookat.pointy = pointy;
         e->lookat.pointz = pointz;
         e->lookat.twist = twist;
-    } else { 
-        if(trace_functions)
-            printf("%*slookat(%f, %f, %f, %f, %f, %f, %u)\n", indent, "",
-                viewx, viewy, viewz,
-                pointx, pointy, pointz,
-                twist);
-
-        vec3f f;
-        vec3f up;
-        f[0] = pointx - viewx;
-        f[1] = pointy - viewy;
-        f[2] = pointz - viewz;
-
-        if(f[0] != 0.0 || f[2] != 0.0) {
-            up[0] = 0.0; up[1] = 1.0; up[2] = 0.0;
-        } else {
-            up[0] = 0.0; up[1] = 0.0; up[2] = -1.0;
-        }
-
-        vec3f_normalize(f, f);
-        vec3f_normalize(up, up);
-        vec3f s, u;
-        vec3f_cross(f, up, s);
-        vec3f_cross(s, f, u);
-
-        float m[16];
-
-        m[0] =    s[0]; m[1]  =   u[0]; m[2]  =  -f[0]; m[3]  = 0;
-        m[4] =    s[1]; m[5]  =   u[1]; m[6]  =  -f[1]; m[7]  = 0;
-        m[8] =    s[2]; m[9]  =   u[2]; m[10] =  -f[2]; m[11] = 0;
-        m[12] =      0; m[13] =      0; m[14] =      0; m[15] = 1;
-
-        matrix4x4f_stack_mult(current_stack, (float *)m);
-
-        matrix4x4f_translate(-viewx, -viewy, -viewz, m);
-        matrix4x4f_stack_mult(current_stack, (float *)m);
-
-        matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
-        matrix4x4f_stack_mult(current_stack, (float *)m);
+        return;
     }
+
+    if(trace_functions)
+        printf("%*slookat(%f, %f, %f, %f, %f, %f, %u)\n", indent, "",
+            viewx, viewy, viewz,
+            pointx, pointy, pointz,
+            twist);
+
+    vec3f f;
+    vec3f up;
+    f[0] = pointx - viewx;
+    f[1] = pointy - viewy;
+    f[2] = pointz - viewz;
+
+    if(f[0] != 0.0 || f[2] != 0.0) {
+        up[0] = 0.0; up[1] = 1.0; up[2] = 0.0;
+    } else {
+        up[0] = 0.0; up[1] = 0.0; up[2] = -1.0;
+    }
+
+    vec3f_normalize(f, f);
+    vec3f_normalize(up, up);
+    vec3f s, u;
+    vec3f_cross(f, up, s);
+    vec3f_cross(s, f, u);
+
+    float m[16];
+
+    m[0] =    s[0]; m[1]  =   u[0]; m[2]  =  -f[0]; m[3]  = 0;
+    m[4] =    s[1]; m[5]  =   u[1]; m[6]  =  -f[1]; m[7]  = 0;
+    m[8] =    s[2]; m[9]  =   u[2]; m[10] =  -f[2]; m[11] = 0;
+    m[12] =      0; m[13] =      0; m[14] =      0; m[15] = 1;
+
+    matrix4x4f_stack_mult(current_stack, (float *)m);
+
+    matrix4x4f_translate(-viewx, -viewy, -viewz, m);
+    matrix4x4f_stack_mult(current_stack, (float *)m);
+
+    matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
+    matrix4x4f_stack_mult(current_stack, (float *)m);
 }
 
 void lsetdepth() {
@@ -2148,28 +2197,29 @@ void lsetdepth() {
 
 void charstr(char *str) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = CHARSTR;
+        element *e = element_next_in_object(CHARSTR);
         e->charstr.str = strdup(str);
-    } else {
-        if(trace_functions) printf("%*scharstr(\"%s\");\n", indent, "", str);
-        static lit_vertex vert;
-        static screen_vertex screenvert;
+        return;
+    }
 
-        vec4f_copy(vert.coord, current_character_position);
-        vec4f_copy(vert.color, current_color);
+    if(trace_functions) printf("%*scharstr(\"%s\");\n", indent, "", str);
 
-        int code = classify_vertex(vert.coord);
-        if(code != CLIP_ALL_IN)
-            return;
+    static lit_vertex vert;
+    static screen_vertex screenvert;
 
-        project_vertex(&vert, &screenvert);
+    vec4f_copy(vert.coord, current_character_position);
+    vec4f_copy(vert.color, current_color);
 
-        for(int i = 0; i < strlen(str); i++) {
-            // hardcode 8x16 for now
-            draw_bitmap(&screenvert, NULL, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
-            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
-        }
+    int code = classify_vertex(vert.coord);
+    if(code != CLIP_ALL_IN)
+        return;
+
+    project_vertex(&vert, &screenvert);
+
+    for(int i = 0; i < strlen(str); i++) {
+        // hardcode 8x16 for now
+        draw_bitmap(&screenvert, NULL, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
+        screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
     }
 }
 
@@ -2178,52 +2228,53 @@ static float circle_verts[CIRCLE_SEGMENTS][2];
 
 void circi(Icoord x, Icoord y, Icoord r) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = CIRCI;
+        element *e = element_next_in_object(CIRCI);
         e->circi.x = x;
         e->circi.y = y;
         e->circi.r = r;
-    } else {
-        if(trace_functions) printf("%*scirci(%ld, %ld, %ld);\n", indent, "", x, y, r);
-        world_vertex v0, v1;
-
-        vec3f_copy(v0.color, current_color);
-        vec3f_copy(v1.color, current_color);
-
-        int save_lighting = lighting_enabled;
-        lighting_enabled = 0;
-
-        v0.coord[2] = 0.0;
-        v0.coord[3] = 1.0;
-        v1.coord[2] = 0.0;
-        v1.coord[3] = 1.0;
-
-        for(int i = 0; i < CIRCLE_SEGMENTS; i++) {  
-            v0.coord[0] = x + r * circle_verts[i][0];
-            v0.coord[1] = y + r * circle_verts[i][1];
-            v1.coord[0] = x + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][0];
-            v1.coord[1] = y + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][1];
-
-            process_line(&v0, &v1);
-        }
-
-        lighting_enabled = save_lighting;
+        return;
     }
+
+    if(trace_functions) printf("%*scirci(%ld, %ld, %ld);\n", indent, "", x, y, r);
+    world_vertex v0, v1;
+
+    vec3f_copy(v0.color, current_color);
+    vec3f_copy(v1.color, current_color);
+
+    int save_lighting = lighting_enabled;
+    lighting_enabled = 0;
+
+    v0.coord[2] = 0.0;
+    v0.coord[3] = 1.0;
+    v1.coord[2] = 0.0;
+    v1.coord[3] = 1.0;
+
+    for(int i = 0; i < CIRCLE_SEGMENTS; i++) {  
+        v0.coord[0] = x + r * circle_verts[i][0];
+        v0.coord[1] = y + r * circle_verts[i][1];
+        v1.coord[0] = x + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][0];
+        v1.coord[1] = y + r * circle_verts[(i + 1) % CIRCLE_SEGMENTS][1];
+
+        process_line(&v0, &v1);
+    }
+
+    lighting_enabled = save_lighting;
 }
 
 void cmov2i(Icoord x, Icoord y) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = CMOV2I;
+        element *e = element_next_in_object(CMOV2I);
         e->cmov2i.x = x;
         e->cmov2i.y = y;
-    } else {
-        if(trace_functions) printf("%*scmov2i(%ld, %ld);\n", indent, "", x, y);
-        vec4f c, p;
-        vec4f_set(c, x, y, 0.0, 1.0);
-        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), c, p);
-        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), p, current_character_position);
+        return;
     }
+
+    if(trace_functions) printf("%*scmov2i(%ld, %ld);\n", indent, "", x, y);
+        
+    vec4f c, p;
+    vec4f_set(c, x, y, 0.0, 1.0);
+    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), c, p);
+    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), p, current_character_position);
 }
 
 void cursoff() {
@@ -2244,13 +2295,14 @@ long endfeedback() {
 
 void writemask(Colorindex mask) {
     if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object();
-        e->type = WRITEMASK;
+        element *e = element_next_in_object(WRITEMASK);
         e->writemask.mask = mask;
-    } else {
-        if(trace_functions) printf("%*swritemask(%u);\n", indent, "", mask);
-        current_writemask = mask;
+        return;
     }
+
+    if(trace_functions) printf("%*swritemask(%u);\n", indent, "", mask);
+
+    current_writemask = mask;
 }
 
 void rectf(Coord x1, Coord y1, Coord x2, Coord y2) {
