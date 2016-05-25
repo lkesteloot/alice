@@ -647,14 +647,21 @@ char *name;
 		}
 	}
 	fread(&magic,sizeof(int),1,inf);
+        magic = ntohl(magic);
 	if(magic != FASTMAGIC) {
 		fprintf(stderr,"readfast: bad magic in object file\n");
 		fclose(inf);
 		exit(1);
 	}
 	obj = (fastobj *)malloc(sizeof(fastobj));
+	obj->type = ntohl(obj->type);
+	obj->material = ntohl(obj->material);
+	obj->display = ntohl(obj->display);
+	obj->ablend = ntohl(obj->ablend);
 	fread(&obj->npoints,sizeof(int),1,inf);
+	obj->npoints = ntohl(obj->npoints);
 	fread(&obj->colors,sizeof(int),1,inf);
+	obj->colors = ntohl(obj->colors);
 
 	/*
      * Insure that the data is quad-word aligned and begins on a page
@@ -667,8 +674,12 @@ char *name;
 	//obj->data = (int *) (((int)(obj->data)) + 0xfff);
 	//obj->data = (int *) (((int)(obj->data)) & 0xfffff000);
 
-	for (i = 0, ip = obj->data;  i < nlongs/4;  i++, ip += 4)
+	for (i = 0, ip = obj->data;  i < nlongs/4;  i++, ip += 4) {
 		fread(ip, 3 * sizeof(int), 1, inf);
+                ip[0] = ntohl(ip[0]);
+                ip[1] = ntohl(ip[1]);
+                ip[2] = ntohl(ip[2]);
+        }
 	fclose(inf);
 	return obj;
 }
