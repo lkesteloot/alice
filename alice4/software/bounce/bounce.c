@@ -237,10 +237,6 @@ resetballs()
 		balls[i].d[0] = .1*frand();
 		balls[i].d[1] = .1*frand();
 		balls[i].d[2] = .1*frand();
-                printf("%f %f %f\n",
-                balls[i].d[0], 
-                balls[i].d[1], 
-                balls[i].d[2]);
 	}
 }
 
