@@ -2751,7 +2751,20 @@ void poly(int n, Coord p[][3]) {
 
     TRACEF("%ld", n);
 
-    poly_(n, p);
+    static world_vertex worldverts[POLY_MAX];
+    vec4f color;
+    vec4f_copy(color, current_color);
+
+    for(int i = 0 ; i < n; i++) {
+        vec4f_set(worldverts[i].coord,
+            p[i][0], p[i][1], p[i][2], 1.0);
+        vec4f_copy(worldverts[i].color, color);
+        vec3f_set(worldverts[i].normal, 1, 0, 0);
+    }
+
+    for(int i = 0; i < polygon_vert_count; i++) {
+        process_line(&worldverts[i], &worldverts[(i + 1) % polygon_vert_count]);
+    }
 }
 
 // XXX display list
