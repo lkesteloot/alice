@@ -9,22 +9,16 @@
 //      reshapeviewport?
 //      draw
 //      swapbuffers?
-//      pclos
-//      mov
 //      pmv
 //      pmv2i
-//      pmvi
 //      pdr
 //      pdr2i
-//      pdri
 //      linewidth
 //      move
-//      movei
 //      rdr2i
 //      rmv2i
 //      rectf
 //      recti
-//      poly
 //      zbuffer
 //      zclear
 
@@ -35,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdarg.h>
 #include <gl.h>
 #include <device.h>
 #include "connection.h"
@@ -623,6 +618,43 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     process_triangle(&q[2], &q[3], &q[0]);
 }
 
+void process_tmesh(long n, world_vertex *worldverts)
+{
+    static lit_vertex litverts[POLY_MAX];
+    static lit_vertex clipped[POLY_MAX];
+    static lit_vertex *vp;
+    static screen_vertex screenverts[POLY_MAX];
+
+    for(int i = 0; i < n; i++)
+        transform_and_light_vertex(&worldverts[i], &litverts[i]);
+
+    long r = clip_polygon(n, litverts, clipped);
+    if(r == CLIP_TRIVIAL_REJECT)
+        return;
+    else if(r == CLIP_TRIVIAL_ACCEPT) {
+        vp = litverts;
+    } else {
+        vp = clipped;
+        n = r;
+    }
+
+    for(int i = 0; i < n; i++)
+        project_vertex(&vp[i], &screenverts[i]);
+
+    int i0, i1, i2;
+
+    i1 = 0;
+    i2 = 1;
+
+    for(int i = 2; i < n; i++) {
+        i0 = i1;
+        i1 = i2;
+        i2 = i;
+
+        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+    }
+}
+
 void process_polygon(long n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
@@ -713,10 +745,18 @@ typedef struct element
 {
     enum object_type
     {
+        DRAWI,
+        DRAW,
+        MOVEI,
+        MOVE,
+        PCLOS,
+        PDRI,
+        PMVI,
         TAG,
         CALLOBJ,
         COLOR,
         POLF,
+        POLY,
         POLF2I,
         CLEAR,
         CIRCI,
@@ -735,9 +775,17 @@ typedef struct element
         RGBCOLOR,
         BGNPOLYGON,
         ENDPOLYGON,
+        BGNLINE,
+        ENDLINE,
+        BGNCLOSEDLINE,
+        ENDCLOSEDLINE,
+        BGNTMESH,
+        ENDTMESH,
         C3F,
+        C3I,
         N3F,
         V3F,
+        V4F,
         MMODE,
         LMBIND,
         MOVE2I,
@@ -749,6 +797,30 @@ typedef struct element
 
     union
     {
+        struct {
+            Coord x, y, z;
+        } draw;
+
+        struct {
+            Icoord x, y, z;
+        } drawi;
+
+        struct {
+            Coord x, y, z;
+        } move;
+
+        struct {
+            Icoord x, y, z;
+        } movei;
+
+        struct {
+            Icoord x, y, z;
+        } pdri;
+
+        struct {
+            Icoord x, y, z;
+        } pmvi;
+
         struct {
             Coord left, right, bottom, top;
         } ortho2;
@@ -783,12 +855,20 @@ typedef struct element
         } mmode;
 
         struct {
+            float v[4];
+        } v4f;
+
+        struct {
             float v[3];
         } v3f;
 
         struct {
             float n[3];
         } n3f;
+
+        struct {
+            int c[3];
+        } c3i;
 
         struct {
             float c[3];
@@ -816,7 +896,12 @@ typedef struct element
 
         struct {
             int n;
-            Coord *parray;
+            Coord (*p)[3];
+        } poly;
+
+        struct {
+            int n;
+            Coord (*parray)[3];
         } polf;
 
         struct {
@@ -905,6 +990,9 @@ void element_free(element *p)
                 tag_allocation[p->tag.tag] = 0;
                 ptrs_to_tagptrs[p->tag.tag] = NULL;
                 break;
+            case POLY:
+                free(p->poly.p);
+                break;
             case POLF:
                 free(p->polf.parray);
                 break;
@@ -940,9 +1028,37 @@ element *element_next_in_object(enum object_type t)
     return e;
 }
 
+void trace_func(const char *func, const char *fmt, ...)
+{
+    va_list args;
+    static char dummy[512];
+    char *dp = dummy;
+
+    if(!trace_functions)
+        return;
+
+    for(int i = 0 ; i < indent; i++)
+        *dp++ = ' ';
+
+    dp = stpcpy(dp, func);
+    *dp++ = '(';
+
+    va_start(args, fmt);
+    dp += vsprintf(dp, fmt, args);
+    va_end(args);
+
+    dp = stpcpy(dp, ");\n");
+    
+    fputs(dummy, stdout);
+}
+
+#define TRACEF(fmt, ...) trace_func(__FUNCTION__, fmt, __VA_ARGS__)
+#define TRACE() trace_func(__FUNCTION__, "")
 
 //----------------------------------------------------------------------------
 // GL API calls
+
+
 
 void callobj(Object obj) { 
     if(cur_ptr_to_nextptr != NULL) {
@@ -951,19 +1067,47 @@ void callobj(Object obj) {
         return;
     }
 
-    if(trace_functions) printf("%*scallobj %ld\n", indent, "", obj);
+    TRACEF("%ld", obj);
+
     indent += 4;
     element *p = objects[obj];
     while(p) {
         switch(p->type) {
+            case DRAW:
+                draw(p->draw.x, p->draw.y, p->draw.z);
+                break;
+            case DRAWI:
+                drawi(p->drawi.x, p->drawi.y, p->drawi.z);
+                break;
+            case MOVE:
+                move(p->move.x, p->move.y, p->move.z);
+                break;
+            case MOVEI:
+                movei(p->movei.x, p->movei.y, p->movei.z);
+                break;
+            case PDRI:
+                pdri(p->pdri.x, p->pdri.y, p->pdri.z);
+                break;
+            case PMVI:
+                pmvi(p->pmvi.x, p->pmvi.y, p->pmvi.z);
+                break;
+            case PCLOS:
+                pclos();
+                break;
             case LMBIND:
                 lmbind(p->lmbind.target, p->lmbind.index);
                 break;
             case MMODE:
                 mmode(p->mmode.mode);
                 break;
+            case V4F:
+                v4f(p->v4f.v);
+                break;
             case V3F:
                 v3f(p->v3f.v);
+                break;
+            case C3I:
+                c3i(p->c3i.c);
                 break;
             case C3F:
                 c3f(p->c3f.c);
@@ -976,6 +1120,24 @@ void callobj(Object obj) {
                 break;
             case BGNPOLYGON:
                 bgnpolygon();
+                break;
+            case ENDTMESH:
+                endtmesh();
+                break;
+            case BGNTMESH:
+                bgntmesh();
+                break;
+            case ENDLINE:
+                endline();
+                break;
+            case BGNLINE:
+                bgnline();
+                break;
+            case ENDCLOSEDLINE:
+                endclosedline();
+                break;
+            case BGNCLOSEDLINE:
+                bgnclosedline();
                 break;
             case RGBCOLOR:
                 RGBcolor(
@@ -1058,6 +1220,9 @@ void callobj(Object obj) {
             case POLF2I:
                 polf2i(p->polf2i.n, p->polf2i.parray);
                 break;
+            case POLY:
+                poly(p->poly.n, p->poly.p);
+                break;
             case POLF:
                 polf(p->polf.n, p->polf.parray);
                 break;
@@ -1083,7 +1248,7 @@ void callobj(Object obj) {
                 move2i(p->move2i.x, p->move2i.y);
                 break;
             case TAG:
-                if(trace_functions) printf("%*stag %ld\n", indent, "", p->tag.tag);
+                TRACEF("%ld", p->tag.tag);
                 break;
             default:
                 printf("encountered unknown Object type, %s:%d\n", __FILE__, __LINE__);
@@ -1104,14 +1269,14 @@ void clear() {
         return;
     }
 
-    if(trace_functions) printf("%*sclear();\n", indent, "");
+    TRACE();
     send_uint8(COMMAND_CLEAR);
     for(int i = 0; i < 3; i++)
         send_uint8((int)(current_color[i] * 255.0));
 }
 
 void closeobj() { 
-    if(trace_functions) printf("%*scloseobj\n", indent, "");
+    TRACE();
     cur_ptr_to_nextptr = NULL;
 }
 
@@ -1122,7 +1287,8 @@ void color(Colorindex color) {
         return;
     }
 
-    if(trace_functions) printf("%*scolor %u\n", indent, "", color);
+    TRACEF("%u", color);
+
     current_color_index = color;
     for(int i = 0; i < 3; i++)
         current_color[i] = colormap[color][i] / 255.0;
@@ -1142,7 +1308,7 @@ void doublebuffer() {
 }
 
 void editobj(Object obj) { 
-    if(trace_functions) printf("%*seditobj %ld\n", indent, "", obj);
+    TRACEF("%ld", obj);
 
     cur_ptr_to_nextptr = &(objects[obj]);
     while(*cur_ptr_to_nextptr != NULL)
@@ -1186,31 +1352,36 @@ Boolean getbutton() {
 }
 
 void getmcolor(Colorindex index, short *red, short *green, short *blue) { 
-    if(trace_functions) printf("%*sgetmcolor(%d);\n", indent, "", index);
+    TRACEF("%d", index);
+
     *red = colormap[index][0];
     *green = colormap[index][1];
     *blue = colormap[index][2];
 }
 
 void getorigin(long *x, long *y) { 
-    if(trace_functions) printf("%*sgetorigin();\n", indent, "");
+    TRACE();
+
     *x = 0;
     *y = 0;
 }
 
 long getplanes() { 
-    if(trace_functions) printf("%*sgetplanes();\n", indent, "");
+    TRACE();
+
     return 24;
 }
 
 void getsize(long *width, long *height) { 
-    if(trace_functions) printf("%*sgetsize();\n", indent, "");
+    TRACE();
+
     *width = DISPLAY_WIDTH;
     *height = DISPLAY_HEIGHT;
 }
 
 long getvaluator(long device) { 
-    if(trace_functions) printf("%*sgetvaluator(%ld);\n", indent, "", device);
+    TRACEF("%ld", device);
+
     send_uint8(COMMAND_GET_VALUATOR);
     send_uint32(device);
     return receive_uint32();
@@ -1239,7 +1410,8 @@ void gexit() {
 }
 
 void makeobj(Object obj) { 
-    if(trace_functions) printf("%*smakeobj %ld\n", indent, "", obj);
+    TRACEF("%ld", obj);
+
     if(objects[obj] != NULL) {
         element_free(objects[obj]);
     }
@@ -1249,7 +1421,8 @@ void makeobj(Object obj) {
 }
 
 void maketag(Tag tag) { 
-    if(trace_functions) printf("%*smaketag %ld\n", indent, "", tag);
+    TRACEF("%ld", tag);
+
     if(cur_ptr_to_nextptr == NULL) {
         printf("maketag : not editing\n");
         return;
@@ -1263,7 +1436,8 @@ void maketag(Tag tag) {
 
 void mapcolor(Colorindex index, short red, short green, short blue) { 
     // XXX insect only provides numbers ranging 0..255
-    if(trace_functions) printf("%*smapcolor %d %d %d %d\n", indent, "", index, red, green, blue);
+    TRACEF("%d, %d, %d, %d", index, red, green, blue);
+
     colormap[index][0] = red;
     colormap[index][1] = green;
     colormap[index][2] = blue;
@@ -1287,7 +1461,8 @@ void multmatrix(Matrix m) {
 }
 
 void objreplace(Tag tag) { 
-    if(trace_functions) printf("%*sobjreplace %ld\n", indent, "", tag);
+    TRACEF("%ld", tag);
+
     cur_ptr_to_nextptr = &(*ptrs_to_tagptrs[tag])->next;
     replace_mode = 1;
 }
@@ -1302,6 +1477,8 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
         return;
     }
 
+    TRACEF("%d, %f, %f, %f", fovy_, aspect, near, far);
+
     float m[16];
     float fovy = fovy_ / 1800.0 * M_PI;
 
@@ -1314,7 +1491,6 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
     m[11] = -1.0;
     m[14] = 2 * far * near / (near - far);
     m[15] = 0.0;
-    if(trace_functions) printf("%*sperspective %d %f %f %f\n", indent, "", fovy_, aspect, near, far);
     if(matrix_mode == MSINGLE) {
         matrix4x4f_stack_load(&projection_stack, m);
         matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
@@ -1334,7 +1510,7 @@ void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
         return;
     }
 
-    if(trace_functions) printf("%*sortho2(%f, %f, %f, %f);\n", indent, "", left, right, bottom, top);
+    TRACEF("%f, %f, %f, %f", left, right, bottom, top);
 
     float m[16];
 
@@ -1354,17 +1530,7 @@ void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
         matrix4x4f_stack_load(current_stack, m);
 }
 
-void polf(long n, Coord parray[ ][3]) {
-    if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object(POLF);
-        e->polf.n = n;
-        e->polf.parray = (Coord*) malloc(sizeof(Coord) * 3 * n);
-        memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
-        return;
-    }
-
-    if(trace_functions) printf("%*spolf %ld\n", indent, "", n);
-
+void poly_(long n, Coord parray[ ][3]) {
     static world_vertex worldverts[POLY_MAX];
     vec4f color;
     vec4f_copy(color, current_color);
@@ -1379,6 +1545,20 @@ void polf(long n, Coord parray[ ][3]) {
     process_polygon(n, worldverts);
 }
 
+void polf(long n, Coord parray[ ][3]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(POLF);
+        e->polf.n = n;
+        e->polf.parray = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+        memcpy(e->polf.parray, parray, sizeof(Coord) * 3 * n);
+        return;
+    }
+
+    TRACEF("%ld", n);
+
+    poly_(n, parray);
+}
+
 void polf2i(long n, Icoord parray[ ][2]) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(POLF2I);
@@ -1388,7 +1568,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
         return;
     }
 
-    if(trace_functions) printf("%*spolf2i %ld\n", indent, "", n);
+    TRACEF("%ld", n);
 
     static world_vertex worldverts[POLY_MAX];
     vec4f color;
@@ -1410,7 +1590,7 @@ void popmatrix() {
         return;
     }
 
-    if(trace_functions) printf("%*spopmatrix\n", indent, "");
+    TRACE();
 
     matrix4x4f_stack_pop(current_stack);
 }
@@ -1421,12 +1601,14 @@ void pushmatrix() {
         return;
     }
 
-    if(trace_functions) printf("%*spushmatrix\n", indent, "");
+    TRACE();
 
     matrix4x4f_stack_push(current_stack);
 }
 
 static void enqueue_device(long device, short val) {
+    TRACEF("%ld, %d", device, val);
+
     if (input_queue_length == INPUT_QUEUE_SIZE) {
         printf("Input queue overflow.");
     } else {
@@ -1439,6 +1621,8 @@ static void enqueue_device(long device, short val) {
 
 // We're interested in events from this device.
 void qdevice(long device) { 
+    TRACEF("%ld", device);
+
     switch (device) {
         case REDRAW:
             // Initial redraw.
@@ -1477,6 +1661,8 @@ void fetch_event_queue(int blocking) {
 
 // If the queue is empty, qread() blocks.
 long qread(short *val) { 
+    TRACE();
+
     while (input_queue_length == 0) {
         // Blocking read.
         fetch_event_queue(TRUE);
@@ -1493,6 +1679,8 @@ long qread(short *val) {
 // Returns 0 if the event queue is empty.
 // Doesn't change the queue.
 long qtest() { 
+    TRACE();
+
     if (input_queue_length == 0) {
         // Non-blocking read.
         fetch_event_queue(FALSE);
@@ -1518,7 +1706,7 @@ void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoo
         return;
     }
 
-    if(trace_functions) printf("%*sviewport %d %d %d %d\n", indent, "", left, right, bottom, top);
+    TRACEF("%d, %d, %d, %d", left, right, bottom, top);
 
     the_viewport[0] = left;
     the_viewport[1] = right;
@@ -1528,6 +1716,8 @@ void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoo
  
 // XXX display-listable?
 void reshapeviewport() { 
+    TRACE();
+
     long xsize, ysize;
     getsize(&xsize, &ysize);
     viewport(0, xsize-1, 0, ysize-1);
@@ -1541,7 +1731,7 @@ void rotate(Angle ang, unsigned char axis) {
         return;
     }
 
-    if(trace_functions) printf("%*srotate %d %c\n", indent, "", ang, axis);
+    TRACEF("%d, %c", ang, axis);
 
     float m[16];
 
@@ -1598,7 +1788,8 @@ static int32_t font_width, font_rowbytes, font_height;
 static uint8_t font_bits[];
 
 void swapbuffers() {
-    if(trace_functions) printf("%*sswapbuffers\n", indent, "");
+    TRACE();
+
     send_uint8(COMMAND_SWAPBUFFERS);
     flush();
 }
@@ -1612,7 +1803,7 @@ void translate(Coord x, Coord y, Coord z) {
         return;
     }
 
-    if(trace_functions) printf("%*stranslate %f %f %f\n", indent, "", x, y, z);
+    TRACEF("%f, %f, %f", x, y, z);
 
     float m[16];
 
@@ -1632,7 +1823,7 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
         return;
     }
 
-    if(trace_functions) printf("%*swindow(%f, %f, %f, %f, %f, %f);\n", indent, "", left, right, bottom, top, near, far);
+    TRACEF("%f, %f, %f, %f, %f, %f", left, right, bottom, top, near, far);
 
     float m[16];
 
@@ -1648,7 +1839,7 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
 }
 
 long winopen(char *title) {
-    if(trace_functions) printf("%*swinopen %s\n", indent, "", title);
+    TRACEF("%s", title);
     open_connection();
     send_uint8(COMMAND_WINOPEN);
     send_string(title);
@@ -1664,7 +1855,7 @@ void RGBcolor(long r, long g, long b) {
         return;
     }
 
-    if(trace_functions) printf("%*sRGBcolor %ld %ld %ld\n", indent, "", r, g, b);
+    TRACEF("%ld, %ld, %ld", r, g, b);
 
     current_color[0] = r / 255.0;
     current_color[1] = g / 255.0;
@@ -1683,15 +1874,71 @@ void addtopup() {
 static int polygon_vert_count = 0;
 static world_vertex polygon_verts[POLY_MAX];
 
+void reset_vertex_list()
+{
+    polygon_vert_count = 0;
+}
+
+void end_polygon()
+{
+    process_polygon(polygon_vert_count, polygon_verts);
+}
+
+void bgntmesh() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(BGNTMESH);
+        return;
+    }
+
+    TRACE();
+
+    reset_vertex_list();
+}
+
+void bgnline() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(BGNLINE);
+        return;
+    }
+
+    TRACE();
+
+    reset_vertex_list();
+}
+
+void bgnclosedline() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(BGNCLOSEDLINE);
+        return;
+    }
+
+    TRACE();
+
+    reset_vertex_list();
+}
+
 void bgnpolygon() {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(BGNPOLYGON);
         return;
     }
 
-    if(trace_functions) printf("%*sbgnpolygon\n", indent, "");
+    TRACE();
 
-    polygon_vert_count = 0;
+    reset_vertex_list();
+}
+
+void c3i(int c[3]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(C3F);
+        for(int i = 0; i < 3; i++)
+            e->c3i.c[i] = c[i];
+        return;
+    }
+    
+    TRACEF("%d, %d, %d", c[0], c[1], c[2]);
+
+    vec4f_set(current_color, c[0] / 255.0, c[1] / 255.0, c[2] / 255.0, 1.0f);
 }
 
 void c3f(float c[3]) {
@@ -1701,7 +1948,7 @@ void c3f(float c[3]) {
         return;
     }
     
-    if(trace_functions) printf("%*sc3f({%f, %f, %f})\n", indent, "", c[0], c[1], c[2]);
+    TRACEF("%f, %f, %f", c[0], c[1], c[2]);
 
     vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
 }
@@ -1714,6 +1961,43 @@ long dopup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
+void endline() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(ENDLINE);
+        return;
+    }
+
+    if(trace_functions) printf("%*sendline(); /* %d verts */\n", indent, "", polygon_vert_count);
+
+    for(int i = 0; i < polygon_vert_count - 1; i++) {
+        process_line(&polygon_verts[i], &polygon_verts[i + 1]);
+    }
+}
+
+void endclosedline() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(ENDCLOSEDLINE);
+        return;
+    }
+
+    if(trace_functions) printf("%*sendclosedline(); /* %d verts */\n", indent, "", polygon_vert_count);
+
+    for(int i = 0; i < polygon_vert_count; i++) {
+        process_line(&polygon_verts[i], &polygon_verts[(i + 1) % polygon_vert_count]);
+    }
+}
+
+void endtmesh() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(ENDTMESH);
+        return;
+    }
+
+    if(trace_functions) printf("%*sendtmesh(); /* %d verts */\n", indent, "", polygon_vert_count);
+
+    process_tmesh(polygon_vert_count, polygon_verts);
+}
+
 void endpolygon() {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(ENDPOLYGON);
@@ -1722,14 +2006,14 @@ void endpolygon() {
 
     if(trace_functions) printf("%*sendpolygon(); /* %d verts */\n", indent, "", polygon_vert_count);
 
-    process_polygon(polygon_vert_count, polygon_verts);
+    end_polygon();
 }
 
 void freepup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void draw(Coord x, Coord y, Coord z) {
+void draw_(Coord x, Coord y, Coord z) {
     world_vertex v0, v1;
     vec4f_copy(v0.coord, current_position);
     vec3f_copy(v0.color, current_color);
@@ -1747,8 +2031,32 @@ void draw(Coord x, Coord y, Coord z) {
     lighting_enabled = save_lighting;
 }
 
+void draw(Coord x, Coord y, Coord z) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(DRAW);
+        e->draw.x = x;
+        e->draw.y = y;
+        e->draw.z = z;
+        return;
+    }
+
+    TRACEF("%f, %f, %f", x, y, z);
+
+    draw_(x, y, z);
+}
+
 void drawi(Icoord x, Icoord y, Icoord z) {
-    draw(x, y, z);
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(DRAWI);
+        e->drawi.x = x;
+        e->drawi.y = y;
+        e->drawi.z = z;
+        return;
+    }
+
+    TRACEF("%d, %d, %d", x, y, z);
+
+    draw_(x, y, z);
 }
 
 void draw2i(Icoord x, Icoord y) {
@@ -1759,29 +2067,22 @@ void draw2i(Icoord x, Icoord y) {
         return;
     }
 
-    if(trace_functions) printf("%*sdraw2i(%ld, %ld);\n", indent, "", x, y);
+    TRACEF("%ld, %ld", x, y);
 
-    draw(x, y, 0);
+    draw_(x, y, 0);
 }
 
 void pclos() {
-    endpolygon();
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(PCLOS);
+        return;
+    }
+    if(trace_functions) printf("%*spclos(); /* %d verts */\n", indent, "", polygon_vert_count);
+
+    end_polygon();
 }
 
-void pmv(Coord x, Coord y, Coord z) {
-    bgnpolygon();
-    pdr(x, y, z);
-}
-
-void pmv2i(Icoord x, Icoord y) {
-    pmv(x, y, 0);
-}
-
-void pmvi(Icoord x, Icoord y, Icoord z) {
-    pmv(x, y, z);
-}
-
-void pdr(Coord x, Coord y, Coord z) {
+void pdr_(Coord x, Coord y, Coord z) {
     vec3f p;
 
     p[0] = x;
@@ -1791,12 +2092,57 @@ void pdr(Coord x, Coord y, Coord z) {
     v3f(p);
 }
 
+void pmv_(Coord x, Coord y, Coord z) {
+    reset_vertex_list();
+    pdr_(x, y, z);
+}
+
+void pmv(Coord x, Coord y, Coord z) {
+    TRACEF("%f, %f", x, y);
+    pmv_(x, y, z);
+}
+
+void pmv2i(Icoord x, Icoord y) {
+    TRACEF("%d, %d", x, y);
+    pmv_(x, y, 0);
+}
+
+void pmvi(Icoord x, Icoord y, Icoord z) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(PMVI);
+        e->pmvi.x = x;
+        e->pmvi.y = y;
+        e->pmvi.z = z;
+        return;
+    }
+
+    TRACEF("%d, %d", x, y);
+
+    pmv_(x, y, z);
+}
+
+void pdr(Coord x, Coord y, Coord z) {
+    TRACEF("%f, %f, %f", x, y, z);
+    pdr_(x, y, z);
+}
+
 void pdr2i(Icoord x, Icoord y) {
-    pdr(x, y, 0);
+    TRACEF("%d, %d", x, y);
+    pdr_(x, y, 0);
 }
 
 void pdri(Icoord x, Icoord y, Icoord z) {
-    pdr(x, y, z);
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(PDRI);
+        e->pdri.x = x;
+        e->pdri.y = y;
+        e->pdri.z = z;
+        return;
+    }
+
+    TRACEF("%d, %d, %d", x, y, z);
+
+    pdr_(x, y, z);
 }
 
 void pnt(Coord x, Coord y, Coord z) {
@@ -1820,7 +2166,7 @@ void lmbind(short target, long index) {
         return;
     }
 
-    if(trace_functions) printf("%*slmbind(%d, %ld)\n", indent, "", target, index);
+    TRACEF("%d, %ld", target, index);
 
     if(target == MATERIAL) {
         material_bound = (index == 0) ? NULL : &materials[index - 1];
@@ -1990,7 +2336,7 @@ void mmode(long mode) {
         return;
     }
 
-    if(trace_functions) printf("%*smmode(%ld)\n", indent, "", mode);
+    TRACEF("%ld", mode);
 
     matrix_mode = mode;
     switch(mode) {
@@ -2001,11 +2347,30 @@ void mmode(long mode) {
 }
 
 void move(Coord x, Coord y, Coord z) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(MOVE);
+        e->move.x = x;
+        e->move.y = y;
+        e->move.z = z;
+        return;
+    }
+
+    TRACEF("%f, %f, %f", x, y, z);
     vec4f_set(current_position, x, y, z, 1.0);
 }
 
 void movei(Icoord x, Icoord y, Icoord z) {
-    move(x, y, z);
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(MOVEI);
+        e->movei.x = x;
+        e->movei.y = y;
+        e->movei.z = z;
+        return;
+    }
+
+    TRACEF("%d, %d, %d", x, y, z);
+
+    vec4f_set(current_position, x, y, z, 1.0);
 }
 
 void move2i(Icoord x, Icoord y) {
@@ -2016,9 +2381,9 @@ void move2i(Icoord x, Icoord y) {
         return;
     }
 
-    if(trace_functions) printf("%*smove2i(%ld, %ld);\n", indent, "", x, y);
+    TRACEF("%ld, %ld", x, y);
 
-    move(x, y, 0);
+    vec4f_set(current_position, x, y, 0.0f, 1.0f);
 }
 
 void n3f(float n[3]) {
@@ -2028,7 +2393,7 @@ void n3f(float n[3]) {
         return;
     }
 
-    if(trace_functions) printf("%*sn3f({%f, %f, %f})\n", indent, "", n[0], n[1], n[2]);
+    TRACEF("%f, %f, %f", n[0], n[1], n[2]);
 
     vec3f_copy(current_normal, n);
 }
@@ -2046,7 +2411,7 @@ void qenter() {
 }
 
 void rdr2i(Icoord dx, Icoord dy) {
-    if(trace_functions) printf("%*srdr2i(%ld, %ld);\n", indent, "", dx, dy);
+    TRACEF("%ld, %ld", dx, dy);
 
     world_vertex v0, v1;
     vec4f_copy(v0.coord, current_position);
@@ -2065,7 +2430,7 @@ void rdr2i(Icoord dx, Icoord dy) {
 }
 
 void rmv2i(Icoord dx, Icoord dy) {
-    if(trace_functions) printf("%*srmv2i(%ld, %ld);\n", indent, "", dx, dy);
+    TRACEF("%ld, %ld", dx, dy);
     current_position[0] += dx;
     current_position[1] += dy;
 }
@@ -2079,7 +2444,7 @@ void scale(float x, float y, float z) {
         return;
     }
 
-    if(trace_functions) printf("%*sscale(%f, %f, %f);\n", indent, "", x, y, z);
+    TRACEF("%f, %f, %f", x, y, z);
 
     float m[16];
 
@@ -2094,6 +2459,24 @@ void tie(long button, long val1, long val2) {
     send_uint32(val2);
 }
 
+void v4f(float v[4]) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(V4F);
+        vec4f_copy(e->v4f.v, v);
+        return;
+    }
+
+    TRACEF("%f, %f, %f, %f", v[0], v[1], v[2], v[3]);
+
+    if(polygon_vert_count > POLY_MAX - 2)
+        abort();
+    world_vertex *wv = polygon_verts + polygon_vert_count;
+    vec4f_copy(wv->coord, v);
+    vec4f_copy(wv->color, current_color);
+    vec3f_copy(wv->normal, current_normal);
+    polygon_vert_count++;
+}
+
 void v3f(float v[3]) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(V3F);
@@ -2101,7 +2484,7 @@ void v3f(float v[3]) {
         return;
     }
 
-    if(trace_functions) printf("%*sv3f({%f, %f, %f})\n", indent, "", v[0], v[1], v[2]);
+    TRACEF("%f, %f, %f", v[0], v[1], v[2]);
 
     if(polygon_vert_count > POLY_MAX - 2)
         abort();
@@ -2130,8 +2513,8 @@ void winposition() {
 }
 
 void getmatrix(Matrix m) {
-    if(trace_functions)
-        printf("%*sgetmatrix();\n", indent, "");
+    TRACE();
+
     if(matrix_mode == MSINGLE)
         matrix4x4f_copy((float*)m, matrix4x4f_stack_top(&modelview_stack));
     else 
@@ -2151,11 +2534,7 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
         return;
     }
 
-    if(trace_functions)
-        printf("%*slookat(%f, %f, %f, %f, %f, %f, %u)\n", indent, "",
-            viewx, viewy, viewz,
-            pointx, pointy, pointz,
-            twist);
+    TRACEF("%f, %f, %f, %f, %f, %f, %u", viewx, viewy, viewz, pointx, pointy, pointz, twist);
 
     vec3f f;
     vec3f up;
@@ -2202,7 +2581,7 @@ void charstr(char *str) {
         return;
     }
 
-    if(trace_functions) printf("%*scharstr(\"%s\");\n", indent, "", str);
+    TRACEF("%s", str);
 
     static lit_vertex vert;
     static screen_vertex screenvert;
@@ -2235,7 +2614,8 @@ void circi(Icoord x, Icoord y, Icoord r) {
         return;
     }
 
-    if(trace_functions) printf("%*scirci(%ld, %ld, %ld);\n", indent, "", x, y, r);
+    TRACEF("%ld, %ld, %ld", x, y, r);
+
     world_vertex v0, v1;
 
     vec3f_copy(v0.color, current_color);
@@ -2269,7 +2649,7 @@ void cmov2i(Icoord x, Icoord y) {
         return;
     }
 
-    if(trace_functions) printf("%*scmov2i(%ld, %ld);\n", indent, "", x, y);
+    TRACEF("%ld, %ld", x, y);
         
     vec4f c, p;
     vec4f_set(c, x, y, 0.0, 1.0);
@@ -2300,45 +2680,81 @@ void writemask(Colorindex mask) {
         return;
     }
 
-    if(trace_functions) printf("%*swritemask(%u);\n", indent, "", mask);
+    TRACEF("%u", mask);
 
     current_writemask = mask;
 }
 
+void rectf_(Coord x1, Coord y1, Coord x2, Coord y2) {
+    pmv_(x1, y1, 0);
+    pdr_(x1, y2, 0);
+    pdr_(x2, y2, 0);
+    pdr_(x2, y1, 0);
+    end_polygon();
+}
+
 void rectf(Coord x1, Coord y1, Coord x2, Coord y2) {
-    pmv(x1, y1, 0);
-    pdr(x1, y2, 0);
-    pdr(x2, y2, 0);
-    pdr(x2, y1, 0);
-    pclos();
+    TRACEF("%f, %f, %f, %f", x1, y1, x2, y2);
+    rectf_(x1, y1, x2, y2);
 }
 
 void rectfi(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
-    rectf(x1, y1, x2, y2);
+    TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
+    rectf_(x1, y1, x2, y2);
+}
+
+void recti(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
+    TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
+    rectf_(x1, y1, x2, y2);
 }
 
 void poly(int n, Coord p[][3]) {
-    for (int i = 0; i <= n; i++) {
-        Coord *v = p[i % n];
-
-        if (i == 0) {
-            move(v[0], v[1], v[2]);
-        } else {
-            draw(v[0], v[1], v[2]);
-        }
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(POLY);
+        e->poly.n = n;
+        e->poly.p = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+        memcpy(e->poly.p, p, sizeof(Coord) * 3 * n);
+        return;
     }
+
+    TRACEF("%ld", n);
+
+    poly_(n, p);
 }
 
 // XXX display list
 void zbuffer(int enable) {
+    TRACEF("%d", enable);
     send_uint8(COMMAND_ZBUFFER);
     send_uint8(enable);
 }
 
 // XXX display list
 void zclear() {
+    TRACE();
     send_uint8(COMMAND_ZCLEAR);
 }
+
+void zfunction(int func) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+// XXX display list
+void czclear(int color, int depth) {
+    static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
+    TRACE();
+    send_uint8(COMMAND_ZCLEAR);
+    send_uint8(COMMAND_CLEAR);
+    send_uint8((color >> 16) & 0xff);
+    send_uint8((color >>  8) & 0xff);
+    send_uint8((color >>  0) & 0xff);
+}
+
+int gversion(char *version)
+{
+    strcpy(version, "ALICE4_0");
+}
+
 
 static void init_gl_state() __attribute__((constructor));
 static void init_gl_state()

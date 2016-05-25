@@ -304,13 +304,13 @@ extern void	pnt2s();
 extern void	pnti();
 extern void	pnts();
 extern void	polarview();
-extern void	polf();
 extern void	polf2();
 extern void	polf2i();
 extern void	polf2s();
 extern void	polfi();
 extern void	polfs();
 extern void	poly(int n, Coord p[][3]);
+extern void	polf(long n, Coord p[][3]);
 extern void	poly2();
 extern void	poly2i();
 extern void	poly2s();
@@ -349,7 +349,7 @@ extern void	rectcopy();
 extern void     rectf(Coord x1, Coord y1, Coord x2, Coord y2);
 extern void	rectfi(Icoord x1, Icoord y1, Icoord x2, Icoord y2);
 extern void	rectfs();
-extern void	recti();
+extern void	recti(Icoord x1, Icoord y1, Icoord x2, Icoord y2);
 extern void	rects();
 extern void	resetls();
 extern void	reshapeviewport();
@@ -457,6 +457,18 @@ extern void endpolygon();
 extern void mmode(long mode);
 extern void lmdef(short deftype, long index, short numpoints, float properties[]);
 extern void lmbind(short target, long index);
+
+extern void bgnclosedline();
+extern void endclosedline();
+extern void bgnline();
+extern void endline();
+extern void bgntmesh();
+extern void endtmesh();
+extern int gversion(char *version);
+extern void c3i(int c[3]);
+extern void v4f(float c[3]);
+extern void zfunction(int func);
+extern void czclear(int color, int depth);
 
 // Added by LK because demos needed it. I don't know what the real values should be.
 #define GLC_OLDPOLYGON 2001
