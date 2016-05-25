@@ -11,7 +11,7 @@ $(APP): $(SRC) $(LIBGL_SRC)
 		-o $(APP) $(SRC) $(LIBGL_SRC)
 
 run: $(APP)
-	./$(APP) logo.bin
+	./$(APP) ./logo.bin
 
 clean:
 	rm -f $(APP)
