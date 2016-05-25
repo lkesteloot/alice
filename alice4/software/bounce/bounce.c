@@ -237,6 +237,10 @@ resetballs()
 		balls[i].d[0] = .1*frand();
 		balls[i].d[1] = .1*frand();
 		balls[i].d[2] = .1*frand();
+                printf("%f %f %f\n",
+                balls[i].d[0], 
+                balls[i].d[1], 
+                balls[i].d[2]);
 	}
 }
 
@@ -308,7 +312,7 @@ drawimage()
 initialize(argv)
 char **argv;
 {
-	long time();
+	int time();
 	void srand();
 
 	{	/* Open window with name of executable */
@@ -510,7 +514,7 @@ calcball()
 
 float frand()
 {
-	return 2.0*(rand()/32768.0 - .5);
+	return 2.0*((rand() % 32768)/32768.0 - .5);
 }
 
 
