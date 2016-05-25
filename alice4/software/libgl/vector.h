@@ -110,16 +110,26 @@ inline float vec4f_dot(vec4f i1, vec4f i2)
     return dot;
 }
 
+inline float vec3f_length(vec3f i1)
+{
+    return sqrtf(i1[0] * i1[0] + i1[1] * i1[1] + i1[2] * i1[2]);
+}
+
 inline void vec3f_normalize(vec3f i1, vec3f out)
 {
-    float d = 1.0f/sqrtf(i1[0] * i1[0] + i1[1] * i1[1] + i1[2] * i1[2]);
+    float d = 1.0f / vec3f_length(i1);
     for(int i = 0; i < 3; i++)
         out[i] = i1[i] * d;
 }
 
+inline float vec4f_length(vec4f i1)
+{
+    return sqrtf(i1[0] * i1[0] + i1[1] * i1[1] + i1[2] * i1[2] + i1[3] * i1[3]);
+}
+
 inline void vec4f_normalize(vec4f i1, vec4f out)
 {
-    float d = 1.0f/sqrtf(i1[0] * i1[0] + i1[1] * i1[1] + i1[2] * i1[2] + i1[3] * i1[3]);
+    float d = 1.0f / vec4f_length(i1);
     for(int i = 0; i < 4; i++)
         out[i] = i1[i] * d;
 }

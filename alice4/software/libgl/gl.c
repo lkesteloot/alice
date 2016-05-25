@@ -66,9 +66,9 @@ static int input_queue_length = 0;
 //----------------------------------------------------------------------------
 // GL state
 
-#define MAX_MATERIALS 16
-#define MAX_LIGHTS 16
-#define MAX_LMODELS 16
+#define MAX_MATERIALS 8
+#define MAX_LIGHTS 8
+#define MAX_LMODELS 2
 
 typedef struct material {
     vec3f emission;
@@ -88,7 +88,7 @@ typedef struct light {
 } light;
 
 typedef struct lmodel {
-    float local;
+    int local;
     vec3f ambient;
     float attenuation[2];
 } lmodel;
@@ -118,7 +118,7 @@ void light_init(light *l)
 void lmodel_init(lmodel *l)
 {
     vec3f_set(l->ambient, 0.2, 0.2, 0.2);
-    l->local = 0.0;
+    l->local = 0;
     l->attenuation[0] = 1.0;
     l->attenuation[1] = 0.0;
 }
@@ -229,45 +229,64 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
 {
     vec3f color;
     vec3f_mult(mtl->ambient, lmodel_bound->ambient, color);
+    vec3f_add(mtl->emission, color, color);
 
     for(int i = 0; i < MAX_LIGHTS; i++) {
         light *l = lights_bound[i];
         if(l == NULL)
             continue;
 
-        // XXX no ambient, no emission, no spotlights
-        // XXX for reference - OpenGL ES 1.1: 2.12.1 Lighting
+        // XXX no spotlight
+        // XXX for reference - OpenGL 1.1: 2.13.1 Lighting
+        // https://www.opengl.org/documentation/specs/version1.1/glspec1.1/node32.html
         vec4f vertex_to_light;
+        vec4f vertex_to_light_dir;
+        float attenuation;
 
         if(l->position[3] == 0.0)  {
             vec4f_copy(vertex_to_light, l->position);
+            attenuation = 1.0f;
         } else {
             vec4f_subtract(l->position, coord, vertex_to_light);
+            attenuation = 1.0f / (
+                lmodel_bound->attenuation[0] + 
+                lmodel_bound->attenuation[1] * vec4f_length(vertex_to_light)
+                );
         }
 
-        vec4f_normalize(vertex_to_light, vertex_to_light);
 
-        float n_dot_l = vec3f_dot(normal, vertex_to_light);
+        vec4f_normalize(vertex_to_light, vertex_to_light_dir);
+
+        float n_dot_l = vec3f_dot(normal, vertex_to_light_dir);
+        vec3f t1;
+
+        /* ambient calculation */
+        vec3f_mult(mtl->ambient, l->color, t1);
+        vec3f_scale(t1, attenuation, t1);
+        vec3f_add(t1, color, color);
 
         if(n_dot_l >= 0) {
             /* diffuse calculation */
-            vec3f t1;
             vec3f_mult(mtl->diffuse, l->color, t1);
-            vec3f_scale(t1, n_dot_l, t1);
+            vec3f_scale(t1, attenuation * n_dot_l, t1);
             vec3f_add(t1, color, color);
 
             /* specular calculation */
             vec4f h;
-            h[0] = vertex_to_light[0];
-            h[1] = vertex_to_light[1];
-            h[2] = vertex_to_light[2] + 1;
-            h[3] = 0;
+            if(0 && lmodel_bound->local) {
+                /* XXX eyepoint in local coordinates */
+            } else {
+                h[0] = vertex_to_light[0];
+                h[1] = vertex_to_light[1];
+                h[2] = vertex_to_light[2] + 1;
+                h[3] = 0;
+            }
             vec4f_normalize(h, h);
             float n_dot_h = vec3f_dot(normal, h);
             if(n_dot_h > 0.0) {
                 float spec_part = powf(n_dot_h, mtl->shininess);
                 vec3f_mult(mtl->specular, l->color, t1);
-                vec3f_scale(t1, spec_part, t1);
+                vec3f_scale(t1, attenuation * spec_part, t1);
                 vec3f_add(t1, color, color);
             }
         }
@@ -2300,7 +2319,7 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
             switch((int)*p) {
                 case LOCALVIEWER:
                     if(trace_functions) printf("%*sLOCALVIEWER, %f,\n", indent + 4, "", p[1]);
-                    lm->local = p[1];
+                    lm->local = (int)p[1];
                     p+= 2;
                     break;
                 case AMBIENT:

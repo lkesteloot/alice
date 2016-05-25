@@ -267,3 +267,5 @@ extern inline int matrix4x4f_stack_pop(matrix4x4f_stack *stack);
 extern inline void matrix4x4f_stack_load(matrix4x4f_stack *stack, const matrix4x4f m);
 extern inline void matrix4x4f_stack_mult(matrix4x4f_stack *stack, const matrix4x4f m);
 extern inline void vec3ub_set(vec3ub v, uint8_t x, uint8_t y, uint8_t z);
+extern inline float vec3f_length(vec3f i1);
+extern inline float vec4f_length(vec4f i1);
