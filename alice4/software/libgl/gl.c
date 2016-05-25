@@ -235,23 +235,28 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
         if(l == NULL)
             continue;
 
-        // XXX point lights only, no ambient, no emission
-        // XXX OpenGL ES 1.1: 2.12.1 Lighting
+        // XXX no ambient, no emission, no spotlights
+        // XXX for reference - OpenGL ES 1.1: 2.12.1 Lighting
         vec4f vertex_to_light;
+
         if(l->position[3] == 0.0)  {
             vec4f_copy(vertex_to_light, l->position);
-        }
-        else
+        } else {
             vec4f_subtract(l->position, coord, vertex_to_light);
+        }
+
         vec4f_normalize(vertex_to_light, vertex_to_light);
-        float diff_part = vec3f_dot(normal, vertex_to_light);
-        if(diff_part >= 0)
-        {
+
+        float n_dot_l = vec3f_dot(normal, vertex_to_light);
+
+        if(n_dot_l >= 0) {
             /* diffuse calculation */
             vec3f t1;
             vec3f_mult(mtl->diffuse, l->color, t1);
-            vec3f_scale(t1, diff_part, t1);
+            vec3f_scale(t1, n_dot_l, t1);
             vec3f_add(t1, color, color);
+
+            /* specular calculation */
             vec4f h;
             h[0] = vertex_to_light[0];
             h[1] = vertex_to_light[1];
@@ -2237,7 +2242,7 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
                     vec3f transformed;
                     if(trace_functions) printf("%*sSPOTDIRECTION, %f, %f, %f,\n", indent + 4, "", p[1], p[2], p[3]);
                     // XXX probably not right
-                    vec3f_set(direction, p[0], p[1], p[2]);
+                    vec3f_set(direction, p[1], p[2], p[3]);
                     vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
                     vec4f_set(l->spotdirection, transformed[0], transformed[1], transformed[2], 0.0f);
                     p+= 4;
@@ -2259,12 +2264,12 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
                         vec3f direction;
                         vec3f transformed;
                         // XXX may not be right
-                        vec3f_set(direction, p[0], p[1], p[2]);
+                        vec3f_set(direction, p[1], p[2], p[3]);
                         vec3f_mult_matrix4x4f(direction, matrix4x4f_stack_get_inverse(&modelview_stack), transformed);
                         vec4f_set(l->position, transformed[0], transformed[1], transformed[2], 0.0f);
                     } else {
                         vec4f position;
-                        vec4f_set(position, p[0], p[1], p[2], p[3]);
+                        vec4f_set(position, p[1], p[2], p[3], p[4]);
                         matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), position, l->position);
                     }
                     p+= 5;
