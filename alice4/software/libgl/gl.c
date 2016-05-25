@@ -261,7 +261,7 @@ void light_vertex(material *mtl, vec4f coord, vec3f normal, vec4f color_)
         vec3f t1;
 
         /* ambient calculation */
-        vec3f_mult(mtl->ambient, l->color, t1);
+        vec3f_mult(mtl->ambient, l->ambient, t1);
         vec3f_scale(t1, attenuation, t1);
         vec3f_add(t1, color, color);
 
