@@ -626,37 +626,45 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
 void process_tmesh(long n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
-    static lit_vertex clipped[POLY_MAX];
-    static lit_vertex *vp;
-    static screen_vertex screenverts[POLY_MAX];
 
     for(int i = 0; i < n; i++)
         transform_and_light_vertex(&worldverts[i], &litverts[i]);
 
-    long r = clip_polygon(n, litverts, clipped);
-    if(r == CLIP_TRIVIAL_REJECT)
-        return;
-    else if(r == CLIP_TRIVIAL_ACCEPT) {
-        vp = litverts;
-    } else {
-        vp = clipped;
-        n = r;
-    }
+    for(int j = 0; j < n - 2; j++) {
+        static lit_vertex clipped[POLY_MAX];
+        static lit_vertex *vp;
+        static screen_vertex screenverts[POLY_MAX];
 
-    for(int i = 0; i < n; i++)
-        project_vertex(&vp[i], &screenverts[i]);
+        // Clip the next triangle, potentially making a polygon
+        long r = clip_polygon(3, litverts + j, clipped);
+        if(r == CLIP_TRIVIAL_REJECT)
+            return;
+        else if(r == CLIP_TRIVIAL_ACCEPT) {
+            vp = litverts + j;
+            r = 3;
+        } else {
+            vp = clipped;
+        }
 
-    int i0, i1, i2;
+        for(int i = 0; i < r; i++)
+            project_vertex(&vp[i], &screenverts[i]);
 
-    i1 = 0;
-    i2 = 1;
+        int i0, i1, i2;
 
-    for(int i = 2; i < n; i++) {
-        i0 = i1;
-        i1 = i2;
-        i2 = i;
+        i1 = 0;
+        i2 = r - 1;
 
-        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+        for(int i = 0; i < r - 2; i++) {
+            i0 = i1;
+            i1 = i2;
+
+            // This next one means 3rd vertex alternates back and forth
+            // across polygon, basically turning it into a triangle strip
+            // A fan might be slightly clearer
+            i2 = (i % 2 == 0) ? (1 + i / 2) : (r - 2 - i / 2);
+
+            process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+        }
     }
 }
 
