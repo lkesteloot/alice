@@ -3,6 +3,7 @@
 #define __BASIC_TYPES_H__
 
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef float matrix4x4f[16];
 typedef float vec4f[4];

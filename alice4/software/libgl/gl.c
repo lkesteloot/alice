@@ -37,8 +37,8 @@
 #include "vector.h"
 #include "driver.h"
 
-static long DISPLAY_WIDTH = 800;
-static long DISPLAY_HEIGHT = 600;
+static int32_t DISPLAY_WIDTH = 800;
+static int32_t DISPLAY_HEIGHT = 480;
 #define POLY_MAX 32
 
 static int trace_functions = 0;
@@ -57,7 +57,7 @@ static int current_font = 0;
 
 #define INPUT_QUEUE_SIZE 128
 static uint32_t input_queue_device[INPUT_QUEUE_SIZE];
-static short input_queue_val[INPUT_QUEUE_SIZE];
+static uint16_t input_queue_val[INPUT_QUEUE_SIZE];
 // The next time that needs to be read:
 static int input_queue_head = 0;
 // The number of items in the queue (tail = (head + length) % len):
@@ -127,14 +127,14 @@ static material materials[MAX_MATERIALS];
 static light lights[MAX_LIGHTS];
 static lmodel lmodels[MAX_LMODELS];
 
-static short the_linewidth = 1;
+static int the_linewidth = 1;
 static int lighting_enabled = 0;
 static int normalize_enabled = 1;
 static material *material_bound = NULL;
 static light *lights_bound[MAX_LIGHTS];
 static lmodel *lmodel_bound = NULL;
 
-long matrix_mode = MSINGLE;
+int32_t matrix_mode = MSINGLE;
 matrix4x4f_stack modelview_stack;
 matrix4x4f_stack projection_stack;
 matrix4x4f_stack *current_stack;
@@ -170,7 +170,7 @@ void send_string(char *s) {
 }
 
 // Little-endian.
-void send_uint16(unsigned short x) {
+void send_uint16(uint16_t x) {
     if (trace_network) {
         printf("Sending short %d\n", x);
     }
@@ -181,7 +181,7 @@ void send_uint16(unsigned short x) {
 // Little-endian.
 void send_uint32(uint32_t x) {
     if (trace_network) {
-        printf("Sending long %u\n", x);
+        printf("Sending int32_t %u\n", x);
     }
     send_uint8(x & 0xFF);
     send_uint8((x >> 8) & 0xFF);
@@ -190,7 +190,7 @@ void send_uint32(uint32_t x) {
 }
 
 // Little-endian.
-unsigned short receive_uint16() {
+uint16_t receive_uint16() {
     unsigned char low = receive_uint8();
     unsigned char high = receive_uint8();
 
@@ -199,7 +199,7 @@ unsigned short receive_uint16() {
 
 // Little-endian.
 uint32_t receive_uint32() {
-    long value = 0;
+    int32_t value = 0;
 
     value |= receive_uint8() << 0;
     value |= receive_uint8() << 8;
@@ -407,7 +407,7 @@ void plane_to_clip_params(int plane, int *sign, int *index)
     }
 }
 
-long clip_line_against_plane(long plane, lit_vertex *input, lit_vertex *output)
+int32_t clip_line_against_plane(int32_t plane, lit_vertex *input, lit_vertex *output)
 {
     int sign;
     int index;
@@ -446,7 +446,7 @@ long clip_line_against_plane(long plane, lit_vertex *input, lit_vertex *output)
     return 1;
 }
 
-long clip_polygon_against_plane(long plane, long n, lit_vertex *input, lit_vertex *output)
+int32_t clip_polygon_against_plane(int32_t plane, int32_t n, lit_vertex *input, lit_vertex *output)
 {
     int sign;
     int index;
@@ -501,7 +501,7 @@ enum {
     CLIP_TRIVIAL_ACCEPT = -1, // If clip_polygon() returns this, it stored nothing in "output".
 };
 
-long clip_line(lit_vertex *input, lit_vertex *output)
+int32_t clip_line(lit_vertex *input, lit_vertex *output)
 {
     static int code[2];
     static lit_vertex tmp[2];
@@ -539,7 +539,7 @@ long clip_line(lit_vertex *input, lit_vertex *output)
     return n;
 }
 
-long clip_polygon(long n, lit_vertex *input, lit_vertex *output)
+int32_t clip_polygon(int32_t n, lit_vertex *input, lit_vertex *output)
 {
     static int code[POLY_MAX];
     static lit_vertex tmp[POLY_MAX];
@@ -590,7 +590,7 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     transform_and_light_vertex(wv0, &litverts[0]);
     transform_and_light_vertex(wv1, &litverts[1]);
 
-    long r = clip_line(litverts, clipped);
+    int32_t r = clip_line(litverts, clipped);
     if(r == CLIP_TRIVIAL_REJECT)
         return;
     else if(r == CLIP_TRIVIAL_ACCEPT) {
@@ -642,7 +642,7 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     process_triangle(&q[2], &q[3], &q[0]);
 }
 
-void process_tmesh(long n, world_vertex *worldverts)
+void process_tmesh(int32_t n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
 
@@ -655,7 +655,7 @@ void process_tmesh(long n, world_vertex *worldverts)
         static screen_vertex screenverts[POLY_MAX];
 
         // Clip the next triangle, potentially making a polygon
-        long r = clip_polygon(3, litverts + j, clipped);
+        int32_t r = clip_polygon(3, litverts + j, clipped);
         if(r == CLIP_TRIVIAL_REJECT)
             return;
         else if(r == CLIP_TRIVIAL_ACCEPT) {
@@ -687,7 +687,7 @@ void process_tmesh(long n, world_vertex *worldverts)
     }
 }
 
-void process_polygon(long n, world_vertex *worldverts)
+void process_polygon(int32_t n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
     static lit_vertex clipped[POLY_MAX];
@@ -697,7 +697,7 @@ void process_polygon(long n, world_vertex *worldverts)
     for(int i = 0; i < n; i++)
         transform_and_light_vertex(&worldverts[i], &litverts[i]);
 
-    long r = clip_polygon(n, litverts, clipped);
+    int32_t r = clip_polygon(n, litverts, clipped);
     if(r == CLIP_TRIVIAL_REJECT)
         return;
     else if(r == CLIP_TRIVIAL_ACCEPT) {
@@ -729,7 +729,7 @@ void process_polygon(long n, world_vertex *worldverts)
 
 void draw_bitmap(screen_vertex *sv, uint8_t *bgcolor, uint8_t *bits, uint32_t width, uint32_t rowbytes, uint32_t height)
 {
-    // Should combine adjacent pixels into long runs of quads
+    // Should combine adjacent pixels into int32_t runs of quads
     for(int j = 0; j < height; j++) {
         for(int i = 0; i < width; i++) {
             int bit = (bits[j * rowbytes + i / 8] >> (7 - i % 8)) & 1;
@@ -878,12 +878,12 @@ typedef struct element
         } circi;
 
         struct {
-            short target;
-            long index;
+            int target;
+            int32_t index;
         } lmbind;
 
         struct {
-            long mode;
+            int32_t mode;
         } mmode;
 
         struct {
@@ -907,7 +907,7 @@ typedef struct element
         } c3f;
 
         struct {
-            long r, g, b;
+            int32_t r, g, b;
         } rgbcolor;
 
         struct {
@@ -943,7 +943,7 @@ typedef struct element
 
         struct {
             Angle angle;
-            unsigned char axis;
+            char axis;
         } rotate;
 
         struct {
@@ -1099,7 +1099,7 @@ void callobj(Object obj) {
         return;
     }
 
-    TRACEF("%ld", obj);
+    TRACEF("%d", obj);
 
     indent += 4;
     element *p = objects[obj];
@@ -1280,7 +1280,7 @@ void callobj(Object obj) {
                 move2i(p->move2i.x, p->move2i.y);
                 break;
             case TAG:
-                TRACEF("%ld", p->tag.tag);
+                TRACEF("%d", p->tag.tag);
                 break;
             default:
                 printf("encountered unknown Object type, %s:%d\n", __FILE__, __LINE__);
@@ -1331,7 +1331,7 @@ void deflinestyle() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void defpattern(long index, short size, Pattern16 mask) {
+void defpattern(int32_t index, int size, Pattern16 mask) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1340,7 +1340,7 @@ void doublebuffer() {
 }
 
 void editobj(Object obj) { 
-    TRACEF("%ld", obj);
+    TRACEF("%d", obj);
 
     cur_ptr_to_nextptr = &(objects[obj]);
     while(*cur_ptr_to_nextptr != NULL)
@@ -1383,7 +1383,7 @@ Boolean getbutton() {
     return 0;
 }
 
-void getmcolor(Colorindex index, short *red, short *green, short *blue) { 
+void getmcolor(Colorindex index, int16_t *red, int16_t *green, int16_t *blue) { 
     TRACEF("%d", index);
 
     *red = colormap[index][0];
@@ -1391,35 +1391,35 @@ void getmcolor(Colorindex index, short *red, short *green, short *blue) {
     *blue = colormap[index][2];
 }
 
-void getorigin(long *x, long *y) { 
+void getorigin(int32_t *x, int32_t *y) { 
     TRACE();
 
     *x = 0;
     *y = 0;
 }
 
-long getplanes() { 
+int32_t getplanes() { 
     TRACE();
 
     return 24;
 }
 
-void getsize(long *width, long *height) { 
+void getsize(int32_t *width, int32_t *height) { 
     TRACE();
 
     *width = DISPLAY_WIDTH;
     *height = DISPLAY_HEIGHT;
 }
 
-long getvaluator(long device) { 
-    TRACEF("%ld", device);
+int32_t getvaluator(int32_t device) { 
+    TRACEF("%d", device);
 
     send_uint8(COMMAND_GET_VALUATOR);
     send_uint32(device);
     return receive_uint32();
 }
 
-void setvaluator(Device device, short init, short min, short max) {
+void setvaluator(Device device, int init, int min, int max) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1427,7 +1427,7 @@ void gflush() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void glcompat(long mode, long value) {
+void glcompat(int32_t mode, int32_t value) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1442,7 +1442,7 @@ void gexit() {
 }
 
 void makeobj(Object obj) { 
-    TRACEF("%ld", obj);
+    TRACEF("%d", obj);
 
     if(objects[obj] != NULL) {
         element_free(objects[obj]);
@@ -1453,7 +1453,7 @@ void makeobj(Object obj) {
 }
 
 void maketag(Tag tag) { 
-    TRACEF("%ld", tag);
+    TRACEF("%d", tag);
 
     if(cur_ptr_to_nextptr == NULL) {
         printf("maketag : not editing\n");
@@ -1466,7 +1466,7 @@ void maketag(Tag tag) {
     element_insert(&cur_ptr_to_nextptr, e);
 }
 
-void mapcolor(Colorindex index, short red, short green, short blue) { 
+void mapcolor(Colorindex index, int red, int green, int blue) { 
     // XXX insect only provides numbers ranging 0..255
     TRACEF("%d, %d, %d, %d", index, red, green, blue);
 
@@ -1493,7 +1493,7 @@ void multmatrix(Matrix m) {
 }
 
 void objreplace(Tag tag) { 
-    TRACEF("%ld", tag);
+    TRACEF("%d", tag);
 
     cur_ptr_to_nextptr = &(*ptrs_to_tagptrs[tag])->next;
     replace_mode = 1;
@@ -1562,7 +1562,7 @@ void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
         matrix4x4f_stack_load(current_stack, m);
 }
 
-void poly_(long n, Coord parray[ ][3]) {
+void poly_(int32_t n, Coord parray[ ][3]) {
     static world_vertex worldverts[POLY_MAX];
     vec4f color;
     vec4f_copy(color, current_color);
@@ -1577,7 +1577,7 @@ void poly_(long n, Coord parray[ ][3]) {
     process_polygon(n, worldverts);
 }
 
-void polf(long n, Coord parray[ ][3]) {
+void polf(int32_t n, Coord parray[ ][3]) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(POLF);
         e->polf.n = n;
@@ -1586,12 +1586,12 @@ void polf(long n, Coord parray[ ][3]) {
         return;
     }
 
-    TRACEF("%ld", n);
+    TRACEF("%d", n);
 
     poly_(n, parray);
 }
 
-void polf2i(long n, Icoord parray[ ][2]) {
+void polf2i(int32_t n, Icoord parray[ ][2]) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(POLF2I);
         e->polf2i.n = n;
@@ -1600,7 +1600,7 @@ void polf2i(long n, Icoord parray[ ][2]) {
         return;
     }
 
-    TRACEF("%ld", n);
+    TRACEF("%d", n);
 
     static world_vertex worldverts[POLY_MAX];
     vec4f color;
@@ -1638,8 +1638,8 @@ void pushmatrix() {
     matrix4x4f_stack_push(current_stack);
 }
 
-static void enqueue_device(long device, short val) {
-    TRACEF("%ld, %d", device, val);
+static void enqueue_device(int32_t device, uint16_t val) {
+    TRACEF("%d, %d", device, val);
 
     if (input_queue_length == INPUT_QUEUE_SIZE) {
         printf("Input queue overflow.");
@@ -1652,8 +1652,8 @@ static void enqueue_device(long device, short val) {
 }
 
 // We're interested in events from this device.
-void qdevice(long device) { 
-    TRACEF("%ld", device);
+void qdevice(int32_t device) { 
+    TRACEF("%d", device);
 
     switch (device) {
         case REDRAW:
@@ -1685,14 +1685,14 @@ void fetch_event_queue(int blocking) {
     // First is number of events.
     int count = receive_uint8();
     for (int i = 0; i < count; i++) {
-        long device = receive_uint32();
-        long value = receive_uint16();
+        int32_t device = receive_uint32();
+        int32_t value = receive_uint16();
         enqueue_device(device, value);
     }
 }
 
 // If the queue is empty, qread() blocks.
-long qread(short *val) { 
+int32_t qread(uint16_t *val) { 
     TRACE();
 
     while (input_queue_length == 0) {
@@ -1701,7 +1701,7 @@ long qread(short *val) {
     }
 
     *val = input_queue_val[input_queue_head];
-    long device = input_queue_device[input_queue_head];
+    int32_t device = input_queue_device[input_queue_head];
     input_queue_head = (input_queue_head + 1) % INPUT_QUEUE_SIZE;
     input_queue_length--;
     return device;
@@ -1710,7 +1710,7 @@ long qread(short *val) {
 // Returns the device number of the first entry.
 // Returns 0 if the event queue is empty.
 // Doesn't change the queue.
-long qtest() { 
+int32_t qtest() { 
     TRACE();
 
     if (input_queue_length == 0) {
@@ -1750,12 +1750,12 @@ void viewport(Screencoord left, Screencoord right, Screencoord bottom, Screencoo
 void reshapeviewport() { 
     TRACE();
 
-    long xsize, ysize;
+    int32_t xsize, ysize;
     getsize(&xsize, &ysize);
     viewport(0, xsize-1, 0, ysize-1);
 }
 
-void rotate(Angle ang, unsigned char axis) {
+void rotate(Angle ang, char axis) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(ROTATE);
         e->rotate.angle = ang;
@@ -1812,7 +1812,7 @@ void setpattern() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void shademodel(long mode) {
+void shademodel(int32_t mode) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1870,7 +1870,7 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
     matrix4x4f_stack_load(&projection_stack, m);
 }
 
-long winopen(char *title) {
+int32_t winopen(char *title) {
     TRACEF("%s", title);
     open_connection();
     send_uint8(COMMAND_WINOPEN);
@@ -1878,7 +1878,7 @@ long winopen(char *title) {
     return 1;
 }
 
-void RGBcolor(long r, long g, long b) {
+void RGBcolor(int32_t r, int32_t g, int32_t b) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(RGBCOLOR);
         e->rgbcolor.r = r;
@@ -1887,7 +1887,7 @@ void RGBcolor(long r, long g, long b) {
         return;
     }
 
-    TRACEF("%ld, %ld, %ld", r, g, b);
+    TRACEF("%d, %d, %d", r, g, b);
 
     current_color[0] = r / 255.0;
     current_color[1] = g / 255.0;
@@ -1985,11 +1985,11 @@ void c3f(float c[3]) {
     vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
 }
 
-long defpup(char *menu) {
+int32_t defpup(char *menu) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-long dopup() {
+int32_t dopup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2099,7 +2099,7 @@ void draw2i(Icoord x, Icoord y) {
         return;
     }
 
-    TRACEF("%ld, %ld", x, y);
+    TRACEF("%d, %d", x, y);
 
     draw_(x, y, 0);
 }
@@ -2185,12 +2185,12 @@ void keepaspect() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void linewidth(short w) {
+void linewidth(int w) {
     if(trace_functions) printf("%*slinewidth(%d);\n", indent, "", w);
     the_linewidth = w;
 }
 
-void lmbind(short target, long index) {
+void lmbind(int target, int32_t index) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(LMBIND);
         e->lmbind.target = target;
@@ -2198,7 +2198,7 @@ void lmbind(short target, long index) {
         return;
     }
 
-    TRACEF("%d, %ld", target, index);
+    TRACEF("%d, %d", target, index);
 
     if(target == MATERIAL) {
         material_bound = (index == 0) ? NULL : &materials[index - 1];
@@ -2212,15 +2212,15 @@ void lmbind(short target, long index) {
         abort();
 }
 
-void lmdef(short deftype, long index, short numpoints, float properties[]) {
+void lmdef(int deftype, int32_t index, int numpoints, float properties[]) {
     if(index == 0)
         abort();
     index -=1;
     float *p = properties;
-    long next = 0;
+    int32_t next = 0;
     if(deftype == DEFMATERIAL) {
         material *m = &materials[index];
-        if(trace_functions) printf("%*slmdef(DEFMATERIAL, %ld, %d, {\n", indent, "", index + 1, numpoints);
+        if(trace_functions) printf("%*slmdef(DEFMATERIAL, %d, %d, {\n", indent, "", index + 1, numpoints);
         while(*p != LMNULL) {
             switch((int)*p) {
                 case DIFFUSE:
@@ -2260,7 +2260,7 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
         if(trace_functions) printf("%*sLMNULL }\n", indent + 4, "");
     } else if(deftype == DEFLIGHT) {
         light *l = &lights[index];
-        if(trace_functions) printf("%*slmdef(DEFLIGHT, %ld, %d, {\n", indent, "", index + 1, numpoints);
+        if(trace_functions) printf("%*slmdef(DEFLIGHT, %d, %d, {\n", indent, "", index + 1, numpoints);
 
         while(*p != LMNULL) {
             switch((int)*p) {
@@ -2314,7 +2314,7 @@ void lmdef(short deftype, long index, short numpoints, float properties[]) {
         if(trace_functions) printf("%*sLMNULL }\n", indent + 4, "");
     } else if(deftype == DEFLMODEL) {
         lmodel *lm = &lmodels[index];
-        if(trace_functions) printf("%*slmdef(DEFLMODEL, %ld, %d, {\n", indent, "", index + 1, numpoints);
+        if(trace_functions) printf("%*slmdef(DEFLMODEL, %d, %d, {\n", indent, "", index + 1, numpoints);
         while(*p != LMNULL) {
             switch((int)*p) {
                 case LOCALVIEWER:
@@ -2361,14 +2361,14 @@ void loadmatrix(Matrix m) {
     matrix4x4f_stack_load(current_stack, (float *)m);
 }
 
-void mmode(long mode) {
+void mmode(int32_t mode) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(MMODE);
         e->mmode.mode = mode;
         return;
     }
 
-    TRACEF("%ld", mode);
+    TRACEF("%d", mode);
 
     matrix_mode = mode;
     switch(mode) {
@@ -2413,7 +2413,7 @@ void move2i(Icoord x, Icoord y) {
         return;
     }
 
-    TRACEF("%ld, %ld", x, y);
+    TRACEF("%d, %d", x, y);
 
     vec4f_set(current_position, x, y, 0.0f, 1.0f);
 }
@@ -2430,7 +2430,7 @@ void n3f(float n[3]) {
     vec3f_copy(current_normal, n);
 }
 
-long newpup() {
+int32_t newpup() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2443,7 +2443,7 @@ void qenter() {
 }
 
 void rdr2i(Icoord dx, Icoord dy) {
-    TRACEF("%ld, %ld", dx, dy);
+    TRACEF("%d, %d", dx, dy);
 
     world_vertex v0, v1;
     vec4f_copy(v0.coord, current_position);
@@ -2462,7 +2462,7 @@ void rdr2i(Icoord dx, Icoord dy) {
 }
 
 void rmv2i(Icoord dx, Icoord dy) {
-    TRACEF("%ld, %ld", dx, dy);
+    TRACEF("%d, %d", dx, dy);
     current_position[0] += dx;
     current_position[1] += dy;
 }
@@ -2484,7 +2484,7 @@ void scale(float x, float y, float z) {
     matrix4x4f_stack_mult(current_stack, m);
 }
 
-void tie(long button, long val1, long val2) {
+void tie(int32_t button, int32_t val1, int32_t val2) {
     send_uint8(COMMAND_TIE);
     send_uint32(button);
     send_uint32(val1);
@@ -2527,7 +2527,7 @@ void v3f(float v[3]) {
     polygon_vert_count++;
 }
 
-long winattach() {
+int32_t winattach() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2535,7 +2535,7 @@ void winconstraints() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-long winget() {
+int32_t winget() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
     return 1;
 }
@@ -2646,7 +2646,7 @@ void circi(Icoord x, Icoord y, Icoord r) {
         return;
     }
 
-    TRACEF("%ld, %ld, %ld", x, y, r);
+    TRACEF("%d, %d, %d", x, y, r);
 
     world_vertex v0, v1;
 
@@ -2681,7 +2681,7 @@ void cmov2i(Icoord x, Icoord y) {
         return;
     }
 
-    TRACEF("%ld, %ld", x, y);
+    TRACEF("%d, %d", x, y);
         
     vec4f c, p;
     vec4f_set(c, x, y, 0.0, 1.0);
@@ -2701,7 +2701,7 @@ void feedback() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-long endfeedback() {
+int32_t endfeedback() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2749,7 +2749,7 @@ void poly(int n, Coord p[][3]) {
         return;
     }
 
-    TRACEF("%ld", n);
+    TRACEF("%d", n);
 
     static world_vertex worldverts[POLY_MAX];
     vec4f color;
