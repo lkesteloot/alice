@@ -1,6 +1,9 @@
 #ifndef __VECTOR_H__
 #define __VECTOR_H__
 
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
 #include "basic_types.h"
 
 extern const matrix4x4f identity_4x4f;
