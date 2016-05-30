@@ -98,7 +98,11 @@ Poly *elbow, *double_cylinder, *single_cylinder;
 int function=0;
 #define REORIENT 1
 
-main (argc, argv)
+#ifndef MAIN
+#define MAIN main
+#endif
+
+MAIN (argc, argv)
 int	argc;
 char	*argv[];
 {
