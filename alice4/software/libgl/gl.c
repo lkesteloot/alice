@@ -38,7 +38,7 @@
 #include "driver.h"
 
 static int32_t DISPLAY_WIDTH = 800;
-static int32_t DISPLAY_HEIGHT = 480;
+static int32_t DISPLAY_HEIGHT = 600;
 #define POLY_MAX 32
 
 static int trace_functions = 0;
@@ -62,6 +62,23 @@ static uint16_t input_queue_val[INPUT_QUEUE_SIZE];
 static int input_queue_head = 0;
 // The number of items in the queue (tail = (head + length) % len):
 static int input_queue_length = 0;
+
+
+//----------------------------------------------------------------------------
+// Stream capture for playback
+
+static FILE *capture_file = NULL;
+
+void open_capture() {
+    if(getenv("CAPTURE_FILE") != NULL) {
+        capture_file = fopen(getenv("CAPTURE_FILE"), "wb");
+    }
+}
+void send_and_capture_uint8(uint8_t b) {
+    send_uint8(b);
+    if(capture_file != NULL)
+        fwrite(&b, 1, 1, capture_file);
+}
 
 //----------------------------------------------------------------------------
 // GL state
@@ -161,12 +178,32 @@ float min(float a, float b)
 // I/O operations
 
 // Send a string as a length and the bytes. Max string length is 255.
-void send_string(char *s) {
-    send_uint8(strlen(s));
+void send_and_capture_string(char *s) {
+    send_and_capture_uint8(strlen(s));
     while (*s != '\0') {
-        send_uint8(*s);
+        send_and_capture_uint8(*s);
         s++;
     }
+}
+
+// Little-endian.
+void send_and_capture_uint16(uint16_t x) {
+    if (trace_network) {
+        printf("Sending short %d\n", x);
+    }
+    send_and_capture_uint8(x & 0xFF);
+    send_and_capture_uint8(x >> 8);
+}
+
+// Little-endian.
+void send_and_capture_uint32(uint32_t x) {
+    if (trace_network) {
+        printf("Sending int32_t %u\n", x);
+    }
+    send_and_capture_uint8(x & 0xFF);
+    send_and_capture_uint8((x >> 8) & 0xFF);
+    send_and_capture_uint8((x >> 16) & 0xFF);
+    send_and_capture_uint8((x >> 24) & 0xFF);
 }
 
 // Little-endian.
@@ -365,18 +402,18 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
 }
 
 void send_screen_vertex(screen_vertex *sv) {
-    send_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
-    send_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
-    send_uint32(sv->z);
-    send_uint8(sv->r);
-    send_uint8(sv->g);
-    send_uint8(sv->b);
-    send_uint8(sv->a);
+    send_and_capture_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
+    send_and_capture_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
+    send_and_capture_uint32(sv->z);
+    send_and_capture_uint8(sv->r);
+    send_and_capture_uint8(sv->g);
+    send_and_capture_uint8(sv->b);
+    send_and_capture_uint8(sv->a);
 }
 
 void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    send_uint8(COMMAND_TRIANGLE);
+    send_and_capture_uint8(COMMAND_TRIANGLE);
 
     send_screen_vertex(s0);
     send_screen_vertex(s1);
@@ -1302,9 +1339,9 @@ void clear() {
     }
 
     TRACE();
-    send_uint8(COMMAND_CLEAR);
+    send_and_capture_uint8(COMMAND_CLEAR);
     for(int i = 0; i < 3; i++)
-        send_uint8((int)(current_color[i] * 255.0));
+        send_and_capture_uint8((int)(current_color[i] * 255.0));
 }
 
 void closeobj() { 
@@ -1822,7 +1859,7 @@ static uint8_t font_bits[];
 void swapbuffers() {
     TRACE();
 
-    send_uint8(COMMAND_SWAPBUFFERS);
+    send_and_capture_uint8(COMMAND_SWAPBUFFERS);
     flush();
 }
 
@@ -1873,8 +1910,9 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
 int32_t winopen(char *title) {
     TRACEF("%s", title);
     open_connection();
-    send_uint8(COMMAND_WINOPEN);
-    send_string(title);
+    open_capture();
+    send_and_capture_uint8(COMMAND_WINOPEN); 
+    send_and_capture_string(title);
     return 1;
 }
 
@@ -2770,14 +2808,14 @@ void poly(int n, Coord p[][3]) {
 // XXX display list
 void zbuffer(int enable) {
     TRACEF("%d", enable);
-    send_uint8(COMMAND_ZBUFFER);
-    send_uint8(enable);
+    send_and_capture_uint8(COMMAND_ZBUFFER);
+    send_and_capture_uint8(enable);
 }
 
 // XXX display list
 void zclear() {
     TRACE();
-    send_uint8(COMMAND_ZCLEAR);
+    send_and_capture_uint8(COMMAND_ZCLEAR);
 }
 
 void zfunction(int func) {
@@ -2788,11 +2826,11 @@ void zfunction(int func) {
 void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
-    send_uint8(COMMAND_ZCLEAR);
-    send_uint8(COMMAND_CLEAR);
-    send_uint8((color >> 16) & 0xff);
-    send_uint8((color >>  8) & 0xff);
-    send_uint8((color >>  0) & 0xff);
+    send_and_capture_uint8(COMMAND_ZCLEAR);
+    send_and_capture_uint8(COMMAND_CLEAR);
+    send_and_capture_uint8((color >> 16) & 0xff);
+    send_and_capture_uint8((color >>  8) & 0xff);
+    send_and_capture_uint8((color >>  0) & 0xff);
 }
 
 int gversion(char *version)
