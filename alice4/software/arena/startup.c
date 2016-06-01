@@ -58,7 +58,7 @@ startup()
 
     long winw, winh;
     getsize(&winw, &winh);
-    ortho2(0, 799, 0, 599); // winw returned 0!?!?
+    ortho2(0, winw, 0, winh);
 
     color(WHITE);
     for (i=0; i<INTRO; i++)
