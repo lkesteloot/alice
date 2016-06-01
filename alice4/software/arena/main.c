@@ -322,7 +322,6 @@ main(argc, argv)
 	{
 	    throttle = ((int)getvaluator(MOUSEY) - screen_size[1] / 2) / 2.0;
 	    turn = ((int)getvaluator(MOUSEX) - screen_size[0] / 2) / 10.0;
-            printf("%d, %d\n", getvaluator(MOUSEX), getvaluator(MOUSEY));
 	}
 
 	for(i=0; i<NUMSECTORS; i++)
