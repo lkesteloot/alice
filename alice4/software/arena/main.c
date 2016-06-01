@@ -8,6 +8,7 @@
 
 #include "arena.h"
 
+int screen_size[2];
 
 char buf[80];
 double zoom = 1.0;
@@ -125,6 +126,7 @@ main(argc, argv)
 	{
 		char *t, *strrchr();
 		winopen((t=strrchr(argv[0], '/')) != NULL ? t+1 : argv[0]);
+                getsize(&screen_size[0], &screen_size[1]);
 	}
     startup();
     color(BLACK);
@@ -169,8 +171,8 @@ main(argc, argv)
     perspective(400, (float)XMAXSCREEN/YMAXSCREEN, 0.01, 10000.0);
     lookat(0.0, 0.98, 0.0, 0.0, 0.98, -1.0, 0.0);
 
-    setvaluator(MOUSEX, MOUSE_CENT, -200+MOUSE_CENT, 200+MOUSE_CENT);
-    setvaluator(MOUSEY, MOUSE_CENT, -100+MOUSE_CENT, 200+MOUSE_CENT);
+    // setvaluator(MOUSEX, MOUSE_CENT, -200+MOUSE_CENT, 200+MOUSE_CENT);
+    // setvaluator(MOUSEY, MOUSE_CENT, -100+MOUSE_CENT, 200+MOUSE_CENT);
 
     /*
      *  set up queue
@@ -318,8 +320,9 @@ main(argc, argv)
 	}
 	else
 	{
-	    throttle = (int)getvaluator(MOUSEY) - MOUSE_CENT;
-	    turn = (int)getvaluator(MOUSEX) - MOUSE_CENT;
+	    throttle = ((int)getvaluator(MOUSEY) - screen_size[1] / 2) / 2.0;
+	    turn = ((int)getvaluator(MOUSEX) - screen_size[0] / 2) / 10.0;
+            printf("%d, %d\n", getvaluator(MOUSEX), getvaluator(MOUSEY));
 	}
 
 	for(i=0; i<NUMSECTORS; i++)
