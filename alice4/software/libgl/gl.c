@@ -37,6 +37,10 @@
 #include "vector.h"
 #include "driver.h"
 
+#ifndef M_PI
+#define M_PI 3.141596
+#endif
+
 static int32_t DISPLAY_WIDTH = 800;
 static int32_t DISPLAY_HEIGHT = 600;
 #define POLY_MAX 32
@@ -1536,7 +1540,7 @@ void objreplace(Tag tag) {
     replace_mode = 1;
 }
 
-void perspective(Angle fovy_, float aspect, Coord near, Coord far) { 
+void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(PERSPECTIVE);
         e->perspective.fovy = fovy_;
@@ -1563,7 +1567,6 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
     if(matrix_mode == MSINGLE) {
         matrix4x4f_stack_load(&projection_stack, m);
         matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
-        matrix4x4f_stack_load(&projection_stack, m);
     } else 
         matrix4x4f_stack_load(current_stack, m);
 }
@@ -1572,10 +1575,10 @@ void perspective(Angle fovy_, float aspect, Coord near, Coord far) {
 void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(ORTHO2);
-        e->window.left = left;
-        e->window.right = right;
-        e->window.bottom = bottom;
-        e->window.top = top;
+        e->ortho2.left = left;
+        e->ortho2.right = right;
+        e->ortho2.bottom = bottom;
+        e->ortho2.top = top;
         return;
     }
 
@@ -1594,7 +1597,6 @@ void ortho2(Coord left, Coord right, Coord bottom, Coord top) {
     if(matrix_mode == MSINGLE) {
         matrix4x4f_stack_load(&projection_stack, m);
         matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
-        matrix4x4f_stack_load(&projection_stack, m);
     } else 
         matrix4x4f_stack_load(current_stack, m);
 }
@@ -1661,7 +1663,12 @@ void popmatrix() {
 
     TRACE();
 
-    matrix4x4f_stack_pop(current_stack);
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_pop(&modelview_stack);
+        matrix4x4f_stack_pop(&projection_stack);
+    } else {
+        matrix4x4f_stack_pop(current_stack);
+    }
 }
 
 void pushmatrix() { 
@@ -1672,7 +1679,12 @@ void pushmatrix() {
 
     TRACE();
 
-    matrix4x4f_stack_push(current_stack);
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_push(&modelview_stack);
+        matrix4x4f_stack_push(&projection_stack);
+    } else {
+        matrix4x4f_stack_push(current_stack);
+    }
 }
 
 static void enqueue_device(int32_t device, uint16_t val) {
@@ -1904,7 +1916,12 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
     m[9] = (top + bottom) / (top - bottom);
     m[10] = - (far + near) / (far - near);
     m[14] = - 2 * far * near / (far - near);
-    matrix4x4f_stack_load(&projection_stack, m);
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_load(&projection_stack, m);
+        matrix4x4f_stack_load(&modelview_stack, identity_4x4f);
+    } else {
+        matrix4x4f_stack_load(&projection_stack, m);
+    }
 }
 
 int32_t winopen(char *title) {
@@ -2396,7 +2413,12 @@ void loadmatrix(Matrix m) {
                 m[i][0], m[i][1], m[i][2], m[i][3]);
     }
 
-    matrix4x4f_stack_load(current_stack, (float *)m);
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_stack_load(&projection_stack, identity_4x4f);
+        matrix4x4f_stack_load(&modelview_stack, (float *)m);
+    } else {
+        matrix4x4f_stack_load(current_stack, (float *)m);
+    }
 }
 
 void mmode(int32_t mode) {
@@ -2585,10 +2607,11 @@ void winposition() {
 void getmatrix(Matrix m) {
     TRACE();
 
-    if(matrix_mode == MSINGLE)
-        matrix4x4f_copy((float*)m, matrix4x4f_stack_top(&modelview_stack));
-    else 
+    if(matrix_mode == MSINGLE) {
+        matrix4x4f_mult_matrix4x4f(matrix4x4f_stack_top(&modelview_stack), matrix4x4f_stack_top(&projection_stack), (float*)m);
+    } else {
         matrix4x4f_copy((float*)m, matrix4x4f_stack_top(current_stack));
+    }
 }
 
 void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Coord pointz, Angle twist) {
@@ -2651,7 +2674,7 @@ void charstr(char *str) {
         return;
     }
 
-    TRACEF("%s", str);
+    TRACEF("\"%s\"", str);
 
     static lit_vertex vert;
     static screen_vertex screenvert;
