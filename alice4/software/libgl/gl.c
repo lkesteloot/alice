@@ -57,7 +57,7 @@ static vec3f current_normal = {1.0f, 1.0f, 1.0f};
 static vec4f current_position = {0.0f, 0.0f, 0.0f, 1.0};
 static vec4f current_character_position = {0.0f, 0.0f, 0.0f, 1.0f};
 static int current_font = 0;
-
+static int current_pattern = 0;
 
 #define INPUT_QUEUE_SIZE 128
 static uint32_t input_queue_device[INPUT_QUEUE_SIZE];
@@ -86,6 +86,9 @@ void send_and_capture_uint8(uint8_t b) {
 
 //----------------------------------------------------------------------------
 // GL state
+
+#define MAX_PATTERNS 16
+Pattern16 patterns[MAX_PATTERNS];
 
 #define MAX_MATERIALS 8
 #define MAX_LIGHTS 8
@@ -818,6 +821,7 @@ typedef struct element
 {
     enum object_type
     {
+        SETPATTERN,
         DRAWI,
         DRAW,
         MOVEI,
@@ -870,6 +874,10 @@ typedef struct element
 
     union
     {
+        struct {
+            int32_t pattern;
+        } setpattern;
+
         struct {
             Coord x, y, z;
         } draw;
@@ -1302,6 +1310,9 @@ void callobj(Object obj) {
             case COLOR:
                 color(p->color.color);
                 break;
+            case SETPATTERN:
+                setpattern(p->setpattern.pattern);
+                break;
             case CALLOBJ:
                 callobj(p->callobj.obj);
                 break;
@@ -1373,7 +1384,13 @@ void deflinestyle() {
 }
 
 void defpattern(int32_t index, int size, Pattern16 mask) {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    TRACEF("%d, %d, ...", index, size);
+    if(size != 16) {
+        printf("pattern size %d not supported\n", size);
+        return;
+    }
+    for(int i = 0; i < 16; i++)
+        patterns[index][i] = mask[i];
 }
 
 void doublebuffer() { 
@@ -1857,8 +1874,25 @@ void rotate(Angle ang, char axis) {
     matrix4x4f_stack_mult(current_stack, m);
 }
 
-void setpattern() { 
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void setpattern(int32_t pattern) {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(SETPATTERN);
+        e->setpattern.pattern = pattern;
+        return;
+    }
+
+    TRACEF("%d", pattern);
+
+    if(current_pattern == pattern)
+        return;
+
+    if(pattern == 0) {
+        // XXX disable pattern
+    } else {
+        // send pattern bitmap
+    }
+
+    current_pattern = pattern;
 }
 
 void shademodel(int32_t mode) {
@@ -2867,6 +2901,10 @@ static void init_gl_state()
 {
     if(getenv("TRACE_GL") != NULL)
         trace_functions = 1;
+
+    for(int i = 0; i < MAX_PATTERNS; i++)
+        for(int j = 0; j < 16; j++)
+            patterns[i][j] = 0xffff;
 
     matrix4x4f_stack_init(&modelview_stack);
     matrix4x4f_stack_init(&projection_stack);
