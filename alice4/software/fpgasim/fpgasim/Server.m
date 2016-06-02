@@ -29,6 +29,7 @@ typedef enum {
     STATE_TIE,			// Expecting three uint32_t for button, val1, and val2.
     STATE_QREAD,		// Expecting byte to mean blocking.
     STATE_ZBUFFER,		// Expecting byte to mean enable.
+    STATE_SET_PATTERN,		// Expecting 16 shorts for pattern.
 } State;
 
 @interface Server () {
@@ -333,6 +334,18 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 		    [self.delegate zclear];
 		    break;
 
+		case COMMAND_SET_PATTERN:
+		    [self expectBytes:32 forState:STATE_SET_PATTERN];
+		    break;
+
+		case COMMAND_ENABLE_PATTERN:
+		    [self.delegate enablePattern];
+		    break;
+
+		case COMMAND_DISABLE_PATTERN:
+		    [self.delegate disablePattern];
+		    break;
+
 		default:
 		    // Problem. Reset.
 		    NSLog(@"Got unknown command byte %02x", (int)b);
@@ -409,6 +422,11 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	    self.state = STATE_COMMAND;
 	    break;
 
+	case STATE_SET_PATTERN:
+	    [self setPattern];
+	    self.state = STATE_COMMAND;
+	    break;
+
 	default:
 	    NSLog(@"In unknown state %d", self.state);
 	    self.state = STATE_COMMAND;
@@ -455,6 +473,17 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 	}
     }
     [self writeBuffer];
+}
+
+- (void)setPattern {
+    // Convert 16 shorts.
+    uint16_t pattern[16];
+
+    for (int i = 0; i < 16; i++) {
+	pattern[i] = [self bytesToUInt16:buffer + i*2];
+    }
+
+    [self.delegate setPattern:pattern];
 }
 
 // Start expecting a fixed number of bytes.

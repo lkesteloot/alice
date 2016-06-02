@@ -16,6 +16,6 @@
 
 - (void)clear:(vec3ub)color;
 - (void)zclear;
-- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer;
+- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer pattern:(uint16_t *)pattern;
 
 @end

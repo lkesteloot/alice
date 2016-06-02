@@ -21,6 +21,9 @@
 - (BOOL)getEvent:(uint32_t *)device value:(uint16_t *)value;
 - (void)zbuffer:(BOOL)enable;
 - (void)zclear;
+- (void)setPattern:(uint16_t *)pattern; // Always 16 shorts.
+- (void)enablePattern;
+- (void)disablePattern;
 
 @end
 

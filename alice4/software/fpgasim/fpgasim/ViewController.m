@@ -11,7 +11,10 @@
 #import "EventQueue.h"
 #import "device.h"
 
-@interface ViewController ()
+@interface ViewController () {
+    uint16_t *_pattern;
+    BOOL _patternEnabled;
+}
 
 @property (nonatomic) Server *server;
 @property (nonatomic) EventQueue *eventQueue;
@@ -33,15 +36,21 @@
     _eventQueue = [[EventQueue alloc] init];
     _frontBuffer = [[DisplayImage alloc] init];
     _backBuffer = [[DisplayImage alloc] init];
+    _pattern = (uint16_t *) malloc(sizeof(uint16_t)*16);
     [self resetState];
 
     // So that it's displayed:
     [self swapBuffers];
 }
 
+- (void)dealloc {
+    free(_pattern);
+}
+
 - (void)resetState {
     [_eventQueue reset];
     self.zbufferEnabled = NO;
+    _patternEnabled = NO;
 }
 
 // For DisplayViewDelegate:
@@ -104,7 +113,7 @@
 
 // For ServerDelegate:
 - (void)triangle:(screen_vertex *)v {
-    [self.backBuffer triangle:v enableZbuffer:self.zbufferEnabled];
+    [self.backBuffer triangle:v enableZbuffer:self.zbufferEnabled pattern:_patternEnabled ? _pattern : nil];
 }
 
 // For ServerDelegate:
@@ -135,6 +144,23 @@
 // For ServerDelegate:
 - (void)zclear {
     [self.backBuffer zclear];
+}
+
+// For ServerDelegate:
+- (void)setPattern:(uint16_t *)pattern {
+    for (int i = 0; i < 16; i++) {
+	_pattern[i] = pattern[i];
+    }
+}
+
+// For ServerDelegate:
+- (void)enablePattern {
+    _patternEnabled = YES;
+}
+
+// For ServerDelegate:
+- (void)disablePattern {
+    _patternEnabled = NO;
 }
 
 @end

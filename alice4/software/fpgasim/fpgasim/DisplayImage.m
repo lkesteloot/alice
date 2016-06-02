@@ -121,7 +121,7 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     return a->y > b->y;
 }
 
-- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer {
+- (void)triangle:(screen_vertex *)vs enableZbuffer:(BOOL)enableZbuffer pattern:(uint16_t *)pattern {
     if (/* DISABLES CODE */ (NO)) {
 	NSLog(@"Triangle: (%d,%d), (%d,%d), (%d,%d), color (%d,%d,%d)",
 	      vs[0].x, vs[0].y,
@@ -199,8 +199,14 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	int w0 = w0_row;
 	int w1 = w1_row;
 	int w2 = w2_row;
+	uint16_t rowPattern = pattern == nil ? 0xFFFF : pattern[y % 16];
 
 	for (int x = minX; x <= maxX; x++) {
+	    if (rowPattern != 0xFFFF && (rowPattern & (1 << (x % 16))) == 0) {
+		// Disabled by pattern.
+		continue;
+	    }
+
 	    if (w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
 		BOOL drawPixel;
 		uint32_t z;
