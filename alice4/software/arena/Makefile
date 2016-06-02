@@ -12,7 +12,7 @@ $(APP): $(SRC) arena.h udpbrdcst.h $(LIBGL_SRC)
 		-o $(APP) $(SRC) $(LIBGL_SRC)
 
 run: $(APP)
-	BROADCAST=192.168.1.255 ./$(APP) -n
+	./$(APP) -n
 
 clean:
 	rm -f $(APP)

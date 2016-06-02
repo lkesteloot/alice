@@ -63,26 +63,33 @@ getbroadcast(service, addr)
     	return (-1);
     }
     
-    if(getenv("BROADCAST") != NULL) {
-        int parts[4];
-        if(sscanf(getenv("BROADCAST"), "%d.%d.%d.%d",
-            &parts[0], &parts[1], &parts[2], &parts[3]) != 4)
-            abort();
-        int address;
-        address = 0xff000000 | (parts[2] << 16) | (parts[1] << 8) | parts[0];
-        printf("address = 0x%08X\n", address);
-        addr->sin_addr.s_addr = address;
-    } else {
-        addr->sin_addr.s_addr = INADDR_BROADCAST;
-    }
-
     if (ioctl(fd, FIONBIO, &on) < 0) {	/* Turn on non-blocking I/O */
 	perror("ioctl");
 	close(fd);
 	return (-1);
     }
-    
+
     gethostaddr(&hostaddr);
+    
+    // XXX grantham: hack the broadcast stuff to use the interface
+    // specified in HOST environment variable
+    if(getenv("HOST") == NULL) {
+        fprintf(stderr, "Please set HOST environment variable to the address from which you would like\n");
+        fprintf(stderr, "to broadcast.\n");
+        exit(1);
+    } else {
+        int parts[4];
+        if(sscanf(getenv("HOST"), "%d.%d.%d.%d",
+            &parts[0], &parts[1], &parts[2], &parts[3]) != 4) {
+            fprintf(stderr, "couldn't parse HOST \"%s\"\n", getenv("HOST"));
+            abort();
+        }
+        int address, broadcast;
+        address = (parts[3] << 24) | (parts[2] << 16) | (parts[1] << 8) | parts[0];
+        broadcast = 0xff000000 | (parts[2] << 16) | (parts[1] << 8) | parts[0];
+        addr->sin_addr.s_addr = broadcast;
+        hostaddr.sin_addr.s_addr = address;
+    }
 
     return (fd);
 }
