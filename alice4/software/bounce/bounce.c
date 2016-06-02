@@ -1,5 +1,7 @@
 #include "math.h"
 #include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 #include "gl.h"
 #include "device.h"
 
@@ -184,7 +186,7 @@ char **argv;
 		} else
 			strcpy(ofile, argv[1]);
 
-		if (obj = readfastobj(ofile))
+		if ((obj = readfastobj(ofile)) != NULL)
 			objecton = TRUE;
 	}
 
@@ -536,19 +538,19 @@ check_q()
 			if (val)
 				switch(dopup(menu)) {
 				case 1:
-					if (lighton[0] = !lighton[0])
+					if ((lighton[0] = !lighton[0]))
 						lmbind(LIGHT0, 1);
 					else
 						lmbind(LIGHT0, 0);
 					break;
 				case 2:
-					if (lighton[1] = !lighton[1])
+					if ((lighton[1] = !lighton[1]))
 						lmbind(LIGHT1, 2);
 					else
 						lmbind(LIGHT1, 0);
 					break;
 				case 3:
-					if (lighton[2] = !lighton[2])
+					if ((lighton[2] = !lighton[2]))
 						lmbind(LIGHT2, 3);
 					else
 						lmbind(LIGHT2, 0);
@@ -700,27 +702,27 @@ fastobj *obj;
 		while(npolys--) {
 			PolyOrLine();
 			c3i(p);
-			v3f(p+4);
+			v3f((float *) p+4);
 			c3i(p+8);
-			v3f(p+12);
+			v3f((float *) p+12);
 			c3i(p+16);
-			v3f(p+20);
+			v3f((float *) p+20);
 			c3i(p+24);
-			v3f(p+28);
+			v3f((float *) p+28);
 			EndPolyOrLine();
 			p += 32;
 		}
 	} else {
 		while ( p < end) {
 			PolyOrLine();
-			n3f(p);
-			v3f(p+4);
-			n3f(p+8);
-			v3f(p+12);
-			n3f(p+16);
-			v3f(p+20);
-			n3f(p+24);
-			v3f(p+28);
+			n3f((float *) p);
+			v3f((float *) p+4);
+			n3f((float *) p+8);
+			v3f((float *) p+12);
+			n3f((float *) p+16);
+			v3f((float *) p+20);
+			n3f((float *) p+24);
+			v3f((float *) p+28);
 			EndPolyOrLine();
 			p += 32;
 		}

@@ -74,7 +74,7 @@ char	*argv[];
 
     shademodel(FLAT);
 
-    defpattern (HALFTONE, 16, halftone);
+    defpattern (HALFTONE, 16, (uint16_t *) halftone);
     deflinestyle (HALFTONE, ls);
     getlightvector ();
 

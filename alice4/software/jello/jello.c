@@ -376,7 +376,7 @@ char *name;
     tie(MIDDLEMOUSE, MOUSEX, MOUSEY);
     qdevice(RIGHTMOUSE);
 
-    defpattern(HALFTONE, 16, halftone);
+    defpattern(HALFTONE, 16, (uint16_t *) halftone);
 
     for (k=0; k<6; k++)
 	for (i=0; i<4; i++)
