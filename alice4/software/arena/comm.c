@@ -101,6 +101,7 @@ read_net()
 	else
 	{
 	    player[temp_id] = temp[0];
+            printf("player %d is active\n", temp_id);
 	    INUSE(temp[0]) = 1;
 	    shots[temp_id][0] = temp[1];
 	    shots[temp_id][1] = temp[2];

@@ -212,3 +212,4 @@ extern int did_colide;
 
 extern int network;
 
+extern int winw, winh;

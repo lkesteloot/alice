@@ -1876,7 +1876,7 @@ draw_mech(v)
 	draw(-0.25, 0.0, -0.25);
 	move(-0.25, 1.0,  0.25);
 	draw( 0.25, 0.0, -0.25);
-    if (endfeedback(fbbuf))
+    if (1 || endfeedback(fbbuf))
     {
 	Matrix base_robot;
 	getmatrix(base_robot);

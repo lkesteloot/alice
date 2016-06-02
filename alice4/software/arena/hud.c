@@ -21,9 +21,9 @@ make_hud()
 	pushmatrix();
 
 	/*ortho2(0.0, XMAXSCREEN.0, 0.0, YMAXSCREEN.0);*/
-	ortho2(0.0, 1023.0, 0.0, 767.0);
+        ortho2(0.0, 1023.0, 0.0, 767.0);
 
-	if (bitplanes >= 7)
+	if ((bitplanes >= 7) && (bitplanes <= 12))
 	{
 	    writemask(HUD_Y_MASK);
 
@@ -200,13 +200,14 @@ draw_hud_obj()
     pushmatrix();
     loadmatrix(hud_matrix);
 
-    if (bitplanes >= 7)
+    if (bitplanes >= 7 && bitplanes <= 12)
 	writemask(HUD_MASK);
     else
     {
 	callobj(base_hud);
 	draw_zoom();
     }
+
 
     /*
      *  damage meter

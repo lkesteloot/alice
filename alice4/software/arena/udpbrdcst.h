@@ -14,6 +14,7 @@
 #endif
 #include <netdb.h>
 // #include <sys/termio.h>
+// #define FIONBIO		0x5421
 #include <errno.h>
 
 #define	IGNOREOWNMSG 1	/* Flag for recvbroadcast() to ignore messages */

@@ -48,6 +48,7 @@ char *intro[INTRO] = {
 "",
 "Hit any key to continue."};
 
+int winw, winh;
 
 startup()
 {
@@ -56,9 +57,9 @@ startup()
     color(BLUE);
     clear();
 
-    long winw, winh;
     getsize(&winw, &winh);
-    ortho2(0, winw, 0, winh);
+    // ortho2(0, winw, 0, winh);
+    ortho2(0, 1023, 0, 767);
 
     color(WHITE);
     for (i=0; i<INTRO; i++)
@@ -84,6 +85,17 @@ startup()
 
     // LK: Skip waiting for keyboard.
     while (0 && qread(&i) != KEYBD)
+#if NETWORKING
+	if (network)
+	    send_death();
+#else
+        ;
+#endif
+
+    // BG: swap and wait for mouse
+    swapbuffers();
+    qdevice(LEFTMOUSE);
+    while(qread(&i) != LEFTMOUSE);
 #if NETWORKING
 	if (network)
 	    send_death();

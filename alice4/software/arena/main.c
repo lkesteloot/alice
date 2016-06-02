@@ -228,6 +228,7 @@ main(argc, argv)
 		    if (val)
 			tilt = !tilt;
 		    break;
+		case LEFTMOUSE:
 		case EKEY:
 		    if (val && !(player[id].type & EXPLODE))
 			fire_missile(CANNON);

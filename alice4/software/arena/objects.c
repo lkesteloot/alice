@@ -144,7 +144,7 @@ visible(x1, x2, x3, x4, z1, z2, z3, z4)
 	pnt(x3, ypos, z3);
 	pnt(x4, ypos, z4);
     }
-    if (endfeedback(fbbuf))
+    if (1 || endfeedback(fbbuf))
 	return TRUE;
     else
 	return FALSE;
@@ -243,7 +243,7 @@ visible_sect(sect)
 	default:
 	    break;
     }
-    if (endfeedback(fbbuf))
+    if (1 || endfeedback(fbbuf))
 	return TRUE;
     else
 	return FALSE;

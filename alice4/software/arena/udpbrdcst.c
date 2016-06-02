@@ -1,6 +1,7 @@
 
 #if NETWORKING
 
+#include <stdlib.h>
 
 #include <sys/types.h>
 #ifdef CLOVER
@@ -14,6 +15,7 @@
 #include <sys/time.h>
 // #include <sys/termio.h>
 #include <sys/filio.h> // Was termio
+// #define FIONBIO		0x5421
 #include <errno.h>
 
 
@@ -60,7 +62,18 @@ getbroadcast(service, addr)
     	return (-1);
     }
     
-    addr->sin_addr.s_addr = INADDR_BROADCAST;
+    if(getenv("BROADCAST") != NULL) {
+        int parts[4];
+        if(sscanf(getenv("BROADCAST"), "%d.%d.%d.%d",
+            &parts[0], &parts[1], &parts[2], &parts[3]) != 4)
+            abort();
+        int address;
+        address = 0xff000000 | (parts[2] << 16) | (parts[1] << 8) | parts[0];
+        printf("address = 0x%08X\n", address);
+        addr->sin_addr.s_addr = address;
+    } else {
+        addr->sin_addr.s_addr = INADDR_BROADCAST;
+    }
 
     if (ioctl(fd, FIONBIO, &on) < 0) {	/* Turn on non-blocking I/O */
 	perror("ioctl");
@@ -92,7 +105,7 @@ gethostaddr(addr)
     	return (-1);
     addr->sin_family = AF_INET;
     addr->sin_port = 0;
-    bcopy(hp->h_addr, &addr->sin_addr, sizeof(addr->sin_addr));
+    bcopy(hp->h_addr_list[0], &addr->sin_addr, sizeof(addr->sin_addr));
     return (0);
 }
 
