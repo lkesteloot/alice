@@ -253,6 +253,7 @@ char	*argv[];
 {
  
     int i, j;
+    int started = 0;
 
 	if (argc != 1)
 	{
@@ -284,16 +285,23 @@ char	*argv[];
 
 		case LEFTMOUSE :
 		    if (val) {
-			grav = -0.008;
-			damp = 0.995;
-			light_vector[X] = view[0][1];
-			light_vector[Y] = view[1][1];
-			light_vector[Z] = view[2][1];
+                        if (!started) {
+                            grav = -0.008;
+                            damp = 0.995;
+                            light_vector[X] = view[0][1];
+                            light_vector[Y] = view[1][1];
+                            light_vector[Z] = view[2][1];
 
-			grav_vec[X] = light_vector[X] * grav;
-			grav_vec[Y] = light_vector[Y] * grav;
-			grav_vec[Z] = light_vector[Z] * grav;
+                            grav_vec[X] = light_vector[X] * grav;
+                            grav_vec[Y] = light_vector[Y] * grav;
+                            grav_vec[Z] = light_vector[Z] * grav;
+                            started = 1;
+                        }
 		    }
+
+                    qread(&omx); qread(&omy);
+                    if (val) function = REORIENT;
+                    else function = 0;
 
 		    break;
 
@@ -372,6 +380,7 @@ char *name;
     qdevice(REDRAW);
     qdevice(ESCKEY);
     qdevice(LEFTMOUSE);
+    tie(LEFTMOUSE, MOUSEX, MOUSEY);
     qdevice(MIDDLEMOUSE);
     tie(MIDDLEMOUSE, MOUSEX, MOUSEY);
     qdevice(RIGHTMOUSE);
