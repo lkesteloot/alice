@@ -10,6 +10,9 @@ typedef enum {
     COMMAND_ZCLEAR,
     COMMAND_SWAPBUFFERS,
     COMMAND_TRIANGLE,
+    COMMAND_SET_PATTERN,
+    COMMAND_ENABLE_PATTERN,
+    COMMAND_DISABLE_PATTERN,
 
     // Window and input commands (later to be handled locally).
     COMMAND_WINOPEN,
