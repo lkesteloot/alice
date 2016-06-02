@@ -202,13 +202,10 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	uint16_t rowPattern = pattern == nil ? 0xFFFF : pattern[y % 16];
 
 	for (int x = minX; x <= maxX; x++) {
-	    if (rowPattern != 0xFFFF && (rowPattern & (1 << (x % 16))) == 0) {
-		// Disabled by pattern.
-		continue;
-	    }
+	    // Check pattern.
+	    BOOL drawPixel = rowPattern == 0xFFFF || (rowPattern & (1 << (x % 16))) != 0;
 
-	    if (w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
-		BOOL drawPixel;
+	    if (drawPixel && w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
 		uint32_t z;
 
 		if (enableZbuffer) {
@@ -217,7 +214,6 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		} else {
 		    // Not sure this is correct. The man page of zbuffer() says that it only affects writing.
 		    z = 0;
-		    drawPixel = YES;
 		}
 
 		if (drawPixel) {

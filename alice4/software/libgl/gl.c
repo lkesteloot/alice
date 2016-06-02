@@ -1883,21 +1883,19 @@ void setpattern(int32_t pattern) {
 
     TRACEF("%d", pattern);
 
-    if(current_pattern == pattern)
-        return;
-
     if(pattern == 0) {
         send_uint8(COMMAND_DISABLE_PATTERN);
     } else {
-        // send pattern bitmap
-        send_uint8(COMMAND_SET_PATTERN);
-        for (int i = 0; i < 16; i++) {
-            send_uint16(patterns[pattern][i]);
+        if(current_pattern != pattern) {
+            // send pattern bitmap
+            send_uint8(COMMAND_SET_PATTERN);
+            for (int i = 0; i < 16; i++) {
+                send_uint16(patterns[pattern][i]);
+            }
+            current_pattern = pattern;
         }
         send_uint8(COMMAND_ENABLE_PATTERN);
     }
-
-    current_pattern = pattern;
 }
 
 void shademodel(int32_t mode) {
