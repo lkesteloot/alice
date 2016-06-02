@@ -1389,8 +1389,18 @@ void defpattern(int32_t index, int size, Pattern16 mask) {
         printf("pattern size %d not supported\n", size);
         return;
     }
+    if(index == 0) {
+        printf("cannot define pattern 0\n");
+        return;
+    }
     for(int i = 0; i < 16; i++)
         patterns[index][i] = mask[i];
+
+    // Flush cache.
+    if (index == current_pattern) {
+        // Send it again next time setpattern() is called.
+        current_pattern = 0;
+    }
 }
 
 void doublebuffer() { 
