@@ -6,8 +6,8 @@
 CON
 
   ' Sync these with whatever was chosen in VGA_driver.spin.
-  COLS = 80
-  ROWS = 40
+  COLS = vgatext#cols
+  ROWS = vgatext#rows
   LONGS_PER_ROW = COLS / 4
 
   ' For the State variable:
@@ -20,6 +20,10 @@ CON
   
   MAX_ATTRIBUTES = 5
   MAX_ERROR_BUFFER_LENGTH = 30
+
+OBJ
+ 
+  vgatext : "VGA_driver"
 
 VAR
   long Stack[40]
