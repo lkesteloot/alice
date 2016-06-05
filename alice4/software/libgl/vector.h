@@ -214,6 +214,19 @@ inline void matrix4x4f_mult_matrix4x4f(const matrix4x4f m1, const matrix4x4f m2,
 
 int matrix4x4f_invert(const matrix4x4f mat, matrix4x4f inv);
 
+inline void matrix4x4f_mult_vec4f_(const matrix4x4f m, const vec4f in, vec4f out)
+{
+    int i;
+    vec4f t;
+
+    for(i = 0; i < 4; i++)
+        out[i] =
+            m[0 + i] * in[0] +
+            m[4 + i] * in[1] +
+            m[8 + i] * in[2] +
+            m[12 + i] * in[3];
+}
+
 inline void matrix4x4f_mult_vec4f(const matrix4x4f m, const vec4f in, vec4f out)
 {
     int i;

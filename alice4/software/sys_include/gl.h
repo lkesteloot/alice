@@ -394,7 +394,7 @@ extern Boolean	setfastcom();
 extern void	setlinestyle();
 extern void	setmap();
 extern void	setmonitor();
-extern void	setpattern();
+extern void	setpattern(int32_t pattern);
 extern void	setshade();
 extern Boolean	setslowcom();
 extern void	setvaluator(Device device, int init, int min, int max);

@@ -45,7 +45,12 @@ static int32_t DISPLAY_WIDTH = 800;
 static int32_t DISPLAY_HEIGHT = 600;
 #define POLY_MAX 32
 
+#if NDEBUG
 static int trace_functions = 0;
+#else
+static const int trace_functions = 0;
+#endif
+
 static int trace_network = 0;
 static int indent = 0;
 
@@ -343,7 +348,7 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     vec4f tv;
     vec3f normal;
 
-    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
+    matrix4x4f_mult_vec4f_(matrix4x4f_stack_top(&modelview_stack), wv->coord, tv);
     // matrix4x4f_print("modelview", matrix4x4f_stack_top(&modelview_stack));
     if(lighting_enabled) {
         vec3f_mult_matrix4x4f(wv->normal, matrix4x4f_stack_get_inverse(&modelview_stack), normal);
@@ -365,7 +370,7 @@ void transform_and_light_vertex(world_vertex *wv, lit_vertex *lv)
     }
 
     /// XXX could multiply mv and p together?
-    matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), tv, lv->coord);
+    matrix4x4f_mult_vec4f_(matrix4x4f_stack_top(&projection_stack), tv, lv->coord);
     // matrix4x4f_print("projection", matrix4x4f_stack_top(&projection_stack));
     // vec4f_print("Object", wv->coord);
     // vec4f_print("World", tv);
@@ -771,35 +776,55 @@ void process_polygon(int32_t n, world_vertex *worldverts)
     }
 }
 
-void draw_bitmap(screen_vertex *sv, uint8_t *bgcolor, uint8_t *bits, uint32_t width, uint32_t rowbytes, uint32_t height)
+void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowbytes, uint32_t height)
 {
-    // Should combine adjacent pixels into int32_t runs of quads
+    screen_vertex s[4];
+
     for(int j = 0; j < height; j++) {
+        int prevbit = 0;
+        int count;
         for(int i = 0; i < width; i++) {
             int bit = (bits[j * rowbytes + i / 8] >> (7 - i % 8)) & 1;
 
-            if(bit || (bgcolor != NULL)) {
-                screen_vertex pixel;
-                pixel = *sv;
-                pixel.x += SCREEN_VERTEX_V2_SCALE * i;
-                pixel.y = pixel.y + (height - j - 1) * SCREEN_VERTEX_V2_SCALE;
+            if(bit) {
 
-                screen_vertex s[4];
-                for(int k = 0; k < 4; k++) {
-                    s[k] = pixel;
-                    if(!bit && (bgcolor != NULL))
-                        screen_vertex_set_color(&s[k], bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3]);
+                if(!prevbit && bit) {
+                    // Previous bit was 0 and this bit is 1, so start a
+                    // run
+                    for(int k = 0; k < 4; k++) {
+                        s[k] = *sv; // Copy color
+                        s[k].x = sv->x + SCREEN_VERTEX_V2_SCALE * i;
+                        s[k].y = sv->y + (height - j - 1) * SCREEN_VERTEX_V2_SCALE;
+                        s[k].z = sv->z;
+                    }
+
+                    screen_vertex_offset_with_clamp(&s[0], 0, 0);
+                    screen_vertex_offset_with_clamp(&s[1], 0, 1);
+                    count = 0;
                 }
 
-                // depending on rasterizer, might get away here with a
-                // triangle on top of the center of the pixel
-                screen_vertex_offset_with_clamp(&s[0], 0, 0);
-                screen_vertex_offset_with_clamp(&s[1], 0, 1);
-                screen_vertex_offset_with_clamp(&s[2], 1, 1);
-                screen_vertex_offset_with_clamp(&s[3], 1, 0);
+                // Add this bit to current run
+                count++;
+
+            } else if(prevbit) {
+
+                // The previous bit was 1 and this bit is 0, so
+                // finish the run
+                screen_vertex_offset_with_clamp(&s[2], count, 1);
+                screen_vertex_offset_with_clamp(&s[3], count, 0);
                 process_triangle(&s[0], &s[1], &s[2]);
                 process_triangle(&s[2], &s[3], &s[0]);
             }
+
+            prevbit = bit;
+        }
+
+        if(prevbit) {
+            // the end of the row was a 1 bit, so finish run
+            screen_vertex_offset_with_clamp(&s[2], count, 1);
+            screen_vertex_offset_with_clamp(&s[3], count, 0);
+            process_triangle(&s[0], &s[1], &s[2]);
+            process_triangle(&s[2], &s[3], &s[0]);
         }
     }
 }
@@ -1894,17 +1919,17 @@ void setpattern(int32_t pattern) {
     TRACEF("%d", pattern);
 
     if(pattern == 0) {
-        send_uint8(COMMAND_DISABLE_PATTERN);
+        send_and_capture_uint8(COMMAND_DISABLE_PATTERN);
     } else {
         if(current_pattern != pattern) {
             // send pattern bitmap
-            send_uint8(COMMAND_SET_PATTERN);
+            send_and_capture_uint8(COMMAND_SET_PATTERN);
             for (int i = 0; i < 16; i++) {
-                send_uint16(patterns[pattern][i]);
+                send_and_capture_uint16(patterns[pattern][i]);
             }
             current_pattern = pattern;
         }
-        send_uint8(COMMAND_ENABLE_PATTERN);
+        send_and_capture_uint8(COMMAND_ENABLE_PATTERN);
     }
 }
 
@@ -2399,7 +2424,7 @@ void lmdef(int deftype, int32_t index, int numpoints, float properties[]) {
                     } else {
                         vec4f position;
                         vec4f_set(position, p[1], p[2], p[3], p[4]);
-                        matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), position, l->position);
+                        matrix4x4f_mult_vec4f_(matrix4x4f_stack_top(&modelview_stack), position, l->position);
                     }
                     p+= 5;
                     break;
@@ -2737,7 +2762,7 @@ void charstr(char *str) {
 
     for(int i = 0; i < strlen(str); i++) {
         // hardcode 8x16 for now
-        draw_bitmap(&screenvert, NULL, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
+        bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
         screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
     }
 }
@@ -2912,8 +2937,10 @@ int gversion(char *version)
 static void init_gl_state() __attribute__((constructor));
 static void init_gl_state()
 {
+#if NDEBUG
     if(getenv("TRACE_GL") != NULL)
         trace_functions = 1;
+#endif
 
     for(int i = 0; i < MAX_PATTERNS; i++)
         for(int j = 0; j < 16; j++)
