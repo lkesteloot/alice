@@ -1,6 +1,7 @@
 .PHONY: clean run
 
-OPT             =       -Os -g
+OPT             =       -Os
+# -g
 
 INCDIRS         =       -I../sys_include -I../demo_include
 OLD_C_FLAGS     =       -Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value -Wno-return-type
@@ -22,12 +23,17 @@ ARM_SRC         = \
         ../STM32Cube4/system_stm32f4xx.c \
         ../STM32Cube4/stm32f4xx_it.c \
         ../STM32Cube4/stm32f4xx_hal_cortex.c \
+        ../STM32Cube4/stm32f4xx_hal_pcd_ex.c \
         ../STM32Cube4/stm32f4xx_hal_dma.c \
         ../STM32Cube4/stm32f4xx_hal_gpio.c \
+        ../STM32Cube4/stm32f4xx_hal_pcd.c \
         ../STM32Cube4/stm32f4xx_hal_rcc.c \
         ../STM32Cube4/stm32f4xx_hal_uart.c \
         ../STM32Cube4/stm32f4xx_hal_spi.c \
+        ../STM32Cube4/stm32f4xx_hal_tim.c \
+        ../STM32Cube4/stm32f4xx_hal_tim_ex.c \
         ../STM32Cube4/stm32f4xx_hal.c \
+        ../STM32Cube4/stm32f4xx_ll_usb.c \
         ../ARM/syscalls.c \
         ../ARM/delay.c \
         ../ARM/crc7.c \
@@ -41,6 +47,14 @@ ARM_SRC         = \
         ../ARM/logprintf.c \
         ../ARM/main.c \
         $(NULL)
+
+#        ../ARM/usbd_core.c \
+#        ../ARM/usbd_ioreq.c \
+#        ../ARM/usbd_ctlreq.c \
+#        ../ARM/usbd_conf.c \
+#        ../ARM/usbd_cdc.c \
+#        ../ARM/usbd_cdc_interface.c \
+#        ../ARM/usbd_desc.c \
 
 $(APP).hex: $(APP).elf
 	$(TOOLROOT)/bin/arm-none-eabi-objcopy -O ihex $< $@
