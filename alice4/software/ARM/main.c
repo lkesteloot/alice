@@ -5,6 +5,8 @@
 
 #include <stm32f4xx_hal.h>
 
+#include "ff.h"
+
 #include "defs.h"
 #include "delay.h"
 #include "leds.h"
@@ -12,6 +14,8 @@
 #include "gpio_helpers.h"
 #include "utility.h"
 #include "logprintf.h"
+
+#include "sd_spi.h"
 
 #include "monitor_queue.h"
 #include "uart.h"
@@ -235,6 +239,8 @@ void open_connection()
 //----------------------------------------------------------------------------
 // main
 
+FATFS gFATVolume;
+
 int main()
 {
     system_init();
@@ -256,6 +262,27 @@ int main()
     LED_beat_heart();
     SERIAL_flush();
 
+    if(0) {
+        SPI_config_for_sd();
+        LED_beat_heart();
+
+        if(!SDCARD_init())
+            printf("Failed to start access to SD cardSPI!!\n");
+        else 
+            printf("Opened SD Card\n");
+        LED_beat_heart();
+        SERIAL_flush();
+
+        FRESULT result = f_mount(&gFATVolume, "0:", 1);
+        if(result != FR_OK) {
+            logprintf(DEBUG_ERRORS, "ERROR: FATFS mount result is %d\n", result);
+            panic();
+        } else {
+            printf("Mounted FATFS from SD card successfully.\n");
+        }
+        SERIAL_flush();
+    }
+
     printf("* ");
     SERIAL_flush();
 
@@ -268,7 +295,6 @@ int main()
         SERIAL_poll_continue();
 
         process_monitor_queue();
-
     }
 
     MAIN();

@@ -30,10 +30,14 @@ ARM_SRC         = \
         ../STM32Cube4/stm32f4xx_hal.c \
         ../ARM/syscalls.c \
         ../ARM/delay.c \
+        ../ARM/crc7.c \
         ../ARM/leds.c \
         ../ARM/monitor_queue.c \
         ../ARM/uart.c \
         ../ARM/utility.c \
+        ../ARM/sd_spi.c \
+        ../ARM/ff.c \
+        ../ARM/diskio.c \
         ../ARM/logprintf.c \
         ../ARM/main.c \
         $(NULL)
