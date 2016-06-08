@@ -5,6 +5,7 @@
 
 #include <stm32f4xx_hal.h>
 
+#include "main.h"
 #include "ff.h"
 
 #include "defs.h"
@@ -103,6 +104,47 @@ void system_init()
     delay_init();
 }
 
+/*--------------------------------------------------------------------------*/
+/* USB ---------------------------------------------------------------------*/
+
+#if 0
+USBD_HandleTypeDef USBD_Device;
+
+void USB_init()
+{
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    // Enable TIM peripherals Clock 
+    TIMx_CLK_ENABLE();
+  
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    // Configure the NVIC for TIMx 
+    /* Set Interrupt Group Priority */
+    HAL_NVIC_SetPriority(TIMx_IRQn, 6, 0);
+  
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    /* Enable the TIMx global Interrupt */
+    HAL_NVIC_EnableIRQ(TIMx_IRQn);
+
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    /* Init Device Library */
+    USBD_Init(&USBD_Device, &VCP_Desc, 0);
+
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    /* Add Supported Class */
+    USBD_RegisterClass(&USBD_Device, USBD_CDC_CLASS);
+
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    /* Add CDC Interface Class */
+    USBD_CDC_RegisterInterface(&USBD_Device, &USBD_CDC_fops);
+
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+    /* Start Device Process */
+    USBD_Start(&USBD_Device);
+    printf("%s, line %d\n", __FILE__, __LINE__); SERIAL_flush();
+}
+
+#endif
+
 //----------------------------------------------------------------------------
 // stdio
 
@@ -141,6 +183,8 @@ void usage()
     printf("panic      - force panic\n");
 }
 
+int go = 0;
+
 void process_local_key(unsigned char c)
 {
     // XXX make this table driven, break into lots smaller functions
@@ -153,6 +197,10 @@ void process_local_key(unsigned char c)
            (strcmp(gMonitorCommandLine, "?") == 0)) {
 
             usage();
+
+        } else if(strcmp(gMonitorCommandLine, "go") == 0) {
+
+            MAIN();
 
         } else if(strcmp(gMonitorCommandLine, "panic") == 0) {
 
@@ -225,28 +273,50 @@ uint8_t receive_uint8()
 {
 }
 
-void send_uint8(uint8_t b)
+#define BUFFER_SIZE 1024
+uint8_t buffer[BUFFER_SIZE];
+uint8_t buffer_count = 0;
+
+static void write_buffer()
 {
+    if(buffer_count == 0)
+        return;
+
     UINT waswritten;
-    FRESULT result = f_write(&capture_file, &b, 1, &waswritten);
+    FRESULT result = f_write(&capture_file, &buffer, BUFFER_SIZE, &waswritten);
     if(result != FR_OK) {
-        logprintf(DEBUG_ERRORS, "ERROR: couldn't write byte to capture file\n");
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't write buffer to capture file\n");
         panic();
     }
-    if(waswritten != 1) {
-        logprintf(DEBUG_ERRORS, "ERROR: couldn't write byte to capture file\n");
+    if(waswritten != BUFFER_SIZE) {
+        logprintf(DEBUG_ERRORS, "ERROR: tried to write %ld bytes, wrote %ld bytes\n", BUFFER_SIZE, waswritten);
         panic();
     }
+    buffer_count = 0; 
 }
 
-int count = 60;
+void send_uint8(uint8_t b)
+{
+    LED_beat_heart();
+#if 0
+    buffer[buffer_count++] = b;
+
+    if(buffer_count == BUFFER_SIZE) {
+        SERIAL_enqueue_one_char('.'); SERIAL_flush();
+        write_buffer();
+    }
+#endif
+}
+
+int count = 0;
 void flush()
 {
-    if(--count == 0) {
+    printf("frame %d\n", count); SERIAL_flush();
+    if(++count > 60) {
+        write_buffer();
         f_close(&capture_file);
         f_mount(NULL, "0:", 1);
-        printf("finished capturing\n");
-        SERIAL_flush();
+        printf("finished capturing\n"); SERIAL_flush();
         panic();
     }
 }
@@ -310,11 +380,12 @@ int main()
         }
 
     }
+    // USB_init();
 
     printf("* ");
     SERIAL_flush();
 
-    for(;;) {
+    while(!go) {
         int key;
 
         SERIAL_try_to_transmit_buffers();
@@ -324,8 +395,6 @@ int main()
 
         process_monitor_queue();
     }
-
-    MAIN();
 
     // should not reach
     panic();
