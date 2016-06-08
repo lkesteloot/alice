@@ -219,16 +219,36 @@ void uart_received(char c)
 //----------------------------------------------------------------------------
 // libgl connection
 
+FIL capture_file;
+
 uint8_t receive_uint8()
 {
 }
 
 void send_uint8(uint8_t b)
 {
+    UINT waswritten;
+    FRESULT result = f_write(&capture_file, &b, 1, &waswritten);
+    if(result != FR_OK) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't write byte to capture file\n");
+        panic();
+    }
+    if(waswritten != 1) {
+        logprintf(DEBUG_ERRORS, "ERROR: couldn't write byte to capture file\n");
+        panic();
+    }
 }
 
+int count = 60;
 void flush()
 {
+    if(--count == 0) {
+        f_close(&capture_file);
+        f_mount(NULL, "0:", 1);
+        printf("finished capturing\n");
+        SERIAL_flush();
+        panic();
+    }
 }
 
 void open_connection()
@@ -262,7 +282,7 @@ int main()
     LED_beat_heart();
     SERIAL_flush();
 
-    if(0) {
+    if(1) {
         SPI_config_for_sd();
         LED_beat_heart();
 
@@ -281,6 +301,14 @@ int main()
             printf("Mounted FATFS from SD card successfully.\n");
         }
         SERIAL_flush();
+
+        result = f_open (&capture_file, "logo.cap", FA_WRITE | FA_CREATE_ALWAYS);
+
+        if(result != FR_OK) {
+            logprintf(DEBUG_ERRORS, "ERROR: couldn't open \"logo.capture\" for writing, FatFS result %d\n", result);
+            panic();
+        }
+
     }
 
     printf("* ");
