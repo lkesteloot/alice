@@ -7,19 +7,36 @@ module Vga_control(
     output [9:0] oCurrent_Y, // Max vertical pixels: 1023.
     output [21:0] oAddress,
     output oRequest,
+	 output oTopOfScreen,     // 1 when at the very top of (blank) screen.
     //  VGA Side
     output [3:0] oVGA_R,
     output [3:0] oVGA_G,
     output [3:0] oVGA_B,
-    output reg oVGA_HS,
-    output reg oVGA_VS,
-    output oVGA_SYNC,
-    output oVGA_BLANK,
-    output oVGA_CLOCK,
+    output reg oVGA_HS,   // Active low.
+    output reg oVGA_VS,   // Active low.
+    output oVGA_BLANK,    // Active low.
+    output oVGA_CLOCK,    // Inverse of iCLK.
     //  Control Signal
     input iCLK,
     input iRST_N
 );
+
+// LK: There are two internal registers, H_Cont and V_Cont. They are 0-based. The
+// H_Cont value has these ranges:
+//
+//    H_Cont                            oVGA_HS
+//    [0, H_FRONT)                      1
+//    [H_FRONT, H_FRONT + H_SYNC)       0
+//    [H_FRONT + H_SYNC, H_BLANK)       1
+//    [H_BLANK, H_TOTAL)                1  (pixels are visible)
+//
+// V_Cont value has these ranges:
+//
+//    V_Cont                            oVGA_VS
+//    [0, V_FRONT)                      1
+//    [V_FRONT, V_FRONT + V_SYNC)       0
+//    [V_FRONT + V_SYNC, V_BLANK)       1
+//    [V_BLANK, V_TOTAL)                1  (pixels are visible)
 
 //  Internal Registers
 reg         [10:0]  H_Cont;
@@ -41,17 +58,16 @@ parameter   V_ACT   =   480;
 parameter   V_BLANK =   V_FRONT+V_SYNC+V_BACK;
 parameter   V_TOTAL =   V_FRONT+V_SYNC+V_BACK+V_ACT;
 ////////////////////////////////////////////////////////////
-assign  oVGA_SYNC   =   1'b1;           //  This pin is unused.
 assign  oVGA_BLANK  =   ~((H_Cont<H_BLANK)||(V_Cont<V_BLANK));
 assign  oVGA_CLOCK  =   ~iCLK;
-assign  oVGA_R      =   (oCurrent_X > 0) ?  iRed : 4'b0 ;
-assign  oVGA_G      =   (oCurrent_X > 0) ?  iGreen : 4'b0 ;
-assign  oVGA_B      =   (oCurrent_X > 0) ?  iBlue : 4'b0 ;
-assign  oAddress    =   oCurrent_Y*H_ACT+oCurrent_X;
-assign  oRequest    =   ((H_Cont>=H_BLANK && H_Cont<H_TOTAL)    &&
-                         (V_Cont>=V_BLANK && V_Cont<V_TOTAL));
-assign  oCurrent_X  =   (H_Cont>=H_BLANK)   ?   H_Cont-H_BLANK  :   11'h0   ;
-assign  oCurrent_Y  =   (V_Cont>=V_BLANK)   ?   V_Cont-V_BLANK  :   11'h0   ;
+assign  oVGA_R      =   oRequest ? iRed : 4'b0 ;
+assign  oVGA_G      =   oRequest ? iGreen : 4'b0 ;
+assign  oVGA_B      =   oRequest ? iBlue : 4'b0 ;
+assign  oAddress    =   oCurrent_Y*H_ACT + oCurrent_X;
+assign  oRequest    =   H_Cont >= H_BLANK && V_Cont >= V_BLANK;
+assign  oCurrent_X  =   (H_Cont>=H_BLANK) ? H_Cont-H_BLANK : 11'h0;
+assign  oCurrent_Y  =   (V_Cont>=V_BLANK) ? V_Cont-V_BLANK : 11'h0;
+assign  oTopOfScreen = H_Cont == 0 && V_Cont == 0;
 
 //  Horizontal Generator: Refer to the pixel clock
 always@(posedge iCLK or negedge iRST_N)

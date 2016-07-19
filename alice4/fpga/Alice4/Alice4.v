@@ -206,6 +206,7 @@ inout   [31:0]  GPIO1_D;                //  GPIO Connection 1 Data Bus
 
 reg [25:0] counter;
 reg [15:0] seconds;
+reg [7:0] frames;
 assign LEDG[9:0] = seconds[9:0];
 wire reset_n = BUTTON[2];
 wire Vga_pixel_clock;
@@ -215,6 +216,7 @@ wire    [3:0]   mVGA_R;
 wire    [3:0]   mVGA_G;
 wire    [3:0]   mVGA_B;
 wire            mVGA_request;
+wire            mVGA_top_of_screen;
 //wire  [19:0]  mVGA_ADDR;
 wire    [3:0]   sVGA_R;
 wire    [3:0]   sVGA_G;
@@ -252,7 +254,7 @@ SEG7_LUT_4 u1(
     .oSEG2_DP(HEX2_DP),
     .oSEG3(HEX3_D),
     .oSEG3_DP(HEX3_DP),
-    .iDIG(seconds)
+    .iDIG(frames)
 );
 
 Vga_clock u2(
@@ -268,13 +270,13 @@ Vga_control u3 (
     .iGreen(mVGA_G),
     .iBlue(mVGA_B),
 	 .oRequest(mVGA_request),
+	 .oTopOfScreen(mVGA_top_of_screen),
     // VGA Side
     .oVGA_R(sVGA_R),
     .oVGA_G(sVGA_G),
     .oVGA_B(sVGA_B),
     .oVGA_HS(VGA_HS),
     .oVGA_VS(VGA_VS),
-    .oVGA_SYNC(),
     .oVGA_BLANK(),
     .oVGA_CLOCK(),
     // Control Signal
@@ -306,9 +308,32 @@ wire Vga_fifo_wrfull;
 wire [7:0] Vga_fifo_wrusedw;
 
 assign Vga_fifo_input = counter[15:0];
-assign Vga_fifo_wrclk = CLOCK_50;
-assign Vga_fifo_wrreq = 1;
+assign Vga_fifo_wrclk = CLOCK_50; // counter[7];
+assign Vga_fifo_wrreq = tmpcnt != 0;
 
+// Use magenta if the FIFO is empty.
+assign mVGA_R = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[11:8];
+assign mVGA_G = Vga_fifo_rdempty ? 4'b0000 : Vga_fifo_output[7:4];
+assign mVGA_B = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[3:0];
+
+always @(posedge mVGA_top_of_screen) begin
+    frames <= frames + 1'b1;
+end
+
+reg [17:0] tmpcnt;
+always @(posedge CLOCK_50 or posedge mVGA_top_of_screen) begin
+   if (mVGA_top_of_screen) begin
+	   tmpcnt <= 18'd153_600;
+	end
+	else
+	begin
+      if (tmpcnt != 0 && !Vga_fifo_wrfull) begin
+	   	tmpcnt <= tmpcnt - 18'b1;
+	   end
+	end
+end
+
+`ifdef NOTDEF
 reg signed [19:0] w0_row;
 reg signed [19:0] w1_row;
 reg signed [19:0] w2_row;
@@ -324,9 +349,7 @@ wire insideTriangle = 1; // w0 >= 0 && w1 >= 0 && w2 >= 0;
 //assign mVGA_R = insideTriangle ? (w0/6160) : 4'b0000;
 //assign mVGA_G = insideTriangle ? (w1/6160) : 4'b0000;
 //assign mVGA_B = insideTriangle ? (w2/6160) : 4'b0000;
-assign mVGA_R = insideTriangle ? Vga_fifo_output[11:8] : 4'b0000;
-assign mVGA_G = insideTriangle ? Vga_fifo_output[7:4] : 4'b0000;
-assign mVGA_B = insideTriangle ? Vga_fifo_output[3:0] : 4'b0000;
+`endif
 
 `ifdef NOTDEF
 always @(mVGA_X or mVGA_Y)
