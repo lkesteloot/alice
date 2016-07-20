@@ -37,6 +37,9 @@ module Vga_control(
 //    [V_FRONT, V_FRONT + V_SYNC)       0
 //    [V_FRONT + V_SYNC, V_BLANK)       1
 //    [V_BLANK, V_TOTAL)                1  (pixels are visible)
+//
+// The VGA clock is 25.175 MHz. With 800x525 pixels (640x480 visible),
+// that's 59.94 FPS.
 
 //  Internal Registers
 reg         [10:0]  H_Cont;
