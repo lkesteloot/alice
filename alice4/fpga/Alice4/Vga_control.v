@@ -68,9 +68,12 @@ parameter   V_TOTAL =   V_FRONT+V_SYNC+V_BACK+V_ACT;
 ////////////////////////////////////////////////////////////
 assign  oVGA_BLANK  =   ~(H_Cont<H_BLANK || V_Cont<V_BLANK);
 assign  oVGA_CLOCK  =   ~iCLK;
-assign  oVGA_R      =   oRequest ? iRed : 4'b0 ;
-assign  oVGA_G      =   oRequest ? iGreen : 4'b0 ;
-assign  oVGA_B      =   oRequest ? iBlue : 4'b0 ;
+//assign  oVGA_R      =   oRequest ? iRed : 4'b0 ;
+//assign  oVGA_G      =   oRequest ? iGreen : 4'b0 ;
+//assign  oVGA_B      =   oRequest ? iBlue : 4'b0 ;
+assign  oVGA_R      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iRed : 4'b0 ;
+assign  oVGA_G      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iGreen : 4'b0 ;
+assign  oVGA_B      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iBlue : 4'b0 ;
 assign  oAddress    =   oCurrent_Y*H_ACT + oCurrent_X;
 assign  oRequest    =   H_Cont >= H_BLANK && V_Cont >= V_BLANK;
 assign  oCurrent_X  =   (H_Cont>=H_BLANK) ? H_Cont-H_BLANK : 11'h0;
