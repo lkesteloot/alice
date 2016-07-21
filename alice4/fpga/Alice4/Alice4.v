@@ -307,8 +307,9 @@ wire Vga_fifo_rdempty;
 wire Vga_fifo_wrfull;
 wire [7:0] Vga_fifo_wrusedw;
 
-assign Vga_fifo_input = (X[4] ^ Y[4]) ? 12'b1111_0000_0000 : 12'b0000_1111_1111;
-assign Vga_fifo_wrclk = ~CLOCK_50;
+assign Vga_fifo_input = (X == 0 || X == 639 || Y == 0 || Y == 479) ? 12'hFFF :
+	(X[4] ^ Y[4]) ? 12'hF00 : 12'h0FF;
+assign Vga_fifo_wrclk = CLOCK_50;
 assign Vga_fifo_wrreq = going == 2'd2 && !Vga_fifo_wrfull;
 
 // Use magenta if the FIFO is empty.

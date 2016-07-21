@@ -27,7 +27,7 @@ module Vga_control(
 //    H_Cont                            oVGA_HS
 //    [0, H_FRONT)                      1
 //    [H_FRONT, H_FRONT + H_SYNC)       0
-//    [H_FRONT + H_SYNC, H_BLANK)       1
+//    [H_FRONT + H_SYNC, H_BLANK)       1  (V_Cont is incremented)
 //    [H_BLANK, H_TOTAL)                1  (pixels are visible)
 //
 // V_Cont value has these ranges:
@@ -37,6 +37,11 @@ module Vga_control(
 //    [V_FRONT, V_FRONT + V_SYNC)       0
 //    [V_FRONT + V_SYNC, V_BLANK)       1
 //    [V_BLANK, V_TOTAL)                1  (pixels are visible)
+//
+// Note that V_Cont is incremented on the positive edge of oVGA_HS, which means
+// that its values are offset from the normal 0-639 range of H_Cont.
+// oTopOfScreen is the first pixel of the second row, since that's where
+// both are zero.
 //
 // The VGA clock is 25.175 MHz. With 800x525 pixels (640x480 visible),
 // that's 59.94 FPS.
@@ -61,7 +66,7 @@ parameter   V_ACT   =   480;
 parameter   V_BLANK =   V_FRONT+V_SYNC+V_BACK;
 parameter   V_TOTAL =   V_FRONT+V_SYNC+V_BACK+V_ACT;
 ////////////////////////////////////////////////////////////
-assign  oVGA_BLANK  =   ~((H_Cont<H_BLANK)||(V_Cont<V_BLANK));
+assign  oVGA_BLANK  =   ~(H_Cont<H_BLANK || V_Cont<V_BLANK);
 assign  oVGA_CLOCK  =   ~iCLK;
 assign  oVGA_R      =   oRequest ? iRed : 4'b0 ;
 assign  oVGA_G      =   oRequest ? iGreen : 4'b0 ;
