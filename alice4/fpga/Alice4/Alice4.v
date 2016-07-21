@@ -308,8 +308,8 @@ wire Vga_fifo_wrfull;
 wire [7:0] Vga_fifo_wrusedw;
 
 assign Vga_fifo_input = (X[4] ^ Y[4]) ? 12'b1111_0000_0000 : 12'b0000_1111_1111;
-assign Vga_fifo_wrclk = CLOCK_50;
-assign Vga_fifo_wrreq = going && !Vga_fifo_wrfull;
+assign Vga_fifo_wrclk = ~CLOCK_50;
+assign Vga_fifo_wrreq = going == 2'd2 && !Vga_fifo_wrfull;
 
 // Use magenta if the FIFO is empty.
 assign mVGA_R = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[11:8];
@@ -322,29 +322,36 @@ end
 
 reg [9:0] X;  // [0,640)
 reg [9:0] Y;  // [0,480)
-reg going;
+reg [1:0] going; // 0 = stopped, 1 = reset, 2 = going
 always @(posedge CLOCK_50 or posedge mVGA_top_of_screen) begin
 	if (mVGA_top_of_screen) begin
-	   X <= 1'b0;
-		Y <= 1'b0;
-		going <= 1'b1;
+	   going <= 2'd1;
 	end
 	else
 	begin
-	   if (going && !Vga_fifo_wrfull) begin
-   		if (X == 639) begin
-	   	   X <= 1'b0;
-				if (Y == 479) begin
-					going <= 1'b0;
+	   // Normal clock, not in top-of-screen pixel.
+	   if (going == 2'd1) begin
+			X <= 1'b0;
+			Y <= 1'b0;
+			going <= 2'd2;
+		end
+		else
+		begin
+			if (going && !Vga_fifo_wrfull) begin
+				if (X == 639) begin
+					X <= 1'b0;
+					if (Y == 479) begin
+						going <= 2'd0;
+					end
+					else
+					begin
+						Y <= Y + 1'b1;
+					end
 				end
 				else
 				begin
-					Y <= Y + 1'b1;
+					X <= X + 1'b1;
 				end
-		   end
-			else
-			begin
-			   X <= X + 1'b1;
 			end
 		end
 	end
