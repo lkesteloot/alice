@@ -308,7 +308,9 @@ wire Vga_fifo_wrfull;
 wire [7:0] Vga_fifo_wrusedw;
 
 assign Vga_fifo_input = (X == 0 || X == 639 || Y == 0 || Y == 479) ? 12'hFFF :
-	(X[4] ^ Y[4]) ? 12'hF00 : 12'h0FF;
+	(X[4] ^ Y[4]) ? 12'h000 : 12'hFFF;
+	//assign Vga_fifo_input = (X == 0 || X == 639) ? 12'hFFF : Y == 0 ? 12'hFF0 : Y == 479 ? 12'hF0F :
+	//(X[4] ^ Y[4]) ? 12'hF00 : 12'h0FF;
 assign Vga_fifo_wrclk = CLOCK_50;
 assign Vga_fifo_wrreq = going == 2'd2 && !Vga_fifo_wrfull;
 

@@ -7,7 +7,7 @@ module Vga_control(
     output [9:0] oCurrent_Y, // Max vertical pixels: 1023.
     output [21:0] oAddress,
     output oRequest,
-	 output oTopOfScreen,     // 1 when at the very top of (blank) screen.
+	 output reg oTopOfScreen,     // 1 when at the very top of (blank) screen.
     //  VGA Side
     output [3:0] oVGA_R,
     output [3:0] oVGA_G,
@@ -71,14 +71,20 @@ assign  oVGA_CLOCK  =   ~iCLK;
 //assign  oVGA_R      =   oRequest ? iRed : 4'b0 ;
 //assign  oVGA_G      =   oRequest ? iGreen : 4'b0 ;
 //assign  oVGA_B      =   oRequest ? iBlue : 4'b0 ;
-assign  oVGA_R      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iRed : 4'b0 ;
-assign  oVGA_G      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iGreen : 4'b0 ;
-assign  oVGA_B      =   (oCurrent_X > 10 && oCurrent_X < 630) ? iBlue : 4'b0 ;
+assign  oVGA_R      =   (oCurrent_X > 0 && oCurrent_X < 640) ? iRed : 4'b0 ;
+assign  oVGA_G      =   (oCurrent_X > 0 && oCurrent_X < 640) ? iGreen : 4'b0 ;
+assign  oVGA_B      =   (oCurrent_X > 0 && oCurrent_X < 640) ? iBlue : 4'b0 ;
 assign  oAddress    =   oCurrent_Y*H_ACT + oCurrent_X;
 assign  oRequest    =   H_Cont >= H_BLANK && V_Cont >= V_BLANK;
 assign  oCurrent_X  =   (H_Cont>=H_BLANK) ? H_Cont-H_BLANK : 11'h0;
 assign  oCurrent_Y  =   (V_Cont>=V_BLANK) ? V_Cont-V_BLANK : 11'h0;
-assign  oTopOfScreen = H_Cont == 0 && V_Cont == 0;
+
+
+wire oTopOfScreenNext = H_Cont == 0 && V_Cont == 0;
+always @(posedge iCLK)
+begin
+    oTopOfScreen <= oTopOfScreenNext;
+end
 
 //  Horizontal Generator: Refer to the pixel clock
 always@(posedge iCLK or negedge iRST_N)
