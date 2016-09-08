@@ -1,0 +1,13 @@
+
+
+state   reset_fifo   x   y    fifo_input    wrreq   wrfull
+START       0        ?   ?        ?           0       0
+RESET       1        ?   ?        ?           0       0
+GOING       0        0   0        C0          1       0
+            0        1   0        C1          1       0
+            0        2   0        C2          1       1
+            0        2   0        ?           0       0
+            0        3   0        C3          1       0
+STOPPED     0        ?   ?        ?           0       0
+
+
