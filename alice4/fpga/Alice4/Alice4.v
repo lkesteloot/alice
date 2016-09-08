@@ -287,6 +287,7 @@ Vga_control u3 (
 // FIFO to pass data from RAM to VGA.
 VGA_FIFO u4 (
     // Inputs.
+	 .aclr(Vga_fifo_clear),
 	 .data(Vga_fifo_input),
 	 .rdclk(Vga_pixel_clock),
 	 .rdreq(mVGA_request),
@@ -299,6 +300,7 @@ VGA_FIFO u4 (
 	 .wrusedw(Vga_fifo_wrusedw)
 );
 
+wire Vga_fifo_clear = !reset_n;
 wire [15:0] Vga_fifo_input;
 wire Vga_fifo_wrclk;
 wire Vga_fifo_wrreq;
