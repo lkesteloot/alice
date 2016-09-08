@@ -206,7 +206,8 @@ inout   [31:0]  GPIO1_D;                //  GPIO Connection 1 Data Bus
 
 reg [25:0] counter;
 reg [15:0] seconds;
-reg [7:0] frames;
+reg [15:0] debug_number;     // What's displayed on the 7-segment display.
+reg [15:0] debug_number_nxt;
 assign LEDG[9:0] = seconds[9:0];
 wire reset_n = BUTTON[2];
 wire Vga_pixel_clock;
@@ -254,7 +255,7 @@ SEG7_LUT_4 u1(
     .oSEG2_DP(HEX2_DP),
     .oSEG3(HEX3_D),
     .oSEG3_DP(HEX3_DP),
-    .iDIG(frames)
+    .iDIG(debug_number)
 );
 
 Vga_clock u2(
@@ -321,10 +322,6 @@ assign mVGA_R = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[11:8];
 assign mVGA_G = Vga_fifo_rdempty ? 4'b0000 : Vga_fifo_output[7:4];
 assign mVGA_B = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[3:0];
 
-always @(posedge mVGA_top_of_screen) begin
-    frames <= frames + 1'b1;
-end
-
 localparam STATE_START = 0;
 localparam STATE_RESET = 1;
 localparam STATE_GOING = 2;
@@ -337,6 +334,8 @@ reg [9:0] y;  // [0,480)
 reg [9:0] y_nxt;
 reg [2:0] state;
 reg [2:0] state_nxt;
+reg [15:0] pixel_count;
+reg [15:0] pixel_count_nxt;
 
 always @(*) begin
    state_nxt = state;
@@ -344,18 +343,23 @@ always @(*) begin
 	y_nxt = y;
 	Vga_fifo_clear_nxt = Vga_fifo_clear;
 	Vga_fifo_wrreq_nxt = 0;
+	pixel_count_nxt = pixel_count;
+	debug_number_nxt = debug_number;
 
 	case (state)
 	   STATE_START: begin
 		   state_nxt = STATE_RESET;
 			Vga_fifo_clear_nxt = 1;
 		end
+		
 		STATE_RESET: begin
 			state_nxt = STATE_GOING;
 			Vga_fifo_clear_nxt = 0;
 			x_nxt = 1'b0;
 			y_nxt = 1'b0;
+			pixel_count_nxt = 1;
 		end
+		
 		STATE_GOING: begin
 			if (Vga_fifo_almost_full) begin
 				state_nxt = STATE_PAUSED;
@@ -364,21 +368,26 @@ always @(*) begin
 					x_nxt = 1'b0;
 					if (y == 479) begin
 						state_nxt = STATE_STOPPED;
+						debug_number_nxt = pixel_count;
 					end else begin
 						y_nxt = y + 1'b1;
-						Vga_fifo_wrreq_nxt = 1;
+						Vga_fifo_wrreq_nxt = 1'b1;
+						pixel_count_nxt = pixel_count + 1'b1;
 					end
 				end else begin
 					x_nxt = x + 1'b1;
-					Vga_fifo_wrreq_nxt = 1;
+					Vga_fifo_wrreq_nxt = 1'b1;
+					pixel_count_nxt = pixel_count + 1'b1;
 				end
 			end
 		end
+		
 		STATE_PAUSED: begin
 			if (!Vga_fifo_almost_full) begin
 				state_nxt = STATE_GOING;
 			end
 		end
+		
 		STATE_STOPPED: begin
 		   // Nothing.
 	   end
@@ -399,6 +408,9 @@ always @(posedge CLOCK_50) begin
 		Vga_fifo_clear <= Vga_fifo_clear_nxt;
 		Vga_fifo_wrreq <= Vga_fifo_wrreq_nxt;
 	end
+
+	pixel_count <= pixel_count_nxt;
+	debug_number <= debug_number_nxt;
 end
 
 `ifdef NOTDEF
