@@ -300,21 +300,21 @@ VGA_FIFO u4 (
 	 .wrusedw(Vga_fifo_wrusedw)
 );
 
-wire Vga_fifo_clear = !reset_n;
+reg Vga_fifo_clear;
+reg Vga_fifo_clear_nxt;
 wire [15:0] Vga_fifo_input;
 wire Vga_fifo_wrclk;
-wire Vga_fifo_wrreq;
 wire [15:0] Vga_fifo_output;
 wire Vga_fifo_rdempty;
 wire Vga_fifo_wrfull;
 wire [7:0] Vga_fifo_wrusedw;
+wire Vga_fifo_almost_full = Vga_fifo_wrusedw[7];
 
-assign Vga_fifo_input = (X == 0 || X == 639 || Y == 0 || Y == 479) ? 12'hF00 :
-	(X[4] ^ Y[4]) ? 12'h000 : 12'hFFF;
-	//assign Vga_fifo_input = (X == 0 || X == 639) ? 12'hFFF : Y == 0 ? 12'hFF0 : Y == 479 ? 12'hF0F :
-	//(X[4] ^ Y[4]) ? 12'hF00 : 12'h0FF;
+assign Vga_fifo_input = (x == 0 || x == 639 || y == 0 || y == 479) ? 12'hF00 :
+	(x[4] ^ y[4]) ? 12'h000 : 12'hFFF;
 assign Vga_fifo_wrclk = CLOCK_50;
-assign Vga_fifo_wrreq = going == 2'd2 && !Vga_fifo_wrfull;
+reg Vga_fifo_wrreq;
+reg Vga_fifo_wrreq_nxt;
 
 // Use magenta if the FIFO is empty.
 assign mVGA_R = Vga_fifo_rdempty ? 4'b1111 : Vga_fifo_output[11:8];
@@ -325,40 +325,79 @@ always @(posedge mVGA_top_of_screen) begin
     frames <= frames + 1'b1;
 end
 
-reg [9:0] X;  // [0,640)
-reg [9:0] Y;  // [0,480)
-reg [1:0] going; // 0 = stopped, 1 = reset, 2 = going
-always @(posedge CLOCK_50 or posedge mVGA_top_of_screen) begin
-	if (mVGA_top_of_screen) begin
-	   going <= 2'd1;
-	end
-	else
-	begin
-	   // Normal clock, not in top-of-screen pixel.
-	   if (going == 2'd1) begin
-			X <= 1'b0;
-			Y <= 1'b0;
-			going <= 2'd2;
+localparam STATE_START = 0;
+localparam STATE_RESET = 1;
+localparam STATE_GOING = 2;
+localparam STATE_PAUSED = 3;
+localparam STATE_STOPPED = 4;
+
+reg [9:0] x;  // [0,640)
+reg [9:0] x_nxt;
+reg [9:0] y;  // [0,480)
+reg [9:0] y_nxt;
+reg [2:0] state;
+reg [2:0] state_nxt;
+
+always @(*) begin
+   state_nxt = state;
+	x_nxt = x;
+	y_nxt = y;
+	Vga_fifo_clear_nxt = Vga_fifo_clear;
+	Vga_fifo_wrreq_nxt = 0;
+
+	case (state)
+	   STATE_START: begin
+		   state_nxt = STATE_RESET;
+			Vga_fifo_clear_nxt = 1;
 		end
-		else
-		begin
-			if (going && !Vga_fifo_wrfull) begin
-				if (X == 639) begin
-					X <= 1'b0;
-					if (Y == 479) begin
-						going <= 2'd0;
+		STATE_RESET: begin
+			state_nxt = STATE_GOING;
+			Vga_fifo_clear_nxt = 0;
+			x_nxt = 1'b0;
+			y_nxt = 1'b0;
+		end
+		STATE_GOING: begin
+			if (Vga_fifo_almost_full) begin
+				state_nxt = STATE_PAUSED;
+			end else begin
+				if (x == 639) begin
+					x_nxt = 1'b0;
+					if (y == 479) begin
+						state_nxt = STATE_STOPPED;
+					end else begin
+						y_nxt = y + 1'b1;
+						Vga_fifo_wrreq_nxt = 1;
 					end
-					else
-					begin
-						Y <= Y + 1'b1;
-					end
-				end
-				else
-				begin
-					X <= X + 1'b1;
+				end else begin
+					x_nxt = x + 1'b1;
+					Vga_fifo_wrreq_nxt = 1;
 				end
 			end
 		end
+		STATE_PAUSED: begin
+			if (!Vga_fifo_almost_full) begin
+				state_nxt = STATE_GOING;
+			end
+		end
+		STATE_STOPPED: begin
+		   // Nothing.
+	   end
+	endcase
+end
+
+always @(posedge CLOCK_50) begin
+	if (mVGA_top_of_screen) begin
+	   state <= STATE_START;
+		x <= 0;
+		y <= 0;
+		Vga_fifo_clear <= 0;
+		Vga_fifo_wrreq <= 0;
+	end else begin
+      state <= state_nxt;
+      x <= x_nxt;
+      y <= y_nxt;
+		Vga_fifo_clear <= Vga_fifo_clear_nxt;
+		Vga_fifo_wrreq <= Vga_fifo_wrreq_nxt;
 	end
 end
 
