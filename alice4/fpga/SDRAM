@@ -1,0 +1,230 @@
+SDRAM notes
+
+- Hardware:
+    - IS42S16400J-6TL
+    - http://www.issi.com/WW/pdf/42-45S16400J.pdf
+    - Not DDR.
+    - 4 banks.
+    - 16 bits of data.
+    - 1 Mb (20 bits of address).
+    - 12 bits of row.
+    - 8 bits of column (256 words per row).
+        - Can read 1, 2, 4, 8 locations, or a full page (XXX).
+    - Verilog file has 13 bits of address. Chip only has 12.
+    - Total = 1m * 16b * 4 = 64 Mb = 8 MB = 4 MW.
+    - Specific parameters (-6TL):
+        - -6:
+            - CAS      MHz     clk     Notes
+            -   2      133   7.5ns     Lower latency, but lower burst speed.
+            -   3      166     6ns     Higher latency, but higher burst speed.
+        - -T:
+            - TSOPII package (as opposed to BGA).
+        - -L:
+            - Commercial package (as opposed to industrial or automotive).
+    - Verilog pins:
+        inout   [15:0]  DRAM_DQ;                //  SDRAM Data bus 16 Bits
+        output  [12:0]  DRAM_ADDR;              //  SDRAM Address bus 13 Bits
+        output          DRAM_LDQM;              //  SDRAM Low-byte Data Mask
+        output          DRAM_UDQM;              //  SDRAM High-byte Data Mask
+            During READ, LOW to enable output, HIGH for high-Z.
+                Must be set two clocks before data is read.
+            During WRITE, LOW to enable input, HIGH for disabling input.
+                Must be set the same clock as the data.
+        output          DRAM_WE_N;              //  SDRAM Write Enable
+        output          DRAM_CAS_N;             //  SDRAM Column Address Strobe
+        output          DRAM_RAS_N;             //  SDRAM Row Address Strobe
+        output          DRAM_CS_N;              //  SDRAM Chip Select
+            LOW to enable command input, HIGH to remain in previous state.
+            HIGH is the same as LOW with NOP command.
+        output          DRAM_BA_0;              //  SDRAM Bank Address 0
+        output          DRAM_BA_1;              //  SDRAM Bank Address 1
+        output          DRAM_CLK;               //  SDRAM Clock
+            All pins (except for CKE) are sampled on rising edge.
+        output          DRAM_CKE;               //  SDRAM Clock Enable
+            Asynchronous enable/disable for CLK sampling, active-high.
+            I don't think we ever want to use this.
+- Tutorials:
+    - http://www.fpga4fun.com/SDRAM1.html
+        - Very clear and simple.
+    - https://embeddedmicro.com/tutorials/mojo/sdram
+        - Not read this yet.
+    - http://hamsterworks.co.nz/mediawiki/index.php/SDRAM_Memory_Controller
+        - Lots of FSM diagrams of increasing complexity.
+        - Code is VHDL.
+    - http://whoyouvotefor.info/altera_sdram.shtml
+        - Uses DE2, which has the same SDRAM chip.
+        - Uses 133 MHz clock despite using CAS latency of 3.
+            - The controller clock is advanced by 3ns (of 7.5ns).
+        - Burst length = 2.
+        - Uses auto-precharge.
+        - Also has test bench, which communicates with controller over wishbone.
+        - Somewhat sloppy code, but mostly understandable.
+        - Uses "initial". Doesn't have reset pin.
+        - Probably the closest to what I need, since it's the same chip.
+        - Clocks of controller and test bench are different. How does that work?
+            Investigate whether wishbone permits this.
+- Info:
+    - First select bank and row, wait a bit, then repeatedly select column, then close row.
+    - Each bank has an active row.
+    - Bank has its own pins.
+    - Row and column share pins.
+    - Can refresh by sending refresh command, or by opening and closing row.
+    - Full page is used with BURST TERMINATE to get arbitrary burst length.
+    - Refresh:
+        - Features says 4096 refresh cycles every 64 ms. (4096 is # of rows.)
+        - I think this means we have to call REFRESH at least 4096 times every 64 ms.
+        - According to the sdram_controller.v file, that's one refresh every 2000
+            clocks (of their clocks). They'll go from idle state to refresh if
+            that's true before checking if a read or write needs to be done.
+        - Assuming 10 clocks per simple operation (tRC), that's 10*clk = 60ns per
+            operation. In 64 ms we can do over a million operations. That's a refresh
+            every 260 operations, on average (not taking into account the refresh time).
+        - Each refresh takes tRC = 60ns = 10clk, so doing 4096 takes 256µs, and out of
+            each second we're spending 4ms.
+        - Note that activating a row refreshes it. Also we don't have to refresh any
+            rows we're not using. Oh, but since the REFRESH command doesn't tell us which
+            row it's using, that's no good. Unless we ACTIVE each row ourselves manually.
+    - Commands (RAS,CAS,WE), see page 7 of PDF:
+        - LOADMODE (000)
+            - A0-A11 select op-code.
+            - All banks must be idle.
+            - Takes tMRD, then all banks will be idle.
+            - Must send NOP during this command.
+        - AUTO REFRESH or SELF REFRESH (001)
+            - AUTO REFRESH if CLE is HIGH (enabled).
+                - Row and bank are automatically generated. Address pins are ignored.
+                - All banks must be idle.
+                - Takes tRC time, then all banks are idle.
+                - Executed at least 4096 times every tREF. XXX?
+                - Must send NOP during this command.
+            - SELF REFRESH if CLE is LOW (disabled).
+                - Must be in this mode at least tRAS time.
+                - After returning to CLE HIGH, wait tRC then send two NOP, then AUTO REFRESH.
+                - Sounds complicated and unclear, see page 7 of PDF.
+                - Probably never want this.
+        - PRECHARGE (010)
+            - A10 sets all banks (high) or banks specified by BA0,BA1 (low).
+            - BA0-BA1 sets bank (if A10 low).
+            - Wait tRP after this command, then all banks will be idle.
+            - Must send NOP during this command if precharging all.
+            - Acts as a NOP if bank is already idle.
+        - ACTIVE (011)
+            - A0-A11 sets row address.
+            - BA0-BA1 sets bank.
+            - Wait tRCD after this command.
+        - WRITE (100)
+            - A0-A7 sets column address.
+            - A10 sets "auto precharge".
+                - If HIGH, then row will be closed after write burst ends.
+                - Only applies to full-page burst writes.
+            - BA0-BA1 sets bank.
+            - Set DQM the same time as DQ.
+        - READ (101)
+            - A0-A7 sets column address.
+            - A10 sets "auto precharge".
+                - If HIGH, then row will be closed after read burst ends.
+                - Only applies to full-page burst reads.
+            - BA0-BA1 sets bank.
+            - Set DQM two clocks before DQ.
+        - BURST TERMINATE (110)
+            - Terminates in-progress READ or WRITE burst operations on most
+              recent command (any bank, not just selected).
+        - NOP (111)
+            - Does nothing.
+        - COMMAND INHIBIT (CS = high)
+            - Same as NOP, does nothing.
+    - Times:
+        - (Below, CLK means any clock, clk means our clock 6ns.)
+        - For CAS Latency = 3:
+            - tCK = 6ns  (min clock period)
+        - For CAS Latency = 2:
+            - tCK = 7.5ns  (min clock period)
+        - tAC = 5.4ns  (max access period after CLK; not sure how this is useful)
+        - tOH = 2.5ns  (output data hold time, data is valid after CLK)
+        - In general, for inputs setup is 1.5ns and hold is 0.8ns.
+        - tRC = 60ns = 10clk (command period: REFRESH to REFRESH, ACTIVE to ACTIVE)
+        - tRAS = 42ns = 7clk (command period: ACTIVE to PRECHARGE)
+        - tRP = 15ns = 3clk (command period: PRECHARGE to ACTIVE or REFRESH)
+        - tRCD = 15ns = 3clk (ACTIVE to READ/WRITE)
+        - tRRD = 12ns = 2clk (ACTIVE[0] to ACTIVE[1] XXX)
+        - tDPL = 2CLK (write data to PRECHARGE; also tWR XXX)
+        - tDAL = 2CLK+tRP (write data to ACTIVE)
+        - tT = 0.3ns to 1.2ns (XXX is this clock skew?)
+        - tREF = max 64ms refresh cycle time (XXX)
+        - tCCD = 1CLK (READ/WRITE to READ/WRITE)
+        - tMRD = 2CLK
+- Sequence:
+    - Initialization:
+        - Wait until DLL locks.
+        - Set CLE to HIGH. Can perhaps also just set CS to LOW.
+        - Wait 100µs during which only COMMAND INHIBIT or NOP is sent.
+            - Tutorial code uses 200µs.
+        - Send PRECHARGE to all banks.
+        - Two AUTO REFRESH cycles (each tRC).
+        - Send LOAD REGISTER commands.
+            - A0-A2: Burst length (2^value, or 111 for full page).
+            - A3: 0 = Sequential, 1 = Interleaved. We want 0.
+            - A4-A6: Latency (2 or 3).
+                - We probably want 2, which would let us go up to 133 MHz. Choosing 3
+                  would let us go to 166 MHz, which is probably better for large bursts,
+                  at the cost of another cycle per burst.
+            - A7-A8: 0.
+            - A9: 0 = Burst length applies to both READ and WRITE; 1 = Burst length applies only
+                to READ while WRITEs are always length 1.
+                - Probably want 1? We can get one WRITE per clock cycle anyway because
+                    the WRITE data has no latency, so as long as we're willing to assert
+                    the address pins ourselves, we lose nothing.
+            - A10-A11: 0.
+        - Send NOP.
+    - Write 12 bits on A and send ACTIVE command.
+    - Write 8 bits on A and send READ or WRITE command. A10 specifies "auto precharge".
+        - The 8 bits select a block of columns. See page 20 in PDF for details about how this
+          works, because it's not continuous: the reads will wrap within the block if the
+          start address is not the start of the block.
+        - For READ:
+            - After CAS latency, data is available every clock cycle.
+        - For WRITE:
+            - The data is made available every clock cycle, starting with WRITE.
+        - A READ, WRITE, PRECHARGE, or BURST TERMINATE command can interrupt an
+          ongoing READ command.
+- Terms:
+    - Open row is called "activate", close row is called "precharge".
+    - tRCD = time from active to read/write.
+    - tRP = time from precharge to active.
+    - CAS latency = time between read requests and data
+- Code structure:
+    - Since DRAM_RAS_N, DRAM_CAS_N, DRAM_WE_N are the three control bits, have a single
+        registered variable for the state, and:
+        assign {DRAM_RAS_N, DRAM_CAS_N, DRAM_WE_N} = sdram_cmd;
+    - Perhaps use (for RAS,CAS,WE):
+        localparam [2:0] SDRAM_CMD_LOADMODE  = 3'b000;
+        localparam [2:0] SDRAM_CMD_REFRESH   = 3'b001;
+        localparam [2:0] SDRAM_CMD_PRECHARGE = 3'b010;
+        localparam [2:0] SDRAM_CMD_ACTIVE    = 3'b011;
+        localparam [2:0] SDRAM_CMD_WRITE     = 3'b100;
+        localparam [2:0] SDRAM_CMD_READ      = 3'b101;
+        localparam [2:0] SDRAM_CMD_NOP       = 3'b111;
+- Questions:
+    - We'll be reading the whole buffer periodically to display it. Do we need
+        refresh? Is that true of all buffers (front, back, z).
+    - Can we clear the front buffer while reading it?
+        - Not if we'll miss a frame, since we'll need it again.
+        - Wouldn't apply to z-buffer anyway.
+    - Is the page size 256 words? The PDF doesn't say, but implies it. Page 52 has a
+        confusing note: "each row (x4) has 1,024 locations", and also says,
+        "Full page completion" after only two clocks.
+    - Is wishbone friendly to different clock speeds? See tutorial.
+    - Look for XXX in this doc.
+- To do:
+    - Do back-of-the-envelope calculations for number of reads and writes needed by
+        our application, and whether this chip can do it.
+    - Read embeddedmicro tutorial.
+    - Answer rest of questions above.
+    - Decide on CAS latency of 2 or 3.
+    - All "clk" math above assumes 6ns, but in fact we're planning 7.5ns.
+    - Try running current program at 133 or 166 to see if it works.
+    - See if "initial begin/end" block works.
+        - Set register to some value. Use <=.
+        - Show that value on the 7-segment displays.
+
+
