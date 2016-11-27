@@ -6,17 +6,18 @@ SDRAM notes
     - Not DDR.
     - 4 banks.
     - 16 bits of data.
-    - 1 Mb (20 bits of address).
-    - 12 bits of row.
-    - 8 bits of column (256 words per row).
-        - Can read 1, 2, 4, 8 locations, or a full page (XXX).
-    - Verilog file has 13 bits of address. Chip only has 12.
-    - Total = 1m * 16b * 4 = 64 Mb = 8 MB = 4 MW.
+    - 20 bits of address.
+        - 12 bits of row.
+            - Verilog file has 13 bits of address. Chip only has 12.
+        - 8 bits of column (256 words per row).
+            - Can read 1, 2, 4, 8 locations, or a full page (i.e., until stopped).
+    - Total = 1m (addresses) * 16b (bits per word) * 4 (banks) = 64 Mb = 8 MB = 4 MW.
     - Specific parameters (-6TL):
         - -6:
-            - CAS      MHz     clk     Notes
-            -   2      133   7.5ns     Lower latency, but lower burst speed.
-            -   3      166     6ns     Higher latency, but higher burst speed.
+            - CAS latency      MHz     clk     Notes
+            -           2      133   7.5ns     Lower latency, but lower burst speed.
+            -           3      166     6ns     Higher latency, but higher burst speed.
+            - Access time from clock: 5.4ns
         - -T:
             - TSOPII package (as opposed to BGA).
         - -L:
@@ -59,15 +60,15 @@ SDRAM notes
         - Uses auto-precharge.
         - Also has test bench, which communicates with controller over wishbone.
         - Somewhat sloppy code, but mostly understandable.
-        - Uses "initial". Doesn't have reset pin.
+        - Uses "initial" block. Doesn't have reset pin.
         - Probably the closest to what I need, since it's the same chip.
         - Clocks of controller and test bench are different. How does that work?
             Investigate whether wishbone permits this.
 - Info:
     - First select bank and row, wait a bit, then repeatedly select column, then close row.
     - Each bank has an active row.
-    - Bank has its own pins.
-    - Row and column share pins.
+    - Bank select has its own (2) pins.
+    - Row and column share (12) pins.
     - Can refresh by sending refresh command, or by opening and closing row.
     - Full page is used with BURST TERMINATE to get arbitrary burst length.
     - Refresh:
@@ -85,7 +86,8 @@ SDRAM notes
             rows we're not using. Oh, but since the REFRESH command doesn't tell us which
             row it's using, that's no good. Unless we ACTIVE each row ourselves manually.
     - Commands (RAS,CAS,WE), see page 7 of PDF:
-        - LOADMODE (000)
+        - LOAD MODE (000)
+            - For setting configuration, like CAS latency, burst length, etc. See page 19 of PDF.
             - A0-A11 select op-code.
             - All banks must be idle.
             - Takes tMRD, then all banks will be idle.
@@ -95,7 +97,7 @@ SDRAM notes
                 - Row and bank are automatically generated. Address pins are ignored.
                 - All banks must be idle.
                 - Takes tRC time, then all banks are idle.
-                - Executed at least 4096 times every tREF. XXX?
+                - Must execute this at least 4096 times every tREF (64ms?).
                 - Must send NOP during this command.
             - SELF REFRESH if CLE is LOW (disabled).
                 - Must be in this mode at least tRAS time.
@@ -103,12 +105,14 @@ SDRAM notes
                 - Sounds complicated and unclear, see page 7 of PDF.
                 - Probably never want this.
         - PRECHARGE (010)
+            - Releases a row.
             - A10 sets all banks (high) or banks specified by BA0,BA1 (low).
             - BA0-BA1 sets bank (if A10 low).
             - Wait tRP after this command, then all banks will be idle.
             - Must send NOP during this command if precharging all.
             - Acts as a NOP if bank is already idle.
         - ACTIVE (011)
+            - Activates a row.
             - A0-A11 sets row address.
             - BA0-BA1 sets bank.
             - Wait tRCD after this command.
@@ -134,9 +138,10 @@ SDRAM notes
         - COMMAND INHIBIT (CS = high)
             - Same as NOP, does nothing.
     - Times:
-        - (Below, CLK means any clock, clk means our clock 6ns.)
+        - Below, CLK means any clock, clk means our clock (6ns).
         - For CAS Latency = 3:
             - tCK = 6ns  (min clock period)
+            - This is the one we want.
         - For CAS Latency = 2:
             - tCK = 7.5ns  (min clock period)
         - tAC = 5.4ns  (max access period after CLK; not sure how this is useful)
@@ -146,11 +151,11 @@ SDRAM notes
         - tRAS = 42ns = 7clk (command period: ACTIVE to PRECHARGE)
         - tRP = 15ns = 3clk (command period: PRECHARGE to ACTIVE or REFRESH)
         - tRCD = 15ns = 3clk (ACTIVE to READ/WRITE)
-        - tRRD = 12ns = 2clk (ACTIVE[0] to ACTIVE[1] XXX)
-        - tDPL = 2CLK (write data to PRECHARGE; also tWR XXX)
+        - tRRD = 12ns = 2clk (ACTIVE[0] to ACTIVE[1] TODO)
+        - tDPL = 2CLK (write data to PRECHARGE; also tWR TODO)
         - tDAL = 2CLK+tRP (write data to ACTIVE)
-        - tT = 0.3ns to 1.2ns (XXX is this clock skew?)
-        - tREF = max 64ms refresh cycle time (XXX)
+        - tT = 0.3ns to 1.2ns (TODO is this clock skew?)
+        - tREF = max 64ms refresh cycle time (TODO)
         - tCCD = 1CLK (READ/WRITE to READ/WRITE)
         - tMRD = 2CLK
 - Sequence:
@@ -162,18 +167,16 @@ SDRAM notes
         - Send PRECHARGE to all banks.
         - Two AUTO REFRESH cycles (each tRC).
         - Send LOAD REGISTER commands.
-            - A0-A2: Burst length (2^value, or 111 for full page).
+            - A0-A2: Burst length (2^value, or 111 for full page, meaning until stopped).
+                - We want 0 (burst length 1).
             - A3: 0 = Sequential, 1 = Interleaved. We want 0.
-            - A4-A6: Latency (2 or 3).
-                - We probably want 2, which would let us go up to 133 MHz. Choosing 3
-                  would let us go to 166 MHz, which is probably better for large bursts,
-                  at the cost of another cycle per burst.
+            - A4-A6: CAS latency (2 or 3).
+                - We want 3, with 166 MHz clock.
             - A7-A8: 0.
-            - A9: 0 = Burst length applies to both READ and WRITE; 1 = Burst length applies only
-                to READ while WRITEs are always length 1.
-                - Probably want 1? We can get one WRITE per clock cycle anyway because
-                    the WRITE data has no latency, so as long as we're willing to assert
-                    the address pins ourselves, we lose nothing.
+            - A9:
+                - 0 = Burst length applies to both READ and WRITE.
+                - 1 = Burst length applies only to READ while WRITEs are always length 1.
+                - Doesn't matter, our READ burst length is 1. Use 0.
             - A10-A11: 0.
         - Send NOP.
     - Write 12 bits on A and send ACTIVE command.
@@ -210,21 +213,49 @@ SDRAM notes
     - Can we clear the front buffer while reading it?
         - Not if we'll miss a frame, since we'll need it again.
         - Wouldn't apply to z-buffer anyway.
-    - Is the page size 256 words? The PDF doesn't say, but implies it. Page 52 has a
-        confusing note: "each row (x4) has 1,024 locations", and also says,
-        "Full page completion" after only two clocks.
-    - Is wishbone friendly to different clock speeds? See tutorial.
-    - Look for XXX in this doc.
+    - Is wishbone friendly to different clock speeds? See tutorial. Should we use it?
+    - Why is that tutorial using a clock with a different phase?
+    - Look for TODO in this doc.
+- Back of the envelope calculations for whether this is at all possible:
+    - Resolution: 640x480
+        - That's 307,200 pixels.
+        - Each pixel is 12 bits.
+        - Assume Z is 16 bits.
+    - Want 30 FPS, so 33.3ms per frame.
+    - Each row is 256 pixels.
+    - Each buffer is 307,200 words / 256 words/row = 1200 rows.
+    - Each bank is 1 MW, so can fit all three buffers into one bank.
+    - Assuming 166 MHz, 3 cycles of latency.
+    - Clearing a color or Z buffer:
+        - Writing to each row takes:
+            - Set row (0-1199) and bank (0), send ACTIVE. Wait tRCD = 15ns <= 18ns = 3*6ns.
+            - Set column (0-255) and bank (0), no auto-precharge, data, send WRITE. No waiting.
+            - Set bank (0), one bank (A10 = 0), send PRECHARGE. Wait tRP = 15ns <= 18ns = 3*6ns.
+            - For 256 columns, that's 3 + 256 + 3 = 262 clocks = 1,572ns.
+        - Writing to a whole buffer takes:
+            - 1,572ns * 1200 = 1,886,400ns = 1.9ms.
+        - Clearing both buffers takes:
+            - 1,886,400ns * 2 = 3,772,800ns = 3.8ms.
+    - Reading the front buffer:
+        - Reading from each row takes:
+            - Set row (0-1199) and bank (0), send ACTIVE. Wait tRCD = 15ns <= 18ns = 3*6ns.
+            - Set column (0-255) and bank (0), no auto-precharge, send READ.
+                - Wait CAS latency (3 clocks = 18ns), then read from data.
+            - Set bank (0), one bank (A10 = 0), send PRECHARGE. Wait tRP = 15ns <= 18ns = 3*6ns.
+            - For 256 columns, that's 3 + 3 + 256 + 3 = 265 clocks = 1,590ns.
+        - Reading from a whole buffer takes:
+            - 1,590ns * 1200 = 1,908,000ns = 1.9ms.
+    - We're spending 5.7/33.3 = 18% of our time clearing two buffers and reading one.
+    - That leaves us 82% to fill both buffers.
+        - We could read both buffers and write both buffers 3.5 times.
 - To do:
     - Do back-of-the-envelope calculations for number of reads and writes needed by
         our application, and whether this chip can do it.
     - Read embeddedmicro tutorial.
     - Answer rest of questions above.
-    - Decide on CAS latency of 2 or 3.
     - All "clk" math above assumes 6ns, but in fact we're planning 7.5ns.
     - Try running current program at 133 or 166 to see if it works.
     - See if "initial begin/end" block works.
         - Set register to some value. Use <=.
         - Show that value on the 7-segment displays.
-
 

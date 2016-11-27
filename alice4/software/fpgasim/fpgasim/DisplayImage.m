@@ -16,9 +16,14 @@
 #define COCOA_TRIANGLE 0
 #define NUM_VERTICES 3
 
+// Type of Z-buffer pixel.
+typedef uint16_t z_t;
+// Shift to go from 32 bits to Z bits (0, 16, or 24).
+#define Z_SHIFT 16
+
 @interface DisplayImage () {
     uint8_t *data;
-    uint32_t *zbuffer;
+    z_t *zbuffer;
     NSBitmapImageRep *rep;
     NSGraphicsContext *context;
 }
@@ -32,7 +37,7 @@
 
     if (self) {
 	data = (uint8_t *) malloc(WIDTH*HEIGHT*4);
-	zbuffer = (uint32_t *) malloc(WIDTH*HEIGHT*sizeof(uint32_t));
+	zbuffer = (z_t *) malloc(WIDTH*HEIGHT*sizeof(z_t));
 	rep = [self makeRepFromData];
 	context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
 
@@ -91,11 +96,11 @@
 }
 
 - (void)zclear {
-    uint32_t *p = zbuffer;
+    z_t *p = zbuffer;
     int count = WIDTH*HEIGHT;
 
     while (count-- > 0) {
-	*p++ = 0xFFFFFFFF;
+	*p++ = (z_t) 0xFFFFFFFF;
     }
 }
 
@@ -192,10 +197,10 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     int bias2 = isTopLeft(&vs[0], &vs[1]) ? 0 : 1;
 
     uint8_t *row_pixel = &data[(minY*WIDTH + minX)*BYTES_PER_PIXEL];
-    uint32_t *row_zptr = &zbuffer[minY*WIDTH + minX];
+    z_t *row_zptr = &zbuffer[minY*WIDTH + minX];
     for (int y = minY; y <= maxY; y++) {
 	uint8_t *p = row_pixel;
-	uint32_t *zptr = row_zptr;
+	z_t *zptr = row_zptr;
 	int w0 = w0_row;
 	int w1 = w1_row;
 	int w2 = w2_row;
@@ -206,10 +211,11 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	    BOOL drawPixel = rowPattern == 0xFFFF || (rowPattern & (1 << (x % 16))) != 0;
 
 	    if (drawPixel && w0 >= bias0 && w1 >= bias1 && w2 >= bias2) {
-		uint32_t z;
+		z_t z;
 
 		if (enableZbuffer) {
-		    z = (uint32_t)(((uint64_t)w0*vs[0].z + (uint64_t)w1*vs[1].z + (uint64_t)w2*vs[2].z)/area);
+		    uint64_t z64 = ((uint64_t)w0*vs[0].z + (uint64_t)w1*vs[1].z + (uint64_t)w2*vs[2].z)/area;
+		    z = (z_t) (z64 >> Z_SHIFT);
 		    drawPixel = z <= *zptr;
 		} else {
 		    // Not sure this is correct. The man page of zbuffer() says that it only affects writing.
