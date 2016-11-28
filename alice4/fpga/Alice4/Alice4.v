@@ -275,6 +275,7 @@ SDRAM_test sdram_test(
     .dram_ba_1(DRAM_BA_1),
     .dram_clk(DRAM_CLK),
     .dram_cke(DRAM_CKE),
+    .dram_clk_locked(sdram_clk_locked),
     .debug_number(debug_number_sdram_test)
 );
 
