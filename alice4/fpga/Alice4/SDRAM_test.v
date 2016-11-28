@@ -50,6 +50,8 @@ localparam CMD_WRITE = 3'b100;
 localparam CMD_READ = 3'b101;
 localparam CMD_BURST_TERMINATE = 3'b110;
 localparam CMD_NOP = 3'b111;
+localparam DQM_ENABLE = 2'b00;
+localparam DQM_DISABLE = 2'b11;
 reg [15:0] dram_data_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON ; FAST_OUTPUT_ENABLE_REGISTER=ON"  */;
 reg [11:0] dram_addr_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg [1:0] dram_dqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
@@ -83,7 +85,7 @@ initial begin
     state_wait_next_state <= STATE_INIT;
 
     dram_addr_reg <= 12'b0;
-    dram_dqm_reg <= 2'b11;
+    dram_dqm_reg <= DQM_DISABLE;
     dram_cs_n_reg <= 1;
     dram_cke_reg <= 0;
     dram_cmd <= CMD_NOP;
@@ -110,7 +112,7 @@ always @(posedge dram_clk or negedge reset_n) begin
     if (!reset_n) begin
         state <= STATE_INIT;
         dram_addr_reg <= 12'b0;
-        dram_dqm_reg <= 2'b11;
+        dram_dqm_reg <= DQM_DISABLE;
         dram_cs_n_reg <= 1;
         dram_cke_reg <= 0;
         dram_oe_reg <= 1'b0;
@@ -193,7 +195,7 @@ always @(posedge dram_clk or negedge reset_n) begin
             STATE_LOAD_MODE: begin
                 // Load the mode register.
                 dram_addr_reg <= {
-                    1'b0,      // Reserved.
+                    2'b00,     // Reserved.
                     1'b0,      // Burst length applies to read and write (we don't burst).
                     2'b00,     // Standard operation.
                     3'b011,    // CAS = 3.
@@ -216,7 +218,7 @@ always @(posedge dram_clk or negedge reset_n) begin
                 // Activate a row.
                 dram_cmd <= CMD_ACTIVE;
                 dram_addr_reg <= 12'b000000000000; // Row.
-                dram_ba_reg <= 2'b00; // Bank.
+                dram_ba_reg <= 2'd0; // Bank.
                 state <= STATE_ACTIVATE_WAIT;
             end
 
@@ -232,8 +234,8 @@ always @(posedge dram_clk or negedge reset_n) begin
                 // Write one word.
                 dram_cmd <= CMD_WRITE;
                 dram_addr_reg <= 12'b000000000000; // Column.
-                dram_ba_reg <= 2'b00; // Bank.
-                dram_dqm_reg <= 2'b00;
+                dram_ba_reg <= 2'd0; // Bank.
+                dram_dqm_reg <= DQM_ENABLE;
                 dram_data_reg <= 16'h1234;
                 dram_oe_reg <= 1'b1;
                 state <= STATE_WRITE_STOP;
@@ -243,7 +245,8 @@ always @(posedge dram_clk or negedge reset_n) begin
                 // Stop writing.
                 dram_cmd <= CMD_NOP;
                 dram_oe_reg <= 1'b0;
-                dram_dqm_reg <= 2'b00;
+                dram_dqm_reg <= DQM_DISABLE;
+                dram_data_reg <= 16'h5678;
                 state <= STATE_READ_START;
             end
 
@@ -251,7 +254,7 @@ always @(posedge dram_clk or negedge reset_n) begin
                 // Initiate the read of a word.
                 dram_cmd <= CMD_READ;
                 dram_addr_reg <= 12'b000000000000; // Column.
-                dram_ba_reg <= 2'b00; // Bank.
+                dram_ba_reg <= 2'd0; // Bank.
                 state <= STATE_READ_WAIT_1;
             end
 
@@ -260,7 +263,7 @@ always @(posedge dram_clk or negedge reset_n) begin
 
                 // Enable output pins. This is delayed by two clocks, so we
                 // must do it now.
-                dram_dqm_reg <= 2'b00;
+                dram_dqm_reg <= DQM_ENABLE;
                 state <= STATE_READ_WAIT_2;
             end
 
@@ -268,7 +271,7 @@ always @(posedge dram_clk or negedge reset_n) begin
                 // Second clock after read.
 
                 // Disable output pins.
-                dram_dqm_reg <= 2'b11;
+                dram_dqm_reg <= DQM_DISABLE;
                 state <= STATE_READ_WAIT_3;
             end
 
