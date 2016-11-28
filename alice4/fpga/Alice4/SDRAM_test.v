@@ -28,6 +28,10 @@ localparam STATE_INIT_REFRESH_1 = 6;
 localparam STATE_INIT_REFRESH_2 = 7;
 localparam STATE_LOAD_MODE = 8;
 localparam STATE_LOAD_MODE_WAIT = 9;
+localparam STATE_ACTIVATE = 10;
+localparam STATE_ACTIVATE_WAIT = 11;
+localparam STATE_WRITE = 12;
+localparam STATE_WRITE_STOP = 13;
 localparam STATE_READY = 15;
 reg [3:0] state;
 reg [31:0] state_wait_count;
@@ -42,16 +46,20 @@ localparam CMD_WRITE = 3'b100;
 localparam CMD_READ = 3'b101;
 localparam CMD_BURST_TERMINATE = 3'b110;
 localparam CMD_NOP = 3'b111;
+reg [15:0] dram_data_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON ; FAST_OUTPUT_ENABLE_REGISTER=ON"  */;
 reg [11:0] dram_addr_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
-reg dram_ldqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
-reg dram_udqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
+reg [1:0] dram_dqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg dram_cs_n_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
+reg [1:0] dram_ba_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg dram_cke_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg [2:0] dram_cmd /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
+// I don't know why this one has to be fast output enable register:
+reg dram_oe_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_ENABLE_REGISTER=ON"  */;
+assign dram_dq = dram_oe_reg ? dram_data_reg : {16{1'bz}};
 assign dram_addr = dram_addr_reg;
-assign dram_ldqm = dram_ldqm_reg;
-assign dram_udqm = dram_udqm_reg;
+assign { dram_udqm, dram_ldqm } = dram_dqm_reg;
 assign dram_cs_n = dram_cs_n_reg;
+assign { dram_ba_1, dram_ba_0 } = dram_ba_reg;
 assign dram_cke = dram_cke_reg;
 assign { dram_ras_n, dram_cas_n, dram_we_n } = dram_cmd;
 
@@ -69,11 +77,11 @@ initial begin
     // state_wait_next_state <= STATE_INIT;
 
     dram_addr_reg <= 12'b0;
-    dram_ldqm_reg <= 1;
-    dram_udqm_reg <= 1;
+    dram_dqm_reg <= 2'b11;
     dram_cs_n_reg <= 1;
     dram_cke_reg <= 0;
     dram_cmd <= CMD_NOP;
+    dram_oe_reg <= 1'b0;
 end
 
 // Show a counter in seconds.
@@ -96,10 +104,10 @@ always @(posedge dram_clk or negedge reset_n) begin
     if (!reset_n) begin
         state <= STATE_INIT;
         dram_addr_reg <= 12'b0;
-        dram_ldqm_reg <= 1;
-        dram_udqm_reg <= 1;
+        dram_dqm_reg <= 2'b11;
         dram_cs_n_reg <= 1;
         dram_cke_reg <= 0;
+        dram_oe_reg <= 1'b0;
         dram_cmd <= CMD_NOP;
     end else begin
         case (state)
@@ -192,12 +200,48 @@ always @(posedge dram_clk or negedge reset_n) begin
             STATE_LOAD_MODE_WAIT: begin
                 // Wait after loading the mode register.
                 dram_cmd <= CMD_NOP;
-                state_wait_next_state <= STATE_READY;
+                state_wait_next_state <= STATE_ACTIVATE;
                 state_wait_count <= 3;
                 state <= STATE_WAIT;
             end
 
+            STATE_ACTIVATE: begin
+                // Activate a row.
+                dram_cmd <= CMD_ACTIVE;
+                dram_addr_reg <= 12'b000000000000; // Row.
+                dram_ba_reg <= 2'b00; // Bank.
+                state <= STATE_ACTIVATE_WAIT;
+            end
+
+            STATE_ACTIVATE_WAIT: begin
+                // Wait for activation to finish.
+                dram_cmd <= CMD_NOP;
+                state_wait_count <= 3; // tRCD
+                state_wait_next_state <= STATE_WRITE;
+                state <= STATE_WAIT;
+            end
+
+            STATE_WRITE: begin
+                // Write one word.
+                dram_cmd <= CMD_WRITE;
+                dram_addr_reg <= 12'b000000000000; // Column.
+                dram_ba_reg <= 2'b00; // Bank.
+                dram_dqm_reg <= 2'b00;
+                dram_data_reg <= 16'h1234;
+                dram_oe_reg <= 1'b1;
+                state <= STATE_WRITE_STOP;
+            end
+
+            STATE_WRITE_STOP: begin
+                // Stop writing.
+                dram_cmd <= CMD_NOP;
+                dram_oe_reg <= 1'b0;
+                dram_dqm_reg <= 2'b00;
+                state <= STATE_READY;
+            end
+
             STATE_READY: begin
+                dram_cmd <= CMD_NOP;
             end
         endcase
     end
