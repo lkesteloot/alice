@@ -7,7 +7,7 @@ module Vga_control(
     output [9:0] oCurrent_Y, // Max vertical pixels: 1023.
     output [21:0] oAddress,
     output oRequest,
-	 output reg oTopOfScreen,     // 1 when at the very top of (blank) screen.
+    output reg oTopOfScreen,     // 1 when at the very top of (blank) screen.
     //  VGA Side
     output [3:0] oVGA_R,
     output [3:0] oVGA_G,
@@ -25,21 +25,22 @@ module Vga_control(
 // H_Cont value has these ranges:
 //
 //    H_Cont                            oVGA_HS
-//    [0, H_FRONT)                      1
-//    [H_FRONT, H_FRONT + H_SYNC)       0
-//    [H_FRONT + H_SYNC, H_BLANK)       1  (V_Cont is incremented)
+//    [0, H_FRONT)                      1  (front porch)
+//    [H_FRONT, H_FRONT + H_SYNC)       0  (sync pulse)
+//    [H_FRONT + H_SYNC, H_BLANK)       1  (back porch, V_Cont is incremented)
 //    [H_BLANK, H_TOTAL)                1  (pixels are visible)
 //
 // V_Cont value has these ranges:
 //
 //    V_Cont                            oVGA_VS
-//    [0, V_FRONT)                      1
-//    [V_FRONT, V_FRONT + V_SYNC)       0
-//    [V_FRONT + V_SYNC, V_BLANK)       1
+//    [0, V_FRONT)                      1  (front porch)
+//    [V_FRONT, V_FRONT + V_SYNC)       0  (sync pulse)
+//    [V_FRONT + V_SYNC, V_BLANK)       1  (back porch)
 //    [V_BLANK, V_TOTAL)                1  (pixels are visible)
 //
 // Note that V_Cont is incremented on the positive edge of oVGA_HS, which means
 // that its values are offset from the normal 0-639 range of H_Cont.
+//
 // oTopOfScreen is the first pixel of the second row, since that's where
 // both are zero.
 //
@@ -97,36 +98,36 @@ begin
     else
     begin
         if(H_Cont<H_TOTAL-1)
-        H_Cont  <=  H_Cont+1'b1;
+            H_Cont  <=  H_Cont+1'b1;
         else
-        H_Cont  <=  0;
+            H_Cont  <=  0;
+
         //  Horizontal Sync
         if(H_Cont==H_FRONT-1)           //  Front porch end
-        oVGA_HS <=  1'b0;
+            oVGA_HS <=  1'b0;
         if(H_Cont==H_FRONT+H_SYNC-1)    //  Sync pulse end
-        oVGA_HS <=  1'b1;
+            oVGA_HS <=  1'b1;
     end
 end
 
 //  Vertical Generator: Refer to the horizontal sync
-always@(posedge oVGA_HS or negedge iRST_N)
+always@(posedge iCLK or negedge iRST_N)
 begin
     if(!iRST_N)
     begin
         V_Cont      <=  0;
         oVGA_VS     <=  1;
-    end
-    else
-    begin
+    end else if (H_Cont == 0) begin
         if(V_Cont<V_TOTAL-1)
-        V_Cont  <=  V_Cont+1'b1;
+            V_Cont  <=  V_Cont+1'b1;
         else
-        V_Cont  <=  0;
+            V_Cont  <=  0;
+
         //  Vertical Sync
         if(V_Cont==V_FRONT-1)           //  Front porch end
-        oVGA_VS <=  1'b0;
+            oVGA_VS <=  1'b0;
         if(V_Cont==V_FRONT+V_SYNC-1)    //  Sync pulse end
-        oVGA_VS <=  1'b1;
+            oVGA_VS <=  1'b1;
     end
 end
 

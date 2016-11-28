@@ -1,9 +1,9 @@
-PLL_Name	SDRAM_clock:u5|altpll:altpll_component|SDRAM_clock_altpll:auto_generated|pll1
+PLL_Name	SDRAM_clock:sdram_clock|altpll:altpll_component|SDRAM_clock_altpll:auto_generated|pll1
 PLLJITTER	15
 PLLSPEmax	84
 PLLSPEmin	-53
 
-PLL_Name	Vga_clock:u2|altpll:altpll_component|Vga_clock_altpll:auto_generated|pll1
+PLL_Name	Vga_clock:vga_clock|altpll:altpll_component|Vga_clock_altpll:auto_generated|pll1
 PLLJITTER	20
 PLLSPEmax	84
 PLLSPEmin	-53
