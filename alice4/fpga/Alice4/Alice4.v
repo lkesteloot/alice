@@ -310,7 +310,8 @@ assign m_vga_b = vga_fifo_rdempty ? 4'b1111 : vga_fifo_output[3:0];
 
 // Initialize our variables.
 initial begin
-   debug_number <= 16'h0000;
+    counter <= 0;
+    debug_number <= 16'h0000;
 end
 
 // Compute the next values of the input to the FIFO.

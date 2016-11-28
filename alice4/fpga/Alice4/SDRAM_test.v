@@ -58,13 +58,15 @@ assign { dram_ras_n, dram_cas_n, dram_we_n } = dram_cmd;
 // Debugging.
 reg [31:0] counter;
 reg [15:0] seconds;
-assign debug_number = { state[3:0], seconds[11:0] };
+assign debug_number = { state[3:0], state_wait_next_state[3:0], seconds[7:0] };
 
 initial begin
     counter <= 0;
     seconds <= 0;
 
     state <= STATE_INIT;
+    // state_wait_count <= 1;
+    // state_wait_next_state <= STATE_INIT;
 
     dram_addr_reg <= 12'b0;
     dram_ldqm_reg <= 1;
