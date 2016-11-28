@@ -204,11 +204,11 @@ inout   [31:0]  GPIO1_D;                //  GPIO Connection 1 Data Bus
 //  REG/WIRE declarations
 //=======================================================
 
-reg [25:0] counter;
+reg [30:0] counter;
 reg [15:0] seconds;
 reg [15:0] debug_number;     // What's displayed on the 7-segment display.
 reg [15:0] debug_number_nxt;
-assign LEDG[9:0] = seconds[9:0];
+//assign LEDG[9:0] = seconds[9:0];
 wire reset_n = BUTTON[2];
 wire Vga_pixel_clock;
 wire    [9:0]   mVGA_X;
@@ -226,12 +226,17 @@ wire    [3:0]   sVGA_B;
 assign  VGA_R   =   sVGA_R;
 assign  VGA_G   =   sVGA_G;
 assign  VGA_B   =   sVGA_B;
+wire sdram_clk;
+wire sdram_clk_locked;
+assign LEDG[0] = sdram_clk_locked;
+assign LEDG[9:1] = counter[30:22];
+wire our_clock = sdram_clk;
 
 //=======================================================
 //  Structural coding
 //=======================================================
 
-always @(posedge CLOCK_50 or negedge reset_n) begin
+always @(posedge sdram_clk or negedge reset_n) begin
     if (!reset_n) begin
         counter <= 0;
         seconds <= 0;
@@ -239,10 +244,12 @@ always @(posedge CLOCK_50 or negedge reset_n) begin
     else
     begin
         counter <= counter + 1'b1;
+		  /*
         if (counter == 50_000_000) begin
             counter <= 0;
             seconds <= seconds + 1'b1;
         end
+		  */
     end
 end
 
@@ -301,6 +308,13 @@ VGA_FIFO u4 (
 	 .wrusedw(Vga_fifo_wrusedw)
 );
 
+SDRAM_clock u5 (
+	.areset(!reset_n),
+	.inclk0(CLOCK_50),
+	.c0(sdram_clk),
+	.locked(sdram_clk_locked)
+);
+
 reg Vga_fifo_clear;
 reg Vga_fifo_clear_nxt;
 wire [15:0] Vga_fifo_input;
@@ -313,7 +327,7 @@ wire Vga_fifo_almost_full = Vga_fifo_wrusedw[7];
 
 assign Vga_fifo_input = (x == 0 || x == 639 || y == 0 || y == 479) ? 12'hF00 :
 	(x[4] ^ y[4]) ? 12'h000 : 12'hFFF;
-assign Vga_fifo_wrclk = CLOCK_50;
+assign Vga_fifo_wrclk = our_clock;
 reg Vga_fifo_wrreq;
 reg Vga_fifo_wrreq_nxt;
 
@@ -336,6 +350,10 @@ reg [2:0] state;
 reg [2:0] state_nxt;
 reg [15:0] pixel_count;
 reg [15:0] pixel_count_nxt;
+
+initial begin
+	debug_number <= 16'h1234;
+end
 
 always @(*) begin
    state_nxt = state;
@@ -368,7 +386,7 @@ always @(*) begin
 					x_nxt = 1'b0;
 					if (y == 479) begin
 						state_nxt = STATE_STOPPED;
-						debug_number_nxt = pixel_count;
+						// debug_number_nxt = pixel_count;
 					end else begin
 						y_nxt = y + 1'b1;
 						Vga_fifo_wrreq_nxt = 1'b1;
@@ -394,7 +412,7 @@ always @(*) begin
 	endcase
 end
 
-always @(posedge CLOCK_50) begin
+always @(posedge our_clock) begin
 	if (mVGA_top_of_screen) begin
 	   state <= STATE_START;
 		x <= 0;
