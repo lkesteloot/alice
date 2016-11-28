@@ -70,15 +70,17 @@ assign { dram_ras_n, dram_cas_n, dram_we_n } = dram_cmd;
 // Debugging.
 reg [31:0] counter;
 reg [15:0] seconds;
-assign debug_number = { 3'b0, state[4:0], state == STATE_READY ? seconds[7:0] : { 3'b0, state_wait_next_state } };
+// assign debug_number = { 3'b0, state[4:0], state == STATE_READY ? seconds[7:0] : { 3'b0, state_wait_next_state } };
+assign debug_number = { 3'b0, state[4:0], seconds[7:0] };
 
+// Initialize our variables.
 initial begin
     counter <= 0;
     seconds <= 0;
 
     state <= STATE_INIT;
-    // state_wait_count <= 1;
-    // state_wait_next_state <= STATE_INIT;
+    state_wait_count <= 1;
+    state_wait_next_state <= STATE_INIT;
 
     dram_addr_reg <= 12'b0;
     dram_dqm_reg <= 2'b11;
@@ -122,7 +124,7 @@ always @(posedge dram_clk or negedge reset_n) begin
                     dram_cs_n_reg <= 0;
                     dram_cke_reg <= 1;
 
-                    // The manual says to wait 100us, we wait 200us to be sure.
+                    // The manual says to wait 100us; we wait 200us to be sure.
                     dram_cmd <= CMD_NOP;
                     state_wait_count <= 33200;  // 200us * 166 MHz.
                     state_wait_next_state <= STATE_PRECHARGE_ALL;
@@ -133,6 +135,7 @@ always @(posedge dram_clk or negedge reset_n) begin
             STATE_WAIT: begin
                 // Wait state_wait_count clocks, then go to state_wait_next_state.
                 // Never call with state_wait_count == 0.
+                seconds <= state_wait_next_state;
 
                 // We compare against 1 because just the fact that we're
                 // invoked at all adds one clock.
@@ -146,7 +149,7 @@ always @(posedge dram_clk or negedge reset_n) begin
             STATE_PRECHARGE_ALL: begin
                 // Precharge all banks.
                 dram_cmd <= CMD_PRECHARGE;
-                dram_addr_reg <= 12'b010000000000; // All banks, ignore dram_ba_[01].
+                dram_addr_reg <= 12'b010000000000; // All banks, ignore dram_ba_reg.
                 state <= STATE_PRECHARGE_WAIT;
             end
 

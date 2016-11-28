@@ -137,8 +137,6 @@ wire reset_n = BUTTON[2];
 wire vga_pixel_clock;
 
 // Host-side VGA parameters.
-wire    [9:0]   m_vga_x;
-wire    [9:0]   m_vga_y;
 wire    [3:0]   m_vga_r;
 wire    [3:0]   m_vga_g;
 wire    [3:0]   m_vga_b;
@@ -168,11 +166,10 @@ wire our_clock = DRAM_CLK;
 
 reg vga_fifo_clear;
 reg vga_fifo_clear_nxt;
-wire [15:0] vga_fifo_input;
+wire [11:0] vga_fifo_input;
 wire vga_fifo_wrclk;
-wire [15:0] vga_fifo_output;
+wire [11:0] vga_fifo_output;
 wire vga_fifo_rdempty;
-wire vga_fifo_wrfull;
 wire [7:0] vga_fifo_wrusedw;
 wire vga_fifo_almost_full = vga_fifo_wrusedw[7];
 reg vga_fifo_wrreq;
@@ -216,8 +213,9 @@ Vga_clock vga_clock(
 // Generate all signals for the VGA.
 Vga_control vga_control(
     // Host Side
-    .oCurrent_X(m_vga_x),
-    .oCurrent_Y(m_vga_y),
+    .oCurrent_X(),
+    .oCurrent_Y(),
+    .oAddress(),
     .iRed(m_vga_r),
     .iGreen(m_vga_g),
     .iBlue(m_vga_b),
@@ -248,7 +246,7 @@ VGA_FIFO vga_fifo(
     // Outputs.
     .q(vga_fifo_output),
     .rdempty(vga_fifo_rdempty),
-    .wrfull(vga_fifo_wrfull),
+    .wrfull(),
     .wrusedw(vga_fifo_wrusedw)
 );
 
