@@ -67,18 +67,18 @@ module Alice4
         // output          UART_CTS,               //  UART Clear To Send
         // input           UART_RTS,               //  UART Request To Send
         ///////////////////////     SDRAM Interface ////////////////////////
-        // inout   [15:0]  DRAM_DQ,                //  SDRAM Data bus 16 Bits
-        // output  [12:0]  DRAM_ADDR,              //  SDRAM Address bus 13 Bits
-        // output          DRAM_LDQM,              //  SDRAM Low-byte Data Mask
-        // output          DRAM_UDQM,              //  SDRAM High-byte Data Mask
-        // output          DRAM_WE_N,              //  SDRAM Write Enable
-        // output          DRAM_CAS_N,             //  SDRAM Column Address Strobe
-        // output          DRAM_RAS_N,             //  SDRAM Row Address Strobe
-        // output          DRAM_CS_N,              //  SDRAM Chip Select
-        // output          DRAM_BA_0,              //  SDRAM Bank Address 0
-        // output          DRAM_BA_1,              //  SDRAM Bank Address 1
-        // output          DRAM_CLK,               //  SDRAM Clock
-        // output          DRAM_CKE,               //  SDRAM Clock Enable
+        inout   [15:0]  DRAM_DQ,                //  SDRAM Data bus 16 Bits
+        output  [12:0]  DRAM_ADDR,              //  SDRAM Address bus 13 Bits
+        output          DRAM_LDQM,              //  SDRAM Low-byte Data Mask
+        output          DRAM_UDQM,              //  SDRAM High-byte Data Mask
+        output          DRAM_WE_N,              //  SDRAM Write Enable
+        output          DRAM_CAS_N,             //  SDRAM Column Address Strobe
+        output          DRAM_RAS_N,             //  SDRAM Row Address Strobe
+        output          DRAM_CS_N,              //  SDRAM Chip Select
+        output          DRAM_BA_0,              //  SDRAM Bank Address 0
+        output          DRAM_BA_1,              //  SDRAM Bank Address 1
+        output          DRAM_CLK,               //  SDRAM Clock
+        output          DRAM_CKE,               //  SDRAM Clock Enable
         ////////////////////////    Flash Interface ////////////////////////
         // inout   [14:0]  FL_DQ,                  //  FLASH Data bus 15 Bits
         // inout           FL_DQ15_AM1,            //  FLASH Data bus Bit 15 or Address A-1
@@ -112,7 +112,7 @@ module Alice4
         output          VGA_VS,                 //  VGA V_SYNC
         output  [3:0]   VGA_R,                  //  VGA Red[3:0]
         output  [3:0]   VGA_G,                  //  VGA Green[3:0]
-        output  [3:0]   VGA_B,                  //  VGA Blue[3:0]
+        output  [3:0]   VGA_B                   //  VGA Blue[3:0]
         ////////////////////////    GPIO    ////////////////////////////////
         // input   [1:0]   GPIO0_CLKIN,            //  GPIO Connection 0 Clock In Bus
         // output  [1:0]   GPIO0_CLKOUT,           //  GPIO Connection 0 Clock Out Bus
@@ -128,6 +128,7 @@ reg [30:0] counter;
 // What's displayed on the 7-segment display.
 reg [15:0] debug_number;
 reg [15:0] debug_number_nxt;
+wire [15:0] debug_number_sdram_test;
 
 // Button for resetting system, active low.
 wire reset_n = BUTTON[2];
@@ -155,8 +156,7 @@ assign  VGA_R   =   s_vga_r;
 assign  VGA_G   =   s_vga_g;
 assign  VGA_B   =   s_vga_b;
 
-// SDRAM clock, from PLL.
-wire sdram_clk;
+// Whether the SDRAM PLL has locked.
 wire sdram_clk_locked;
 
 // Debugging LEDs.
@@ -164,7 +164,7 @@ assign LEDG[0] = sdram_clk_locked;
 assign LEDG[9:1] = counter[30:22];
 
 // Clock that we're actually running our logic on.
-wire our_clock = sdram_clk;
+wire our_clock = DRAM_CLK;
 
 reg vga_fifo_clear;
 reg vga_fifo_clear_nxt;
@@ -204,7 +204,7 @@ SEG7_LUT_4 seg7_lut_4(
     .oSEG2_DP(HEX2_DP),
     .oSEG3(HEX3_D),
     .oSEG3_DP(HEX3_DP),
-    .iDIG(debug_number)
+    .iDIG(debug_number_sdram_test)
 );
 
 // Generate the VGA pixel clock.
@@ -256,11 +256,30 @@ VGA_FIFO vga_fifo(
 SDRAM_clock sdram_clock(
    .areset(!reset_n),
    .inclk0(CLOCK_50),
-   .c0(sdram_clk),
+   .c0(DRAM_CLK),
    .locked(sdram_clk_locked)
 );
 
-always @(posedge sdram_clk or negedge reset_n) begin
+// Test of SDRAM.
+SDRAM_test sdram_test(
+    .reset_n(reset_n),
+    .dram_dq(DRAM_DQ),
+    .dram_addr(DRAM_ADDR),
+    .dram_ldqm(DRAM_LDQM),
+    .dram_udqm(DRAM_UDQM),
+    .dram_we_n(DRAM_WE_N),
+    .dram_cas_n(DRAM_CAS_N),
+    .dram_ras_n(DRAM_RAS_N),
+    .dram_cs_n(DRAM_CS_N),
+    .dram_ba_0(DRAM_BA_0),
+    .dram_ba_1(DRAM_BA_1),
+    .dram_clk(DRAM_CLK),
+    .dram_cke(DRAM_CKE),
+    .debug_number(debug_number_sdram_test)
+);
+
+`ifdef NOTDEF
+always @(posedge DRAM_CLK or negedge reset_n) begin
     if (!reset_n) begin
         counter <= 0;
     end
@@ -274,6 +293,7 @@ always @(posedge sdram_clk or negedge reset_n) begin
         */
     end
 end
+`endif
 
 assign vga_fifo_input = (x == 0 || x == 639 || y == 0 || y == 479) ? 12'hF00 :
    (x[4] ^ y[4]) ? 12'h000 : 12'hFFF;
