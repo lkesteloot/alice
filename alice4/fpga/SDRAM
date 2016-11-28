@@ -48,14 +48,20 @@ SDRAM notes
     - http://www.fpga4fun.com/SDRAM1.html
         - Very clear and simple.
     - https://embeddedmicro.com/tutorials/mojo/sdram
-        - Not read this yet.
+        - Example code (zip file) is fairly messy and hard to follow.
+        - Inverts the clock and delays it to get timing right.
+        - He did this by trying lots of different values for the delay.
+    - https://embeddedmicro.com/tutorials/mojo/timing
+        - Linked from the previous tutorial.
+        - Good explanation all the various parameters and their restrictions.
     - http://hamsterworks.co.nz/mediawiki/index.php/SDRAM_Memory_Controller
         - Lots of FSM diagrams of increasing complexity.
         - Code is VHDL.
     - http://whoyouvotefor.info/altera_sdram.shtml
         - Uses DE2, which has the same SDRAM chip.
         - Uses 133 MHz clock despite using CAS latency of 3.
-            - The controller clock is advanced by 3ns (of 7.5ns).
+            - Uses a 133 MHz clock for all its controller logic.
+            - Passes a 133 MHz clock -3ns (of 7.5ns) (delayed?) to the SDRAM clock.
         - Burst length = 2.
         - Uses auto-precharge.
         - Also has test bench, which communicates with controller over wishbone.
@@ -71,6 +77,8 @@ SDRAM notes
     - Row and column share (12) pins.
     - Can refresh by sending refresh command, or by opening and closing row.
     - Full page is used with BURST TERMINATE to get arbitrary burst length.
+        - This is not very useful since we can get one word per clock anyway. The only
+            advantage seems to be that we don't have to increment the address lines.
     - Refresh:
         - Features says 4096 refresh cycles every 64 ms. (4096 is # of rows.)
         - I think this means we have to call REFRESH at least 4096 times every 64 ms.
@@ -151,11 +159,11 @@ SDRAM notes
         - tRAS = 42ns = 7clk (command period: ACTIVE to PRECHARGE)
         - tRP = 15ns = 3clk (command period: PRECHARGE to ACTIVE or REFRESH)
         - tRCD = 15ns = 3clk (ACTIVE to READ/WRITE)
-        - tRRD = 12ns = 2clk (ACTIVE[0] to ACTIVE[1] TODO)
-        - tDPL = 2CLK (write data to PRECHARGE; also tWR TODO)
+        - tRRD = 12ns = 2clk (Min time between ACTIVE in different banks)
+        - tWR (aka tDPL) = 2CLK (last write data to PRECHARGE)
         - tDAL = 2CLK+tRP (write data to ACTIVE)
-        - tT = 0.3ns to 1.2ns (TODO is this clock skew?)
-        - tREF = max 64ms refresh cycle time (TODO)
+        - tT = 0.3ns to 1.2ns (transition time, not exactly sure what this is)
+        - tREF = 64ms, must refresh all memory this often
         - tCCD = 1CLK (READ/WRITE to READ/WRITE)
         - tMRD = 2CLK
 - Sequence:
@@ -207,16 +215,10 @@ SDRAM notes
         localparam [2:0] SDRAM_CMD_WRITE     = 3'b100;
         localparam [2:0] SDRAM_CMD_READ      = 3'b101;
         localparam [2:0] SDRAM_CMD_NOP       = 3'b111;
-- Questions:
-    - We'll be reading the whole buffer periodically to display it. Do we need
-        refresh? Is that true of all buffers (front, back, z).
-    - Can we clear the front buffer while reading it?
-        - Not if we'll miss a frame, since we'll need it again.
-        - Wouldn't apply to z-buffer anyway.
-    - Is wishbone friendly to different clock speeds? See tutorial. Should we use it?
-    - Why is that tutorial using a clock with a different phase?
-    - Look for TODO in this doc.
-- Back of the envelope calculations for whether this is at all possible:
+- Refresh:
+    - We have to refresh every row at least every 64ms.
+    - Since we clear or read every buffer every 33.3ms (at 30 FPS), we're fine.
+- Rough calculations for whether this is at all possible:
     - Resolution: 640x480
         - That's 307,200 pixels.
         - Each pixel is 12 bits.
@@ -229,13 +231,14 @@ SDRAM notes
     - Clearing a color or Z buffer:
         - Writing to each row takes:
             - Set row (0-1199) and bank (0), send ACTIVE. Wait tRCD = 15ns <= 18ns = 3*6ns.
-            - Set column (0-255) and bank (0), no auto-precharge, data, send WRITE. No waiting.
+            - Set column (0-255) and bank (0), no auto-precharge, data, send WRITE.
+            - Wait tWR (2CLK) after last write, so 1CLK NOP.
             - Set bank (0), one bank (A10 = 0), send PRECHARGE. Wait tRP = 15ns <= 18ns = 3*6ns.
-            - For 256 columns, that's 3 + 256 + 3 = 262 clocks = 1,572ns.
+            - For 256 columns, that's 3 + 256 + 1 + 3 = 263 clocks = 1,578ns.
         - Writing to a whole buffer takes:
-            - 1,572ns * 1200 = 1,886,400ns = 1.9ms.
+            - 1,578ns * 1200 = 1,893,600ns = 1.9ms.
         - Clearing both buffers takes:
-            - 1,886,400ns * 2 = 3,772,800ns = 3.8ms.
+            - 1,893,600ns * 2 = 3,787,200ns = 3.8ms.
     - Reading the front buffer:
         - Reading from each row takes:
             - Set row (0-1199) and bank (0), send ACTIVE. Wait tRCD = 15ns <= 18ns = 3*6ns.
@@ -248,14 +251,17 @@ SDRAM notes
     - We're spending 5.7/33.3 = 18% of our time clearing two buffers and reading one.
     - That leaves us 82% to fill both buffers.
         - We could read both buffers and write both buffers 3.5 times.
+- Implementation notes:
+    - Use a state machine.
+    - One state is WAIT, which takes both a count and a next-state parameter.
+- Questions:
+    - Look for TODO in this doc.
 - To do:
-    - Do back-of-the-envelope calculations for number of reads and writes needed by
-        our application, and whether this chip can do it.
-    - Read embeddedmicro tutorial.
-    - Answer rest of questions above.
-    - All "clk" math above assumes 6ns, but in fact we're planning 7.5ns.
-    - Try running current program at 133 or 166 to see if it works.
-    - See if "initial begin/end" block works.
-        - Set register to some value. Use <=.
-        - Show that value on the 7-segment displays.
+    - Try running current program at 166 to see if it works.
+        - Tried 166. Mostly worked, but screen flashes magenta about once per second.
+        - Investigate why. It's very regular. Must have to do with missing top-of-screen
+            signal from VGA. Fix this, and we can go with it.
+    - Write a test program for SDRAM.
+        - Write test pattern.
+        - Read pattern slowly and write to 7-segment display.
 
