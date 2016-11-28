@@ -18,24 +18,28 @@ module SDRAM_test(
 );
 
 // State machine.
-localparam STATE_INIT = 0;
-localparam STATE_WAIT = 1;  // Needs state_wait_count and state_wait_next_state.
-localparam STATE_PRECHARGE_ALL = 2;
-localparam STATE_PRECHARGE_WAIT = 3;
-localparam STATE_REFRESH = 4; // Needs state_wait_next_state.
-localparam STATE_REFRESH_WAIT = 5;
-localparam STATE_INIT_REFRESH_1 = 6;
-localparam STATE_INIT_REFRESH_2 = 7;
-localparam STATE_LOAD_MODE = 8;
-localparam STATE_LOAD_MODE_WAIT = 9;
-localparam STATE_ACTIVATE = 10;
-localparam STATE_ACTIVATE_WAIT = 11;
-localparam STATE_WRITE = 12;
-localparam STATE_WRITE_STOP = 13;
-localparam STATE_READY = 15;
-reg [3:0] state;
+localparam STATE_INIT = 5'h00;
+localparam STATE_WAIT = 5'h01;  // Needs state_wait_count and state_wait_next_state.
+localparam STATE_PRECHARGE_ALL = 5'h02;
+localparam STATE_PRECHARGE_WAIT = 5'h03;
+localparam STATE_REFRESH = 5'h04; // Needs state_wait_next_state.
+localparam STATE_REFRESH_WAIT = 5'h05;
+localparam STATE_INIT_REFRESH_1 = 5'h06;
+localparam STATE_INIT_REFRESH_2 = 5'h07;
+localparam STATE_LOAD_MODE = 5'h08;
+localparam STATE_LOAD_MODE_WAIT = 5'h09;
+localparam STATE_ACTIVATE = 5'h0a;
+localparam STATE_ACTIVATE_WAIT = 5'h0b;
+localparam STATE_WRITE = 5'h0c;
+localparam STATE_WRITE_STOP = 5'h0d;
+localparam STATE_READ_START = 5'h0e;
+localparam STATE_READ_WAIT_1 = 5'h0f;
+localparam STATE_READ_WAIT_2 = 5'h10;
+localparam STATE_READ_WAIT_3 = 5'h11;
+localparam STATE_READY = 5'h1f;
+reg [4:0] state;
 reg [31:0] state_wait_count;
-reg [3:0] state_wait_next_state;
+reg [4:0] state_wait_next_state;
 
 // Put some of the outputs into registers.
 localparam CMD_LOAD_MODE = 3'b000;
@@ -66,7 +70,7 @@ assign { dram_ras_n, dram_cas_n, dram_we_n } = dram_cmd;
 // Debugging.
 reg [31:0] counter;
 reg [15:0] seconds;
-assign debug_number = { state[3:0], state_wait_next_state[3:0], seconds[7:0] };
+assign debug_number = { 3'b0, state[4:0], state == STATE_READY ? seconds[7:0] : { 3'b0, state_wait_next_state } };
 
 initial begin
     counter <= 0;
@@ -88,11 +92,11 @@ end
 always @(posedge dram_clk or negedge reset_n) begin
     if (!reset_n) begin
         counter <= 0;
-        seconds <= 0;
+        // seconds <= 0;
     end else begin
         if (counter == 166000000) begin
             counter <= 0;
-            seconds <= seconds + 1;
+            // seconds <= seconds + 1;
         end else begin
             counter <= counter + 1;
         end
@@ -237,6 +241,38 @@ always @(posedge dram_clk or negedge reset_n) begin
                 dram_cmd <= CMD_NOP;
                 dram_oe_reg <= 1'b0;
                 dram_dqm_reg <= 2'b00;
+                state <= STATE_READ_START;
+            end
+
+            STATE_READ_START: begin
+                // Initiate the read of a word.
+                dram_cmd <= CMD_READ;
+                dram_addr_reg <= 12'b000000000000; // Column.
+                dram_ba_reg <= 2'b00; // Bank.
+                state <= STATE_READ_WAIT_1;
+            end
+
+            STATE_READ_WAIT_1: begin
+                // First clock after read.
+
+                // Enable output pins. This is delayed by two clocks, so we
+                // must do it now.
+                dram_dqm_reg <= 2'b00;
+                state <= STATE_READ_WAIT_2;
+            end
+
+            STATE_READ_WAIT_2: begin
+                // Second clock after read.
+
+                // Disable output pins.
+                dram_dqm_reg <= 2'b11;
+                state <= STATE_READ_WAIT_3;
+            end
+
+            STATE_READ_WAIT_3: begin
+                // Third clock after read. Data is ready.
+
+                seconds <= dram_dq;
                 state <= STATE_READY;
             end
 
