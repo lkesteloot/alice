@@ -103,6 +103,7 @@ set_clock_uncertainty -fall_from [get_clocks {sdram_clock|altpll_component|auto_
 set_false_path -from [get_keepers {*rdptr_g*}] -to [get_keepers {*ws_dgrp|dffpipe_id9:dffpipe16|dffe17a*}]
 set_false_path -from [get_keepers {*delayed_wrptr_g*}] -to [get_keepers {*rs_dgwp|dffpipe_hd9:dffpipe12|dffe13a*}]
 set_false_path -from [get_keepers {Vga_control:vga_control|oTopOfScreen}] -to [get_keepers {m_vga_top_of_screen_latched}]
+set_false_path -from [get_keepers vga_fifo_clear]
 
 
 #**************************************************************
