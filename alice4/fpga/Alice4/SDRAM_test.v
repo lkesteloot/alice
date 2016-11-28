@@ -19,19 +19,15 @@ module SDRAM_test(
 
 // State machine.
 localparam STATE_INIT = 0;
-localparam STATE_READY = 1;
+// localparam STATE_WAIT = 1;  // Needs state_wait_count and state_wait_next_state.
+localparam STATE_READY = 2;
 reg [3:0] state;
-reg [3:0] state_nxt;
 
 // Put some of the outputs into registers.
 reg dram_ldqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg dram_udqm_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg dram_cs_n_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
 reg dram_cke_reg /* synthesis ALTERA_ATTRIBUTE = "FAST_OUTPUT_REGISTER=ON" */;
-reg dram_ldqm_reg_nxt;
-reg dram_udqm_reg_nxt;
-reg dram_cs_n_reg_nxt;
-reg dram_cke_reg_nxt;
 assign dram_ldqm = dram_ldqm_reg;
 assign dram_udqm = dram_udqm_reg;
 assign dram_cs_n = dram_cs_n_reg;
@@ -70,29 +66,6 @@ always @(posedge dram_clk or negedge reset_n) begin
 end
 
 // State machine.
-always @(*) begin
-    state_nxt <= state;
-    dram_ldqm_reg_nxt <= dram_ldqm_reg;
-    dram_udqm_reg_nxt <= dram_udqm_reg;
-    dram_cs_n_reg_nxt <= dram_cs_n_reg;
-    dram_cke_reg_nxt <= dram_cke_reg;
-
-    case (state)
-        STATE_INIT: begin
-            // This state waits until the PLL has locked.
-            if (dram_clk_locked) begin
-                // Tell the SDRAM to pay attention to the clock.
-                dram_cs_n_reg_nxt <= 0;
-                dram_cke_reg_nxt <= 1;
-                state_nxt <= STATE_READY;
-            end
-        end
-
-        STATE_READY: begin
-        end
-    endcase
-end
-
 always @(posedge dram_clk or negedge reset_n) begin
     if (!reset_n) begin
         state <= STATE_INIT;
@@ -101,11 +74,20 @@ always @(posedge dram_clk or negedge reset_n) begin
         dram_ldqm_reg <= 1;
         dram_udqm_reg <= 1;
     end else begin
-        state <= state_nxt;
-        dram_ldqm_reg <= dram_ldqm_reg_nxt;
-        dram_udqm_reg <= dram_udqm_reg_nxt;
-        dram_cs_n_reg <= dram_cs_n_reg_nxt;
-        dram_cke_reg <= dram_cke_reg_nxt;
+        case (state)
+            STATE_INIT: begin
+                // This state waits until the PLL has locked.
+                if (dram_clk_locked) begin
+                    // Tell the SDRAM to pay attention to the clock.
+                    dram_cs_n_reg <= 0;
+                    dram_cke_reg <= 1;
+                    state <= STATE_READY;
+                end
+            end
+
+            STATE_READY: begin
+            end
+        endcase
     end
 end
 
