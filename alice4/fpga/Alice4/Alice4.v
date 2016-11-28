@@ -261,10 +261,13 @@ SDRAM_clock sdram_clock(
 );
 
 // Test of SDRAM.
+// Convert from 13 to 12 bits for address.
+wire [11:0] dram_addr;
+assign DRAM_ADDR = { 1'b0, dram_addr };
 SDRAM_test sdram_test(
     .reset_n(reset_n),
     .dram_dq(DRAM_DQ),
-    .dram_addr(DRAM_ADDR),
+    .dram_addr(dram_addr),
     .dram_ldqm(DRAM_LDQM),
     .dram_udqm(DRAM_UDQM),
     .dram_we_n(DRAM_WE_N),
