@@ -38,7 +38,7 @@ localparam STATE_READ_WAIT_2 = 5'h10;
 localparam STATE_READ_WAIT_3 = 5'h11;
 localparam STATE_READY = 5'h1f;
 reg [4:0] state;
-reg [31:0] state_wait_count;
+reg [15:0] state_wait_count;
 reg [4:0] state_wait_next_state;
 
 // Put some of the outputs into registers.
@@ -111,6 +111,8 @@ end
 always @(posedge dram_clk or negedge reset_n) begin
     if (!reset_n) begin
         state <= STATE_INIT;
+        state_wait_count <= 1;
+        state_wait_next_state <= STATE_INIT;
         dram_addr_reg <= 12'b0;
         dram_dqm_reg <= DQM_DISABLE;
         dram_cs_n_reg <= 1;
@@ -137,14 +139,13 @@ always @(posedge dram_clk or negedge reset_n) begin
             STATE_WAIT: begin
                 // Wait state_wait_count clocks, then go to state_wait_next_state.
                 // Never call with state_wait_count == 0.
-                seconds <= state_wait_next_state;
 
                 // We compare against 1 because just the fact that we're
                 // invoked at all adds one clock.
                 if (state_wait_count == 1) begin
                     state <= state_wait_next_state;
                 end else begin
-                    state_wait_count <= state_wait_count - 1;
+                    state_wait_count <= state_wait_count - 16'b1;
                 end
             end
 
