@@ -1,0 +1,22 @@
+set_global_assignment -entity "foofoo" -library "foofoo" -name IP_TOOL_NAME "Qsys"
+set_global_assignment -entity "foofoo" -library "foofoo" -name IP_TOOL_VERSION "13.1"
+set_global_assignment -entity "foofoo" -library "foofoo" -name IP_TOOL_ENV "Qsys"
+set_global_assignment -library "foofoo" -name SOPCINFO_FILE [file join $::quartus(qip_path) "../../foofoo.sopcinfo"]
+set_global_assignment -entity "foofoo" -library "foofoo" -name SLD_INFO "QSYS_NAME foofoo HAS_SOPCINFO 1 GENERATION_ID 1480312351"
+set_global_assignment -library "foofoo" -name MISC_FILE [file join $::quartus(qip_path) "../../foofoo.cmp"]
+set_global_assignment -library "foofoo" -name SLD_FILE [file join $::quartus(qip_path) "foofoo.debuginfo"]
+set_global_assignment -name SYNTHESIS_ONLY_QIP ON
+set_global_assignment -library "foofoo" -name MISC_FILE [file join $::quartus(qip_path) "../../foofoo.qsys"]
+
+set_global_assignment -library "foofoo" -name VERILOG_FILE [file join $::quartus(qip_path) "foofoo.v"]
+set_global_assignment -library "foofoo" -name VERILOG_FILE [file join $::quartus(qip_path) "submodules/altera_reset_controller.v"]
+set_global_assignment -library "foofoo" -name VERILOG_FILE [file join $::quartus(qip_path) "submodules/altera_reset_synchronizer.v"]
+set_global_assignment -library "foofoo" -name SDC_FILE [file join $::quartus(qip_path) "submodules/altera_reset_controller.sdc"]
+set_global_assignment -library "foofoo" -name VERILOG_FILE [file join $::quartus(qip_path) "submodules/foofoo_new_sdram_controller_0.v"]
+
+set_global_assignment -entity "altera_reset_controller" -library "foofoo" -name IP_TOOL_NAME "altera_reset_controller"
+set_global_assignment -entity "altera_reset_controller" -library "foofoo" -name IP_TOOL_VERSION "13.1"
+set_global_assignment -entity "altera_reset_controller" -library "foofoo" -name IP_TOOL_ENV "Qsys"
+set_global_assignment -entity "foofoo_new_sdram_controller_0" -library "foofoo" -name IP_TOOL_NAME "altera_avalon_new_sdram_controller"
+set_global_assignment -entity "foofoo_new_sdram_controller_0" -library "foofoo" -name IP_TOOL_VERSION "13.1"
+set_global_assignment -entity "foofoo_new_sdram_controller_0" -library "foofoo" -name IP_TOOL_ENV "Qsys"
