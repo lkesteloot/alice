@@ -299,6 +299,11 @@ SDRAM notes
     - One state is WAIT, which takes both a count and a next-state parameter.
 - To do:
     - Write a test program for SDRAM.
-        - Write test pattern.
-        - Read pattern slowly and write to 7-segment display.
+        * Make an sdram_test module.
+        * Pass in clock, SDRAM pins and debug_number, maybe LEDs.
+        - Make state machine that writes a few bytes, then reads them, and displays them.
+==========> - Delay state.
+            - Initialize SDRAM.
+            - Write one byte.
+            - Read one byte.
 
