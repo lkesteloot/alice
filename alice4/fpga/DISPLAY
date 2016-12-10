@@ -1,0 +1,29 @@
+
+- To do:
+    - Check whether voltage levels of FPGA are compatible with TFT.
+        - Display is 3.3V for VDD and data.
+        - Display is 9.9V (9.3V to 10.5V, 180mA) for backlight.
+        - Check FPGA again.
+- Display:
+    - Displays:
+        - https://www.adafruit.com/products/2353 (no touch, $40).
+        - https://www.adafruit.com/products/2354 (touch, $50).
+    - Breakout board to run TFT display:
+        - https://www.adafruit.com/product/1932
+        - Does backlighting and cable connector.
+    - Proposal:
+        - Use this display: https://www.adafruit.com/products/2353 (no touch, $40).
+        - Use this adapter: https://www.adafruit.com/product/1932
+        - Run it at 60 FPS.
+        - Use a TFT controller instead of the VGA controller.
+    - Display note:
+        - Backlight will pull 9.9V at 120mA.
+            - Six strings, so 20mA each, with 3 LEDs per string.
+        - VDD is 3.3V.
+        - Clock should be 50 MHz.
+        - H driver is the source.
+        - V driver is the gate.
+        - Adapter uses this:
+            - http://www.mouser.com/ds/2/149/FAN5333B-1006807.pdf
+            - Defaults to 25mA.
+            - Add all jumpers to get 125mA (datasheet says 120mA, max 180mA).
