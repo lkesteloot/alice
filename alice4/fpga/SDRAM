@@ -112,15 +112,15 @@ SDRAM notes
             - Takes tMRD, then all banks will be idle.
             - Must send NOP during this command.
         - AUTO REFRESH or SELF REFRESH (001)
-            - AUTO REFRESH if CLE is HIGH (enabled).
+            - AUTO REFRESH if CKE is HIGH (enabled).
                 - Row and bank are automatically generated. Address pins are ignored.
                 - All banks must be idle.
                 - Takes tRC time, then all banks are idle.
                 - Must execute this at least 4096 times every tREF (64ms?).
                 - Must send NOP during this command.
-            - SELF REFRESH if CLE is LOW (disabled).
+            - SELF REFRESH if CKE is LOW (disabled).
                 - Must be in this mode at least tRAS time.
-                - After returning to CLE HIGH, wait tRC then send two NOP, then AUTO REFRESH.
+                - After returning to CKE HIGH, wait tRC then send two NOP, then AUTO REFRESH.
                 - Sounds complicated and unclear, see page 7 of PDF.
                 - Probably never want this.
         - PRECHARGE (010)
@@ -178,14 +178,15 @@ SDRAM notes
         - tCCD = 1CLK (READ/WRITE to READ/WRITE)
         - tMRD = 2CLK
 - Sequence:
-    - Initialization:
-        - Wait until DLL locks.
-        - Set CLE to HIGH. Can perhaps also just set CS to LOW.
+- Initialization:
+        - Wait until PLL locks.
+        - Set CKE to HIGH. Can perhaps also just set CS to LOW.
+        - Also DQM HIGH?
         - Wait 100µs during which only COMMAND INHIBIT or NOP is sent.
             - Tutorial code uses 200µs.
         - Send PRECHARGE to all banks.
         - Two AUTO REFRESH cycles (each tRC).
-        - Send LOAD REGISTER commands.
+        - Send LOAD MODE commands.
             - A0-A2: Burst length (2^value, or 111 for full page, meaning until stopped).
                 - We want 0 (burst length 1).
             - A3: 0 = Sequential, 1 = Interleaved. We want 0.
@@ -302,8 +303,10 @@ SDRAM notes
         * Make an sdram_test module.
         * Pass in clock, SDRAM pins and debug_number, maybe LEDs.
         - Make state machine that writes a few bytes, then reads them, and displays them.
-==========> - Delay state.
-            - Initialize SDRAM.
-            - Write one byte.
-            - Read one byte.
+            * Delay state.
+            * Initialize SDRAM.
+            * Write one byte.
+            * Read back one byte.
+==========> - Fails. Only works if debugging state_wait_next_state.
+                - Re-read page 38 about initialize.
 
