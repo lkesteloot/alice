@@ -20,6 +20,9 @@ make_hud()
     {
 	pushmatrix();
 
+        // Note that here we don't want to use XMAXSCREEN because the reset of the numbers
+        // below are calibrated to the old 1024x768 screens. The downside is that the
+        // circles look like ellipses. --LK
 	/*ortho2(0.0, XMAXSCREEN.0, 0.0, YMAXSCREEN.0);*/
         ortho2(0.0, 1023.0, 0.0, 767.0);
 

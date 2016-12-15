@@ -2,51 +2,35 @@
 #include <device.h>
 #include "arena.h"
 
-#define INTRO 40
-
-char *intro[INTRO] = {
+char *intro[] = {
 "",
-"				ARENA",
+"					ARENA",
 "",
-"",
-"",
-"It is the year 2053.  The corporate wars are over, and the once great",
-"corporate empires lie in ruin.  Man though, never tired of violence, has",
-"changed the war machines of the past into todays sport.  MECHS, fourteen",
-"foot tall humanoid fighting machines, and their pilots battle it out in",
-"the arenas.",
+"It is the year 2053.  The corporate wars are over, and the once great corporate empires lie",
+"in ruin.  Man though, never tired of violence, has changed the war machines of the past into",
+"todays sport.  MECHS, fourteen foot tall humanoid fighting machines, and their pilots battle",
+"it out in the arenas.",
 "",
 "Arena simulates this possible future sport.",
 "",
-"The robots or mechs are effectively fast maneuverable tanks.  They have",
-"rollers on their feet and thus skate along the ground.  A computerized",
-"balance system keeps them on their feet.  Systems include telescopic vision,",
-"radar, jump jets, and a 40mm autocannon.  Instrumentation is displayed on",
-"a heads-up display.",
+"The robots or mechs are effectively fast maneuverable tanks.  They have rollers on their feet",
+"and thus skate along the ground.  A computerized balance system keeps them on their feet.",
+"Systems include telescopic vision, radar, jump jets, and a 40mm autocannon.  Instrumentation",
+"is displayed on a heads-up display.",
 "",
-"The playing field is square and approximately one kilometer on a side.  There",
-"is a maze in the center of the arena with entrances north and south",
+"The playing field is square and approximately one kilometer on a side.  There is a maze in",
+"the center of the arena with entrances north and south",
 "",
-#if NETWORKING
-"Use -n option to play over the network.",
+"COMMANDS                                            MOUSE",
 "",
-#endif
-"Commands",
-"",
-"z/Z - optics zoom in (telescopic) / zoom out (wide angle)",
-"x/X - zoom in radar / zoom out radar",
-"e   - fire cannon",
-"s   - jump",
+"z/Z - optics zoom in / zoom out                     left mouse   - stop turn",
+"x/X - zoom in radar / zoom out radar                middle mouse - brake",
+"e   - fire cannon                                   mouse x      - adjust turn",
+"s   - jump                                          mouse y      - adjust throttle",
 "c   - toggle visual tilt stabalizer",
 "",
-"mouse",
-"",
-"left mouse   - stop turn",
-"middle mouse - brake",
-"mouse x      - adjust turn",
-"mouse y      - adjust throttle",
-"",
-"Hit any key to continue."};
+"				Hit any key to continue",
+(char *) 0 };
 
 int winw, winh;
 
@@ -59,12 +43,12 @@ startup()
 
     getsize(&winw, &winh);
     // ortho2(0, winw, 0, winh);
-    ortho2(0, 1023, 0, 767);
+    ortho2(0, XMAXSCREEN, 0, YMAXSCREEN);
 
     color(WHITE);
-    for (i=0; i<INTRO; i++)
+    for (i=0; intro[i] != (char *) 0; i++)
     {
-	cmov2i(30, (YMAXSCREEN-30) - i*18);
+	cmov2i(30, (YMAXSCREEN-30) - i*16);
 	charstr(intro[i]);
     }
 

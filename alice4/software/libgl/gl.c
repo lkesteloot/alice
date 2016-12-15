@@ -41,8 +41,8 @@
 #define M_PI 3.141596
 #endif
 
-static int32_t DISPLAY_WIDTH = XMAXSCREEN;
-static int32_t DISPLAY_HEIGHT = YMAXSCREEN;
+static int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
+static int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 #define POLY_MAX 32
 
 #if NDEBUG
@@ -2761,9 +2761,15 @@ void charstr(char *str) {
     project_vertex(&vert, &screenvert);
 
     for(int i = 0; i < strlen(str); i++) {
-        // hardcode 8x16 for now
-        bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
-        screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
+        if (str[i] == '\t') {
+            // I don't know whether the original charstr() supported tabs (I can't find
+            // a man page), but arena/startup.c uses them. --LK
+            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE * 8;
+        } else {
+            // hardcode 8x16 for now
+            bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
+            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
+        }
     }
 }
 
