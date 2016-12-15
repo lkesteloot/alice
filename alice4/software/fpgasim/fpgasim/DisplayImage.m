@@ -7,6 +7,7 @@
 //
 
 #import "DisplayImage.h"
+#import "Sdram.h"
 
 #define WIDTH 800
 #define HEIGHT 480
@@ -15,6 +16,8 @@
 #define TILE 50
 #define COCOA_TRIANGLE 0
 #define NUM_VERTICES 3
+#define CBUFFER_BANK 0
+#define ZBUFFER_BANK 1
 
 // Type of Z-buffer pixel.
 typedef uint16_t z_t;
@@ -26,12 +29,8 @@ typedef uint16_t z_t;
     z_t *zbuffer;
     NSBitmapImageRep *rep;
     NSGraphicsContext *context;
-
-    // These represent the number of pixels affected (not bytes or words).
-    uint32_t cbuffer_read_count;
-    uint32_t cbuffer_write_count;
-    uint32_t zbuffer_read_count;
-    uint32_t zbuffer_write_count;
+    Sdram *sdram;
+    int rowsPerBuffer;
 }
 
 @end
@@ -46,30 +45,26 @@ typedef uint16_t z_t;
 	zbuffer = (z_t *) malloc(WIDTH*HEIGHT*sizeof(z_t));
 	rep = [self makeRepFromData];
 	context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
+	sdram = [[Sdram alloc] init];
+	rowsPerBuffer = WIDTH*HEIGHT/sdram.columnCount;
 
 	// We'll eventually want to remove this, since the hardware won't do it:
 	[self fillCheckerboard];
 
-	[self resetRamStats];
+	[self resetStats];
     }
 
     return self;
 }
 
-- (void)resetRamStats {
-    cbuffer_read_count = 0;
-    cbuffer_write_count = 0;
-    zbuffer_read_count = 0;
-    zbuffer_write_count = 0;
+- (void)resetStats {
+    [sdram resetStats];
 }
 
 - (void)logAndClearStats {
-    NSLog(@"SDRAM stats: %5d %5d %5d %5d",
-	  cbuffer_read_count,
-	  cbuffer_write_count,
-	  zbuffer_read_count,
-	  zbuffer_write_count);
-    [self resetRamStats];
+    NSLog(@"SDRAM stats: %10ld cycles (%dms)",
+	  sdram.cycles, (int) (sdram.cycles*1000L/sdram.clockFrequency));
+    [self resetStats];
 }
 
 - (NSBitmapImageRep *)rep {
@@ -118,7 +113,9 @@ typedef uint16_t z_t;
     [[self colorFromBuffer:color] set];
     NSRectFill(rect);
 
-    cbuffer_write_count += WIDTH*HEIGHT;
+    for (int i = 0; i < rowsPerBuffer; i++) {
+	[sdram write:sdram.columnCount bank:CBUFFER_BANK row:i column:0];
+    }
 }
 
 - (void)zclear {
@@ -129,7 +126,9 @@ typedef uint16_t z_t;
 	*p++ = (z_t) 0xFFFFFFFF;
     }
 
-    zbuffer_write_count += WIDTH*HEIGHT;
+    for (int i = 0; i < rowsPerBuffer; i++) {
+	[sdram write:sdram.columnCount bank:ZBUFFER_BANK row:i column:0];
+    }
 }
 
 // Returns on which side of the line (a,b) is the vertex (x,y). Or, returns
@@ -245,7 +244,11 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		    uint64_t z64 = ((uint64_t)w0*vs[0].z + (uint64_t)w1*vs[1].z + (uint64_t)w2*vs[2].z)/area;
 		    z = (z_t) (z64 >> Z_SHIFT);
 		    drawPixel = z <= *zptr;
-		    zbuffer_read_count++;
+
+		    [sdram read:1
+			   bank:ZBUFFER_BANK
+			    row:(y*WIDTH + x)/sdram.columnCount
+			 column:(y*WIDTH + x)%sdram.columnCount];
 		} else {
 		    // Not sure this is correct. The man page of zbuffer() says that it only affects writing.
 		    z = 0;
@@ -255,10 +258,16 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		    p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
 		    p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
 		    p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
-		    cbuffer_write_count++;
+		    [sdram write:1
+			    bank:CBUFFER_BANK
+			     row:(y*WIDTH + x)/sdram.columnCount
+			  column:(y*WIDTH + x)%sdram.columnCount];
 		    if (enableZbuffer) {
 			*zptr = z;
-			zbuffer_write_count++;
+			[sdram write:1
+				bank:ZBUFFER_BANK
+				 row:(y*WIDTH + x)/sdram.columnCount
+			      column:(y*WIDTH + x)%sdram.columnCount];
 		    }
 		}
 	    }

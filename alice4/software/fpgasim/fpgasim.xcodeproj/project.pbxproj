@@ -16,6 +16,7 @@
 		4A40C0041CE58FE5001B6A68 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A40C0031CE58FE5001B6A68 /* ViewController.m */; };
 		4A40C0061CE58FE5001B6A68 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4A40C0051CE58FE5001B6A68 /* Assets.xcassets */; };
 		4A40C0091CE58FE5001B6A68 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4A40C0071CE58FE5001B6A68 /* Main.storyboard */; };
+		4A8CBCD31E021E1A001AD148 /* Sdram.m in Sources */ = {isa = PBXBuildFile; fileRef = 4A8CBCD21E021E1A001AD148 /* Sdram.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,8 @@
 		4A40C0051CE58FE5001B6A68 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		4A40C0081CE58FE5001B6A68 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		4A40C00A1CE58FE5001B6A68 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		4A8CBCD11E021E1A001AD148 /* Sdram.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sdram.h; sourceTree = "<group>"; };
+		4A8CBCD21E021E1A001AD148 /* Sdram.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Sdram.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +109,8 @@
 				4A1E0DC61CE6FE9D003C1611 /* DisplayImage.m */,
 				4A33A55D1CEBC5CC009DEB3A /* EventQueue.h */,
 				4A33A55E1CEBC5CC009DEB3A /* EventQueue.m */,
+				4A8CBCD11E021E1A001AD148 /* Sdram.h */,
+				4A8CBCD21E021E1A001AD148 /* Sdram.m */,
 			);
 			path = fpgasim;
 			sourceTree = "<group>";
@@ -188,6 +193,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4A40C0041CE58FE5001B6A68 /* ViewController.m in Sources */,
+				4A8CBCD31E021E1A001AD148 /* Sdram.m in Sources */,
 				4A1E0DC11CE64D9F003C1611 /* DisplayView.m in Sources */,
 				4A40C0011CE58FE5001B6A68 /* main.m in Sources */,
 				4A33A55F1CEBC5CC009DEB3A /* EventQueue.m in Sources */,
