@@ -123,7 +123,7 @@ char	*argv[];
 
     mmode(MPROJECTION);
 
-    perspective(450, 5.0/4.0, THICK, 9.0);
+    perspective(450, (float)XMAXSCREEN/YMAXSCREEN, THICK, 9.0);
     translate(0.0, 0.0, -5.0/4.0);
 
     mmode(MVIEWING);

@@ -18,8 +18,8 @@
 
 /* maximum X and Y screen coordinates */
 
-#define XMAXSCREEN	1023
-#define YMAXSCREEN	767
+#define XMAXSCREEN	800
+#define YMAXSCREEN	480
 
 /* various hardware/software limits	*/
 

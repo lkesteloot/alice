@@ -371,7 +371,7 @@ char *name;
 
     zbuffer(TRUE);
     lsetdepth(0x0, 0x7fffff);
-    perspective(400, 5.0/4.0, dist-(HEIGHT*1.74), dist+(HEIGHT*1.74));
+    perspective(400, (float)XMAXSCREEN/YMAXSCREEN, dist-(HEIGHT*1.74), dist+(HEIGHT*1.74));
     translate(0.0, 0.0, -dist);
     RGBcolor(0, 0, 0);
     clear(); swapbuffers(); clear();

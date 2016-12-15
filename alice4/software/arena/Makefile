@@ -12,7 +12,10 @@ $(APP): $(SRC) arena.h udpbrdcst.h $(LIBGL_SRC)
 		-o $(APP) $(SRC) $(LIBGL_SRC)
 
 run: $(APP)
-	@if [ -z "$(HOST)" ]; then echo 'Set HOST variable first'; else ./$(APP) -n; fi
+	@if [ -z "$(HOST)" ]; then echo 'Set HOST variable first or use run_no_network'; else ./$(APP) -n; fi
+
+run_no_network: $(APP)
+	./$(APP)
 
 clean:
 	rm -f $(APP)

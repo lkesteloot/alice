@@ -294,7 +294,7 @@ main(argc, argv)
 			    popmatrix();
 			}
 
-			perspective((int)(400/zoom), 1.3333333, 0.01, 10000.0);
+			perspective((int)(400/zoom), 800.0/480.0, 0.01, 10000.0);
 			lookat(0.0, 1.0, 0.0, 0.0, 1.0, -1.0, 0.0);
 		    }
 		    break;

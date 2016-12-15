@@ -219,7 +219,7 @@ draw_everything() {
 	zclear();
 
 	mmode(MPROJECTION);
-	perspective(350, 5.0/4.0, 34, 72);
+	perspective(350, (float)XMAXSCREEN/YMAXSCREEN, 34, 72);
 
 	mmode(MVIEWING);
 

@@ -41,8 +41,8 @@
 #define M_PI 3.141596
 #endif
 
-static int32_t DISPLAY_WIDTH = 800;
-static int32_t DISPLAY_HEIGHT = 600;
+static int32_t DISPLAY_WIDTH = XMAXSCREEN;
+static int32_t DISPLAY_HEIGHT = YMAXSCREEN;
 #define POLY_MAX 32
 
 #if NDEBUG

@@ -9,7 +9,7 @@
 #import "DisplayImage.h"
 
 #define WIDTH 800
-#define HEIGHT 600
+#define HEIGHT 480
 #define BYTES_PER_PIXEL 4
 #define STRIDE (WIDTH*4)
 #define TILE 50
@@ -26,6 +26,12 @@ typedef uint16_t z_t;
     z_t *zbuffer;
     NSBitmapImageRep *rep;
     NSGraphicsContext *context;
+
+    // These represent the number of pixels affected (not bytes or words).
+    uint32_t cbuffer_read_count;
+    uint32_t cbuffer_write_count;
+    uint32_t zbuffer_read_count;
+    uint32_t zbuffer_write_count;
 }
 
 @end
@@ -43,9 +49,27 @@ typedef uint16_t z_t;
 
 	// We'll eventually want to remove this, since the hardware won't do it:
 	[self fillCheckerboard];
+
+	[self resetRamStats];
     }
 
     return self;
+}
+
+- (void)resetRamStats {
+    cbuffer_read_count = 0;
+    cbuffer_write_count = 0;
+    zbuffer_read_count = 0;
+    zbuffer_write_count = 0;
+}
+
+- (void)logAndClearStats {
+    NSLog(@"SDRAM stats: %5d %5d %5d %5d",
+	  cbuffer_read_count,
+	  cbuffer_write_count,
+	  zbuffer_read_count,
+	  zbuffer_write_count);
+    [self resetRamStats];
 }
 
 - (NSBitmapImageRep *)rep {
@@ -93,6 +117,8 @@ typedef uint16_t z_t;
     NSRect rect = NSMakeRect(0, 0, WIDTH, HEIGHT);
     [[self colorFromBuffer:color] set];
     NSRectFill(rect);
+
+    cbuffer_write_count += WIDTH*HEIGHT;
 }
 
 - (void)zclear {
@@ -102,6 +128,8 @@ typedef uint16_t z_t;
     while (count-- > 0) {
 	*p++ = (z_t) 0xFFFFFFFF;
     }
+
+    zbuffer_write_count += WIDTH*HEIGHT;
 }
 
 // Returns on which side of the line (a,b) is the vertex (x,y). Or, returns
@@ -217,6 +245,7 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		    uint64_t z64 = ((uint64_t)w0*vs[0].z + (uint64_t)w1*vs[1].z + (uint64_t)w2*vs[2].z)/area;
 		    z = (z_t) (z64 >> Z_SHIFT);
 		    drawPixel = z <= *zptr;
+		    zbuffer_read_count++;
 		} else {
 		    // Not sure this is correct. The man page of zbuffer() says that it only affects writing.
 		    z = 0;
@@ -226,8 +255,10 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		    p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
 		    p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
 		    p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
+		    cbuffer_write_count++;
 		    if (enableZbuffer) {
 			*zptr = z;
+			zbuffer_write_count++;
 		    }
 		}
 	    }

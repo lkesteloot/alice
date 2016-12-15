@@ -103,6 +103,8 @@
 
 // For ServerDelegate:
 - (void)swapBuffers {
+    [self.backBuffer logAndClearStats];
+
     DisplayImage *tmp = self.backBuffer;
     self.backBuffer = self.frontBuffer;
     self.frontBuffer = tmp;
