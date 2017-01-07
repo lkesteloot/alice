@@ -299,11 +299,6 @@ SDRAM notes
     - Use a state machine.
     - One state is WAIT, which takes both a count and a next-state parameter.
 - To do:
-    - Write a test program for SDRAM.
-        - Write a series of words on all banks.
-        - Read them back and compare.
-        - Display error count on 7-segment display.
-    - Modify MacOS simulator to count reads/writes to memory.
-    - If SDRAM state machine gets stuck on WAIT again, try this:
-        - Renumber states.
+    - Fill RAM with a pattern.
+    - Continuously read rows and fill FIFO.
 
