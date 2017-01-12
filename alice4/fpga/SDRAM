@@ -299,6 +299,9 @@ SDRAM notes
     - Use a state machine.
     - One state is WAIT, which takes both a count and a next-state parameter.
 - To do:
+    - Read this: https://fpga4fun.com/SDRAM.html
+    - Investigate "SignalTap" tool.
     - Fill RAM with a pattern.
+        - One color per memory row. Should be just over 3 colors per screen row.
     - Continuously read rows and fill FIFO.
 
