@@ -1,5 +1,7 @@
 
 - To do:
+    - Find LCD TFT core.
+        - http://lcdfpga-capantojar.blogspot.com/p/tftlcd-lq043t3dx02-english.html
     - Decide on how to route power to both FPGA board and LCD.
     - Add pins to LCD driver board.
     - Read docs on LCD driver board. Summarize here.
@@ -16,6 +18,7 @@
         - Run it at 60 FPS.
         - Use a TFT controller instead of the VGA controller.
     - Display note:
+        - Model YX700WV03
         - Backlight will pull 9.9V at 120mA (page 10 of datasheet).
             - Six strings, so 20mA each, with 3 LEDs per string.
             - Adapter uses this:
@@ -41,7 +44,7 @@
         - Two modes:
             - HV mode:
                 - Bring VSD down between frames for ? clocks.
-                - Bring HSD down between rows for ? clocks.
+                - Bring HSD down between rows for 1? clocks.
                     - Bring down at start of VSD, then a few times more before first row.
                         See page 9.
             - DE mode:
@@ -53,6 +56,61 @@
             - Display is 3.3V for VDD and data.
             - Display is 9.9V (9.3V to 10.5V, 120mA) for backlight.
             - FPGA is 3.3V.
+        - Resources:
+            - 5" version of same LCD, I think:
+                - https://cdn-shop.adafruit.com/datasheets/KD50G21-40NT-A1.pdf
+                - 30 MHz clock.
+                - Timing on page 14.
+                - Horizontal timing (in clocks):
+                    - 928 clocks in row.
+                    - Front porch: 40
+                    - Pulse (included in back porch): 48
+                    - Back porch (blanking): 88.
+                    - That's 40 + 88 = 128 + 800 = 928 clocks per line.
+                    - DE mode horizontal blanking: 128 clocks.
+                - Vertical timing (in lines):
+                    - 525 lines in a frame.
+                    - Front porch: 13
+                    - Pulse (included in back porch): 3
+                    - Back porch (blanking): 32.
+                    - That's 13 + 32 = 45 + 480 = 525 lines per frame.
+                    - DE mode vertical blanking: 45 lines.
+                - In CVT terms:
+                    hdisplay = 800
+                    hsync_start = 800 + 40 = 840
+                    hsync_end = 800 + 40 + 48 = 888
+                    htotal = 928
+                    vdisplay = 480
+                    vsync_start = 480 + 13 = 493
+                    vsync_end = 480 + 13 + 3 = 496
+                    vtotal = 525
+                - Note that 928*525*60 = 29.232 MHz
+                - They recommend 40 MHz (page 15).
+            - Different LCD, but similar and has more info:
+                - http://www.promelec.ru/pdf/MI0700LT.pdf
+                - See pages 8 and 9.
+            - Some kind of code with parameters for this display:
+                - https://patchwork.kernel.org/patch/8666941/
+                - Parameters:
+                    .clock = 29500      // 29.5 MHz
+                    .hdisplay = 800     // 800 visible pixels across
+                    .hsync_start = 824  // HSync starts at pixel 824
+                    .hsync_end = 896    // HSync ends at pixel 992
+                    .htotal = 992       // Total horizontal clocks
+                    .vdisplay = 480     // 480 visible pixels down
+                    .vsync_start = 483  // VSync starts at row 483
+                    .vsync_end = 493    // VSync ends at row 493
+                    .vtotal = 500       // Total vertical rows
+                    .vrefresh = 60      // 60 FPS
+                - Note that 992*500*60 = 29.76 MHz
+                    - If the 29.5 MHz clock and width/height are to be believed,
+                    then the frame rate is actually 59.4758 FPS.
+                - https://en.wikipedia.org/wiki/Coordinated_Video_Timings (CVT)
+            - Forum post:
+                - http://saanlima.com/forum/viewtopic.php?f=9&t=1257
+                - 40 MHz
+                - Horizontal: front porch=40, sync width=48, back porch=40, display=800
+                - Vertical: front porch=13, sync width=3, back porch=29, display=480
     - Pins:
         - 8 red
         - 8 green
