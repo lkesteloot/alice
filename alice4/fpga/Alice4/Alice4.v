@@ -112,14 +112,14 @@ module Alice4
         output          VGA_VS,                 //  VGA V_SYNC
         output  [3:0]   VGA_R,                  //  VGA Red[3:0]
         output  [3:0]   VGA_G,                  //  VGA Green[3:0]
-        output  [3:0]   VGA_B                   //  VGA Blue[3:0]
+        output  [3:0]   VGA_B,                  //  VGA Blue[3:0]
         ////////////////////////    GPIO    ////////////////////////////////
         // input   [1:0]   GPIO0_CLKIN,            //  GPIO Connection 0 Clock In Bus
         // output  [1:0]   GPIO0_CLKOUT,           //  GPIO Connection 0 Clock Out Bus
         // inout   [31:0]  GPIO0_D,                //  GPIO Connection 0 Data Bus
         // input   [1:0]   GPIO1_CLKIN,            //  GPIO Connection 1 Clock In Bus
         // output  [1:0]   GPIO1_CLKOUT,           //  GPIO Connection 1 Clock Out Bus
-        // inout   [31:0]  GPIO1_D                 //  GPIO Connection 1 Data Bus
+        inout   [31:0]  GPIO1_D                 //  GPIO Connection 1 Data Bus
     );
 
 // Generic useful debug counter.
@@ -211,6 +211,7 @@ Vga_clock vga_clock(
 );
 
 // Generate all signals for the VGA.
+/*
 Vga_control vga_control(
     // Host Side
     .oCurrent_X(),
@@ -229,6 +230,30 @@ Vga_control vga_control(
     .oVGA_VS(VGA_VS),
     .oVGA_BLANK(),
     .oVGA_CLOCK(),
+    // Control Signal
+    .iCLK(vga_pixel_clock),
+    .iRST_N(reset_n)
+);
+*/
+
+// Generate all signals for the LCD.
+LCD_control lcd_control(
+    // Host Side
+    .iRed(m_lcd_r),
+    .iGreen(m_lcd_g),
+    .iBlue(m_lcd_b),
+    .oCurrent_X(lcd_x),
+    .oCurrent_Y(lcd_y),
+    .oAddress(),
+    .oRequest(),
+    .oTopOfScreen(),
+    // LCD Side
+    .oLCD_R(s_lcd_r),
+    .oLCD_G(s_lcd_g),
+    .oLCD_B(s_lcd_b),
+    .oLCD_HS(lcd_hs),
+    .oLCD_VS(lcd_vs),
+    .oLCD_DE(lcd_de),
     // Control Signal
     .iCLK(vga_pixel_clock),
     .iRST_N(reset_n)
@@ -442,5 +467,28 @@ always @(m_vga_x or m_vga_y)
       end
   end
 `endif
+
+// LCD test code.
+wire [9:0] lcd_x;
+wire [9:0] lcd_y;
+wire lcd_checkerboard = lcd_x[4] ^ lcd_y[4];
+wire [7:0] m_lcd_r = lcd_checkerboard ? 8'h44 : 8'h66;
+wire [7:0] m_lcd_g = lcd_checkerboard ? 8'h44 : 8'h66;
+wire [7:0] m_lcd_b = lcd_checkerboard ? 8'h44 : 8'h66;
+wire [7:0] s_lcd_r;
+wire [7:0] s_lcd_g;
+wire [7:0] s_lcd_b;
+wire lcd_hs;
+wire lcd_vs;
+wire lcd_de;
+wire lcd_display_on = 1'b1;
+assign { GPIO1_D[16:15], GPIO1_D[13:10] } = s_lcd_r[5:0];
+assign { GPIO1_D[23:19], GPIO1_D[17] } = s_lcd_g[5:0];
+assign { GPIO1_D[31], GPIO1_D[29:26], GPIO1_D[24] } = s_lcd_b[5:0];
+assign GPIO1_D[2] = vga_pixel_clock;
+assign GPIO1_D[4] = lcd_hs;
+assign GPIO1_D[5] = lcd_vs;
+assign GPIO1_D[7] = lcd_de;
+assign GPIO1_D[8] = lcd_display_on;
 
 endmodule
