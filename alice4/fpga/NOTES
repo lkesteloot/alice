@@ -1,5 +1,76 @@
 
 
+- Xilinx
+    - FPGAs
+        - https://www.xilinx.com/support/documentation/selection-guides/cost-optimized-product-selection-guide.pdf
+        - Spartan (low-cost)
+            - Retired?
+            - Spartan-3 is older.
+            - Spartan-6
+                - 45nm.
+                - Spartan-6 LX
+                    - Some have more than 4 MB block RAM.
+                - Spartan-6 LXT (with serial connectivity, PCIe)
+            - Spartan-7
+                - 28nm.
+        - Artix (low-cost)
+            - Artix-7
+                - 28nm.
+        - Zynq-7000 (with embedded ARM).
+        - Virtex (high performance)
+            - Virtex-7
+                - 28nm.
+            - Virtex UltraScale.
+                - 20nm.
+            - Virtex UltraScale+.
+                - 16nm.
+        - Kintex (mid-range)
+            - Kintex-7
+                - 28nm.
+            - Kintex UltraScale.
+                - 20nm.
+            - Kintex UltraScale+.
+                - 16nm.
+    - Boards:
+        - FS604:
+            - http://www.sioi.com.au/shop/product_info.php/cPath/30_24/products_id/47
+            - AU$59 ($44)
+            - Spartan 6 LX4
+            - 38 GPIOs.
+            - 32 MB DRAM (DDR400) (With DRAM controller IP core (DDR166))
+        - USB-FPGA Module 2.04
+            - http://www.ztex.de/usb-fpga-2/usb-fpga-2.04.e.html
+            - $130
+            - Spartan 6 XL16
+            - 96 GPIOs (0.1" female header on bottom).
+            - 64 MB DDR SDRAM (includes controller)
+            - Looks very convenient as daughter card.
+        - Papilio Pro
+            - http://retrocade.gadgetfactory.net/index.php?n=Main.PapilioPro
+            - $85 on Amazon, $75 from GadgetFactory website.
+            - Spartan 6 LX9
+            - 48 GPIOs (in Wing form factor).
+            - 8 MB SDRAM (will provide controller later?)
+        - XuLA2-LX25
+            - http://www.xess.com/shop/product/xula2-lx25/
+            - $120
+            - Spartan 6 LX25
+            - 33 I/O pins.
+            - 32 MB SDRAM (with controller interface)
+            - Seems to have nice docs and example programs, but maybe all in VHDL.
+        - Saturn:
+            - http://numato.com/saturn-spartan-6-fpga-development-board-with-ddr-sdram/
+            - $120
+            - Spartan 6 LX16 or LX45
+            - > 100 GPIOS
+            - 64 MB LPDDR.
+- Read this:
+    - http://www.xess.com/static/media/appnotes/FpgasNowWhatBook.pdf
+
+
+
+
+
 state   reset_fifo   x   y    fifo_input    wrreq   wrfull
 START       0        ?   ?        ?           0       0
 RESET       1        ?   ?        ?           0       0

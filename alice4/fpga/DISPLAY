@@ -1,9 +1,8 @@
 
 - To do:
-    - Check whether voltage levels of FPGA are compatible with TFT.
-        - Display is 3.3V for VDD and data.
-        - Display is 9.9V (9.3V to 10.5V, 180mA) for backlight.
-        - Check FPGA again.
+    - Decide on how to route power to both FPGA board and LCD.
+    - Add pins to LCD driver board.
+    - Read docs on LCD driver board. Summarize here.
 - Display:
     - Displays:
         - https://www.adafruit.com/products/2353 (no touch, $40).
@@ -17,13 +16,79 @@
         - Run it at 60 FPS.
         - Use a TFT controller instead of the VGA controller.
     - Display note:
-        - Backlight will pull 9.9V at 120mA.
+        - Backlight will pull 9.9V at 120mA (page 10 of datasheet).
             - Six strings, so 20mA each, with 3 LEDs per string.
-        - VDD is 3.3V.
-        - Clock should be 50 MHz.
-        - H driver is the source.
-        - V driver is the gate.
-        - Adapter uses this:
-            - http://www.mouser.com/ds/2/149/FAN5333B-1006807.pdf
-            - Defaults to 25mA.
-            - Add all jumpers to get 125mA (datasheet says 120mA, max 180mA).
+            - Adapter uses this:
+                - http://www.mouser.com/ds/2/149/FAN5333B-1006807.pdf
+                - Defaults to 25mA.
+                - Add all jumpers to get 125mA (datasheet says 120mA, max 180mA).
+        - Terms in the datasheet:
+            - DE = DEN = data enable. High when pixels are being fed. Goes low between
+                lines and low for a while between frames.
+            - DCLK = CLKIN = pixel clock (40 MHz, page 7 of datasheet).
+                - Keith runs it at 30-33 MHz.
+            - VDD = signal power (3.3V).
+            - VGH = Voltage of the high gate (positive voltage).
+            - VEE = Voltage of the emitter (negative voltage).
+                - The above two are in a timing diagram (7.1), but are not pins on the display,
+                    so I don't think I have to worry about that timing diagram.
+            - HSD = horizontal sync.
+            - VSD = vertical sync.
+            - I think these are internal to the LCD:
+                - STV = input vertical scan start signal.
+                - CLKV
+                - OEV
+        - Two modes:
+            - HV mode:
+                - Bring VSD down between frames for ? clocks.
+                - Bring HSD down between rows for ? clocks.
+                    - Bring down at start of VSD, then a few times more before first row.
+                        See page 9.
+            - DE mode:
+                - Raise DE at start of row, probably half a cycle before posedge of clock.
+                - Data is captured on posedge of clock.
+                - Bring down at least 2 clocks between rows.
+                - Bring down at least 2048 clocks between frames.
+        - Voltage levels:
+            - Display is 3.3V for VDD and data.
+            - Display is 9.9V (9.3V to 10.5V, 120mA) for backlight.
+            - FPGA is 3.3V.
+    - Pins:
+        - 8 red
+        - 8 green
+        - 8 blue
+        - HSync
+        - VSync
+        - Clock
+        - On/off?
+- Cobbler:
+    - Pins 2 and 4 are connected (5V0).
+        - 2 = D0
+        - 4 = D1
+    - Pins 6, 9, 14, 20, 25, 30, 34, 39 are connected (GND).
+        - 6 = D3
+        - 9 = D6
+        - 14 = D9
+        - 20 = D14
+        - 25 = D18
+        - 30 = GND
+        - 34 = D25
+        - 39 = D30
+    - This leaves 32 - 2 - 8 = 22 pins.
+    - We need 28 pins, so we're screwed.
+    - Unless we use the other connector.
+    - Or use fewer bits of color:
+        - 6 bits of each of RGB would be 6*3 + 4 = 22 pins.
+- GPIO headers:
+    - See Figure 4-14 and Table 4.8 (page 32) in User Manual.
+    - Both are 40 pins.
+        - J4 (GPIO 0) is inner one.
+        - J5 (GPIO 1) is outer one.
+    - Both provide:
+        - 36 GPIO pins.
+            - 4 PLL clock input and output.
+        - +5.0 V (measured at 4.6 V)
+        - +3.3 V (measured at 3.3 V)
+        - 2 x GND
+    - They seem symmetric. Let's pick the outer one (GPIO 1).
+
