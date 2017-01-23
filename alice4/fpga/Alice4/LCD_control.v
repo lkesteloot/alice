@@ -79,7 +79,7 @@ assign  oAddress    =   oCurrent_Y*H_ACT + oCurrent_X;
 assign  oRequest    =   H_Cont >= H_BLANK && V_Cont >= V_BLANK;
 assign  oCurrent_X  =   (H_Cont>=H_BLANK) ? H_Cont-H_BLANK : 11'h0;
 assign  oCurrent_Y  =   (V_Cont>=V_BLANK) ? V_Cont-V_BLANK : 11'h0;
-assign  oLCD_DE     =   H_Cont>=H_BLANK;
+assign  oLCD_DE     =   oRequest;
 
 
 // Latch the top-of-screen register. That means that it's one clock late,
