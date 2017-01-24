@@ -469,12 +469,17 @@ always @(m_vga_x or m_vga_y)
 `endif
 
 // LCD test code.
+reg [7:0] horiz_prescale;
+reg [2:0] color_counter;
+wire [7:0] red = color_counter[0] ? 8'hFF : 8'h00;
+wire [7:0] green = color_counter[1] ? 8'hFF : 8'h00;
+wire [7:0] blue = color_counter[2] ? 8'hFF : 8'h00;
 wire [9:0] lcd_x;
 wire [9:0] lcd_y;
 wire lcd_checkerboard = lcd_x[4] ^ lcd_y[4];
-wire [7:0] m_lcd_r = lcd_checkerboard ? 8'h44 : 8'h66;
-wire [7:0] m_lcd_g = lcd_checkerboard ? 8'h44 : 8'h66;
-wire [7:0] m_lcd_b = lcd_checkerboard ? 8'h44 : 8'h66;
+wire [7:0] m_lcd_r = lcd_checkerboard ? red : 8'h00;
+wire [7:0] m_lcd_g = lcd_checkerboard ? green : 8'h00;
+wire [7:0] m_lcd_b = lcd_checkerboard ? blue : 8'h00;
 wire [7:0] s_lcd_r;
 wire [7:0] s_lcd_g;
 wire [7:0] s_lcd_b;
@@ -490,5 +495,19 @@ assign GPIO1_D[4] = lcd_hs;
 assign GPIO1_D[5] = lcd_vs;
 assign GPIO1_D[7] = lcd_de;
 assign GPIO1_D[8] = lcd_display_on;
+
+always @(posedge vga_pixel_clock) begin
+    if (!lcd_de) begin
+        horiz_prescale <= 8'd0;
+        color_counter <= 3'd1;
+    end else begin
+        if (horiz_prescale == 8'd115) begin
+            horiz_prescale <= 8'd0;
+            color_counter <= color_counter + 3'd1;
+        end else begin
+            horiz_prescale <= horiz_prescale + 8'd1;
+        end
+    end
+end
 
 endmodule
