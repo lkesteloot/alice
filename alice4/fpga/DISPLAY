@@ -1,10 +1,16 @@
 
 - To do:
-    - Find LCD TFT core.
-        - http://lcdfpga-capantojar.blogspot.com/p/tftlcd-lq043t3dx02-english.html
-    - Decide on how to route power to both FPGA board and LCD.
-    - Add pins to LCD driver board.
-    - Read docs on LCD driver board. Summarize here.
+    - Read Keith's code.
+        - In Downloads.
+    - Double-check FPS. Should be 50.7.
+        - Maybe mess with PLL to get 60 FPS?
+    - Decide on how to route power to both FPGA board and LCD driver board.
+    - Short 3 resistors on back of LCD driver board to get 120 mA.
+    - Add remaining wires (17 of them).
+    - Implement more interesting (non-BW) pattern.
+        - Look at Downloads/early_lcd_drive.v for how to make vertical bars.
+    - Switch LCD over to VGA FIFO code.
+    - Remove VGA code.
 - Display:
     - Displays:
         - https://www.adafruit.com/products/2353 (no touch, $40).
@@ -25,6 +31,8 @@
                 - http://www.mouser.com/ds/2/149/FAN5333B-1006807.pdf
                 - Defaults to 25mA.
                 - Add all jumpers to get 125mA (datasheet says 120mA, max 180mA).
+            - Backlight will pull 9.9V x 120mA = 1.2W.
+            - Input to driver should be 1.2W/5V = 240mA.
         - Terms in the datasheet:
             - DE = DEN = data enable. High when pixels are being fed. Goes low between
                 lines and low for a while between frames.
@@ -117,8 +125,10 @@
         - 8 blue
         - HSync
         - VSync
+        - DE
         - Clock
-        - On/off?
+        - Display on/off
+        - Total: 3*8 + 5 = 29 pins
 - Cobbler:
     - Pins 2 and 4 are connected (5V0).
         - 2 = D0
@@ -132,11 +142,35 @@
         - 30 = GND
         - 34 = D25
         - 39 = D30
-    - This leaves 32 - 2 - 8 = 22 pins.
-    - We need 28 pins, so we're screwed.
+    - This leaves 32 - 2 - 7 = 23 pins.
+    - We need 29 pins, so we're screwed.
     - Unless we use the other connector.
     - Or use fewer bits of color:
-        - 6 bits of each of RGB would be 6*3 + 4 = 22 pins.
+        - 6 bits of each of RGB would be 6*3 + 5 = 23 pins.
+    - Assignment:
+        - D2: Clock
+        - D4: HS
+        - D5: VS
+        - D7: DE
+        - D8: Display on
+        - D10: R2
+        - D11: R3
+        - D12: R4
+        - D13: R5
+        - D15: R6
+        - D16: R7
+        - D17: G2
+        - D19: G3
+        - D20: G4
+        - D21: G5
+        - D22: G6
+        - D23: G7
+        - D24: B2
+        - D26: B3
+        - D27: B4
+        - D28: B5
+        - D29: B6
+        - D31: B7
 - GPIO headers:
     - See Figure 4-14 and Table 4.8 (page 32) in User Manual.
     - Both are 40 pins.
