@@ -1,14 +1,5 @@
 
 - To do:
-    - Read Keith's code.
-        - In Downloads.
-    - Double-check FPS. Should be 50.7.
-        - Maybe mess with PLL to get 60 FPS?
-    - Decide on how to route power to both FPGA board and LCD driver board.
-    - Short 3 resistors on back of LCD driver board to get 120 mA.
-    - Add remaining wires (17 of them).
-    - Implement more interesting (non-BW) pattern.
-        - Look at Downloads/early_lcd_drive.v for how to make vertical bars.
     - Switch LCD over to VGA FIFO code.
     - Remove VGA code.
 - Display:
