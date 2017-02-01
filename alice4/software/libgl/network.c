@@ -19,6 +19,7 @@ static int trace_network = 0;
 static uint8_t buffer[BUFFER_SIZE];
 static int buffer_length = 0;
 
+
 // For connection.h.
 void open_connection() {
     struct sockaddr_in sa;
@@ -33,14 +34,21 @@ void open_connection() {
     memset(&sa, 0, sizeof sa);
 
     sa.sin_family = AF_INET;
-    sa.sin_port = htons(25423);
-    res = inet_pton(AF_INET, "127.0.0.1", &sa.sin_addr);
+    if(getenv("PORT"))
+        sa.sin_port = htons(atoi(getenv("PORT")));
+    else
+        sa.sin_port = htons(25423);
+    if(getenv("ADDR"))
+        res = inet_pton(AF_INET, getenv("ADDR"), &sa.sin_addr);
+    else
+        res = inet_pton(AF_INET, "127.0.0.1", &sa.sin_addr);
 
     if (connect(socket_fd, (struct sockaddr *)&sa, sizeof sa) == -1) {
         perror("connect failed");
         close(socket_fd);
         exit(EXIT_FAILURE);
     }
+
 }
 
 // For connection.h.

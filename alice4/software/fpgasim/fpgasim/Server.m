@@ -14,7 +14,8 @@
 #import "device.h"
 #import "driver.h"
 
-#define PORT 25423
+//#define PORT 25423
+short PORT = 25423;
 #define MAX_BUFFER 128
 #define BYTES_PER_VERTEX 12
 
@@ -96,6 +97,11 @@ void handleConnect(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 
     // Bind the socket.
     struct sockaddr_in sin;
+    
+    if(getenv("PORT") != NULL) {
+        PORT = atoi(getenv("PORT"));
+        printf("PORT = %d\n", PORT);
+    }
 
     memset(&sin, 0, sizeof(sin));
     sin.sin_len = sizeof(sin);
