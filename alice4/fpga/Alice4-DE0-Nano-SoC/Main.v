@@ -1,9 +1,9 @@
 
-//`define enable_ADC
-//`define enable_ARDUINO
-//`define enable_GPIO0
-//`define enable_GPIO1
-//`define enable_HPS
+//`define ENABLE_ADC
+//`define ENABLE_ARDUINO
+`define ENABLE_GPIO0
+//`define ENABLE_GPIO1
+//`define ENABLE_HPS
 
 module Main(
         //////////// CLOCK //////////
@@ -11,7 +11,7 @@ module Main(
         input clock2_50,
         input clock3_50,
 
-`ifdef enable_ADC
+`ifdef ENABLE_ADC
         //////////// ADC //////////
         /* 3.3-V LVTTL */
         output adc_convst,
@@ -20,26 +20,26 @@ module Main(
         input adc_sdo,
 `endif
         
-`ifdef enable_ARDUINO
+`ifdef ENABLE_ARDUINO
         //////////// ARDUINO ////////////
         /* 3.3-V LVTTL */
         inout [15:0] arduino_io,
         inout arduino_reset_n,
 `endif
         
-`ifdef enable_GPIO0
+`ifdef ENABLE_GPIO0
         //////////// GPIO 0 ////////////
         /* 3.3-V LVTTL */
         inout [35:0] gpio_0,
 `endif
 
-`ifdef enable_GPIO1     
+`ifdef ENABLE_GPIO1     
         //////////// GPIO 1 ////////////
         /* 3.3-V LVTTL */
         inout [35:0] gpio_1,
 `endif
 
-`ifdef enable_HPS
+`ifdef ENABLE_HPS
         //////////// HPS //////////
         /* 3.3-V LVTTL */
         inout hps_conv_usb_n,
@@ -110,12 +110,66 @@ module Main(
         input [3:0] sw
 );
 
-reg [23:0] counter;
+    // Debug LED blink.
+    reg [23:0] counter;
+    always @(posedge clock_50) begin
+       counter <= counter + 1;
+    end
+    assign led[0] = counter[23];
 
-always @(posedge clock_50) begin
-   counter <= counter + 1;
-end
+    // Reset.
+    wire reset_n = key[0];
 
-assign led[0] = counter[23];
+    // Generate signals for the LCD.
+    wire [9:0] lcd_x;
+    wire [9:0] lcd_y;
+    wire [7:0] lcd_red;
+    wire [7:0] lcd_green;
+    wire [7:0] lcd_blue;
+    reg lcd_clock;
+    wire lcd_data_enable;
+    wire lcd_hs_n;
+    wire lcd_vs_n;
+    wire lcd_display_on = sw[0];
+    LCD_control lcd_control(
+        .clock(clock_50),
+        .tick(lcd_clock),
+        .reset_n(reset_n),
+        .x(lcd_x),
+        .y(lcd_y),
+        .address(),
+        .next_frame(),
+        .hs_n(lcd_hs_n),
+        .vs_n(lcd_vs_n),
+        .data_enable(lcd_data_enable)
+    );
+    LCD_test lcd_test(
+        .clock(clock_50),
+        .x(lcd_x),
+        .y(lcd_y),
+        .red(lcd_red),
+        .green(lcd_green),
+        .blue(lcd_blue)
+    );
+
+    // GPIO pins.
+    assign gpio_0[4] = lcd_clock;
+    assign gpio_0[6] = lcd_hs_n;
+    assign gpio_0[7] = lcd_vs_n;
+    assign gpio_0[9] = lcd_data_enable;
+    assign gpio_0[10] = lcd_display_on;
+    assign gpio_0[15:12] = lcd_red[5:2];
+    assign gpio_0[20:19] = lcd_red[7:6];
+    assign gpio_0[21] = lcd_green[2];
+    assign gpio_0[27:23] = lcd_green[7:3];
+    assign gpio_0[28] = lcd_blue[2];
+    assign gpio_0[33:30] = lcd_blue[6:3];
+    assign gpio_0[35] = lcd_blue[7];
+
+    // LCD clock.
+    always @(posedge clock_50) begin
+        // 25 MHz.
+        lcd_clock <= ~lcd_clock;
+    end
 
 endmodule
