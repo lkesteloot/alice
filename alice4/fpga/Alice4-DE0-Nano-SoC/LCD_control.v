@@ -13,7 +13,7 @@ module LCD_control(
     output reg next_frame,      // 1 when between frames.
     output reg lcd_hs_n,        // Horizontal sync, active low.
     output reg lcd_vs_n,        // Vertical sync, active low.
-    output data_enable,         // Whether we need a pixel right now.
+    output data_enable          // Whether we need a pixel right now.
 );
 
 // There are two internal registers, h and v. They are 0-based. The
