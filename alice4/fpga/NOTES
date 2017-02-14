@@ -1,4 +1,11 @@
 
+- Naming conventions:
+    - Registers and wires: all lower case with underscores.
+    - Modules: Sentence capitalization (first letter only) with underscores.
+    - Constants: All caps.
+    - Active low: _n suffix (reset_n).
+    - Inputs: No change.
+    - Outputs: No change.
 
 - Xilinx
     - FPGAs
