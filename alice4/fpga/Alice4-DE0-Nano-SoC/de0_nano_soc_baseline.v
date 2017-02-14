@@ -39,11 +39,10 @@
 
 module de0_nano_soc_baseline(
 
-
 	//////////// CLOCK //////////
-	input 		          		FPGA_CLK_50,
-	input 		          		FPGA_CLK2_50,
-	input 		          		FPGA_CLK3_50,
+	input 		          		CLOCK_50,
+	input 		          		CLOCK2_50,
+	input 		          		CLOCK3_50,
 
 `ifdef enable_ADC
 	//////////// ADC //////////
@@ -144,4 +143,13 @@ module de0_nano_soc_baseline(
 	input				[3:0]			SW
 
 );
+
+reg [23:0] counter;
+
+always @(posedge CLOCK_50) begin
+   counter <= counter + 1;
+end
+
+assign LED[0] = counter[23];
+
 endmodule
