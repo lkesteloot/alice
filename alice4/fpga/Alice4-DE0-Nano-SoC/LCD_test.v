@@ -12,8 +12,8 @@ module LCD_test(
 
     wire checkerboard = x[4] ^ y[4];
 
-    assign red = checkerboard ? 8'h66 : 8'h44;
-    assign green = checkerboard ? 8'h66 : 8'h44;
-    assign blue = checkerboard ? 8'h66 : 8'h44;
+    assign red = checkerboard ? 8'h80 : 8'h00;
+    assign green = checkerboard ? 8'h80 : 8'h00;
+    assign blue = checkerboard ? 8'h80 : 8'h00;
 
 endmodule
