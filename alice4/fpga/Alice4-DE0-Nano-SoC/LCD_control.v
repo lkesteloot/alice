@@ -112,8 +112,8 @@ module LCD_control(
             end
             
             // Latch output registers.
-            x <= h_visible ? h - H_BLANK : 11'h0;
-            y <= v_visible ? v - V_BLANK : 11'h0;
+            x <= h_visible ? h - H_BLANK : 10'h0;
+            y <= v_visible ? v - V_BLANK : 10'h0;
             data_enable <= h_visible && v_visible;
         end
     end

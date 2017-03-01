@@ -113,7 +113,7 @@ module Main(
     // Debug LED blink.
     reg [23:0] counter;
     always @(posedge clock_50) begin
-       counter <= counter + 1;
+       counter <= counter + 1'b1;
     end
     assign led[0] = counter[23];
 
@@ -124,12 +124,6 @@ module Main(
     wire [9:0] lcd_x;
     wire [9:0] lcd_y;
     reg lcd_clock;
-    wire [7:0] lcd_red_next;
-    wire [7:0] lcd_green_next;
-    wire [7:0] lcd_blue_next;
-    reg [7:0] lcd_red;
-    reg [7:0] lcd_green;
-    reg [7:0] lcd_blue;
     wire lcd_data_enable;
     wire lcd_hs_n;
     wire lcd_vs_n;
@@ -145,14 +139,54 @@ module Main(
         .vs_n(lcd_vs_n),
         .data_enable(lcd_data_enable)
     );
-    LCD_test lcd_test(
-        .clock(clock_50),
+    
+    // Generate character locations.
+    wire [6:0] text_column;
+    wire [5:0] text_row;
+    wire [2:0] character_column;
+    wire [3:0] character_row;
+    LCD_text #(.LOG2_SCALE(2)) lcd_text(
         .x(lcd_x),
         .y(lcd_y),
-        .red(lcd_red_next),
-        .green(lcd_green_next),
-        .blue(lcd_blue_next)
+        .column(text_column),
+        .row(text_row),
+        .character_column(character_column),
+        .character_row(character_row)
     );
+    
+    // Generate characters themselves.
+    wire [6:0] character;
+    LCD_test lcd_test(
+        .column(text_column),
+        .row(text_row),
+        .character(character)
+    );
+    
+    // Generate pixels.
+    wire character_bw;
+    LCD_font lcd_font(
+        .clock(clock_50),
+        .character(character),
+        .character_column(character_column),
+        .character_row(character_row),
+        .bw(character_bw)
+    );
+    
+    // Color assignment. Latch these for clean output.
+    reg [7:0] lcd_red;
+    reg [7:0] lcd_green;
+    reg [7:0] lcd_blue;
+    wire [7:0] gray = character_bw ? 8'h80 : 8'h00;
+    wire [7:0] lcd_red_next = gray;
+    wire [7:0] lcd_green_next = gray;
+    wire [7:0] lcd_blue_next = gray;
+    always @(posedge clock_50) begin
+        if (lcd_clock) begin
+            lcd_red <= lcd_red_next;
+            lcd_green <= lcd_green_next;
+            lcd_blue <= lcd_blue_next;
+        end
+    end
 
     // GPIO pins.
     assign gpio_0[4] = lcd_clock;
@@ -172,15 +206,6 @@ module Main(
     always @(posedge clock_50) begin
         // 25 MHz.
         lcd_clock <= ~lcd_clock;
-    end
-    
-    // Latch color output.
-    always @(posedge clock_50) begin
-        if (lcd_clock) begin
-            lcd_red <= lcd_red_next;
-            lcd_green <= lcd_green_next;
-            lcd_blue <= lcd_blue_next;
-        end
     end
 
 endmodule
