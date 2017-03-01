@@ -1,20 +1,18 @@
 // Driver for an LCD TFT display. Specifically, this was written to drive
 // the AdaFruit YX700WV03, which is an 800x480 7" display. It's driven
-// like a VGA monitor, but with digital color values, separate horizontal and
-// vertical sync signals, a data enable signal, a clock, and with different
-// timings.
+// like a VGA monitor, but with digital color values, a data enable signal,
+// and a clock.
 
 module LCD_control(
-    input clock,                // System clock.
-    input tick,                 // LCD clock (synchronous with system clock).
-    input reset_n,              // Asynchronous reset, active low.
-    output [9:0] x,             // On-screen X pixel location.
-    output [9:0] y,             // On-screen Y pixel location.
-    output [21:0] address,      // y*width + x.
-    output reg next_frame,      // 1 when between frames.
-    output reg hs_n,            // Horizontal sync, active low.
-    output reg vs_n,            // Vertical sync, active low.
-    output data_enable          // Whether we need a pixel right now.
+    input wire clock,                // System clock.
+    input wire tick,                 // LCD clock (synchronous with system clock).
+    input wire reset_n,              // Asynchronous reset, active low.
+    output reg [9:0] x,              // On-screen X pixel location.
+    output reg [9:0] y,              // On-screen Y pixel location.
+    output reg next_frame,           // 1 when between frames.
+    output reg hs_n,                 // Horizontal sync, active low.
+    output reg vs_n,                 // Vertical sync, active low.
+    output reg data_enable           // Whether we need a pixel right now.
 );
 
     // There are two internal registers, h and v. They are 0-based. The
@@ -59,10 +57,6 @@ module LCD_control(
     reg [10:0] v;
     wire h_visible = h >= H_BLANK;
     wire v_visible = v >= V_BLANK;
-    assign data_enable = h_visible && v_visible;
-    assign x = h_visible ? h - H_BLANK : 11'h0;
-    assign y = v_visible ? v - V_BLANK : 11'h0;
-    assign address = y*H_ACT + x;
 
     // Latch the next_frame register. This will be true two pixels after the 
     // last visible pixel.
@@ -72,12 +66,16 @@ module LCD_control(
         end
     end
 
+    // Walk through screen.
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
             h <= 0;
             v <= 0;
             hs_n <= 1;
             vs_n <= 1;
+            x <= 0;
+            y <= 0;
+            data_enable <= 0;
         end else if (tick) begin
             // Advance pixel.
             if (h < H_TOTAL - 1) begin
@@ -112,6 +110,11 @@ module LCD_control(
                 // Sync pulse end.
                 hs_n <= 1'b1;
             end
+            
+            // Latch output registers.
+            x <= h_visible ? h - H_BLANK : 11'h0;
+            y <= v_visible ? v - V_BLANK : 11'h0;
+            data_enable <= h_visible && v_visible;
         end
     end
 

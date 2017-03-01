@@ -123,10 +123,13 @@ module Main(
     // Generate signals for the LCD.
     wire [9:0] lcd_x;
     wire [9:0] lcd_y;
-    wire [7:0] lcd_red;
-    wire [7:0] lcd_green;
-    wire [7:0] lcd_blue;
     reg lcd_clock;
+    wire [7:0] lcd_red_next;
+    wire [7:0] lcd_green_next;
+    wire [7:0] lcd_blue_next;
+    reg [7:0] lcd_red;
+    reg [7:0] lcd_green;
+    reg [7:0] lcd_blue;
     wire lcd_data_enable;
     wire lcd_hs_n;
     wire lcd_vs_n;
@@ -137,7 +140,6 @@ module Main(
         .reset_n(reset_n),
         .x(lcd_x),
         .y(lcd_y),
-        .address(),
         .next_frame(),
         .hs_n(lcd_hs_n),
         .vs_n(lcd_vs_n),
@@ -147,9 +149,9 @@ module Main(
         .clock(clock_50),
         .x(lcd_x),
         .y(lcd_y),
-        .red(lcd_red),
-        .green(lcd_green),
-        .blue(lcd_blue)
+        .red(lcd_red_next),
+        .green(lcd_green_next),
+        .blue(lcd_blue_next)
     );
 
     // GPIO pins.
@@ -170,6 +172,15 @@ module Main(
     always @(posedge clock_50) begin
         // 25 MHz.
         lcd_clock <= ~lcd_clock;
+    end
+    
+    // Latch color output.
+    always @(posedge clock_50) begin
+        if (lcd_clock) begin
+            lcd_red <= lcd_red_next;
+            lcd_green <= lcd_green_next;
+            lcd_blue <= lcd_blue_next;
+        end
     end
 
 endmodule

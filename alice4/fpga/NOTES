@@ -4,8 +4,9 @@
     - Modules: Sentence capitalization (first letter only) with underscores.
     - Constants: All caps.
     - Active low: _n suffix (reset_n).
-    - Inputs: No change.
-    - Outputs: No change.
+    - Input parameters: No special syntax.
+    - Output parameters: No special syntax.
+    - Always specify "wire" or "reg" in parameters.
 
 - Xilinx
     - FPGAs
