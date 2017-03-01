@@ -157,6 +157,8 @@ module Main(
     // Generate characters themselves.
     wire [6:0] character;
     LCD_test lcd_test(
+        .clock(clock_50),
+        .reset_n(reset_n),
         .column(text_column),
         .row(text_row),
         .character(character)
