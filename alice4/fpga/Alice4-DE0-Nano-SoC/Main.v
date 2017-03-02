@@ -178,7 +178,7 @@ module Main(
     reg [7:0] lcd_red;
     reg [7:0] lcd_green;
     reg [7:0] lcd_blue;
-    wire [7:0] gray = character_bw ? 8'h80 : 8'h00;
+    wire [7:0] gray = character_bw ? 8'hFF : 8'h00;
     wire [7:0] lcd_red_next = gray;
     wire [7:0] lcd_green_next = gray;
     wire [7:0] lcd_blue_next = gray;

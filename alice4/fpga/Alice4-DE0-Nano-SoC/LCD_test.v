@@ -23,7 +23,7 @@ always @(posedge clock or negedge reset_n) begin
         counter <= 1'b0;
         display <= 16'h0000;
     end else begin
-        if (counter == 49_000_000) begin
+        if (counter == 4_999_999) begin
             counter <= 0;
             display <= display + 1'b1;
         end else begin
