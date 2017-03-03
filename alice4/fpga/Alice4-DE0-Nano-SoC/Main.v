@@ -3,7 +3,7 @@
 //`define ENABLE_ARDUINO
 `define ENABLE_GPIO0
 //`define ENABLE_GPIO1
-//`define ENABLE_HPS
+`define ENABLE_HPS
 
 module Main(
         //////////// CLOCK //////////
@@ -125,6 +125,27 @@ module Main(
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
          .gp_in(32'h76543210),
          .gp_out(hps_value)
+    );
+
+    // Interface to HPS.
+    soc_system soc_system_instance(
+        .clk_clk(clock_50),
+        .memory_mem_a(hps_ddr3_addr),
+        .memory_mem_ba(hps_ddr3_ba),
+        .memory_mem_ck(hps_ddr3_ck_p),
+        .memory_mem_ck_n(hps_ddr3_ck_n),
+        .memory_mem_cke(hps_ddr3_cke),
+        .memory_mem_cs_n(hps_ddr3_cs_n),
+        .memory_mem_ras_n(hps_ddr3_ras_n),
+        .memory_mem_cas_n(hps_ddr3_cas_n),
+        .memory_mem_we_n(hps_ddr3_we_n),
+        .memory_mem_reset_n(hps_ddr3_reset_n),
+        .memory_mem_dq(hps_ddr3_dq),
+        .memory_mem_dqs(hps_ddr3_dqs_p),
+        .memory_mem_dqs_n(hps_ddr3_dqs_n),
+        .memory_mem_odt(hps_ddr3_odt),
+        .memory_mem_dm(hps_ddr3_dm),
+        .memory_oct_rzqin(hps_ddr3_rzq)
     );
 
     // Generate signals for the LCD.
