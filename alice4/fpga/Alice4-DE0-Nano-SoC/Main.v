@@ -120,6 +120,13 @@ module Main(
     // Reset.
     wire reset_n = key[0];
 
+    // Get data from the HPS.
+    wire [31:0] hps_value;
+    cyclonev_hps_interface_mpu_general_purpose h2f_gp(
+         .gp_in(32'h76543210),
+         .gp_out(hps_value)
+    );
+
     // Generate signals for the LCD.
     wire [9:0] lcd_x;
     wire [9:0] lcd_y;
@@ -158,13 +165,13 @@ module Main(
     wire [6:0] character;
     wire [31:0] value0 = 32'h01234567;
     wire [31:0] value1 = 32'h89ABCDEF;
-    wire [31:0] value2 = 32'hDEADBEEF;
+    /// wire [31:0] value2 = 32'hDEADBEEF;
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
         .value0(value0),
         .value1(value1),
-        .value2(value2),
+        .value2(hps_value),
         .character(character)
     );
     
