@@ -156,11 +156,15 @@ module Main(
     
     // Generate characters themselves.
     wire [6:0] character;
-    LCD_test lcd_test(
-        .clock(clock_50),
-        .reset_n(reset_n),
+    wire [31:0] value0 = 32'h01234567;
+    wire [31:0] value1 = 32'h89ABCDEF;
+    wire [31:0] value2 = 32'hDEADBEEF;
+    LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
+        .value0(value0),
+        .value1(value1),
+        .value2(value2),
         .character(character)
     );
     

@@ -595,4 +595,5 @@ set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name VERILOG_FILE LCD_text.v
 set_global_assignment -name VERILOG_FILE LCD_font.v
 set_global_assignment -name VERILOG_FILE Binary_to_hex.v
+set_global_assignment -name VERILOG_FILE LCD_debug.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
