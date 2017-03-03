@@ -219,14 +219,14 @@ set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_dq[28]
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_dq[29]
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_dq[30]
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_dq[31]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_N[0]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_N[1]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_N[2]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_N[3]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_P[0]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_P[1]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_P[2]
-set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqS_P[3]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_n[0]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_n[1]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_n[2]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_n[3]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_p[0]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_p[1]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_p[2]
+set_instance_assignment -name IO_STANDARD "DIFFERENTIAL 1.5-V SSTL CLASS I" -to hps_ddr3_dqs_p[3]
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_odt
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_ras_n
 set_instance_assignment -name IO_STANDARD "SSTL-15 CLASS I" -to hps_ddr3_reset_n
@@ -343,22 +343,22 @@ set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATIO
 set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dq[30]
 set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dq[31]
 set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dq[31]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[0]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[0]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[1]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[1]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[2]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[2]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[3]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_P[3]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[0]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[0]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[1]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[1]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[2]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[2]
-set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[3]
-set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqS_N[3]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[0]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[0]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[1]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[1]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[2]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[2]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[3]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_p[3]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[0]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[0]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[1]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[1]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[2]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[2]
+set_instance_assignment -name INPUT_TERMINATION "PARALLEL 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[3]
+set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITH CALIBRATION" -to hps_ddr3_dqs_n[3]
 set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITHOUT CALIBRATION" -to hps_ddr3_ck_p
 set_instance_assignment -name D5_DELAY 2 -to hps_ddr3_ck_p
 set_instance_assignment -name OUTPUT_TERMINATION "SERIES 50 OHM WITHOUT CALIBRATION" -to hps_ddr3_ck_n
@@ -583,15 +583,17 @@ set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+
+
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+
+set_global_assignment -name QSYS_FILE soc_system.qsys
 set_global_assignment -name VERILOG_FILE LCD_test.v
 set_global_assignment -name VERILOG_FILE LCD_control.v
 set_global_assignment -name VERILOG_FILE Main.v
 set_global_assignment -name CDF_FILE "Alice4-DE0-Nano-SoC.cdf"
-set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
-
-
 set_global_assignment -name VERILOG_FILE Font_ROM.v
-set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name VERILOG_FILE LCD_text.v
 set_global_assignment -name VERILOG_FILE LCD_font.v
 set_global_assignment -name VERILOG_FILE Binary_to_hex.v
