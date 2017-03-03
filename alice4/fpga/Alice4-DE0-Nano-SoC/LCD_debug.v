@@ -53,6 +53,7 @@ always @(*) begin
             7'd3: character <= 7'h63;
             7'd4: character <= 7'h65;
             7'd6: character <= 7'h34;
+            7'd8: character <= 7'h03;
             default: character <= 7'h20;
         endcase
     end else if (row >= 6'd2 && row <= 6'd4) begin
