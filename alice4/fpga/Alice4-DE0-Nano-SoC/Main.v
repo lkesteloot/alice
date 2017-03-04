@@ -8,8 +8,8 @@
 module Main(
         //////////// CLOCK //////////
         input clock_50,
-        input clock2_50,
-        input clock3_50,
+        /// input clock2_50,   // Not assigned in SDC file.
+        /// input clock3_50,   // Not assigned in SDC file.
 
 `ifdef ENABLE_ADC
         //////////// ADC //////////
@@ -123,11 +123,20 @@ module Main(
     // Get data from the HPS.
     wire [31:0] hps_value;
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
-         .gp_in(32'h76543210),
-         .gp_out(hps_value)
+         .gp_in(32'h76543210), // Value to the HPS (continuous).
+         .gp_out(hps_value)    // Value from the HPS (latched).
     );
 
     // Interface to HPS.
+    wire [28:0] sdram_address;
+    wire [7:0] sdram_burstcount;
+    wire sdram_waitrequest;
+    wire [63:0] sdram_readdata;
+    wire sdram_readdatavalid;
+    wire sdram_read;
+    wire [63:0] sdram_writedata;
+    wire [7:0] sdram_byteenable;
+    wire sdram_write;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         .memory_mem_a(hps_ddr3_addr),
@@ -145,7 +154,35 @@ module Main(
         .memory_mem_dqs_n(hps_ddr3_dqs_n),
         .memory_mem_odt(hps_ddr3_odt),
         .memory_mem_dm(hps_ddr3_dm),
-        .memory_oct_rzqin(hps_ddr3_rzq)
+        .memory_oct_rzqin(hps_ddr3_rzq),
+        .hps_0_f2h_sdram0_data_address(sdram_address),
+        .hps_0_f2h_sdram0_data_burstcount(sdram_burstcount),
+        .hps_0_f2h_sdram0_data_waitrequest(sdram_waitrequest),
+        .hps_0_f2h_sdram0_data_readdata(sdram_readdata),
+        .hps_0_f2h_sdram0_data_readdatavalid(sdram_readdatavalid),
+        .hps_0_f2h_sdram0_data_read(sdram_read),
+        .hps_0_f2h_sdram0_data_writedata(sdram_writedata),
+        .hps_0_f2h_sdram0_data_byteenable(sdram_byteenable),
+        .hps_0_f2h_sdram0_data_write(sdram_write)
+    );
+
+    // SDRAM test module.
+    wire [31:0] sdram_debug_value0;
+    wire [31:0] sdram_debug_value1;
+    SDRAM_test sdram_test(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .address(sdram_address),
+        .burstcount(sdram_burstcount),
+        .waitrequest(sdram_waitrequest),
+        .readdata(sdram_readdata),
+        .readdatavalid(sdram_readdatavalid),
+        .read(sdram_read),
+        .writedata(sdram_writedata),
+        .byteenable(sdram_byteenable),
+        .write(sdram_write),
+        .debug_value0(sdram_debug_value0),
+        .debug_value1(sdram_debug_value1)
     );
 
     // Generate signals for the LCD.
@@ -190,8 +227,8 @@ module Main(
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
-        .value0(value0),
-        .value1(value1),
+        .value0(sdram_debug_value0),
+        .value1(sdram_debug_value1),
         .value2(hps_value),
         .character(character)
     );

@@ -588,6 +588,7 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 
+set_global_assignment -name SDC_FILE "Alice4-DE0-Nano-SoC.sdc"
 set_global_assignment -name QSYS_FILE soc_system.qsys
 set_global_assignment -name VERILOG_FILE LCD_test.v
 set_global_assignment -name VERILOG_FILE LCD_control.v
@@ -598,4 +599,5 @@ set_global_assignment -name VERILOG_FILE LCD_text.v
 set_global_assignment -name VERILOG_FILE LCD_font.v
 set_global_assignment -name VERILOG_FILE Binary_to_hex.v
 set_global_assignment -name VERILOG_FILE LCD_debug.v
+set_global_assignment -name VERILOG_FILE SDRAM_test.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
