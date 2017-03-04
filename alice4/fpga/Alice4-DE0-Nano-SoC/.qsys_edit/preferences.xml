@@ -3,11 +3,10 @@
  <debug showDebugMenu="0" />
  <systemtable filter="All Interfaces">
   <columns>
-   <connections preferredWidth="111" />
+   <connections preferredWidth="79" />
    <irq preferredWidth="34" />
   </columns>
  </systemtable>
- <library
-   expandedCategories="Library/University Program/Audio &amp; Video/Video,Library,Library/University Program,Library/University Program/Audio &amp; Video,Library/Qsys Interconnect,Library/Qsys Interconnect/Memory-Mapped,Project,Project/System,Library/Processors and Peripherals" />
+ <library expandedCategories="Library,Project" />
  <window width="2010" height="1149" x="0" y="0" />
 </preferences>
