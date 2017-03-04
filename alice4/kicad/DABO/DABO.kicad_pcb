@@ -203,9 +203,9 @@
     (add_net Y-)
   )
 
-  (module SMPTE610:Adafruit_SMPTE610 (layer F.Cu) (tedit 58BA1A44) (tstamp 58B93337)
+  (module STMPE610:Adafruit_STMPE610 (layer F.Cu) (tedit 58BA1A44) (tstamp 58B93337)
     (at 149.745 110.9)
-    (descr "Adafruit SMPTE610 breakout")
+    (descr "Adafruit STMPE610 breakout")
     (tags "dil dip 2.54 400")
     (path /58B90B31)
     (fp_text reference U1 (at 8.82 14.09 90) (layer F.SilkS)
