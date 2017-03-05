@@ -56,6 +56,6 @@ LibName26=opto
 LibName27=atmel
 LibName28=contrib
 LibName29=valves
-LibName30=/Users/grantham/trees/alice/alice4/kicad/touchscreen_controller
+LibName30=../touchscreen_controller
 [general]
 version=1
