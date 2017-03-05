@@ -153,13 +153,13 @@
         - R5           D10  13 | 14   D11   G5
         - R6           D12  15 | 16   D13   G6
         - R7           D14  17 | 18   D15   G7
-        - B0           D16  19 | 20   D17   VGA_CLOCK
+        - B0           D16  19 | 20   D17   LCD_CLOCK
         - B1           D18  21 | 22   D19   DISPLAY_ON
         - B2           D20  23 | 24   D21   HSYNC
         - B3           D22  25 | 26   D23   VSYNC
         - B4           D24  27 | 28   D25   DISPLAY_ENABLE
         - N.C.         3.3V 29 | 30   GND   GND
-        - B5           D26  31 | 32   D27   N.C.
+        - B5           D26  31 | 32   D27   BACKLIGHT_PWM
         - B6           D28  33 | 34   D29   N.C.
         - B7           D30  35 | 36   D31   N.C.
         - INT          D32  37 | 38   D33   N.C.

@@ -176,11 +176,11 @@ B6
 Text GLabel 2900 3825 0    60   Input ~ 0
 B7
 Text GLabel 2900 3925 0    60   BiDi ~ 0
-X+
+X-
 Text GLabel 2900 4025 0    60   BiDi ~ 0
 Y-
 Text GLabel 2900 4125 0    60   BiDi ~ 0
-X-
+X+
 Text GLabel 2900 4225 0    60   BiDi ~ 0
 Y+
 $Comp
@@ -243,11 +243,11 @@ DISPLAY_ENABLE
 Text GLabel 5125 2950 0    60   BiDi ~ 0
 X+
 Text GLabel 5125 3050 0    60   BiDi ~ 0
-Y-
+Y+
 Text GLabel 5125 3150 0    60   BiDi ~ 0
 X-
 Text GLabel 5125 3250 0    60   BiDi ~ 0
-Y+
+Y-
 Text GLabel 7500 3125 0    60   Input ~ 0
 R0
 Text GLabel 7500 3225 0    60   Input ~ 0
@@ -279,7 +279,6 @@ B5
 NoConn ~ 7500 4525
 NoConn ~ 3700 2525
 NoConn ~ 3700 2625
-NoConn ~ 3700 2725
 NoConn ~ 3700 2825
 Text GLabel 7500 4725 0    60   Input ~ 0
 B6
@@ -294,7 +293,7 @@ SDA
 Text GLabel 7500 5025 0    60   Output ~ 0
 SCL
 Text GLabel 3700 3825 2    60   Input ~ 0
-VGA_CLK
+LCD_CLK
 Text GLabel 8000 3125 2    60   Input ~ 0
 G0
 Text GLabel 8000 3225 2    60   Input ~ 0
@@ -312,7 +311,7 @@ G6
 Text GLabel 8000 3925 2    60   Input ~ 0
 G7
 Text GLabel 8000 4025 2    60   Input ~ 0
-VGA_CLK
+LCD_CLK
 Text GLabel 8000 4125 2    60   Input ~ 0
 DISPLAY_ON
 Text GLabel 8000 4225 2    60   Input ~ 0
@@ -351,7 +350,6 @@ Text GLabel 6225 3400 2    60   Output ~ 0
 INT
 Text GLabel 7500 4925 0    60   Input ~ 0
 INT
-NoConn ~ 8000 4625
 NoConn ~ 8000 4725
 NoConn ~ 8000 4825
 NoConn ~ 8000 4925
@@ -424,4 +422,52 @@ NoConn ~ 7475 2025
 NoConn ~ 7475 1925
 NoConn ~ 7475 1725
 NoConn ~ 7975 2325
+Text GLabel 3700 2725 2    60   Input ~ 0
+BACKLIGHT_PWM
+Text GLabel 8000 4625 2    60   Output ~ 0
+BACKLIGHT_PWM
+$Comp
+L PWR_FLAG #FLG?
+U 1 1 58BBBB79
+P 925 975
+F 0 "#FLG?" H 925 1070 50  0001 C CNN
+F 1 "PWR_FLAG" H 925 1155 50  0000 C CNN
+F 2 "" H 925 975 60  0000 C CNN
+F 3 "" H 925 975 60  0000 C CNN
+	1    925  975 
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 58BBBB9C
+P 925 975
+F 0 "#PWR?" H 925 725 50  0001 C CNN
+F 1 "GND" H 925 825 50  0000 C CNN
+F 2 "" H 925 975 60  0000 C CNN
+F 3 "" H 925 975 60  0000 C CNN
+	1    925  975 
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG?
+U 1 1 58BBBBE1
+P 1500 975
+F 0 "#FLG?" H 1500 1070 50  0001 C CNN
+F 1 "PWR_FLAG" H 1500 1155 50  0000 C CNN
+F 2 "" H 1500 975 60  0000 C CNN
+F 3 "" H 1500 975 60  0000 C CNN
+	1    1500 975 
+	1    0    0    -1  
+$EndComp
+$Comp
+L +5V #PWR?
+U 1 1 58BBBBFD
+P 1500 975
+F 0 "#PWR?" H 1500 825 50  0001 C CNN
+F 1 "+5V" H 1500 1115 50  0000 C CNN
+F 2 "" H 1500 975 60  0000 C CNN
+F 3 "" H 1500 975 60  0000 C CNN
+	1    1500 975 
+	-1   0    0    1   
+$EndComp
 $EndSCHEMATC
