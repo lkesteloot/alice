@@ -1,5 +1,6 @@
 (fp_lib_table
-  (lib (name "level converter")(type KiCad)(uri /Users/grantham/trees/alice/alice3/kicad/IO/level_converter.pretty)(options "")(descr ""))
-  (lib (name "ftdi basic breakout")(type KiCad)(uri /Users/grantham/trees/alice/alice3/kicad/IO/ftdi_basic.pretty)(options "")(descr ""))
-  (lib (name "STMPE610")(type KiCad)(uri /Users/grantham/trees/alice/alice4/kicad/touchscreen_controller.pretty)(options "")(descr ""))
+  (lib (name "level converter")(type KiCad)(uri $KIPRJMOD/../IO/level_converter.pretty)(options "")(descr ""))
+  (lib (name "ftdi basic breakout")(type KiCad)(uri $KIPRJMOD/../IO/ftdi_basic.pretty)(options "")(descr ""))
+  (lib (name "STMPE610")(type KiCad)(uri $KIPRJMOD/../touchscreen_controller.pretty)(options "")(descr ""))
+  (lib (name "DIH_2x7x2mm")(type KiCad)(uri $KIPRJMOD/../DIH_2x7x2mm.pretty)(options "")(descr ""))
 )
