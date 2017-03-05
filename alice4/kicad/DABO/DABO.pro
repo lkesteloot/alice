@@ -1,4 +1,4 @@
-update=Friday, March 03, 2017 'PMt' 06:03:14 PM
+update=Sunday, March 05, 2017 'AMt' 11:45:33 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -57,5 +57,6 @@ LibName27=atmel
 LibName28=contrib
 LibName29=valves
 LibName30=../touchscreen_controller
+LibName31=../lcd_breakout
 [general]
 version=1

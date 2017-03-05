@@ -29,6 +29,7 @@ LIBS:atmel
 LIBS:contrib
 LIBS:valves
 LIBS:touchscreen_controller
+LIBS:lcd_breakout
 LIBS:DABO-cache
 EELAYER 25 0
 EELAYER END
@@ -54,28 +55,6 @@ F 2 "Pin_Headers:Pin_Header_Straight_2x20" H 7750 3125 60  0001 C CNN
 F 3 "" H 7750 3125 60  0000 C CNN
 	1    7750 4075
 	1    0    0    -1  
-$EndComp
-$Comp
-L CONN_01X20 P1
-U 1 1 58B8FFBA
-P 3100 3275
-F 0 "P1" H 3100 4325 50  0000 C CNN
-F 1 "CONN_01X20" V 3200 3275 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x20" H 3100 3275 60  0001 C CNN
-F 3 "" H 3100 3275 60  0000 C CNN
-	1    3100 3275
-	1    0    0    -1  
-$EndComp
-$Comp
-L CONN_01X20 P2
-U 1 1 58B90009
-P 3500 3275
-F 0 "P2" H 3500 4325 50  0000 C CNN
-F 1 "CONN_01X20" V 3600 3275 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x20" H 3500 3275 60  0001 C CNN
-F 3 "" H 3500 3275 60  0000 C CNN
-	1    3500 3275
-	-1   0    0    1   
 $EndComp
 $Comp
 L touchscreen_controller U1
@@ -143,102 +122,102 @@ F 3 "" H 6225 2700 60  0000 C CNN
 	1    6225 2700
 	0    -1   -1   0   
 $EndComp
-Text GLabel 2900 2325 0    60   Input ~ 0
+Text GLabel 2275 2300 0    60   Input ~ 0
 R0
-Text GLabel 2900 2425 0    60   Input ~ 0
+Text GLabel 2275 2400 0    60   Input ~ 0
 R1
-Text GLabel 2900 2525 0    60   Input ~ 0
+Text GLabel 2275 2500 0    60   Input ~ 0
 R2
-Text GLabel 2900 2625 0    60   Input ~ 0
+Text GLabel 2275 2600 0    60   Input ~ 0
 R3
-Text GLabel 2900 2725 0    60   Input ~ 0
+Text GLabel 2275 2700 0    60   Input ~ 0
 R4
-Text GLabel 2900 2825 0    60   Input ~ 0
+Text GLabel 2275 2800 0    60   Input ~ 0
 R5
-Text GLabel 2900 2925 0    60   Input ~ 0
+Text GLabel 2275 2900 0    60   Input ~ 0
 R6
-Text GLabel 2900 3025 0    60   Input ~ 0
+Text GLabel 2275 3000 0    60   Input ~ 0
 R7
-Text GLabel 2900 3125 0    60   Input ~ 0
+Text GLabel 2275 3100 0    60   Input ~ 0
 B0
-Text GLabel 2900 3225 0    60   Input ~ 0
+Text GLabel 2275 3200 0    60   Input ~ 0
 B1
-Text GLabel 2900 3325 0    60   Input ~ 0
+Text GLabel 2275 3300 0    60   Input ~ 0
 B2
-Text GLabel 2900 3425 0    60   Input ~ 0
+Text GLabel 2275 3400 0    60   Input ~ 0
 B3
-Text GLabel 2900 3525 0    60   Input ~ 0
+Text GLabel 2275 3500 0    60   Input ~ 0
 B4
-Text GLabel 2900 3625 0    60   Input ~ 0
+Text GLabel 2275 3600 0    60   Input ~ 0
 B5
-Text GLabel 2900 3725 0    60   Input ~ 0
+Text GLabel 2275 3700 0    60   Input ~ 0
 B6
-Text GLabel 2900 3825 0    60   Input ~ 0
+Text GLabel 2275 3800 0    60   Input ~ 0
 B7
-Text GLabel 2900 3925 0    60   BiDi ~ 0
+Text GLabel 2275 3900 0    60   BiDi ~ 0
 X-
-Text GLabel 2900 4025 0    60   BiDi ~ 0
+Text GLabel 2275 4000 0    60   BiDi ~ 0
 Y-
-Text GLabel 2900 4125 0    60   BiDi ~ 0
+Text GLabel 2275 4100 0    60   BiDi ~ 0
 X+
-Text GLabel 2900 4225 0    60   BiDi ~ 0
+Text GLabel 2275 4200 0    60   BiDi ~ 0
 Y+
 $Comp
 L +5V #PWR06
 U 1 1 58B92C0F
-P 3700 2325
-F 0 "#PWR06" H 3700 2175 50  0001 C CNN
-F 1 "+5V" H 3700 2465 50  0000 C CNN
-F 2 "" H 3700 2325 60  0000 C CNN
-F 3 "" H 3700 2325 60  0000 C CNN
-	1    3700 2325
+P 3675 2300
+F 0 "#PWR06" H 3675 2150 50  0001 C CNN
+F 1 "+5V" H 3675 2440 50  0000 C CNN
+F 2 "" H 3675 2300 60  0000 C CNN
+F 3 "" H 3675 2300 60  0000 C CNN
+	1    3675 2300
 	0    1    1    0   
 $EndComp
 $Comp
 L GND #PWR07
 U 1 1 58B92C2F
-P 3700 2425
-F 0 "#PWR07" H 3700 2175 50  0001 C CNN
-F 1 "GND" H 3700 2275 50  0000 C CNN
-F 2 "" H 3700 2425 60  0000 C CNN
-F 3 "" H 3700 2425 60  0000 C CNN
-	1    3700 2425
+P 3675 2400
+F 0 "#PWR07" H 3675 2150 50  0001 C CNN
+F 1 "GND" H 3675 2250 50  0000 C CNN
+F 2 "" H 3675 2400 60  0000 C CNN
+F 3 "" H 3675 2400 60  0000 C CNN
+	1    3675 2400
 	0    -1   -1   0   
 $EndComp
-Text GLabel 3700 2925 2    60   Input ~ 0
+Text GLabel 3675 2900 2    60   Input ~ 0
 G0
-Text GLabel 3700 3025 2    60   Input ~ 0
+Text GLabel 3675 3000 2    60   Input ~ 0
 G1
-Text GLabel 3700 3125 2    60   Input ~ 0
+Text GLabel 3675 3100 2    60   Input ~ 0
 G2
-Text GLabel 3700 3225 2    60   Input ~ 0
+Text GLabel 3675 3200 2    60   Input ~ 0
 G3
-Text GLabel 3700 3325 2    60   Input ~ 0
+Text GLabel 3675 3300 2    60   Input ~ 0
 G4
-Text GLabel 3700 3425 2    60   Input ~ 0
+Text GLabel 3675 3400 2    60   Input ~ 0
 G5
-Text GLabel 3700 3525 2    60   Input ~ 0
+Text GLabel 3675 3500 2    60   Input ~ 0
 G6
-Text GLabel 3700 3625 2    60   Input ~ 0
+Text GLabel 3675 3600 2    60   Input ~ 0
 G7
 $Comp
 L GND #PWR08
 U 1 1 58B92D1D
-P 3700 3725
-F 0 "#PWR08" H 3700 3475 50  0001 C CNN
-F 1 "GND" H 3700 3575 50  0000 C CNN
-F 2 "" H 3700 3725 60  0000 C CNN
-F 3 "" H 3700 3725 60  0000 C CNN
-	1    3700 3725
+P 3675 3700
+F 0 "#PWR08" H 3675 3450 50  0001 C CNN
+F 1 "GND" H 3675 3550 50  0000 C CNN
+F 2 "" H 3675 3700 60  0000 C CNN
+F 3 "" H 3675 3700 60  0000 C CNN
+	1    3675 3700
 	0    -1   -1   0   
 $EndComp
-Text GLabel 3700 3925 2    60   Input ~ 0
+Text GLabel 3675 3900 2    60   Input ~ 0
 DISPLAY_ON
-Text GLabel 3700 4025 2    60   Input ~ 0
+Text GLabel 3675 4000 2    60   Input ~ 0
 HSYNC
-Text GLabel 3700 4125 2    60   Input ~ 0
+Text GLabel 3675 4100 2    60   Input ~ 0
 VSYNC
-Text GLabel 3700 4225 2    60   Input ~ 0
+Text GLabel 3675 4200 2    60   Input ~ 0
 DISPLAY_ENABLE
 Text GLabel 5125 2950 0    60   BiDi ~ 0
 X+
@@ -277,9 +256,9 @@ B4
 Text GLabel 7500 4625 0    60   Input ~ 0
 B5
 NoConn ~ 7500 4525
-NoConn ~ 3700 2525
-NoConn ~ 3700 2625
-NoConn ~ 3700 2825
+NoConn ~ 3675 2500
+NoConn ~ 3675 2600
+NoConn ~ 3675 2800
 Text GLabel 7500 4725 0    60   Input ~ 0
 B6
 Text GLabel 7500 4825 0    60   Input ~ 0
@@ -292,7 +271,7 @@ Text GLabel 8000 5025 2    60   BiDi ~ 0
 SDA
 Text GLabel 7500 5025 0    60   Output ~ 0
 SCL
-Text GLabel 3700 3825 2    60   Input ~ 0
+Text GLabel 3675 3800 2    60   Input ~ 0
 LCD_CLK
 Text GLabel 8000 3125 2    60   Input ~ 0
 G0
@@ -422,15 +401,15 @@ NoConn ~ 7475 2025
 NoConn ~ 7475 1925
 NoConn ~ 7475 1725
 NoConn ~ 7975 2325
-Text GLabel 3700 2725 2    60   Input ~ 0
+Text GLabel 3675 2700 2    60   Input ~ 0
 BACKLIGHT_PWM
 Text GLabel 8000 4625 2    60   Output ~ 0
 BACKLIGHT_PWM
 $Comp
-L PWR_FLAG #FLG?
+L PWR_FLAG #FLG015
 U 1 1 58BBBB79
 P 925 975
-F 0 "#FLG?" H 925 1070 50  0001 C CNN
+F 0 "#FLG015" H 925 1070 50  0001 C CNN
 F 1 "PWR_FLAG" H 925 1155 50  0000 C CNN
 F 2 "" H 925 975 60  0000 C CNN
 F 3 "" H 925 975 60  0000 C CNN
@@ -438,10 +417,10 @@ F 3 "" H 925 975 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR?
+L GND #PWR016
 U 1 1 58BBBB9C
 P 925 975
-F 0 "#PWR?" H 925 725 50  0001 C CNN
+F 0 "#PWR016" H 925 725 50  0001 C CNN
 F 1 "GND" H 925 825 50  0000 C CNN
 F 2 "" H 925 975 60  0000 C CNN
 F 3 "" H 925 975 60  0000 C CNN
@@ -449,10 +428,10 @@ F 3 "" H 925 975 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L PWR_FLAG #FLG?
+L PWR_FLAG #FLG017
 U 1 1 58BBBBE1
 P 1500 975
-F 0 "#FLG?" H 1500 1070 50  0001 C CNN
+F 0 "#FLG017" H 1500 1070 50  0001 C CNN
 F 1 "PWR_FLAG" H 1500 1155 50  0000 C CNN
 F 2 "" H 1500 975 60  0000 C CNN
 F 3 "" H 1500 975 60  0000 C CNN
@@ -460,14 +439,25 @@ F 3 "" H 1500 975 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +5V #PWR?
+L +5V #PWR018
 U 1 1 58BBBBFD
 P 1500 975
-F 0 "#PWR?" H 1500 825 50  0001 C CNN
+F 0 "#PWR018" H 1500 825 50  0001 C CNN
 F 1 "+5V" H 1500 1115 50  0000 C CNN
 F 2 "" H 1500 975 60  0000 C CNN
 F 3 "" H 1500 975 60  0000 C CNN
 	1    1500 975 
 	-1   0    0    1   
+$EndComp
+$Comp
+L LCDBREAKOUT U2
+U 1 1 58BC5CD8
+P 2975 3250
+F 0 "U2" H 2925 3250 50  0000 L CNN
+F 1 "LCDBREAKOUT" H 2725 4200 50  0000 L CNN
+F 2 "DIP40:DIP-40_1_ELL" H 2975 4600 50  0001 C CNN
+F 3 "" H 2975 4600 50  0000 C CNN
+	1    2975 3250
+	1    0    0    -1  
 $EndComp
 $EndSCHEMATC
