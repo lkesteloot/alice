@@ -22,7 +22,6 @@
 //      zbuffer
 //      zclear
 
-
 // Alice 4 libgl implementation.
 
 #include <stdio.h>
@@ -185,6 +184,79 @@ float min(float a, float b)
     return (a < b) ? a : b;
 }
 
+
+//------------------------------------------------------------------------
+// Popup menus ("pup" in GL lingo)
+
+#define MAX_PUPS 16
+#define MAX_PUP_ITEMS 16
+
+struct pup_item {
+    char *item;
+    int value;
+    int submenu;
+    int (*func)(int i);
+};
+
+struct pup {
+    int defd;
+    char *title;
+    int (*func)(int i);
+    int item_count;
+    struct pup_item items[MAX_PUP_ITEMS];
+};
+struct pup pups[MAX_PUPS];
+
+void pup_init(struct pup *p)
+{
+    p->defd = 0;
+    p->title = NULL;
+    p->func = NULL;
+    p->item_count = 0;
+}
+
+void pup_new(struct pup *p)
+{
+    p->defd = 1;
+}
+
+void pup_free(struct pup *p)
+{
+    if(p->title != NULL) {
+        free(p->title);
+    }
+    for(int i = 0; i < p->item_count; i++) {
+        struct pup_item *pi = p->items + i;
+        if(pi->item != NULL) {
+            free(pi->item);
+        }
+    }
+    pup_init(p);
+}
+
+void pup_set_title(struct pup *p, char *title)
+{
+    if(p->title != NULL) {
+        free(p->title);
+    }
+    p->title = NULL;
+    if(title != NULL) {
+        p->title = strdup(title);
+    }
+}
+
+void pup_add(struct pup *p, char *item, int value, int submenu, int (*func)(int i))
+{
+    struct pup_item *pi = p->items + p->item_count++;
+    
+    if(item != NULL)
+        pi->item = strdup(item);
+    else
+        pi->item = NULL;
+    pi->value = value;
+    pi->submenu = submenu;
+    pi->func = func;
+}
 
 //----------------------------------------------------------------------------
 // I/O operations
@@ -416,7 +488,7 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
 void send_screen_vertex(screen_vertex *sv) {
     send_and_capture_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
     send_and_capture_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
-    send_and_capture_uint32(sv->z);
+    send_and_capture_uint32(sv->z & 0xFFFF0000);
     send_and_capture_uint8(sv->r);
     send_and_capture_uint8(sv->g);
     send_and_capture_uint8(sv->b);
@@ -2112,8 +2184,90 @@ void c3f(float c[3]) {
     vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
 }
 
-int32_t defpup(char *menu) {
+/*
+newpup(), addtopup(), defpup(), dopup()
+
+newpup, addtopup, defpup create "struct menu"s
+
+pushing SELECT sends RIGHTMOUSE
+
+dopup() enters a loop:
+    (optional) entire previous frame contents are saved
+    while not leaf item selected:
+        menu is displayed with selected item inverted
+        swap
+        joystick can move up or down, back exits menus, select selects or submenus
+        (optional) play back entire previous frame contents
+    return leaf item value
+*/
+
+int32_t defpup(char *menu)
+{
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+
+    int which = 0;
+    while(pups[which].defd) {
+        which++;
+        if(which == MAX_PUPS) {
+            printf("warning: max pups exceeded\n");
+            return -1;
+        }
+    }
+
+    struct pup *thepup = pups + which;
+    pup_new(thepup);
+
+    char *menu2 = strdup(menu);
+    char *menu3 = menu2;
+    int nextvalue = 1;
+
+    while(menu3) {
+        char *item = strsep(&menu3, "|");
+        int is_title = 0;
+        
+        int (*func)(int) = NULL;
+        int value = -1;
+        int submenu = -1;
+
+        char *p = item;
+        while(*p) {
+            while(*p && *p != '%')
+                p++;
+            *p++ = '\0';
+            if(*p == 't') {
+                is_title = 1;
+                pup_set_title(thepup, item);
+            } else if(*p == 'F') {
+                /* thepup->func = XXX */
+                printf("defpup argument %%F ignored\n");
+            } else if(*p == 'f') {
+                printf("defpup argument %%f ignored\n");
+                /* func = XXX */
+            } else if(*p == 'n') {
+                printf("defpup argument %%n ignored\n");
+                /* ??? XXX */
+            } else if(*p == 'm') {
+                printf("defpup argument %%m ignored\n");
+                /* thepup->func = XXX */
+            } else if(*p == 'x') {
+                value = 0;
+                while(*p && *p >= '0' && *p <= 9) {
+                    value = value * 10 + *p - '0';
+                    p++;
+                }
+            }
+            p++;
+        }
+        if(!is_title) {
+            if(value == -1) 
+                value = nextvalue++;
+            pup_add(thepup, item, value, submenu, func);
+        }
+    }
+
+    free(menu2);
+
+    return which;
 }
 
 int32_t dopup() {
@@ -2989,6 +3143,9 @@ static void init_gl_state()
     vec3ub_set(colormap[MAGENTA], 255, 0, 255);
     vec3ub_set(colormap[CYAN], 0, 255, 255);
     vec3ub_set(colormap[WHITE], 255, 255, 255);
+
+    for(int i = 0; i < MAX_PUPS; i++)
+        pup_init(pups + i);
 }
 
 static int32_t font_width = 8, font_rowbytes = 1, font_height = 16;
