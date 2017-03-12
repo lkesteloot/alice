@@ -495,7 +495,7 @@ void send_screen_vertex(screen_vertex *sv) {
     send_and_capture_uint8(sv->a);
 }
 
-void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
+void send_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
     send_and_capture_uint8(COMMAND_TRIANGLE);
 
@@ -759,8 +759,8 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     screen_vertex_offset_with_clamp(&q[2], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
     screen_vertex_offset_with_clamp(&q[3],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
 
-    process_triangle(&q[0], &q[1], &q[2]);
-    process_triangle(&q[2], &q[3], &q[0]);
+    send_screen_triangle(&q[0], &q[1], &q[2]);
+    send_screen_triangle(&q[2], &q[3], &q[0]);
 }
 
 void process_tmesh(int32_t n, world_vertex *worldverts)
@@ -803,7 +803,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
             // A fan might be slightly clearer
             i2 = (i % 2 == 0) ? (1 + i / 2) : (r - 2 - i / 2);
 
-            process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+            send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
         }
     }
 }
@@ -844,7 +844,7 @@ void process_polygon(int32_t n, world_vertex *worldverts)
         // A fan might be slightly clearer
         i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
 
-        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+        send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
     }
 }
 
@@ -884,8 +884,8 @@ void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowb
                 // finish the run
                 screen_vertex_offset_with_clamp(&s[2], count, 1);
                 screen_vertex_offset_with_clamp(&s[3], count, 0);
-                process_triangle(&s[0], &s[1], &s[2]);
-                process_triangle(&s[2], &s[3], &s[0]);
+                send_screen_triangle(&s[0], &s[1], &s[2]);
+                send_screen_triangle(&s[2], &s[3], &s[0]);
             }
 
             prevbit = bit;
@@ -895,8 +895,8 @@ void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowb
             // the end of the row was a 1 bit, so finish run
             screen_vertex_offset_with_clamp(&s[2], count, 1);
             screen_vertex_offset_with_clamp(&s[3], count, 0);
-            process_triangle(&s[0], &s[1], &s[2]);
-            process_triangle(&s[2], &s[3], &s[0]);
+            send_screen_triangle(&s[0], &s[1], &s[2]);
+            send_screen_triangle(&s[2], &s[3], &s[0]);
         }
     }
 }
