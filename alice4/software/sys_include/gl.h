@@ -101,7 +101,7 @@ typedef int32_t Object;
 typedef int32_t Tag;
 typedef int32_t Offset;
 
-extern void	addtopup();
+extern void	addtopup(int32_t menu, char *add);
 extern void	arc();
 extern void	arcf();
 extern void	arcfi();
@@ -161,7 +161,7 @@ extern void	delobj();
 extern void	deltag();
 extern void	depthcue();
 extern void	devport();
-extern int32_t	dopup();
+extern int32_t	dopup(int32_t pup);
 extern int32_t	dopupbut();
 extern void	doublebuffer();
 extern void	draw(Coord x, Coord y, Coord z);
