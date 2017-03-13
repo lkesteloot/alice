@@ -18,6 +18,7 @@
 #define NUM_VERTICES 3
 #define CBUFFER_BANK 0
 #define ZBUFFER_BANK 1
+#define LOG_SDRAM_STATS 0
 
 // Type of Z-buffer pixel.
 typedef uint16_t z_t;
@@ -62,8 +63,10 @@ typedef uint16_t z_t;
 }
 
 - (void)logAndClearStats {
-    NSLog(@"SDRAM stats: %10ld cycles (%dms)",
-	  sdram.cycles, (int) (sdram.cycles*1000L/sdram.clockFrequency));
+    if (LOG_SDRAM_STATS) {
+	NSLog(@"SDRAM stats: %10ld cycles (%dms)",
+	      sdram.cycles, (int) (sdram.cycles*1000L/sdram.clockFrequency));
+    }
     [self resetStats];
 }
 

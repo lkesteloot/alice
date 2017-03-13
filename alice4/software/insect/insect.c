@@ -113,6 +113,11 @@ char	*argv[];
     qdevice (LEFTMOUSE);
     qdevice (MIDDLEMOUSE);
 
+    qdevice (LEFTARROWKEY);
+    qdevice (RIGHTARROWKEY);
+    qdevice (DOWNARROWKEY);
+    qdevice (UPARROWKEY);
+
 /* Queue WINQUIT to restore color map after program -
 new for ECLIPSE 8 bit machine  */
     qdevice (WINQUIT);
@@ -196,6 +201,11 @@ new for ECLIPSE 8 bit machine  */
 			follow = !follow;
 		    }
 		    break;
+
+                case LEFTARROWKEY: printf("left\n"); break;
+                case RIGHTARROWKEY: printf("right\n"); break;
+                case DOWNARROWKEY: printf("down\n"); break;
+                case UPARROWKEY: printf("up\n"); break;
 	    }
             swapbuffers();
 	}
