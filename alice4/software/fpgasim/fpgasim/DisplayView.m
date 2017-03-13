@@ -41,6 +41,14 @@
     [self.delegate gotViewEvent:event];
 }
 
+- (void)rightMouseDown:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)rightMouseUp:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
 - (void)keyDown:(NSEvent *)event {
     [self.delegate gotViewEvent:event];
 }
