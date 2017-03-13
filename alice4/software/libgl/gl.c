@@ -72,12 +72,6 @@ static int input_queue_head = 0;
 // The number of items in the queue (tail = (head + length) % len):
 static int input_queue_length = 0;
 
-static int simulated_BACK = 0;
-static int simulated_SELECT = 0;
-static int SELECT_is_RIGHTMOUSE = 0;
-static int simulated_JOYSTICKUP = 0;
-static int simulated_JOYSTICKDOWN = 0;
-
 
 //----------------------------------------------------------------------------
 // Stream capture for playback
@@ -1838,9 +1832,13 @@ static void enqueue_device(int32_t device, uint16_t val) {
     }
 }
 
+static int devices_queued[2048];
+
 // We're interested in events from this device.
 void qdevice(int32_t device) { 
     TRACEF("%d", device);
+
+    devices_queued[device] = 1;
 
     switch (device) {
         case REDRAW:
@@ -1853,11 +1851,6 @@ void qdevice(int32_t device) {
             enqueue_device(INPUTCHANGE, 1);
             break;
 
-        case RIGHTMOUSE:
-            SELECT_is_RIGHTMOUSE = 1;
-            printf("XXX select is rightmouse\n");
-            break;
-
         default:
             // Send the device to the server.
             send_uint8(COMMAND_QDEVICE);
@@ -1868,6 +1861,7 @@ void qdevice(int32_t device) {
 
 void unqdevice(Device device) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    devices_queued[device] = 0;
 }
 
 void fetch_event_queue(int blocking) {
@@ -1887,13 +1881,6 @@ void fetch_event_queue(int blocking) {
 int32_t qread(uint16_t *val) { 
     TRACE();
 
-    if(SELECT_is_RIGHTMOUSE && simulated_SELECT) { 
-        printf("XXX simulated rightmouse read\n");
-        simulated_SELECT = 0;
-        *val = 1;
-        return RIGHTMOUSE;
-    }
-
     while (input_queue_length == 0) {
         // Blocking read.
         fetch_event_queue(TRUE);
@@ -1911,11 +1898,6 @@ int32_t qread(uint16_t *val) {
 // Doesn't change the queue.
 int32_t qtest() { 
     TRACE();
-
-    if(SELECT_is_RIGHTMOUSE && simulated_SELECT) { 
-        printf("XXX simulated rightmouse test\n");
-        return RIGHTMOUSE;
-    }
 
     if (input_queue_length == 0) {
         // Non-blocking read.
@@ -2220,7 +2202,7 @@ newpup(), addtopup(), defpup(), dopup()
 
 newpup, addtopup, defpup create "struct menu"s
 
-pushing SELECT sends RIGHTMOUSE
+pushing SELECT sends RIGHTMOUSE?
 
 dopup() enters a loop:
     (optional) entire previous frame contents are saved
@@ -2309,26 +2291,12 @@ int32_t defpup(char *menu)
 
 void sigwinch(int s)
 {
-    simulated_SELECT = 1;
-    printf("simulated SELECT\n");
+    enqueue_device(RIGHTMOUSE, 1);
 }
 
 void siginfo(int s)
 {
-    simulated_BACK = 1;
-    printf("simulated BACK\n");
-}
-
-void sigusr1(int s)
-{
-    simulated_JOYSTICKUP = 1;
-    printf("simulated JOYSTICKUP\n");
-}
-
-void sigusr2(int s)
-{
-    simulated_JOYSTICKDOWN = 1;
-    printf("simulated JOYSTICKDOWN\n");
+    enqueue_device(RIGHTMOUSE, 0);
 }
 
 const int menu_corner_top = YMAXSCREEN - 1 - 10;
@@ -2424,7 +2392,6 @@ void pup_draw(pup *p, int menu_left, int menu_top, int selected)
         if(i != p->item_count - 1)
             items_text_pane_height += menu_item_separation;
     }
-    printf("menu_text_pane_width = %d\n", menu_text_pane_width);
 
     int title_fill_width = menu_padding * 2 + menu_text_pane_width;
     int title_fill_height = menu_padding * 2 + title_text_pane_height;
@@ -2493,35 +2460,53 @@ int32_t dopup(int32_t pup_index) {
 
     pup *thepup = pups + pup_index;
 
+    int larrow_queued = devices_queued[LEFTARROWKEY];
+    int rarrow_queued = devices_queued[RIGHTARROWKEY];
+    int uarrow_queued = devices_queued[UPARROWKEY];
+    int darrow_queued = devices_queued[DOWNARROWKEY];
+
+    qdevice(LEFTARROWKEY);
+    qdevice(RIGHTARROWKEY);
+    qdevice(UPARROWKEY);
+    qdevice(DOWNARROWKEY);
+
     int selected = 0;
     int done = 0;
-    while(1) {
-        if(simulated_SELECT) {
-            simulated_SELECT = 0;
-            break;
-        }
-
+    while(!done) {
         clear();
         pup_draw(thepup, menu_corner_left, menu_corner_top, selected);
         swapbuffers();
 
-        if(simulated_BACK) {
-            simulated_BACK = 0;
-            return -1;
-        }
-        if(simulated_JOYSTICKUP) {
-            simulated_JOYSTICKUP = 0;
-            if(selected > 0)
-                selected--;
-            printf("--> %s\n", thepup->items[selected].item);
-        }
-        if(simulated_JOYSTICKDOWN) {
-            simulated_JOYSTICKDOWN = 0;
-            if(selected < thepup->item_count)
-                selected++;
-            printf("--> %s\n", thepup->items[selected].item);
+        if(qtest() != 0) {
+            uint16_t val;
+            int32_t device = qread(&val);
+            switch(device) {
+                case LEFTARROWKEY:
+                    if(val)
+                        return -1;
+                    break;
+                case RIGHTARROWKEY:
+                    if(val)
+                        done = 1;
+                    break;
+                case UPARROWKEY:
+                    if(val)
+                        if(selected > 0)
+                            selected--;
+                    break;
+                case DOWNARROWKEY:
+                    if(val)
+                        if(selected < thepup->item_count)
+                            selected++;
+                    break;
+            }
         }
     }
+
+    if(!larrow_queued) unqdevice(LEFTARROWKEY);
+    if(!rarrow_queued) unqdevice(RIGHTARROWKEY);
+    if(!uarrow_queued) unqdevice(UPARROWKEY);
+    if(!darrow_queued) unqdevice(DOWNARROWKEY);
     return thepup->items[selected].value;
 }
 
@@ -3391,8 +3376,8 @@ static void init_gl_state()
 
     signal(SIGWINCH, sigwinch);
     signal(SIGINFO, siginfo);
-    signal(SIGUSR1, sigusr1);
-    signal(SIGUSR2, sigusr2);
+
+    memset(devices_queued, sizeof(devices_queued), 0);
 }
 
 static int32_t font_width = 8, font_rowbytes = 1, font_height = 16;
