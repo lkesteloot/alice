@@ -2366,10 +2366,6 @@ void draw_screen_string(int r, int g, int b, float x, float y, const char *str) 
 
 void pup_draw(pup *p, int menu_left, int menu_top, int selected)
 {
-    // Save previous drawing state
-    int old_zbuffer = zbuffer_enabled;
-    zbuffer(0);
-
     int menu_text_pane_width = 0;
 
     int title_text_pane_height;
@@ -2451,12 +2447,16 @@ void pup_draw(pup *p, int menu_left, int menu_top, int selected)
             draw_screen_string(0, 0, 0, items_pane_left, item_top - font_height, p->items[i].item);
             item_top -= font_height + menu_item_separation;
     }
-
-    // Restore previous drawing state
-    zbuffer(old_zbuffer);
 }
 
 int32_t dopup(int32_t pup_index) {
+
+    // Save previous drawing state
+    int old_zbuffer = zbuffer_enabled;
+    zbuffer(0);
+    vec4f previous_color;
+    vec4f_copy(previous_color, current_color);
+    vec4f_set(current_color, .1, .1, .1, 1);
 
     pup *thepup = pups + pup_index;
 
@@ -2507,6 +2507,11 @@ int32_t dopup(int32_t pup_index) {
     if(!rarrow_queued) unqdevice(RIGHTARROWKEY);
     if(!uarrow_queued) unqdevice(UPARROWKEY);
     if(!darrow_queued) unqdevice(DOWNARROWKEY);
+
+    // Restore previous drawing state
+    vec4f_copy(current_color, previous_color);
+    zbuffer(old_zbuffer);
+
     return thepup->items[selected].value;
 }
 
