@@ -72,7 +72,7 @@ always @(posedge clock or negedge reset_n) begin
             STATE_READ_START: begin
                 // Initiate a read.
                 address <= TEST_ADDRESS;
-                read <= 1;
+                read <= 1'b1;
                 state <= STATE_READ_WAIT;
             end
 
@@ -80,8 +80,7 @@ always @(posedge clock or negedge reset_n) begin
                 // When no longer told to wait, deassert the request lines.
                 if (!waitrequest) begin
                     address <= 29'h0;
-                    writedata <= 64'h0;
-                    write <= 1'b0;
+                    read <= 1'b0;
                 end
 
                 // If we have data, grab it and we're done.
