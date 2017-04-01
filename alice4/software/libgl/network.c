@@ -68,6 +68,20 @@ void send_uint8(uint8_t b) {
     buffer[buffer_length++] = b;
 }
 
+static FILE *capture_file = NULL;
+
+void open_capture() {
+    if(getenv("CAPTURE_FILE") != NULL) {
+        capture_file = fopen(getenv("CAPTURE_FILE"), "wb");
+    }
+}
+
+void send_and_capture_uint8(uint8_t b) {
+    send_uint8(b);
+    if(capture_file != NULL)
+        fwrite(&b, 1, 1, capture_file);
+}
+
 uint8_t receive_uint8() {
     if (socket_fd == -1) {
         fprintf(stderr, "Connection is not open.\n");

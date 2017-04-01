@@ -35,6 +35,8 @@
 #include "basic_types.h"
 #include "vector.h"
 #include "driver.h"
+#include "rasterizer.h"
+#include "event_service.h"
 
 #ifndef M_PI
 #define M_PI 3.141596
@@ -72,22 +74,6 @@ static int input_queue_head = 0;
 // The number of items in the queue (tail = (head + length) % len):
 static int input_queue_length = 0;
 
-
-//----------------------------------------------------------------------------
-// Stream capture for playback
-
-static FILE *capture_file = NULL;
-
-void open_capture() {
-    if(getenv("CAPTURE_FILE") != NULL) {
-        capture_file = fopen(getenv("CAPTURE_FILE"), "wb");
-    }
-}
-void send_and_capture_uint8(uint8_t b) {
-    send_uint8(b);
-    if(capture_file != NULL)
-        fwrite(&b, 1, 1, capture_file);
-}
 
 //----------------------------------------------------------------------------
 // GL state
