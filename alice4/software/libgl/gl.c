@@ -34,7 +34,6 @@
 #include "connection.h"
 #include "basic_types.h"
 #include "vector.h"
-#include "driver.h"
 #include "rasterizer.h"
 #include "event_service.h"
 
@@ -42,8 +41,8 @@
 #define M_PI 3.141596
 #endif
 
-static int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
-static int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
+static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
+static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 #define POLY_MAX 32
 
 #if NDEBUG
@@ -156,19 +155,14 @@ matrix4x4f_stack *current_stack;
 
 Screencoord the_viewport[6];
 
-float unitclamp(float v)
+static float unitclamp(float v)
 {
     return v > 1.0f ? 1.0f : (v < 0.0f ? 0.0f : v);
 }
 
-float clamp(float v, float low, float high)
+static float clamp(float v, float low, float high)
 {
     return v > high ? high : (v < low ? low : v);
-}
-
-float min(float a, float b)
-{
-    return (a < b) ? a : b;
 }
 
 
@@ -379,12 +373,6 @@ void screen_vertex_set_position(screen_vertex* v, float x, float y)
     v->z = 0;
 }
 
-void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
-{
-    v->x = clamp(v->x + dx * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE);
-    v->y = clamp(v->y + dy * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_HEIGHT - 1) * SCREEN_VERTEX_V2_SCALE);
-}
-
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
 {
     // XXX could pre-compute
@@ -413,24 +401,6 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
     sv->a = unitclamp(lv->color[3]) * 255;
 }
 
-void send_screen_vertex(screen_vertex *sv) {
-    send_and_capture_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
-    send_and_capture_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
-    send_and_capture_uint32(sv->z & 0xFFFF0000);
-    send_and_capture_uint8(sv->r);
-    send_and_capture_uint8(sv->g);
-    send_and_capture_uint8(sv->b);
-    send_and_capture_uint8(sv->a);
-}
-
-void send_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
-{
-    send_and_capture_uint8(COMMAND_TRIANGLE);
-
-    send_screen_vertex(s0);
-    send_screen_vertex(s1);
-    send_screen_vertex(s2);
-}
 
 enum {
     CLIP_ALL_IN = 0x00,
@@ -645,44 +615,7 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     project_vertex(&vp[0], &screenverts[0]);
     project_vertex(&vp[1], &screenverts[1]);
 
-// Fake this with screen quads until rasterizer implements lines
-    float dx = (screenverts[1].x - screenverts[0].x);
-    float dy = (screenverts[1].y - screenverts[0].y);
-    float d = sqrt(dx * dx + dy * dy);
-
-    if(d == 0.0) {
-        // XXX should draw point if the line is too short
-        return;
-    }
-
-    dx = dx / d;
-    dy = dy / d;
-
-    float anglescale;
-    if(fabs(dx) < 0.0001) {
-        anglescale = 1.0 / fabs(dy);
-    } else if(fabs(dy) < 0.0001) {
-        anglescale = 1.0 / fabs(dx);
-    } else {
-        anglescale = min(1.0 / fabs(dx), 1.0 / fabs(dy));
-    }
-
-    dx = dx * anglescale;
-    dy = dy * anglescale;
-
-    screen_vertex q[4];
-    q[0] = screenverts[0];
-    q[1] = screenverts[0];
-    q[2] = screenverts[1];
-    q[3] = screenverts[1];
-
-    screen_vertex_offset_with_clamp(&q[0],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
-    screen_vertex_offset_with_clamp(&q[1], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
-    screen_vertex_offset_with_clamp(&q[2], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
-    screen_vertex_offset_with_clamp(&q[3],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
-
-    send_screen_triangle(&q[0], &q[1], &q[2]);
-    send_screen_triangle(&q[2], &q[3], &q[0]);
+    rasterizer_draw(DRAW_LINES, 1, screenverts);
 }
 
 void process_tmesh(int32_t n, world_vertex *worldverts)
@@ -711,25 +644,11 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r; i++)
             project_vertex(&vp[i], &screenverts[i]);
 
-        int i0, i1, i2;
-
-        i1 = 0;
-        i2 = r - 1;
-
-        for(int i = 0; i < r - 2; i++) {
-            i0 = i1;
-            i1 = i2;
-
-            // This next one means 3rd vertex alternates back and forth
-            // across polygon, basically turning it into a triangle strip
-            // A fan might be slightly clearer
-            i2 = (i % 2 == 0) ? (1 + i / 2) : (r - 2 - i / 2);
-
-            send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
-        }
+        rasterizer_draw(DRAW_TRIANGLE_FAN, r - 2, screenverts);
     }
 }
 
+// XXX rasterizer_draw() make into TRIANGLES
 void process_polygon(int32_t n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
@@ -753,76 +672,8 @@ void process_polygon(int32_t n, world_vertex *worldverts)
     for(int i = 0; i < n; i++)
         project_vertex(&vp[i], &screenverts[i]);
 
-    int i0, i1, i2;
-
-    i1 = 0;
-    i2 = n - 1;
-
-    for(int i = 0; i < n - 2; i++) {
-        i0 = i1;
-        i1 = i2;
-        // This next one means 3rd vertex alternates back and forth
-        // across polygon, basically turning it into a triangle strip
-        // A fan might be slightly clearer
-        i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
-
-        send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
-    }
+    rasterizer_draw(DRAW_TRIANGLE_FAN, n - 2, screenverts);
 }
-
-void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowbytes, uint32_t height)
-{
-    screen_vertex s[4];
-
-    for(int j = 0; j < height; j++) {
-        int prevbit = 0;
-        int count;
-        for(int i = 0; i < width; i++) {
-            int bit = (bits[j * rowbytes + i / 8] >> (7 - i % 8)) & 1;
-
-            if(bit) {
-
-                if(!prevbit && bit) {
-                    // Previous bit was 0 and this bit is 1, so start a
-                    // run
-                    for(int k = 0; k < 4; k++) {
-                        s[k] = *sv; // Copy color
-                        s[k].x = sv->x + SCREEN_VERTEX_V2_SCALE * i;
-                        s[k].y = sv->y + (height - j - 1) * SCREEN_VERTEX_V2_SCALE;
-                        s[k].z = sv->z;
-                    }
-
-                    screen_vertex_offset_with_clamp(&s[0], 0, 0);
-                    screen_vertex_offset_with_clamp(&s[1], 0, 1);
-                    count = 0;
-                }
-
-                // Add this bit to current run
-                count++;
-
-            } else if(prevbit) {
-
-                // The previous bit was 1 and this bit is 0, so
-                // finish the run
-                screen_vertex_offset_with_clamp(&s[2], count, 1);
-                screen_vertex_offset_with_clamp(&s[3], count, 0);
-                send_screen_triangle(&s[0], &s[1], &s[2]);
-                send_screen_triangle(&s[2], &s[3], &s[0]);
-            }
-
-            prevbit = bit;
-        }
-
-        if(prevbit) {
-            // the end of the row was a 1 bit, so finish run
-            screen_vertex_offset_with_clamp(&s[2], count, 1);
-            screen_vertex_offset_with_clamp(&s[3], count, 0);
-            send_screen_triangle(&s[0], &s[1], &s[2]);
-            send_screen_triangle(&s[2], &s[3], &s[0]);
-        }
-    }
-}
-
 
 //----------------------------------------------------------------------------
 // Display list ("Object" and "Tag") management
@@ -1373,9 +1224,7 @@ void clear() {
     }
 
     TRACE();
-    send_and_capture_uint8(COMMAND_CLEAR);
-    for(int i = 0; i < 3; i++)
-        send_and_capture_uint8((int)(current_color[i] * 255.0));
+    rasterizer_clear(current_color[0] * 255.0, current_color[1] * 255.0, current_color[2] * 255.0);
 }
 
 void closeobj() { 
@@ -1501,9 +1350,7 @@ void getsize(int32_t *width, int32_t *height) {
 int32_t getvaluator(int32_t device) { 
     TRACEF("%d", device);
 
-    send_uint8(COMMAND_GET_VALUATOR);
-    send_uint32(device);
-    return receive_uint32();
+    return events_get_valuator(device);
 }
 
 void setvaluator(Device device, int init, int min, int max) {
@@ -1748,6 +1595,7 @@ static void enqueue_device(int32_t device, uint16_t val) {
 
 static int devices_queued[2048];
 
+/* XXX event_get_qdevice() */
 // We're interested in events from this device.
 void qdevice(int32_t device) { 
     TRACEF("%d", device);
@@ -1767,8 +1615,7 @@ void qdevice(int32_t device) {
 
         default:
             // Send the device to the server.
-            send_uint8(COMMAND_QDEVICE);
-            send_uint32(device);
+            events_qdevice(device);
             break;
     }
 }
@@ -1778,15 +1625,15 @@ void unqdevice(Device device) {
     devices_queued[device] = 0;
 }
 
+// XXX event_qread_start
+// XXX event_qread_continue
 void fetch_event_queue(int blocking) {
-    send_uint8(COMMAND_QREAD);
-    send_uint8(blocking);
+    int count = event_qread_start(blocking);
 
     // First is number of events.
-    int count = receive_uint8();
     for (int i = 0; i < count; i++) {
-        int32_t device = receive_uint32();
-        int32_t value = receive_uint16();
+        int16_t value;
+        int32_t device = events_qread_continue(&value);
         enqueue_device(device, value);
     }
 }
@@ -1918,17 +1765,13 @@ void setpattern(int32_t pattern) {
     TRACEF("%d", pattern);
 
     if(pattern == 0) {
-        send_and_capture_uint8(COMMAND_DISABLE_PATTERN);
+        rasterizer_pattern(0);
     } else {
         if(current_pattern != pattern) {
-            // send pattern bitmap
-            send_and_capture_uint8(COMMAND_SET_PATTERN);
-            for (int i = 0; i < 16; i++) {
-                send_and_capture_uint16(patterns[pattern][i]);
-            }
+            rasterizer_setpattern(patterns[pattern]);
             current_pattern = pattern;
         }
-        send_and_capture_uint8(COMMAND_ENABLE_PATTERN);
+        rasterizer_pattern(1);
     }
 }
 
@@ -1939,10 +1782,11 @@ void shademodel(int32_t mode) {
 static int32_t font_width, font_rowbytes, font_height;
 static uint8_t font_bits[];
 
+// XXX rasterizer_swap
 void swapbuffers() {
     TRACE();
 
-    send_and_capture_uint8(COMMAND_SWAPBUFFERS);
+    rasterizer_swap();
     flush();
 }
 
@@ -1997,10 +1841,18 @@ void window(Coord left, Coord right, Coord bottom, Coord top, Coord near, Coord 
 
 int32_t winopen(char *title) {
     TRACEF("%s", title);
-    open_connection();
-    open_capture();
-    send_and_capture_uint8(COMMAND_WINOPEN); 
-    send_and_capture_string(title);
+    int rasterizer_window = rasterizer_winopen(title);
+
+    rasterizer_linewidth(the_linewidth);
+    rasterizer_zbuffer(zbuffer_enabled);
+    rasterizer_pattern(0);
+    rasterizer_setpattern(patterns[0]);
+
+    int events_window = events_winopen(title);
+    // XXX if we made a multi-window system, we'd tie "rasterizer_window"
+    // and "events_window" together so we could pass the right identifier
+    // to window functions.  But we are fullscreen and no demo we care
+    // about uses multiple windows.
     return 1;
 }
 
@@ -2242,12 +2094,13 @@ void string_draw(screen_vertex* screenvert_, const char *str) {
             // a man page), but arena/startup.c uses them. --LK
             screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE * 8;
         } else {
-            bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
+            rasterizer_bitmap(font_width, font_rowbytes, font_height, &screenvert, font_bits + str[i] * font_height * font_rowbytes);
             screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
         }
     }
 }
 
+// XXX rasterizer_draw() enqueue triangles
 void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float right, float bottom)
 {
     screen_vertex q[4];
@@ -2259,10 +2112,10 @@ void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float
     screen_vertex_set_position(&q[1], right, bottom);
     screen_vertex_set_position(&q[2], right, top);
     screen_vertex_set_position(&q[3], left, top);
-    send_screen_triangle(&q[0], &q[1], &q[2]);
-    send_screen_triangle(&q[2], &q[3], &q[0]);
+    rasterizer_draw(DRAW_TRIANGLE_FAN, 2, q);
 }
 
+// XXX rasterizer_draw() enqueue triangles
 void draw_screen_aarect_outline(int r, int g, int b, float left, float top, float right, float bottom)
 {
     draw_screen_aarect_filled(r, g, b, left, top, left + 1, bottom);
@@ -2624,6 +2477,7 @@ void keepaspect() {
 void linewidth(int w) {
     if(trace_functions) printf("%*slinewidth(%d);\n", indent, "", w);
     the_linewidth = w;
+    rasterizer_linewidth(w);
 }
 
 void lmbind(int target, int32_t index) {
@@ -2925,11 +2779,9 @@ void scale(float x, float y, float z) {
     matrix4x4f_stack_mult(current_stack, m);
 }
 
+// XXX events_tie
 void tie(int32_t button, int32_t val1, int32_t val2) {
-    send_uint8(COMMAND_TIE);
-    send_uint32(button);
-    send_uint32(val1);
-    send_uint32(val2);
+    events_tie(button, val1, val2);
 }
 
 void v4f(float v[4]) {
@@ -3206,17 +3058,19 @@ void poly(int n, Coord p[][3]) {
 }
 
 // XXX display list
+
 void zbuffer(int enable) {
     TRACEF("%d", enable);
     zbuffer_enabled = enable;
-    send_and_capture_uint8(COMMAND_ZBUFFER);
-    send_and_capture_uint8(enable);
+    rasterizer_zbuffer(enable);
 }
 
+// XXX rasterizer_zclear()
 // XXX display list
 void zclear() {
     TRACE();
-    send_and_capture_uint8(COMMAND_ZCLEAR);
+
+    rasterizer_zclear(0);
 }
 
 void zfunction(int func) {
@@ -3227,11 +3081,8 @@ void zfunction(int func) {
 void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
-    send_and_capture_uint8(COMMAND_ZCLEAR);
-    send_and_capture_uint8(COMMAND_CLEAR);
-    send_and_capture_uint8((color >> 16) & 0xff);
-    send_and_capture_uint8((color >>  8) & 0xff);
-    send_and_capture_uint8((color >>  0) & 0xff);
+    rasterizer_zclear(0);
+    rasterizer_clear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff);
 }
 
 int gversion(char *version)
