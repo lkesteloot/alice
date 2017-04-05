@@ -198,7 +198,7 @@ uint32_t receive_uint32() {
     return value;
 }
 
-void network_winopen(char *title) {
+int32_t network_winopen(char *title) {
     static int opened = 0;
 
     if(!opened) {
@@ -208,5 +208,6 @@ void network_winopen(char *title) {
         send_and_capture_uint8(COMMAND_WINOPEN); 
         send_and_capture_string(title);
     }
+    return 1;
 }
 

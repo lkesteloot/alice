@@ -615,7 +615,7 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     project_vertex(&vp[0], &screenverts[0]);
     project_vertex(&vp[1], &screenverts[1]);
 
-    rasterizer_draw(DRAW_LINES, 1, screenverts);
+    rasterizer_draw(DRAW_LINES, 2, screenverts);
 }
 
 void process_tmesh(int32_t n, world_vertex *worldverts)
@@ -644,7 +644,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r; i++)
             project_vertex(&vp[i], &screenverts[i]);
 
-        rasterizer_draw(DRAW_TRIANGLE_FAN, r - 2, screenverts);
+        rasterizer_draw(DRAW_TRIANGLE_FAN, r, screenverts);
     }
 }
 
@@ -672,7 +672,7 @@ void process_polygon(int32_t n, world_vertex *worldverts)
     for(int i = 0; i < n; i++)
         project_vertex(&vp[i], &screenverts[i]);
 
-    rasterizer_draw(DRAW_TRIANGLE_FAN, n - 2, screenverts);
+    rasterizer_draw(DRAW_TRIANGLE_FAN, n, screenverts);
 }
 
 //----------------------------------------------------------------------------
@@ -2112,7 +2112,7 @@ void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float
     screen_vertex_set_position(&q[1], right, bottom);
     screen_vertex_set_position(&q[2], right, top);
     screen_vertex_set_position(&q[3], left, top);
-    rasterizer_draw(DRAW_TRIANGLE_FAN, 2, q);
+    rasterizer_draw(DRAW_TRIANGLE_FAN, 4, q);
 }
 
 // XXX rasterizer_draw() enqueue triangles
@@ -3070,7 +3070,7 @@ void zbuffer(int enable) {
 void zclear() {
     TRACE();
 
-    rasterizer_zclear(0);
+    rasterizer_zclear(0xffffffff);
 }
 
 void zfunction(int func) {
@@ -3081,7 +3081,7 @@ void zfunction(int func) {
 void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
-    rasterizer_zclear(0);
+    rasterizer_zclear(depth);
     rasterizer_clear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff);
 }
 

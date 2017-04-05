@@ -1,10 +1,18 @@
 #include <stdio.h>
 #include <gl.h>
+#include <math.h>
 #include "rasterizer.h"
 #include "connection.h"
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
+
+static int save_file_frame_number = 0;
+static int save_file_last_frame = 1 << 30;
+static char *save_filename = NULL;
+static FILE *save_file = NULL;
+
+static float the_linewidth;
 
 static float min(float a, float b)
 {
@@ -22,19 +30,28 @@ void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
     send_and_capture_uint8(r);
     send_and_capture_uint8(g);
     send_and_capture_uint8(b);
+    if(save_file) {
+        fprintf(save_file, "clear %u %u %u\n", r, g, b);
+    }
 }
 
-static float the_linewidth;
 void rasterizer_linewidth(float w)
 {
     the_linewidth = w;
+    if(save_file)
+        fprintf(save_file, "linewidth %f\n", w);
 }
 
 void rasterizer_setpattern(uint16_t pattern[16])
 {
     send_and_capture_uint8(COMMAND_SET_PATTERN);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
         send_and_capture_uint16(pattern[i]);
+    if(save_file) {
+        fprintf(save_file, "setpattern");
+        for (int i = 0; i < 16; i++)
+            fprintf(save_file, " %04X", pattern[i]);
+        fprintf(save_file, "\n");
     }
 }
 
@@ -44,15 +61,45 @@ void rasterizer_pattern(int enable)
         send_and_capture_uint8(COMMAND_ENABLE_PATTERN);
     else
         send_and_capture_uint8(COMMAND_DISABLE_PATTERN);
+    if(save_file) {
+        fprintf(save_file, "pattern %d\n", enable);
+    }
 }
 
 void rasterizer_swap()
 {
+    if(save_file) {
+        fprintf(save_file, "swap\n");
+        if(save_file_frame_number++ == save_file_last_frame) {
+            fflush(save_file);
+            exit(EXIT_SUCCESS);
+        }
+        fprintf(save_file, "# frame %d\n", save_file_frame_number);
+    }
     send_and_capture_uint8(COMMAND_SWAPBUFFERS);
 }
 
 int32_t rasterizer_winopen(char *title)
 {
+    save_filename = getenv("SAVE_DRAWING_FILENAME");
+    if(save_filename != NULL) {
+        save_file = fopen(save_filename, "w");
+        if(save_file == NULL) {
+            fprintf(stderr, "Couldn't open \"%s\" for writing.\n", save_filename);
+            exit(EXIT_FAILURE);
+        } else {
+            printf("Saving drawing commands to \"%s\".\n", save_filename);
+            fprintf(save_file, "winopen %s\n", title);
+            fprintf(save_file, "# frame 0\n");
+        }
+    }
+
+    char *s = getenv("SAVE_DRAWING_LAST_FRAME");
+    if(s != NULL) {
+        save_file_last_frame = atoi(s);
+        printf("Saving only %d frames\n", save_file_last_frame);
+    }
+
     return network_winopen(title);
 }
 
@@ -60,11 +107,17 @@ void rasterizer_zbuffer(int enable)
 {
     send_and_capture_uint8(COMMAND_ZBUFFER);
     send_and_capture_uint8(enable);
+    if(save_file) {
+        fprintf(save_file, "zbuffer %d\n", enable);
+    }
 }
 
 void rasterizer_zclear(uint32_t z)
 {
     send_and_capture_uint8(COMMAND_ZCLEAR);
+    if(save_file) {
+        fprintf(save_file, "zclear %u\n", z);
+    }
 }
 
 static void send_screen_vertex(screen_vertex *sv)
@@ -148,6 +201,15 @@ void rasterizer_bitmap(uint32_t width, uint32_t rowbytes, uint32_t height, scree
             send_screen_triangle(&s[2], &s[3], &s[0]);
         }
     }
+    if(save_file) {
+        fprintf(save_file, "bitmap\n");
+        fprintf(save_file, " %u %u %u\n", width, rowbytes, height);
+        fprintf(save_file, " %u %u %u %u %u %u\n", sv->x, sv->y, sv->z, sv->r, sv->g, sv->b);
+        for(int j = 0; j < height; j++)
+            for(int i = 0; i < rowbytes; i++)
+                fprintf(save_file, " %20X", bits[j * rowbytes + i]);
+        fprintf(save_file, "\n");
+    }
 }
 
 void draw_line_as_triangles(screen_vertex *v0, screen_vertex *v1)
@@ -198,42 +260,60 @@ void draw_line_as_triangles(screen_vertex *v0, screen_vertex *v1)
 void rasterizer_draw(uint32_t type, uint32_t count, screen_vertex *screenverts)
 {
     switch(type) {
+        default:
+            fprintf(stderr, "Unimplemented draw type %d.\n", type);
+            return;
+            break;
+
         case DRAW_POINTS:
             fprintf(stderr, "POINTS not implemented\n");
+            return;
             break;
+
         case DRAW_LINES:
-            for(int i = 0; i < count; i++) { 
+            for(int i = 0; i < count / 2; i++) { 
                 draw_line_as_triangles(&screenverts[i * 2 + 0], &screenverts[i * 2 + 1]);
             }
             break;
+
         case DRAW_LINE_STRIP:
-            for(int i = 0; i < count; i++) { 
+            for(int i = 0; i < count - 1; i++) { 
                 draw_line_as_triangles(&screenverts[i + 0], &screenverts[i + 1]);
             }
             break;
+
         case DRAW_LINE_LOOP:
-            for(int i = 0; i < count; i++) { 
+            for(int i = 0; i < count - 1; i++) { 
                 draw_line_as_triangles(&screenverts[i + 0], &screenverts[i + 1]);
             }
-            draw_line_as_triangles(&screenverts[0], &screenverts[count]);
+            draw_line_as_triangles(&screenverts[count - 1], &screenverts[0]);
             break;
+
         case DRAW_TRIANGLE_STRIP:
-            for(int i = 0; i < count; i++) {
+            for(int i = 0; i < count - 2; i++) {
                 if(i % 2 == 0)
                     send_screen_triangle(&screenverts[i], &screenverts[i + 1], &screenverts[i + 2]);
                 else
                     send_screen_triangle(&screenverts[i + 1], &screenverts[i], &screenverts[i + 2]);
             }
             break;
+
         case DRAW_TRIANGLES:
-            for(int i = 0; i < count; i++)
+            for(int i = 0; i < count / 3; i++)
                 send_screen_triangle(&screenverts[i * 3], &screenverts[i * 3 + 1], &screenverts[i * 3 + 2]);
             break;
+
         case DRAW_TRIANGLE_FAN:
-            for(int i = 0; i < count; i++) {
+            for(int i = 0; i < count - 2; i++) {
                 send_screen_triangle(&screenverts[0], &screenverts[i + 1], &screenverts[i + 2]);
             }
             break;
+    }
+
+    if(save_file) {
+        fprintf(save_file, "draw %d %d\n", type, count);
+        for(int i = 0; i < count; i++)
+            fprintf(save_file, " %u %u %u %u %u %u\n", screenverts[i].x, screenverts[i].y, screenverts[i].z, screenverts[i].r, screenverts[i].g, screenverts[i].b);
     }
 }
 

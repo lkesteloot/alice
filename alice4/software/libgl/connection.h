@@ -25,10 +25,12 @@ typedef enum {
 
 // Interface for connection to network
 void open_connection();
+int32_t network_winopen(char *title);
 void send_uint8(unsigned char b);
 void send_uint16(uint16_t x);
 void send_uint32(uint32_t x);
 void send_and_capture_string(char *s);
+void send_and_capture_uint8(uint8_t b);
 void send_and_capture_uint16(uint16_t x);
 void send_and_capture_uint32(uint32_t x);
 unsigned char receive_uint8();
