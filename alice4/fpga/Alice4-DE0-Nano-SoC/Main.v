@@ -260,18 +260,55 @@ module Main(
     end
 
     // GPIO pins.
-    assign gpio_0[4] = lcd_clock;
-    assign gpio_0[6] = lcd_hs_n;
-    assign gpio_0[7] = lcd_vs_n;
-    assign gpio_0[9] = lcd_data_enable;
-    assign gpio_0[10] = lcd_display_on;
-    assign gpio_0[15:12] = lcd_red[5:2];
-    assign gpio_0[20:19] = lcd_red[7:6];
-    assign gpio_0[21] = lcd_green[2];
-    assign gpio_0[27:23] = lcd_green[7:3];
-    assign gpio_0[28] = lcd_blue[2];
-    assign gpio_0[33:30] = lcd_blue[6:3];
-    assign gpio_0[35] = lcd_blue[7];
+
+    // Cobbler:
+    /// assign gpio_0[4] = lcd_clock;
+    /// assign gpio_0[6] = lcd_hs_n;
+    /// assign gpio_0[7] = lcd_vs_n;
+    /// assign gpio_0[9] = lcd_data_enable;
+    /// assign gpio_0[10] = lcd_display_on;
+    /// assign gpio_0[15:12] = lcd_red[5:2];
+    /// assign gpio_0[20:19] = lcd_red[7:6];
+    /// assign gpio_0[21] = lcd_green[2];
+    /// assign gpio_0[27:23] = lcd_green[7:3];
+    /// assign gpio_0[28] = lcd_blue[2];
+    /// assign gpio_0[33:30] = lcd_blue[6:3];
+    /// assign gpio_0[35] = lcd_blue[7];
+
+    // Brad's board:
+    assign gpio_0[0] = lcd_red[0];
+    assign gpio_0[2] = lcd_red[1];
+    assign gpio_0[4] = lcd_red[2];
+    assign gpio_0[6] = lcd_red[3];
+    assign gpio_0[8] = lcd_red[4];
+    assign gpio_0[10] = lcd_red[5];
+    assign gpio_0[12] = lcd_red[6];
+    assign gpio_0[14] = lcd_red[7];
+
+    assign gpio_0[16] = lcd_blue[0];
+    assign gpio_0[18] = lcd_blue[1];
+    assign gpio_0[20] = lcd_blue[2];
+    assign gpio_0[22] = lcd_blue[3];
+    assign gpio_0[24] = lcd_blue[4];
+    assign gpio_0[26] = lcd_blue[5];
+    assign gpio_0[28] = lcd_blue[6];
+    assign gpio_0[30] = lcd_blue[7];
+
+    assign gpio_0[1] = lcd_green[0];
+    assign gpio_0[3] = lcd_green[1];
+    assign gpio_0[5] = lcd_green[2];
+    assign gpio_0[7] = lcd_green[3];
+    assign gpio_0[9] = lcd_green[4];
+    assign gpio_0[11] = lcd_green[5];
+    assign gpio_0[13] = lcd_green[6];
+    assign gpio_0[15] = lcd_green[7];
+
+    assign gpio_0[17] = lcd_clock;
+    assign gpio_0[19] = lcd_display_on;
+    assign gpio_0[21] = lcd_hs_n;
+    assign gpio_0[23] = lcd_vs_n;
+    assign gpio_0[25] = lcd_data_enable;
+    assign gpio_0[27] = 1'b1;
 
     // LCD clock.
     always @(posedge clock_50) begin
