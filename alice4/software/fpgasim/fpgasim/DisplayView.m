@@ -28,11 +28,32 @@
     [textAttributes setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
 }
 
-- (void)mouseDown: (NSEvent*)event {
+// So that we can get key events.
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (void)mouseDown:(NSEvent *)event {
     [self.delegate gotViewEvent:event];
 }
 
-- (void)mouseUp: (NSEvent*)event {
+- (void)mouseUp:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)rightMouseDown:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)rightMouseUp:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)keyDown:(NSEvent *)event {
+    [self.delegate gotViewEvent:event];
+}
+
+- (void)keyUp:(NSEvent *)event {
     [self.delegate gotViewEvent:event];
 }
 

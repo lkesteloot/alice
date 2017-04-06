@@ -79,7 +79,36 @@
 	    value = 0;
 	    break;
 
+	case NSEventTypeKeyDown:
+	case NSEventTypeKeyUp:
+	    value = event.type == NSEventTypeKeyDown ? 1 : 0;
+
+	    switch ([event keyCode]) {
+		case 126:
+		    device = UPARROWKEY;
+		    break;
+
+		case 125:
+		    device = DOWNARROWKEY;
+		    break;
+
+		case 124:
+		    device = RIGHTARROWKEY;
+		    break;
+
+		case 123:
+		    device = LEFTARROWKEY;
+		    break;
+
+		default:
+		    device = 0;
+		    value = 0;
+		    break;
+	    }
+	    break;
+
 	default:
+	    NSLog(@"Unknown event: %04lx", (unsigned long)event.type);
 	    device = 0;
 	    value = 0;
 	    break;

@@ -1,3 +1,13 @@
+PCB Checklist
+
+- Double-check silkscreened labels against physical pins
+- Double-check footprints / dimensions against data sheet for ordered part
+    - E.g. RAM and 1206 capacitor in Alice 3 v3
+- Hand-route grounds and powers, then route/autoroute
+- Route back side and front side at 90 degrees to each other
+- Use REAL names and labels, don’t just run VSSA/VSSD to 3V3/GND
+- Run DRC and check unconnected
+
 
 To make new library component:
 

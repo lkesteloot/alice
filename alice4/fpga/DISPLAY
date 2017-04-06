@@ -121,49 +121,51 @@
         - Display on/off
         - Total: 3*8 + 5 = 29 pins
 - Cobbler:
-    - Pins 2 and 4 are connected (5V0).
-        - 2 = D0
-        - 4 = D1
-    - Pins 6, 9, 14, 20, 25, 30, 34, 39 are connected (GND).
-        - 6 = D3
-        - 9 = D6
-        - 14 = D9
-        - 20 = D14
-        - 25 = D18
-        - 30 = GND
-        - 34 = D25
-        - 39 = D30
-    - This leaves 32 - 2 - 7 = 23 pins.
-    - We need 29 pins, so we're screwed.
-    - Unless we use the other connector.
-    - Or use fewer bits of color:
-        - 6 bits of each of RGB would be 6*3 + 5 = 23 pins.
-    - Assignment:
-        - D2: Clock
-        - D4: HS
-        - D5: VS
-        - D7: DE
-        - D8: Display on
-        - D10: R2
-        - D11: R3
-        - D12: R4
-        - D13: R5
-        - D15: R6
-        - D16: R7
-        - D17: G2
-        - D19: G3
-        - D20: G4
-        - D21: G5
-        - D22: G6
-        - D23: G7
-        - D24: B2
-        - D26: B3
-        - D27: B4
-        - D28: B5
-        - D29: B6
-        - D31: B7
+    - DE0-Nano-SoC connector:
+        -              D0    1 |  2   D1   XXX(5V)
+        -              D2    3 |  4   D3   XXX(5V)
+        - Clock        D4    5 |  6   D5   XXX(GND)
+        - HS           D6    7 |  8   D7   VS
+        - XXX(GND)     D8    9 | 10   D9   Data enable
+        -              5V   11 | 12   GND
+        - Display on   D10  13 | 14   D11   XXX(GND)
+        - R2           D12  15 | 16   D13   R3
+        - R4           D14  17 | 18   D15   R5
+        -              D16  19 | 20   D17   XXX(GND)
+        -              D18  21 | 22   D19   R6
+        - R7           D20  23 | 24   D21   G2
+        - XXX(GND)     D22  25 | 26   D23   G3
+        - G4           D24  27 | 28   D25   G5
+        -              3.3V 29 | 30   GND   XXX(GND)
+        - G6           D26  31 | 32   D27   G7
+        - B2           D28  33 | 34   D29   XXX(GND)
+        - B3           D30  35 | 36   D31   B4
+        - B5           D32  37 | 38   D33   B6
+        - XXX(GND)     D34  39 | 40   D35   B7
+- DABO, proposed:
+    - DE0-Nano-SoC connector:
+        - R0           D0    1 |  2   D1    G0
+        - R1           D2    3 |  4   D3    G1
+        - R2           D4    5 |  6   D5    G2
+        - R3           D6    7 |  8   D7    G3
+        - R4           D8    9 | 10   D9    G4
+        - 5V           5V   11 | 12   GND   GND
+        - R5           D10  13 | 14   D11   G5
+        - R6           D12  15 | 16   D13   G6
+        - R7           D14  17 | 18   D15   G7
+        - B0           D16  19 | 20   D17   LCD_CLOCK
+        - B1           D18  21 | 22   D19   DISPLAY_ON
+        - B2           D20  23 | 24   D21   HSYNC
+        - B3           D22  25 | 26   D23   VSYNC
+        - B4           D24  27 | 28   D25   DISPLAY_ENABLE
+        - N.C.         3.3V 29 | 30   GND   GND
+        - B5           D26  31 | 32   D27   BACKLIGHT_PWM
+        - B6           D28  33 | 34   D29   N.C.
+        - B7           D30  35 | 36   D31   N.C.
+        - INT          D32  37 | 38   D33   N.C.
+        - SCL          D34  39 | 40   D35   SDA
 - GPIO headers:
-    - See Figure 4-14 and Table 4.8 (page 32) in User Manual.
+    - See figure 3-18 (page 26) in User Manual.
     - Both are 40 pins.
         - J4 (GPIO 0) is inner one.
         - J5 (GPIO 1) is outer one.

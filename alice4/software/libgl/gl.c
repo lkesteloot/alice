@@ -22,7 +22,6 @@
 //      zbuffer
 //      zclear
 
-
 // Alice 4 libgl implementation.
 
 #include <stdio.h>
@@ -63,6 +62,7 @@ static vec4f current_position = {0.0f, 0.0f, 0.0f, 1.0};
 static vec4f current_character_position = {0.0f, 0.0f, 0.0f, 1.0f};
 static int current_font = 0;
 static int current_pattern = 0;
+static int zbuffer_enabled = 0;
 
 #define INPUT_QUEUE_SIZE 128
 static uint32_t input_queue_device[INPUT_QUEUE_SIZE];
@@ -185,6 +185,79 @@ float min(float a, float b)
     return (a < b) ? a : b;
 }
 
+
+//------------------------------------------------------------------------
+// Popup menus ("pup" in GL lingo)
+
+#define MAX_PUPS 16
+#define MAX_PUP_ITEMS 16
+
+typedef struct pup_item {
+    char *item;
+    int value;
+    int submenu;
+    int (*func)(int i);
+} pup_item;
+
+typedef struct pup {
+    int defd;
+    char *title;
+    int (*func)(int i);
+    int item_count;
+    struct pup_item items[MAX_PUP_ITEMS];
+} pup;
+struct pup pups[MAX_PUPS];
+
+void pup_init(pup *p)
+{
+    p->defd = 0;
+    p->title = NULL;
+    p->func = NULL;
+    p->item_count = 0;
+}
+
+void pup_new(pup *p)
+{
+    p->defd = 1;
+}
+
+void pup_free(pup *p)
+{
+    if(p->title != NULL) {
+        free(p->title);
+    }
+    for(int i = 0; i < p->item_count; i++) {
+        pup_item *pi = p->items + i;
+        if(pi->item != NULL) {
+            free(pi->item);
+        }
+    }
+    pup_init(p);
+}
+
+void pup_set_title(pup *p, char *title)
+{
+    if(p->title != NULL) {
+        free(p->title);
+    }
+    p->title = NULL;
+    if(title != NULL) {
+        p->title = strdup(title);
+    }
+}
+
+void pup_add(pup *p, char *item, int value, int submenu, int (*func)(int i))
+{
+    pup_item *pi = p->items + p->item_count++;
+    
+    if(item != NULL)
+        pi->item = strdup(item);
+    else
+        pi->item = NULL;
+    pi->value = value;
+    pi->submenu = submenu;
+    pi->func = func;
+}
 
 //----------------------------------------------------------------------------
 // I/O operations
@@ -385,6 +458,19 @@ void screen_vertex_set_color(screen_vertex *sv, uint8_t r, uint8_t g, uint8_t b,
     sv->a = a;
 }
 
+void screen_vertex_set_position(screen_vertex* v, float x, float y)
+{
+    v->x = x * SCREEN_VERTEX_V2_SCALE;
+    v->y = y * SCREEN_VERTEX_V2_SCALE;
+    v->z = 0;
+}
+
+void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
+{
+    v->x = clamp(v->x + dx * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE);
+    v->y = clamp(v->y + dy * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_HEIGHT - 1) * SCREEN_VERTEX_V2_SCALE);
+}
+
 void project_vertex(lit_vertex *lv, screen_vertex *sv)
 {
     // XXX could pre-compute
@@ -416,14 +502,14 @@ void project_vertex(lit_vertex *lv, screen_vertex *sv)
 void send_screen_vertex(screen_vertex *sv) {
     send_and_capture_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);
     send_and_capture_uint16(sv->y / SCREEN_VERTEX_V2_SCALE);
-    send_and_capture_uint32(sv->z);
+    send_and_capture_uint32(sv->z & 0xFFFF0000);
     send_and_capture_uint8(sv->r);
     send_and_capture_uint8(sv->g);
     send_and_capture_uint8(sv->b);
     send_and_capture_uint8(sv->a);
 }
 
-void process_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
+void send_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
     send_and_capture_uint8(COMMAND_TRIANGLE);
 
@@ -624,12 +710,6 @@ int32_t clip_polygon(int32_t n, lit_vertex *input, lit_vertex *output)
     return n;
 }
 
-void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
-{
-    v->x = clamp(v->x + dx * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE);
-    v->y = clamp(v->y + dy * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_HEIGHT - 1) * SCREEN_VERTEX_V2_SCALE);
-}
-
 void process_line(world_vertex *wv0, world_vertex *wv1)
 {
     static lit_vertex litverts[2], *vp;
@@ -687,8 +767,8 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     screen_vertex_offset_with_clamp(&q[2], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
     screen_vertex_offset_with_clamp(&q[3],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
 
-    process_triangle(&q[0], &q[1], &q[2]);
-    process_triangle(&q[2], &q[3], &q[0]);
+    send_screen_triangle(&q[0], &q[1], &q[2]);
+    send_screen_triangle(&q[2], &q[3], &q[0]);
 }
 
 void process_tmesh(int32_t n, world_vertex *worldverts)
@@ -731,7 +811,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
             // A fan might be slightly clearer
             i2 = (i % 2 == 0) ? (1 + i / 2) : (r - 2 - i / 2);
 
-            process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+            send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
         }
     }
 }
@@ -772,7 +852,7 @@ void process_polygon(int32_t n, world_vertex *worldverts)
         // A fan might be slightly clearer
         i2 = (i % 2 == 0) ? (1 + i / 2) : (n - 2 - i / 2);
 
-        process_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
+        send_screen_triangle(&screenverts[i0], &screenverts[i1], &screenverts[i2]);
     }
 }
 
@@ -812,8 +892,8 @@ void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowb
                 // finish the run
                 screen_vertex_offset_with_clamp(&s[2], count, 1);
                 screen_vertex_offset_with_clamp(&s[3], count, 0);
-                process_triangle(&s[0], &s[1], &s[2]);
-                process_triangle(&s[2], &s[3], &s[0]);
+                send_screen_triangle(&s[0], &s[1], &s[2]);
+                send_screen_triangle(&s[2], &s[3], &s[0]);
             }
 
             prevbit = bit;
@@ -823,8 +903,8 @@ void bitmap_draw(screen_vertex *sv, uint8_t *bits, uint32_t width, uint32_t rowb
             // the end of the row was a 1 bit, so finish run
             screen_vertex_offset_with_clamp(&s[2], count, 1);
             screen_vertex_offset_with_clamp(&s[3], count, 0);
-            process_triangle(&s[0], &s[1], &s[2]);
-            process_triangle(&s[2], &s[3], &s[0]);
+            send_screen_triangle(&s[0], &s[1], &s[2]);
+            send_screen_triangle(&s[2], &s[3], &s[0]);
         }
     }
 }
@@ -1752,9 +1832,13 @@ static void enqueue_device(int32_t device, uint16_t val) {
     }
 }
 
+static int devices_queued[2048];
+
 // We're interested in events from this device.
 void qdevice(int32_t device) { 
     TRACEF("%d", device);
+
+    devices_queued[device] = 1;
 
     switch (device) {
         case REDRAW:
@@ -1777,6 +1861,7 @@ void qdevice(int32_t device) {
 
 void unqdevice(Device device) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+    devices_queued[device] = 0;
 }
 
 void fetch_event_queue(int blocking) {
@@ -2112,12 +2197,322 @@ void c3f(float c[3]) {
     vec4f_set(current_color, c[0], c[1], c[2], 1.0f);
 }
 
-int32_t defpup(char *menu) {
+/*
+newpup(), addtopup(), defpup(), dopup()
+
+newpup, addtopup, defpup create "struct menu"s
+
+pushing SELECT sends RIGHTMOUSE?
+
+dopup() enters a loop:
+    (optional) entire previous frame contents are saved
+    while not leaf item selected:
+        menu is displayed with selected item inverted
+        swap
+        joystick can move up or down, back exits menus, select selects or submenus
+        (optional) play back entire previous frame contents
+    return leaf item value
+*/
+
+int32_t defpup(char *menu)
+{
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+
+    int which = 0;
+    while(pups[which].defd) {
+        which++;
+        if(which == MAX_PUPS) {
+            printf("warning: max pups exceeded\n");
+            return -1;
+        }
+    }
+
+    pup *thepup = pups + which;
+    pup_new(thepup);
+
+    char *menu2 = strdup(menu);
+    char *menu3 = menu2;
+    int nextvalue = 1;
+
+    while(menu3) {
+        char *item = strsep(&menu3, "|");
+        int is_title = 0;
+        
+        int (*func)(int) = NULL;
+        int value = -1;
+        int submenu = -1;
+
+        char *p = item;
+        while(*p) {
+            while(*p && *p != '%')
+                p++;
+
+            char *w = p;
+            while(w >= item && *w == ' ')
+                *w-- = '\0';
+
+            *p++ = '\0';
+
+            if(*p == 't') {
+                is_title = 1;
+                pup_set_title(thepup, item);
+            } else if(*p == 'F') {
+                /* thepup->func = XXX */
+                printf("defpup argument %%F ignored\n");
+            } else if(*p == 'f') {
+                printf("defpup argument %%f ignored\n");
+                /* func = XXX */
+            } else if(*p == 'n') {
+                printf("defpup argument %%n ignored\n");
+                /* ??? XXX */
+            } else if(*p == 'm') {
+                printf("defpup argument %%m ignored\n");
+                /* thepup->func = XXX */
+            } else if(*p == 'x') {
+                value = 0;
+                while(*p && *p >= '0' && *p <= 9) {
+                    value = value * 10 + *p - '0';
+                    p++;
+                }
+            }
+            p++;
+        }
+        if(!is_title) {
+            if(value == -1) 
+                value = nextvalue++;
+            pup_add(thepup, item, value, submenu, func);
+        }
+    }
+
+    free(menu2);
+
+    return which;
 }
 
-int32_t dopup() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void sigwinch(int s)
+{
+    enqueue_device(RIGHTMOUSE, 1);
+}
+
+void siginfo(int s)
+{
+    enqueue_device(RIGHTMOUSE, 0);
+}
+
+const int menu_corner_top = YMAXSCREEN - 1 - 10;
+const int menu_corner_left = 10;
+const int menu_padding = 3; 
+const int menu_item_separation = 2;
+const int menu_items_gap = 8;
+
+static int32_t str_width_in_pixels(char *str) {
+    int width = 0;
+    for(int i = 0; i < strlen(str); i++) {
+        if (str[i] == '\t') {
+            width += font_width * 8;
+        } else {
+            width += font_width;
+        }
+    }
+    return width;
+}
+
+void string_draw(screen_vertex* screenvert_, const char *str) {
+    static screen_vertex screenvert;
+
+    screenvert = *screenvert_;
+
+    for(int i = 0; i < strlen(str); i++) {
+        if (str[i] == '\t') {
+            // I don't know whether the original charstr() supported tabs (I can't find
+            // a man page), but arena/startup.c uses them. --LK
+            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE * 8;
+        } else {
+            bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
+            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
+        }
+    }
+}
+
+void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float right, float bottom)
+{
+    screen_vertex q[4];
+
+    for(int i = 0; i < 4; i++)
+        screen_vertex_set_color(&q[i], r, g, b, 255);
+
+    screen_vertex_set_position(&q[0], left, bottom);
+    screen_vertex_set_position(&q[1], right, bottom);
+    screen_vertex_set_position(&q[2], right, top);
+    screen_vertex_set_position(&q[3], left, top);
+    send_screen_triangle(&q[0], &q[1], &q[2]);
+    send_screen_triangle(&q[2], &q[3], &q[0]);
+}
+
+void draw_screen_aarect_outline(int r, int g, int b, float left, float top, float right, float bottom)
+{
+    draw_screen_aarect_filled(r, g, b, left, top, left + 1, bottom);
+    draw_screen_aarect_filled(r, g, b, right - 1, top, right, bottom);
+    draw_screen_aarect_filled(r, g, b, left, top, right, top - 1);
+    draw_screen_aarect_filled(r, g, b, left, bottom + 1, right, bottom);
+}
+
+void draw_screen_string(int r, int g, int b, float x, float y, const char *str) {
+    screen_vertex sv;
+    screen_vertex_set_color(&sv, r, g, b, 255);
+    screen_vertex_set_position(&sv, x, y);
+    string_draw(&sv, str);
+}
+
+void pup_draw(pup *p, int menu_left, int menu_top, int selected)
+{
+    int menu_text_pane_width = 0;
+
+    int title_text_pane_height;
+
+    // Size of title area
+    if(p->title) {
+        menu_text_pane_width = str_width_in_pixels(p->title);
+        title_text_pane_height = font_height;
+    } else {
+        title_text_pane_height = menu_item_separation;
+    }
+
+    // Size of items area
+    int items_text_pane_height = 0;
+    for(int i = 0; i < p->item_count; i++) {
+        int w = str_width_in_pixels(p->items[i].item);
+        if(w > menu_text_pane_width)
+            menu_text_pane_width = w;
+        items_text_pane_height += font_height;
+        if(i != p->item_count - 1)
+            items_text_pane_height += menu_item_separation;
+    }
+
+    int title_fill_width = menu_padding * 2 + menu_text_pane_width;
+    int title_fill_height = menu_padding * 2 + title_text_pane_height;
+
+    int title_outline_left = menu_left;
+    int title_outline_top = menu_top;
+    int title_outline_right = title_outline_left + 2 + title_fill_width;
+    int title_outline_bottom = title_outline_top - 2 - title_fill_height;
+
+    int title_fill_left = title_outline_left + 1;
+    int title_fill_top = title_outline_top - 1;
+    int title_fill_right = title_outline_right - 1;
+    int title_fill_bottom = title_outline_bottom + 1;
+
+    int title_pane_left = title_fill_left + menu_padding;
+    int title_pane_top = title_fill_top - menu_padding;
+
+    // draw title:
+    //  draw title border lines
+    //  draw title box
+    //  draw title string
+    draw_screen_aarect_outline(0, 0, 0, title_outline_left, title_outline_top, title_outline_right, title_outline_bottom);
+    draw_screen_aarect_filled(200, 200, 200, title_fill_left, title_fill_top, title_fill_right, title_fill_bottom);
+    if(p->title) {
+        draw_screen_string(0, 0, 0, title_pane_left, title_pane_top - font_height, p->title);
+    }
+
+    int items_fill_width = menu_padding * 2 + menu_text_pane_width;
+    int items_fill_height = menu_padding * 2 + items_text_pane_height;
+
+    int items_outline_left = menu_left;
+    int items_outline_top = title_outline_bottom - menu_items_gap;
+    int items_outline_right = items_outline_left + 2 + items_fill_width;
+    int items_outline_bottom = items_outline_top - 2 - items_fill_height;
+
+    int items_fill_left = items_outline_left + 1;
+    int items_fill_top = items_outline_top - 1;
+    int items_fill_right = items_outline_right - 1;
+    int items_fill_bottom = items_outline_bottom + 1;
+
+    int items_pane_left = items_fill_left + menu_padding;
+    int items_pane_top = items_fill_top - menu_padding;
+
+    // draw items:
+    //  draw items border lines
+    //  draw items box
+    //  draw item strings
+    draw_screen_aarect_outline(0, 0, 0, items_outline_left, items_outline_top, items_outline_right, items_outline_bottom);
+    draw_screen_aarect_filled(255, 255, 255, items_fill_left, items_fill_top, items_fill_right, items_fill_bottom);
+    int item_top = items_pane_top;
+    for(int i = 0; i < p->item_count; i++) {
+        if(i == selected) {
+            draw_screen_aarect_filled(0, 0, 0, items_fill_left + 1, item_top + 2, items_fill_right - 1, item_top - font_height - 2);
+            draw_screen_string(255, 255, 255, items_pane_left, item_top - font_height, p->items[i].item);
+        }
+        else
+            draw_screen_string(0, 0, 0, items_pane_left, item_top - font_height, p->items[i].item);
+            item_top -= font_height + menu_item_separation;
+    }
+}
+
+int32_t dopup(int32_t pup_index) {
+
+    // Save previous drawing state
+    int old_zbuffer = zbuffer_enabled;
+    zbuffer(0);
+    vec4f previous_color;
+    vec4f_copy(previous_color, current_color);
+    vec4f_set(current_color, .1, .1, .1, 1);
+
+    pup *thepup = pups + pup_index;
+
+    int larrow_queued = devices_queued[LEFTARROWKEY];
+    int rarrow_queued = devices_queued[RIGHTARROWKEY];
+    int uarrow_queued = devices_queued[UPARROWKEY];
+    int darrow_queued = devices_queued[DOWNARROWKEY];
+
+    qdevice(LEFTARROWKEY);
+    qdevice(RIGHTARROWKEY);
+    qdevice(UPARROWKEY);
+    qdevice(DOWNARROWKEY);
+
+    int selected = 0;
+    int done = 0;
+    while(!done) {
+        clear();
+        pup_draw(thepup, menu_corner_left, menu_corner_top, selected);
+        swapbuffers();
+
+        if(qtest() != 0) {
+            uint16_t val;
+            int32_t device = qread(&val);
+            switch(device) {
+                case LEFTARROWKEY:
+                    if(val)
+                        return -1;
+                    break;
+                case RIGHTARROWKEY:
+                    if(val)
+                        done = 1;
+                    break;
+                case UPARROWKEY:
+                    if(val)
+                        if(selected > 0)
+                            selected--;
+                    break;
+                case DOWNARROWKEY:
+                    if(val)
+                        if(selected < thepup->item_count)
+                            selected++;
+                    break;
+            }
+        }
+    }
+
+    if(!larrow_queued) unqdevice(LEFTARROWKEY);
+    if(!rarrow_queued) unqdevice(RIGHTARROWKEY);
+    if(!uarrow_queued) unqdevice(UPARROWKEY);
+    if(!darrow_queued) unqdevice(DOWNARROWKEY);
+
+    // Restore previous drawing state
+    vec4f_copy(current_color, previous_color);
+    zbuffer(old_zbuffer);
+
+    return thepup->items[selected].value;
 }
 
 void endline() {
@@ -2760,17 +3155,7 @@ void charstr(char *str) {
 
     project_vertex(&vert, &screenvert);
 
-    for(int i = 0; i < strlen(str); i++) {
-        if (str[i] == '\t') {
-            // I don't know whether the original charstr() supported tabs (I can't find
-            // a man page), but arena/startup.c uses them. --LK
-            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE * 8;
-        } else {
-            // hardcode 8x16 for now
-            bitmap_draw(&screenvert, font_bits + str[i] * font_height * font_rowbytes, font_width, font_rowbytes, font_height);
-            screenvert.x += font_width * SCREEN_VERTEX_V2_SCALE;
-        }
-    }
+    string_draw(&screenvert, str);
 }
 
 #define CIRCLE_SEGMENTS 80
@@ -2909,6 +3294,7 @@ void poly(int n, Coord p[][3]) {
 // XXX display list
 void zbuffer(int enable) {
     TRACEF("%d", enable);
+    zbuffer_enabled = enable;
     send_and_capture_uint8(COMMAND_ZBUFFER);
     send_and_capture_uint8(enable);
 }
@@ -2989,6 +3375,14 @@ static void init_gl_state()
     vec3ub_set(colormap[MAGENTA], 255, 0, 255);
     vec3ub_set(colormap[CYAN], 0, 255, 255);
     vec3ub_set(colormap[WHITE], 255, 255, 255);
+
+    for(int i = 0; i < MAX_PUPS; i++)
+        pup_init(pups + i);
+
+    signal(SIGWINCH, sigwinch);
+    signal(SIGINFO, siginfo);
+
+    memset(devices_queued, sizeof(devices_queued), 0);
 }
 
 static int32_t font_width = 8, font_rowbytes = 1, font_height = 16;
