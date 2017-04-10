@@ -2,7 +2,10 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
 #include <FreeImagePlus.h>
+#include <sys/mman.h>
+#include <stdint.h>
 
 void usage(char *argv[])
 {
@@ -67,7 +70,20 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    unsigned char *fb = new unsigned char[FRAMEBUFFER_HEIGHT * bytes_per_row]; // XXX
+    int dev_mem = open("/dev/mem", O_RDWR);
+
+    if(dev_mem == 0) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    unsigned char *fb = (unsigned char *)mmap(0, FRAMEBUFFER_HEIGHT * bytes_per_row, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, address);
+
+    if(fb == 0) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
     memset(fb, 0, FRAMEBUFFER_HEIGHT * bytes_per_row);
 
     int offsetx = 0;
@@ -90,7 +106,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(0) {
+    if(1) {
         // Take what we wrote to memory and write it back out as a PPM file
         FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
