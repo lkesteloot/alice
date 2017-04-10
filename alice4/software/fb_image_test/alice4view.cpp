@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <cstdio>
+#include <cstring>
 #include <FreeImagePlus.h>
 
 void usage(char *argv[])
@@ -77,10 +78,10 @@ int main(int argc, char **argv)
         offsety = (FRAMEBUFFER_HEIGHT - img.getHeight()) / 2;
     }
 
-    for (int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
+    for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
         RGBQUAD rgb;
         unsigned char* row = fb + bytes_per_row * (j + offsety);
-        for (int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
+        for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
             img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
             unsigned char *pixel = row + (i + offsetx) * bytes_per_pixel;
             pixel[0] = rgb.rgbRed;
@@ -90,11 +91,11 @@ int main(int argc, char **argv)
     }
 
     if(0) {
-        FILE *fp = fopen("debug_output.ppm", "wb");
         // Take what we wrote to memory and write it back out as a PPM file
+        FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
-        for(int j = 0; j < FRAMEBUFFER_HEIGHT; j++)
-            for(int i = 0; i < FRAMEBUFFER_WIDTH; i++) {
+        for(unsigned int j = 0; j < FRAMEBUFFER_HEIGHT; j++)
+            for(unsigned int i = 0; i < FRAMEBUFFER_WIDTH; i++) {
                 unsigned char *src, *dst;
                 src = fb + j * bytes_per_row + i * bytes_per_pixel;
                 dst = fb2 + (j * FRAMEBUFFER_WIDTH + i) * 3;
