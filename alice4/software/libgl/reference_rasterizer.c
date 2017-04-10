@@ -223,8 +223,10 @@ int32_t rasterizer_winopen(char *title)
 {
     rasterizer_clear(0, 0, 0);
     rasterizer_zclear(0xffffffff);
-    if(getenv("SNAP_VERTICES") != NULL)
+    if(getenv("SNAP_VERTICES") != NULL) {
         snap_vertices = 1;
+        printf("Vertex values in X and Y will be rounded to nearest pixel corner\n");
+    }
     return 1;
 }
 
