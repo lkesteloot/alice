@@ -106,7 +106,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(1) {
+    if(0) {
         // Take what we wrote to memory and write it back out as a PPM file
         FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
