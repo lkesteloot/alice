@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     }
 
     printf("Address = 0x%08X\n", address);
-    printf("Bytes per row = %d\n", address);
+    printf("Bytes per row = %d\n", bytes_per_row);
     printf("Mode = %d (bytes per pixel = %d)\n", mode, bytes_per_pixel);
     FreeImage_Initialise();
 
