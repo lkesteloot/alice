@@ -4,6 +4,8 @@
 `define ENABLE_GPIO0
 //`define ENABLE_GPIO1
 `define ENABLE_HPS
+//`define LCD_FROM_FB
+//`define SDRAM_TEST
 
 module Main(
         //////////// CLOCK //////////
@@ -110,6 +112,11 @@ module Main(
         input [3:0] sw
 );
 
+    // 1G minus 128M, in bytes.
+    localparam FRAME_BUFFER_ADDRESS = 29'h3800_0000;
+    // Number of bytes in frame buffer.
+    localparam FRAME_BUFFER_LENGTH = 800*480*8;
+
     // Debug LED blink.
     reg [23:0] counter;
     always @(posedge clock_50) begin
@@ -167,6 +174,7 @@ module Main(
     );
 
     // SDRAM test module.
+`ifdef SDRAM_TEST
     wire [31:0] sdram_debug_value0;
     wire [31:0] sdram_debug_value1;
     SDRAM_test sdram_test(
@@ -184,18 +192,21 @@ module Main(
         .debug_value0(sdram_debug_value0),
         .debug_value1(sdram_debug_value1)
     );
+`endif
 
     // Generate signals for the LCD.
     wire [9:0] lcd_x;
     wire [9:0] lcd_y;
-    reg lcd_clock;
+    // This is both a tick and a clock, which we can do because it's
+    // half the speed of clock_50.
+    reg lcd_tick;
     wire lcd_data_enable;
     wire lcd_hs_n;
     wire lcd_vs_n;
     wire lcd_display_on = sw[0];
     LCD_control lcd_control(
         .clock(clock_50),
-        .tick(lcd_clock),
+        .tick(lcd_tick),
         .reset_n(reset_n),
         .x(lcd_x),
         .y(lcd_y),
@@ -204,7 +215,7 @@ module Main(
         .vs_n(lcd_vs_n),
         .data_enable(lcd_data_enable)
     );
-    
+
     // Generate character locations.
     wire [6:0] text_column;
     wire [5:0] text_row;
@@ -218,21 +229,51 @@ module Main(
         .character_column(character_column),
         .character_row(character_row)
     );
-    
+
     // Generate characters themselves.
     wire [6:0] character;
-    wire [31:0] value0 = 32'h01234567;
-    wire [31:0] value1 = 32'h89ABCDEF;
-    /// wire [31:0] value2 = 32'hDEADBEEF;
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
-        .value0(sdram_debug_value0),
-        .value1(sdram_debug_value1),
+        .value0(fb_debug_value0),
+        .value1(fb_debug_value1),
         .value2(hps_value),
         .character(character)
     );
-    
+
+    // Frame buffer.
+    wire [31:0] fb_debug_value0;
+    wire [31:0] fb_debug_value1;
+    Frame_buffer #(.ADDRESS(FRAME_BUFFER_ADDRESS),
+                   .LENGTH(FRAME_BUFFER_LENGTH)) frame_buffer(
+        .clock(clock_50),
+        .reset_n(reset_n),
+
+        // Memory interface:
+        .address(sdram_address),
+        .burstcount(sdram_burstcount),
+        .waitrequest(sdram_waitrequest),
+        .readdata(sdram_readdata),
+        .readdatavalid(sdram_readdatavalid),
+        .read(sdram_read),
+        .writedata(sdram_writedata),
+        .byteenable(sdram_byteenable),
+        .write(sdram_write),
+
+        // Display interface:
+        .lcd_tick(lcd_tick),
+`ifdef LCD_FROM_FB
+        .lcd_red(lcd_red_next),
+        .lcd_green(lcd_green_next),
+        .lcd_blue(lcd_blue_next),
+`endif
+        .lcd_data_enable(lcd_data_enable),
+
+        // Debugging:
+        .debug_value0(fb_debug_value0),
+        .debug_value1(fb_debug_value1)
+    );
+
     // Generate pixels.
     wire character_bw;
     LCD_font lcd_font(
@@ -242,30 +283,41 @@ module Main(
         .character_row(character_row),
         .bw(character_bw)
     );
-    
+
     // Color assignment. Latch these for clean output.
     reg [7:0] lcd_red;
     reg [7:0] lcd_green;
     reg [7:0] lcd_blue;
+`ifdef LCD_FROM_FB
+    wire [7:0] lcd_red_next;
+    wire [7:0] lcd_green_next;
+    wire [7:0] lcd_blue_next;
+`else
     wire [7:0] gray = character_bw ? 8'hFF : 8'h00;
     wire [7:0] lcd_red_next = gray;
     wire [7:0] lcd_green_next = gray;
     wire [7:0] lcd_blue_next = gray;
+`endif
+    reg lcd_data_enable_delayed;
     always @(posedge clock_50) begin
-        if (lcd_clock) begin
+        if (lcd_tick) begin
             lcd_red <= lcd_red_next;
             lcd_green <= lcd_green_next;
             lcd_blue <= lcd_blue_next;
+
+            // We must delay lcd_data_enable by one clock because
+            // the frame buffer has sent us delayed color.
+            lcd_data_enable_delayed <= lcd_data_enable;
         end
     end
 
     // GPIO pins.
 
     // Cobbler:
-    /// assign gpio_0[4] = lcd_clock;
+    /// assign gpio_0[4] = lcd_tick;
     /// assign gpio_0[6] = lcd_hs_n;
     /// assign gpio_0[7] = lcd_vs_n;
-    /// assign gpio_0[9] = lcd_data_enable;
+    /// assign gpio_0[9] = lcd_data_enable_delayed;
     /// assign gpio_0[10] = lcd_display_on;
     /// assign gpio_0[15:12] = lcd_red[5:2];
     /// assign gpio_0[20:19] = lcd_red[7:6];
@@ -303,17 +355,17 @@ module Main(
     assign gpio_0[13] = lcd_green[6];
     assign gpio_0[15] = lcd_green[7];
 
-    assign gpio_0[17] = lcd_clock;
+    assign gpio_0[17] = lcd_tick;
     assign gpio_0[19] = lcd_display_on;
     assign gpio_0[21] = lcd_hs_n;
     assign gpio_0[23] = lcd_vs_n;
-    assign gpio_0[25] = lcd_data_enable;
-    assign gpio_0[27] = 1'b1;
+    assign gpio_0[25] = lcd_data_enable; // TODO should be ..._delayed.
+    assign gpio_0[27] = 1'b1; // PWM backlight brightness.
 
     // LCD clock.
     always @(posedge clock_50) begin
         // 25 MHz.
-        lcd_clock <= ~lcd_clock;
+        lcd_tick <= ~lcd_tick;
     end
 
 endmodule

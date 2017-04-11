@@ -588,18 +588,6 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 
-set_global_assignment -name SDC_FILE "Alice4-DE0-Nano-SoC.sdc"
-set_global_assignment -name QSYS_FILE soc_system.qsys
-set_global_assignment -name VERILOG_FILE LCD_test.v
-set_global_assignment -name VERILOG_FILE LCD_control.v
-set_global_assignment -name VERILOG_FILE Main.v
-set_global_assignment -name CDF_FILE "Alice4-DE0-Nano-SoC.cdf"
-set_global_assignment -name VERILOG_FILE Font_ROM.v
-set_global_assignment -name VERILOG_FILE LCD_text.v
-set_global_assignment -name VERILOG_FILE LCD_font.v
-set_global_assignment -name VERILOG_FILE Binary_to_hex.v
-set_global_assignment -name VERILOG_FILE LCD_debug.v
-set_global_assignment -name VERILOG_FILE SDRAM_test.v
 set_instance_assignment -name GLOBAL_SIGNAL OFF -to soc_system_instance|hps_0|hps_io|border|hps_sdram_inst|p0|umemphy|ureset|phy_reset_mem_stable_n -tag __hps_sdram_p0
 set_instance_assignment -name GLOBAL_SIGNAL OFF -to soc_system_instance|hps_0|hps_io|border|hps_sdram_inst|p0|umemphy|ureset|phy_reset_n -tag __hps_sdram_p0
 set_instance_assignment -name GLOBAL_SIGNAL OFF -to soc_system_instance|hps_0|hps_io|border|hps_sdram_inst|p0|umemphy|uio_pads|dq_ddio[0].read_capture_clk_buffer -tag __hps_sdram_p0
@@ -620,4 +608,17 @@ set_global_assignment -name USE_DLL_FREQUENCY_FOR_DQS_DELAY_CHAIN ON
 set_global_assignment -name UNIPHY_SEQUENCER_DQS_CONFIG_ENABLE ON
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name ECO_REGENERATE_REPORT ON
+set_global_assignment -name QSYS_FILE fb_fifo.qsys
+set_global_assignment -name SDC_FILE "Alice4-DE0-Nano-SoC.sdc"
+set_global_assignment -name QSYS_FILE soc_system.qsys
+set_global_assignment -name VERILOG_FILE LCD_test.v
+set_global_assignment -name VERILOG_FILE LCD_control.v
+set_global_assignment -name VERILOG_FILE Main.v
+set_global_assignment -name CDF_FILE "Alice4-DE0-Nano-SoC.cdf"
+set_global_assignment -name VERILOG_FILE Font_ROM.v
+set_global_assignment -name VERILOG_FILE LCD_text.v
+set_global_assignment -name VERILOG_FILE LCD_font.v
+set_global_assignment -name VERILOG_FILE Binary_to_hex.v
+set_global_assignment -name VERILOG_FILE LCD_debug.v
+set_global_assignment -name VERILOG_FILE SDRAM_test.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
