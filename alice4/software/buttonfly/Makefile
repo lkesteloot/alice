@@ -3,7 +3,7 @@
 APP=buttonfly
 SRC=buttonfly.c event.c lexer.c parser.tab.c
 HEADERS=bartfont.h buttonfly.h data.h event.h parser.tab.h
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
 
 $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \

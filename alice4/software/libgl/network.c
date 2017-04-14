@@ -68,6 +68,20 @@ void send_uint8(uint8_t b) {
     buffer[buffer_length++] = b;
 }
 
+static FILE *capture_file = NULL;
+
+void open_capture() {
+    if(getenv("CAPTURE_FILE") != NULL) {
+        capture_file = fopen(getenv("CAPTURE_FILE"), "wb");
+    }
+}
+
+void send_and_capture_uint8(uint8_t b) {
+    send_uint8(b);
+    if(capture_file != NULL)
+        fwrite(&b, 1, 1, capture_file);
+}
+
 uint8_t receive_uint8() {
     if (socket_fd == -1) {
         fprintf(stderr, "Connection is not open.\n");
@@ -114,3 +128,86 @@ void close_connection() {
     shutdown(socket_fd, SHUT_RDWR);
     close(socket_fd);
 }
+
+// Send a string as a length and the bytes. Max string length is 255.
+void send_and_capture_string(char *s) {
+    send_and_capture_uint8(strlen(s));
+    while (*s != '\0') {
+        send_and_capture_uint8(*s);
+        s++;
+    }
+}
+
+// Little-endian.
+void send_and_capture_uint16(uint16_t x) {
+    if (trace_network) {
+        printf("Sending short %d\n", x);
+    }
+    send_and_capture_uint8(x & 0xFF);
+    send_and_capture_uint8(x >> 8);
+}
+
+// Little-endian.
+void send_and_capture_uint32(uint32_t x) {
+    if (trace_network) {
+        printf("Sending int32_t %u\n", x);
+    }
+    send_and_capture_uint8(x & 0xFF);
+    send_and_capture_uint8((x >> 8) & 0xFF);
+    send_and_capture_uint8((x >> 16) & 0xFF);
+    send_and_capture_uint8((x >> 24) & 0xFF);
+}
+
+// Little-endian.
+void send_uint16(uint16_t x) {
+    if (trace_network) {
+        printf("Sending short %d\n", x);
+    }
+    send_uint8(x & 0xFF);
+    send_uint8(x >> 8);
+}
+
+// Little-endian.
+void send_uint32(uint32_t x) {
+    if (trace_network) {
+        printf("Sending int32_t %u\n", x);
+    }
+    send_uint8(x & 0xFF);
+    send_uint8((x >> 8) & 0xFF);
+    send_uint8((x >> 16) & 0xFF);
+    send_uint8((x >> 24) & 0xFF);
+}
+
+// Little-endian.
+uint16_t receive_uint16() {
+    unsigned char low = receive_uint8();
+    unsigned char high = receive_uint8();
+
+    return high*256 + low;
+}
+
+// Little-endian.
+uint32_t receive_uint32() {
+    int32_t value = 0;
+
+    value |= receive_uint8() << 0;
+    value |= receive_uint8() << 8;
+    value |= receive_uint8() << 16;
+    value |= receive_uint8() << 24;
+
+    return value;
+}
+
+int32_t network_winopen(char *title) {
+    static int opened = 0;
+
+    if(!opened) {
+        opened = 1;
+        open_connection();
+        open_capture();
+        send_and_capture_uint8(COMMAND_WINOPEN); 
+        send_and_capture_string(title);
+    }
+    return 1;
+}
+

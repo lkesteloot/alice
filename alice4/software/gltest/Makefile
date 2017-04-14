@@ -2,7 +2,7 @@
 
 APP=gltest
 SRC=gltest.c
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
 
 $(APP): $(SRC) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
