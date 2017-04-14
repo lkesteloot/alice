@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo "Resetting bridge..."
-sudo ./fpga2sdram_ctl reset
+sudo ./memtool write -32 0xFFC25080 0
 echo "Configure FPGA now. Press ENTER when done."
 read
 echo "Enabling bridge..."
-sudo ./fpga2sdram_ctl enable
+sudo ./memtool write -32 0xFFC25080 0x111
