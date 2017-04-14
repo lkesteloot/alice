@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fcntl.h>
+// sudo apt-get install libfreeimageplus-dev
 #include <FreeImagePlus.h>
 #include <sys/mman.h>
 #include <stdint.h>
