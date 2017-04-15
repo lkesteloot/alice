@@ -117,7 +117,7 @@ module Main(
     // 1G minus 128M, in bytes.
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
     // Number of bytes in frame buffer.
-    localparam FRAME_BUFFER_LENGTH = 800*480*8;
+    localparam FRAME_BUFFER_LENGTH = 800*480*4;
 
     // Debug LED blink.
     reg [23:0] counter;

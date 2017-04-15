@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <EnsembleReport name="fb_fifo" kind="fb_fifo" version="1.0" fabric="QSYS">
  <!-- Format version 16.1 196 (Future versions may contain additional information.) -->
- <!-- 2017.04.14.23:10:58 -->
+ <!-- 2017.04.15.00:43:09 -->
  <!-- A collection of modules and connections -->
  <parameter name="AUTO_GENERATION_ID">
   <type>java.lang.Integer</type>
-  <value>1492236658</value>
+  <value>1492242189</value>
   <derived>false</derived>
   <enabled>true</enabled>
   <visible>false</visible>

@@ -37,8 +37,9 @@ localparam LAST_ADDRESS_64BIT = FIRST_ADDRESS_64BIT + LENGTH/8 - 1;
 
 // State machine for transferring data from SDRAM to FIFO.
 localparam M2F_STATE_START_FRAME = 4'h00;
-localparam M2F_STATE_READ_WAIT = 4'h01;
-localparam M2F_STATE_WRITE_WAIT = 4'h02;
+localparam M2F_STATE_READ = 4'h01;
+localparam M2F_STATE_READ_WAIT = 4'h02;
+localparam M2F_STATE_WRITE_WAIT = 4'h03;
 reg [3:0] m2f_state;
 
 // State machine for transferring data from FIFO to LCD.
@@ -77,8 +78,8 @@ reg [31:0] fifo_read_data_latched;
 fb_fifo frame_buffer_fifo(
 	.clk_clk(clock),
 	.reset_reset_n(reset_n),
-	.fifo_0_in_writedata(data),
-	.fifo_0_in_write(fifo_write),
+	.fifo_0_in_writedata(readdata),
+	.fifo_0_in_write(readdatavalid),
 	.fifo_0_in_waitrequest(fifo_write_wait),
 	.fifo_0_out_readdata(fifo_read_data),
 	.fifo_0_out_read(fifo_read),
@@ -87,6 +88,7 @@ fb_fifo frame_buffer_fifo(
 // State machine.
 reg [7:0] latency;
 reg [7:0] latency_latched;
+/*
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
         m2f_state <= M2F_STATE_START_FRAME;
@@ -155,6 +157,61 @@ always @(posedge clock or negedge reset_n) begin
         endcase
     end
 end
+*/
+
+reg [28:0] next_address;
+always @(posedge clock or negedge reset_n) begin
+    if (!reset_n) begin
+        m2f_state <= M2F_STATE_START_FRAME;
+        address <= 29'h0;
+        next_address <= 29'h0;
+        read <= 1'b0;
+        latency <= 8'b0;
+    end else begin
+        case (m2f_state)
+            M2F_STATE_START_FRAME: begin
+                // Start at beginning of frame memory.
+                address <= FIRST_ADDRESS_64BIT;
+                next_address <= FIRST_ADDRESS_64BIT;
+                m2f_state <= M2F_STATE_READ;
+            end
+
+            M2F_STATE_READ: begin
+                // If we initiated a read already, and the memory controller
+                // is busy, we have to wait.
+                if (read && waitrequest) begin
+                    // Do nothing.
+                end else begin
+                    // See if there's space in the FIFO. We pipeline our
+                    // reads, so we must ensure before the start of the
+                    // read that we'll have space once the data comes
+                    // back.
+                    if (!fifo_write_wait) begin
+                        // Initiate a read.
+                        read <= 1'b1;
+                        address <= next_address;
+
+                        // Compute the next address after this read.
+                        if (next_address == LAST_ADDRESS_64BIT) begin
+                            // We're done with this frame.
+                            next_address <= FIRST_ADDRESS_64BIT;
+                        end else begin
+                            next_address <= next_address + 1'b1;
+                        end
+                    end else begin
+                        // Not reading this clock cycle.
+                        read <= 1'b0;
+                    end
+                end
+            end
+
+            default: begin
+                // Bug. Just restart.
+                m2f_state <= M2F_STATE_START_FRAME;
+            end
+        endcase
+    end
+end
 
 // Get pixel data out of the FIFO.
 reg [63:0] pixel_data;
@@ -189,15 +246,16 @@ always @(posedge clock or negedge reset_n) begin
             F2L_STATE_WAIT: begin
                 if (fifo_read_wait) begin
                     // We missed our window, the FIFO was empty.
-                    pixel_data <= 64'h00ff00ff00ff00ff; // Magenta.
+                    pixel_data <= 64'h00ff00ff_00ff00ff; // Magenta.
                 end else begin
                     // Grab the data.
                     pixel_data <= fifo_read_data;
-                    need_shifting <= 1'b1;
                 end
+                need_shifting <= 1'b1;
 
                 // Either way go back to waiting.
                 f2l_state <= F2L_STATE_IDLE;
+                fifo_read <= 1'b0;
             end
 
             default: begin
