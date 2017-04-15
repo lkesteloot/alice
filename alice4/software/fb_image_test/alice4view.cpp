@@ -99,9 +99,15 @@ int main(int argc, char **argv)
         offsetx = (FRAMEBUFFER_WIDTH - img.getWidth()) / 2;
         offsety = (FRAMEBUFFER_HEIGHT - img.getHeight()) / 2;
     }
+    
+    RGBQUAD rgb;
+    // Test that getPixelColor will succeed
+    if(img.getPixelColor(0, 0, &rgb) == FALSE) {
+        std::cerr << "getPixelColor() failed; incompatible image type" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
-        RGBQUAD rgb;
         unsigned char* row = fb + bytes_per_row * (j + offsety);
         for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
             img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
