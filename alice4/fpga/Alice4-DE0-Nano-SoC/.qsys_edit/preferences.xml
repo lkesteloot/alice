@@ -8,6 +8,6 @@
   </columns>
  </systemtable>
  <library
-   expandedCategories="Project,Library/Qsys Interconnect,Library/Basic Functions,Library/Memory Interfaces and Controllers,Library,Library/Basic Functions/On Chip Memory,Project/System" />
+   expandedCategories="Library/Basic Functions,Library/Qsys Interconnect,Project/System,Library/Qsys Interconnect/Memory-Mapped,Project,Library" />
  <window width="2010" height="1149" x="0" y="0" />
 </preferences>

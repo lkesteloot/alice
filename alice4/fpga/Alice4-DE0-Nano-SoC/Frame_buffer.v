@@ -27,7 +27,8 @@ module Frame_buffer
 
     // These get displayed on the LCD.
     output wire [31:0] debug_value0,
-    output wire [31:0] debug_value1
+    output wire [31:0] debug_value1,
+    output wire [31:0] debug_value2
 );
 
 // Convert to 64-bit-based addresses.
@@ -59,20 +60,23 @@ assign debug_value0 = {
     state
 };
 assign debug_value1 = { 3'b0, address };
+assign debug_value2 = fifo_read_data_latched;
 
 // FIFO.
 reg fifo_write;
 wire fifo_write_wait;
 wire fifo_read_wait;
+reg fifo_read;
 wire [63:0] fifo_read_data;
+reg [31:0] fifo_read_data_latched;
 fb_fifo frame_buffer_fifo(
 	.clk_clk(clock),
 	.reset_reset_n(reset_n),
-	.fifo_0_in_writedata(fifo_write),
-	.fifo_0_in_write(data),
+	.fifo_0_in_writedata(data),
+	.fifo_0_in_write(fifo_write),
 	.fifo_0_in_waitrequest(fifo_write_wait),
 	.fifo_0_out_readdata(fifo_read_data),
-	.fifo_0_out_read(1'b0),
+	.fifo_0_out_read(fifo_read),
 	.fifo_0_out_waitrequest(fifo_read_wait));
 
 // State machine.
@@ -159,5 +163,28 @@ always @(posedge clock or negedge reset_n) begin
     end
 end
 */
+
+// Dump the FIFO to the debug output, one per second.
+reg [25:0] counter;
+always @(posedge clock or negedge reset_n) begin
+    if (!reset_n) begin
+        counter <= 26'b0;
+        fifo_read <= 1'b0;
+        fifo_read_data_latched <= 32'hDEAD_BEEF;
+    end else begin
+        if (counter == 26'd49_999_999) begin
+            fifo_read <= 1'b1;
+            counter <= counter + 1'b1;
+        end else if (counter == 26'd50_000_000) begin
+            if (!fifo_read_wait) begin
+                fifo_read <= 1'b0;
+                fifo_read_data_latched <= fifo_read_data[31:0];
+                counter <= 0;
+            end
+        end else begin
+            counter <= counter + 1'b1;
+        end
+    end
+end
 
 endmodule

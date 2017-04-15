@@ -44,7 +44,7 @@ module Main(
 `ifdef ENABLE_HPS
         //////////// HPS //////////
         /* 3.3-V LVTTL */
-        inout hps_conv_usb_n,
+        /// inout hps_conv_usb_n,
         
         /* SSTL-15 Class I */
         output [14:0] hps_ddr3_addr,
@@ -66,6 +66,7 @@ module Main(
         inout [3:0] hps_ddr3_dqs_p,
         
         /* 3.3-V LVTTL */
+        /*
         output hps_enet_gtx_clk,
         inout hps_enet_int_n,
         output hps_enet_mdc,
@@ -97,6 +98,7 @@ module Main(
         input hps_usb_dir,
         input hps_usb_nxt,
         output hps_usb_stp,
+        */
 `endif
         
         //////////// KEY ////////////
@@ -113,7 +115,7 @@ module Main(
 );
 
     // 1G minus 128M, in bytes.
-    localparam FRAME_BUFFER_ADDRESS = 29'h3800_0000;
+    localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
     // Number of bytes in frame buffer.
     localparam FRAME_BUFFER_LENGTH = 800*480*8;
 
@@ -126,6 +128,7 @@ module Main(
 
     // Reset.
     wire reset_n = key[0];
+    assign led[1] = !reset_n;
 
     // Get data from the HPS.
     wire [31:0] hps_value;
@@ -237,13 +240,14 @@ module Main(
         .row(text_row),
         .value0(fb_debug_value0),
         .value1(fb_debug_value1),
-        .value2(hps_value),
+        .value2(fb_debug_value2),
         .character(character)
     );
 
     // Frame buffer.
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
+    wire [31:0] fb_debug_value2;
     Frame_buffer #(.ADDRESS(FRAME_BUFFER_ADDRESS),
                    .LENGTH(FRAME_BUFFER_LENGTH)) frame_buffer(
         .clock(clock_50),
@@ -271,7 +275,8 @@ module Main(
 
         // Debugging:
         .debug_value0(fb_debug_value0),
-        .debug_value1(fb_debug_value1)
+        .debug_value1(fb_debug_value1),
+        .debug_value2(fb_debug_value2)
     );
 
     // Generate pixels.
