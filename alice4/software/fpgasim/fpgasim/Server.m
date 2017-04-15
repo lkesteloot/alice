@@ -12,7 +12,7 @@
 
 #import "Server.h"
 #import "device.h"
-#import "driver.h"
+#import "libgl/connection.h"
 
 //#define PORT 25423
 short PORT = 25423;
