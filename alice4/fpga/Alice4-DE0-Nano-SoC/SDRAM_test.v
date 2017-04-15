@@ -5,13 +5,13 @@ module SDRAM_test(
     input wire clock,
     input wire reset_n,
     output reg [28:0] address,
-    output wire [7:0]  burstcount,
+    output wire [7:0] burstcount,
     input wire waitrequest,
     input wire [63:0] readdata,
     input wire readdatavalid,
     output reg read,
     output reg [63:0] writedata,
-    output wire [7:0]  byteenable,
+    output wire [7:0] byteenable,
     output reg write,
     output wire [31:0] debug_value0,
     output wire [31:0] debug_value1
@@ -30,7 +30,8 @@ reg [3:0] state;
 assign burstcount = 8'h01;
 assign byteenable = 8'hFF;
 reg [63:0] data;
-localparam TEST_ADDRESS = 29'h0600_0000;
+// 1G minus 128M, in 64-bit units:
+localparam TEST_ADDRESS = 29'h0700_0000;
 
 // Debug output.
 assign debug_value0 = { 3'b0, waitrequest, 3'b0, readdatavalid, 3'b0, read, 3'b0, write, 12'b0, state };

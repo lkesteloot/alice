@@ -90,3 +90,37 @@ GOING       0        0   0        C0          1       0
 STOPPED     0        ?   ?        ?           0       0
 
 
+
+
+Four cases:
+
+    Make status word, display it on LCD.
+        Works.
+
+    Make status word, don't display it on LCD.
+        Doesn't load, but JTAG succeeds.
+
+    Don't make status word, display it on LCD.
+        Loads, but then breaks JTAG. (Can only do it once.)
+
+    Don't make status word, don't display it on LCD.
+        Works.
+
+
+                Status    Constant
+              +-------------------
+              |
+    Display   |  Works     Breaks
+              |             JTAG
+              |
+    Suppress  |  Fails     Works
+              |
+
+Next:
+
+    Check pin assignment of all Main() parameters.
+    Read this page:
+        http://www.alteraforum.com/forum/showthread.php?t=45817
+        https://www.developpez.net/forums/d1566375/autres-langages/autres-langages/vhdl/echange-donnees-hps-fpga-via-dma/
+    Check size of generated binary.
+

@@ -48,15 +48,15 @@ preplace inst soc_system.hps_0.arm_a9_1 -pg 1
 preplace inst soc_system.hps_0.nand0 -pg 1
 preplace inst soc_system.hps_0.gpio2 -pg 1
 preplace inst soc_system.hps_0.arm_gic_0 -pg 1
-preplace inst soc_system.hps_0 -pg 1 -lvl 1 -y 70
-preplace inst soc_system.clk_0 -pg 1 -lvl 2 -y 260
+preplace inst soc_system.hps_0 -pg 1 -lvl 1 -y 50
+preplace inst soc_system.clk_0 -pg 1 -lvl 2 -y 240
 preplace inst soc_system.hps_0.f2s_periph_ref_clk -pg 1
 preplace inst soc_system.hps_0.fpga_interfaces -pg 1
 preplace inst soc_system.hps_0.axi_sdram -pg 1
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.memory,(SLAVE)hps_0.memory) 1 0 1 NJ
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.clk,(SLAVE)clk_0.clk_in) 1 0 2 NJ 270 NJ
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_sdram0_clock,(SLAVE)hps_0.f2h_axi_clock,(SLAVE)hps_0.h2f_axi_clock,(SLAVE)hps_0.h2f_lw_axi_clock,(MASTER)clk_0.clk) 1 0 3 170 30 NJ 120 680
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_sdram0_data,(SLAVE)soc_system.hps_0_f2h_sdram0_data) 1 0 1 NJ
-preplace netloc POINT_TO_POINT<net_container>soc_system</net_container>(MASTER)hps_0.h2f_reset,(SLAVE)clk_0.clk_in_reset) 1 1 1 480
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_f2h_sdram0_data,(SLAVE)hps_0.f2h_sdram0_data) 1 0 1 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.memory,(SLAVE)soc_system.memory) 1 0 1 NJ
+preplace netloc POINT_TO_POINT<net_container>soc_system</net_container>(SLAVE)clk_0.clk_in_reset,(MASTER)hps_0.h2f_reset) 1 1 1 430
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)clk_0.clk_in,(SLAVE)soc_system.clk) 1 0 2 NJ 250 NJ
+preplace netloc POINT_TO_POINT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_sdram0_clock,(MASTER)clk_0.clk) 1 0 3 170 230 NJ 230 680
 levelinfo -pg 1 0 140 720
 levelinfo -hier soc_system 150 290 510 700

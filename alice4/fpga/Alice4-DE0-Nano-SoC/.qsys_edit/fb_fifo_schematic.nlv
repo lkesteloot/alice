@@ -1,0 +1,11 @@
+# # File gsaved with Nlview version 6.3.8  2013-12-19 bk=1.2992 VDI=34 GEI=35
+# 
+preplace inst fb_fifo -pg 1 -lvl 1 -y 40 -regy -20
+preplace inst fb_fifo.fifo_0 -pg 1 -lvl 2 -y 30
+preplace inst fb_fifo.clk_0 -pg 1 -lvl 1 -y 30
+preplace netloc POINT_TO_POINT<net_container>fb_fifo</net_container>(SLAVE)fifo_0.clk_in,(MASTER)clk_0.clk) 1 1 1 N
+preplace netloc EXPORT<net_container>fb_fifo</net_container>(SLAVE)clk_0.clk_in,(SLAVE)fb_fifo.clk) 1 0 1 NJ
+preplace netloc POINT_TO_POINT<net_container>fb_fifo</net_container>(SLAVE)fifo_0.reset_in,(MASTER)clk_0.clk_reset) 1 1 1 260
+preplace netloc EXPORT<net_container>fb_fifo</net_container>(SLAVE)clk_0.clk_in_reset,(SLAVE)fb_fifo.reset) 1 0 1 NJ
+levelinfo -pg 1 0 50 390
+levelinfo -hier fb_fifo 60 90 290 380
