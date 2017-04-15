@@ -35,11 +35,16 @@ module Frame_buffer
 localparam FIRST_ADDRESS_64BIT = ADDRESS/8;
 localparam LAST_ADDRESS_64BIT = FIRST_ADDRESS_64BIT + LENGTH/8 - 1;
 
-// State machine.
-localparam STATE_START_FRAME = 4'h00;
-localparam STATE_READ_WAIT = 4'h01;
-localparam STATE_WRITE_WAIT = 4'h02;
-reg [3:0] state;
+// State machine for transferring data from SDRAM to FIFO.
+localparam M2F_STATE_START_FRAME = 4'h00;
+localparam M2F_STATE_READ_WAIT = 4'h01;
+localparam M2F_STATE_WRITE_WAIT = 4'h02;
+reg [3:0] m2f_state;
+
+// State machine for transferring data from FIFO to LCD.
+localparam F2L_STATE_IDLE = 4'h00;
+localparam F2L_STATE_WAIT = 4'h01;
+reg [3:0] f2l_state;
 
 // Registers and assignments.
 assign burstcount = 8'h01;
@@ -57,10 +62,10 @@ assign debug_value0 = {
     3'b0, fifo_write,
     3'b0, fifo_write_wait,
     3'b0, fifo_read_wait,
-    state
+    m2f_state
 };
 assign debug_value1 = { 3'b0, address };
-assign debug_value2 = fifo_read_data_latched;
+assign debug_value2 = { 24'b0, latency_latched };
 
 // FIFO.
 reg fifo_write;
@@ -80,22 +85,27 @@ fb_fifo frame_buffer_fifo(
 	.fifo_0_out_waitrequest(fifo_read_wait));
 
 // State machine.
+reg [7:0] latency;
+reg [7:0] latency_latched;
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
-        state <= STATE_START_FRAME;
+        m2f_state <= M2F_STATE_START_FRAME;
         address <= 29'h0;
         read <= 1'b0;
         fifo_write <= 1'b0;
+        latency <= 8'b0;
+        latency_latched <= 8'b0;
     end else begin
-        case (state)
-            STATE_START_FRAME: begin
+        case (m2f_state)
+            M2F_STATE_START_FRAME: begin
                 // Start at beginning of frame memory.
                 address <= FIRST_ADDRESS_64BIT;
                 read <= 1'b1;
-                state <= STATE_READ_WAIT;
+                m2f_state <= M2F_STATE_READ_WAIT;
+                latency <= 8'b0;
             end
 
-            STATE_READ_WAIT: begin
+            M2F_STATE_READ_WAIT: begin
                 // When no longer told to wait, de-assert the request lines.
                 if (!waitrequest) begin
                     read <= 1'b0;
@@ -116,11 +126,15 @@ always @(posedge clock or negedge reset_n) begin
 
                     // Write data to the FIFO.
                     fifo_write <= 1'b1;
-                    state <= STATE_WRITE_WAIT;
+                    m2f_state <= M2F_STATE_WRITE_WAIT;
+
+                    latency_latched <= latency;
+                end else begin
+                    latency <= latency + 1'b1;
                 end
             end
 
-            STATE_WRITE_WAIT: begin
+            M2F_STATE_WRITE_WAIT: begin
                 // Wait until we're not requested to wait.
                 if (!fifo_write_wait) begin
                     // Stop writing to FIFO.
@@ -129,42 +143,73 @@ always @(posedge clock or negedge reset_n) begin
                     // We've already incremented the address. Start the
                     // next read.
                     read <= 1'b1;
-                    state <= STATE_READ_WAIT;
+                    m2f_state <= M2F_STATE_READ_WAIT;
+                    latency <= 8'b0;
                 end
             end
 
             default: begin
                 // Bug. Just restart.
-                state <= STATE_START_FRAME;
+                m2f_state <= M2F_STATE_START_FRAME;
             end
         endcase
     end
 end
 
 // Get pixel data out of the FIFO.
-/*
-reg [63:0] this_pixel;
-reg [63:0] next_pixel;
-assign lcd_red = this_pixel[7:0];
-assign lcd_green = this_pixel[15:8];
-assign lcd_blue = this_pixel[23:16];
+reg [63:0] pixel_data;
+reg need_shifting;
+assign lcd_red = pixel_data[7:0];
+assign lcd_green = pixel_data[15:8];
+assign lcd_blue = pixel_data[23:16];
 
 always @(posedge clock or negedge reset_n) begin
-    // Only do anything when we're on the correct clock for the LCD,
-    // otherwise we'll generate pixels too fast.
-    if (lcd_tick && lcd_data_enable) begin
-        // Swap to the next pixel and start reading the subsequent one.
-        this_pixel <= next_pixel;
+    if (!reset_n) begin
+        f2l_state <= F2L_STATE_IDLE;
+        fifo_read <= 1'b0;
+        need_shifting <= 1'b0;
+    end else begin
+        case (f2l_state)
+            F2L_STATE_IDLE: begin
+                // Only do anything when we're on the correct clock for the
+                // LCD, otherwise we'll generate pixels too fast.
+                if (lcd_tick && lcd_data_enable) begin
+                    if (need_shifting) begin
+                        // Next pixel.
+                        pixel_data[31:0] <= pixel_data[63:32];
+                        need_shifting <= 1'b0;
+                    end else begin
+                        // Start a FIFO read. Data will be available next clock.
+                        fifo_read <= 1'b1;
+                        f2l_state <= F2L_STATE_WAIT;
+                    end
+                end
+            end
 
+            F2L_STATE_WAIT: begin
+                if (fifo_read_wait) begin
+                    // We missed our window, the FIFO was empty.
+                    pixel_data <= 64'h00ff00ff00ff00ff; // Magenta.
+                end else begin
+                    // Grab the data.
+                    pixel_data <= fifo_read_data;
+                    need_shifting <= 1'b1;
+                end
 
-	.fifo_0_out_readdata,
-	.fifo_0_out_read,
-	.fifo_0_out_waitrequest);
+                // Either way go back to waiting.
+                f2l_state <= F2L_STATE_IDLE;
+            end
+
+            default: begin
+                // Bug.
+                f2l_state <= F2L_STATE_IDLE;
+            end
+        endcase
     end
 end
-*/
 
 // Dump the FIFO to the debug output, one per second.
+/*
 reg [25:0] counter;
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
@@ -186,5 +231,6 @@ always @(posedge clock or negedge reset_n) begin
         end
     end
 end
+*/
 
 endmodule

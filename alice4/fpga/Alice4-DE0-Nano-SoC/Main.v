@@ -4,7 +4,7 @@
 `define ENABLE_GPIO0
 //`define ENABLE_GPIO1
 `define ENABLE_HPS
-//`define LCD_FROM_FB
+`define LCD_FROM_FB
 //`define SDRAM_TEST
 
 module Main(
@@ -267,9 +267,9 @@ module Main(
         // Display interface:
         .lcd_tick(lcd_tick),
 `ifdef LCD_FROM_FB
-        .lcd_red(lcd_red_next),
-        .lcd_green(lcd_green_next),
-        .lcd_blue(lcd_blue_next),
+        .lcd_red(fb_red),
+        .lcd_green(fb_green),
+        .lcd_blue(fb_blue),
 `endif
         .lcd_data_enable(lcd_data_enable),
 
@@ -294,9 +294,12 @@ module Main(
     reg [7:0] lcd_green;
     reg [7:0] lcd_blue;
 `ifdef LCD_FROM_FB
-    wire [7:0] lcd_red_next;
-    wire [7:0] lcd_green_next;
-    wire [7:0] lcd_blue_next;
+    wire [7:0] fb_red;
+    wire [7:0] fb_green;
+    wire [7:0] fb_blue;
+    wire [7:0] lcd_red_next = character_bw ? 8'hFF : fb_red;
+    wire [7:0] lcd_green_next = character_bw ? 8'hFF : fb_green;
+    wire [7:0] lcd_blue_next = character_bw ? 8'hFF : fb_blue;
 `else
     wire [7:0] gray = character_bw ? 8'hFF : 8'h00;
     wire [7:0] lcd_red_next = gray;
@@ -364,7 +367,7 @@ module Main(
     assign gpio_0[19] = lcd_display_on;
     assign gpio_0[21] = lcd_hs_n;
     assign gpio_0[23] = lcd_vs_n;
-    assign gpio_0[25] = lcd_data_enable; // TODO should be ..._delayed.
+    assign gpio_0[25] = lcd_data_enable_delayed;
     assign gpio_0[27] = 1'b1; // PWM backlight brightness.
 
     // LCD clock.
