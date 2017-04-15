@@ -60,6 +60,11 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    if (!img.convertTo32Bits()) {
+	std::cerr << "Couldn't convert image to 32 bits " << filename << std::endl;
+	exit(EXIT_FAILURE);
+    }
+
     if(img.getImageType() == FIT_RGBF) {
         std::cerr << "image is incompatible type RGBF" << std::endl;
         exit(EXIT_FAILURE);
@@ -106,7 +111,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(0) {
+    if(1) {
         // Take what we wrote to memory and write it back out as a PPM file
         FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
