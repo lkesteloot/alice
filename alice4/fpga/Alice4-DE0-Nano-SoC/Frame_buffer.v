@@ -81,17 +81,6 @@ reg fifo_read;
 wire [63:0] fifo_read_data;
 reg [31:0] fifo_read_data_latched;
 wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw;
-/*
-fb_fifo frame_buffer_fifo(
-	.clk_clk(clock),
-	.reset_reset_n(reset_n),
-	.fifo_0_in_writedata(readdata),
-	.fifo_0_in_write(readdatavalid),
-	.fifo_0_in_waitrequest(fifo_write_wait),
-	.fifo_0_out_readdata(fifo_read_data),
-	.fifo_0_out_read(fifo_read),
-	.fifo_0_out_waitrequest(fifo_read_wait));
-*/
 scfifo frame_buffer_fifo(
         .aclr(!reset_n),
         .clock(clock),
