@@ -11,9 +11,9 @@ static char *program_name;
 void usage()
 {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "    %s write [-8|-16|-32] address value [-incr incr] [count]\n",
+    fprintf(stderr, "    %s write [-8|-16|-32|-64] address value [-incr incr] [count]\n",
     	program_name);
-    fprintf(stderr, "    %s read [-8|-16|-32] address [count]\n",
+    fprintf(stderr, "    %s read [-8|-16|-32|-64] address [count]\n",
     	program_name);
     fprintf(stderr, "Size defaults to 32, count defaults to 1, incr defaults to 0.\n");
     exit(EXIT_FAILURE);
@@ -66,12 +66,12 @@ int main(int argc, char *argv[])
     argv++;
 
     // Get value if writing.
-    uint32_t value = 0;
+    uint64_t value = 0;
     if (writing) {
 	if (argc == 0) {
 	    usage();
 	}
-	value = strtoul(argv[0], &end, 0);
+	value = strtoull(argv[0], &end, 0);
 	if (*end != '\0') {
 	    usage();
 	}
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     }
 
     // Get optional increment if writing.
-    uint32_t incr = 0;
+    uint64_t incr = 0;
     if (writing && argc > 0 && strcmp(argv[0], "-incr") == 0) {
 	argc--;
 	argv++;
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	if (argc == 0) {
 	    usage();
 	}
-	incr = strtoul(argv[0], &end, 0);
+	incr = strtoull(argv[0], &end, 0);
 	if (*end != '\0') {
 	    usage();
 	}
@@ -165,6 +165,19 @@ int main(int argc, char *argv[])
 		    value += incr;
 		} else {
 		    printf("%p = %x\n", ((uint8_t *) p) + base_address, *p++);
+		}
+	    }
+	    break;
+	}
+
+	case 64: {
+	    uint64_t *p = (uint64_t *) (mem + offset);
+	    for (int i = 0; i < count; i++) {
+		if (writing) {
+		    *p++ = (uint64_t) value;
+		    value += incr;
+		} else {
+		    printf("%p = %llx\n", ((uint8_t *) p) + base_address, *p++);
 		}
 	    }
 	    break;
