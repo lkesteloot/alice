@@ -199,23 +199,25 @@ int touchscreen_init()
 TouchscreenEvent touchscreen_read(int *x, int *y, float *z)
 {
     static int was_touching = 0;
-    static int pending_touch = 0;
+    static int pending_start = 0;
     TouchscreenEvent event_type = TOUCHSCREEN_IDLE;
 
     uint8_t tsc_ctrl = read_u8(touchscreen_fd, STMPE610_TSC_CTRL);
     int now_touching = (tsc_ctrl & 0x80) != 0;
-    int drain_fifo = 0;
+    int dequeue_fifo = 0;
 
     if(!was_touching) {
 
         // If we weren't touching but now are, mark the next xyz as "START"
-        pending_touch = 1;
-        drain_fifo = 1;
+	if(now_touching)  {
+	    pending_start = 1;
+	    dequeue_fifo = 1;
+	}
 
-    } else {
+    } else { // was_touching
 
         if(!now_touching) {
-            if(!pending_touch) {
+            if(!pending_start) {
                 // If we were touching but now aren't and had sent one "DRAG",
                 // return "STOP"
                 event_type = TOUCHSCREEN_STOP; 
@@ -224,13 +226,13 @@ TouchscreenEvent touchscreen_read(int *x, int *y, float *z)
 		// waiting to send a DRAG, don't send anything and
 		// go back to waiting for an initial press.  I
 		// don't know if this circumstance will happen.
-                pending_touch = 0;
+                pending_start = 0;
             }
         } else 
-            drain_fifo = 1;
+            dequeue_fifo = 1;
     }
 
-    if(drain_fifo) {
+    if(dequeue_fifo) {
         uint8_t fifo_size;
         fifo_size = read_u8(touchscreen_fd, STMPE610_FIFO_SIZE);
         if(fifo_size > 0) {
@@ -244,9 +246,9 @@ TouchscreenEvent touchscreen_read(int *x, int *y, float *z)
             *y = (4096 - 1 - (((d1 & 0xF) << 8) | d2)) * 480 / 4096;
             *z = 16.0 - d3 / 16.0;
 
-            if(pending_touch) {
+            if(pending_start) {
                 event_type = TOUCHSCREEN_START;
-                pending_touch = 0;
+                pending_start = 0;
             } else {
                 event_type = TOUCHSCREEN_DRAG;
             }
