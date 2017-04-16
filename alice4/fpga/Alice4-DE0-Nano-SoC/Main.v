@@ -207,13 +207,14 @@ module Main(
     wire lcd_hs_n;
     wire lcd_vs_n;
     wire lcd_display_on = sw[0];
+    wire next_frame;
     LCD_control lcd_control(
         .clock(clock_50),
         .tick(lcd_tick),
         .reset_n(reset_n),
         .x(lcd_x),
         .y(lcd_y),
-        .next_frame(),
+        .next_frame(next_frame),
         .hs_n(lcd_hs_n),
         .vs_n(lcd_vs_n),
         .data_enable(lcd_data_enable)
@@ -266,6 +267,7 @@ module Main(
 
         // Display interface:
         .lcd_tick(lcd_tick),
+        .lcd_next_frame(next_frame),
 `ifdef LCD_FROM_FB
         .lcd_red(fb_red),
         .lcd_green(fb_green),
