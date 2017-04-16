@@ -71,8 +71,8 @@ assign debug_value1 = word_count_latched;
 assign debug_value2 = pixel_count_latched;
 
 // FIFO.
-localparam FIFO_DEPTH = 32;
-localparam FIFO_DEPTH_LOG2 = 5;
+localparam FIFO_DEPTH = 64;
+localparam FIFO_DEPTH_LOG2 = 6;
 localparam BURST_LENGTH = FIFO_DEPTH/2;
 reg fifo_write;
 wire fifo_write_wait;
