@@ -74,6 +74,7 @@ assign debug_value2 = pixel_count_latched;
 localparam FIFO_DEPTH = 64;
 localparam FIFO_DEPTH_LOG2 = 6;
 localparam BURST_LENGTH = FIFO_DEPTH/2;
+reg fifo_sclr;
 reg fifo_write;
 wire fifo_write_wait;
 wire fifo_read_wait;
@@ -83,6 +84,7 @@ reg [31:0] fifo_read_data_latched;
 wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw;
 scfifo frame_buffer_fifo(
         .aclr(!reset_n),
+        .sclr(fifo_sclr),
         .clock(clock),
         .data(readdata),
         .empty(fifo_read_wait),
@@ -102,79 +104,8 @@ defparam frame_buffer_fifo.add_ram_output_register = "OFF",
          frame_buffer_fifo.underflow_checking = "ON",
          frame_buffer_fifo.use_eab = "ON";
 
-// State machine.
 reg [7:0] latency;
 reg [7:0] latency_latched;
-/*
-always @(posedge clock or negedge reset_n) begin
-    if (!reset_n) begin
-        m2f_state <= M2F_STATE_START_FRAME;
-        address <= 29'h0;
-        read <= 1'b0;
-        fifo_write <= 1'b0;
-        latency <= 8'b0;
-        latency_latched <= 8'b0;
-    end else begin
-        case (m2f_state)
-            M2F_STATE_START_FRAME: begin
-                // Start at beginning of frame memory.
-                address <= FIRST_ADDRESS_64BIT;
-                read <= 1'b1;
-                m2f_state <= M2F_STATE_READ_WAIT;
-                latency <= 8'b0;
-            end
-
-            M2F_STATE_READ_WAIT: begin
-                // When no longer told to wait, de-assert the request lines.
-                if (!waitrequest) begin
-                    read <= 1'b0;
-                end
-
-                // See if the SDRAM got us the data.
-                if (readdatavalid) begin
-                    // Grab it.
-                    data <= readdata;
-
-                    // Next address.
-                    if (address == LAST_ADDRESS_64BIT) begin
-                        // We're done with this frame.
-                        address <= FIRST_ADDRESS_64BIT;
-                    end else begin
-                        address <= address + 1'b1;
-                    end
-
-                    // Write data to the FIFO.
-                    fifo_write <= 1'b1;
-                    m2f_state <= M2F_STATE_WRITE_WAIT;
-
-                    latency_latched <= latency;
-                end else begin
-                    latency <= latency + 1'b1;
-                end
-            end
-
-            M2F_STATE_WRITE_WAIT: begin
-                // Wait until we're not requested to wait.
-                if (!fifo_write_wait) begin
-                    // Stop writing to FIFO.
-                    fifo_write <= 1'b0;
-
-                    // We've already incremented the address. Start the
-                    // next read.
-                    read <= 1'b1;
-                    m2f_state <= M2F_STATE_READ_WAIT;
-                    latency <= 8'b0;
-                end
-            end
-
-            default: begin
-                // Bug. Just restart.
-                m2f_state <= M2F_STATE_START_FRAME;
-            end
-        endcase
-    end
-end
-*/
 
 // The next address to read after this one.
 reg [28:0] next_address;
@@ -184,6 +115,7 @@ reg [25:0] word_count_latched;
 // Keep track of bursts.
 reg [5:0] words_requested;
 reg [5:0] words_read;
+// State machine.
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
         m2f_state <= M2F_STATE_START_FRAME;
@@ -207,7 +139,11 @@ always @(posedge clock or negedge reset_n) begin
 
             // Wait for FIFO to be half-empty.
             M2F_STATE_IDLE: begin
-                if (!fifo_usedw[FIFO_DEPTH_LOG2 - 1]) begin
+                // If we should start the next frame, abort and
+                // start over.
+                if (lcd_next_frame) begin
+                    m2f_state <= M2F_STATE_START_FRAME;
+                end else if (!fifo_usedw[FIFO_DEPTH_LOG2 - 1]) begin
                     // Start burst reading.
                     words_requested <= 1'b0;
                     words_read <= 1'b0;
@@ -217,10 +153,13 @@ always @(posedge clock or negedge reset_n) begin
 
             // Initiate BURST_LENGTH reads and wait for them to complete.
             M2F_STATE_READ: begin
-                // If we initiated a read already, and the memory controller
-                // is busy, we have to wait.
-                if (read && waitrequest) begin
-                    // Do nothing.
+                // If we should start the next frame, abort and
+                // start over.
+                if (lcd_next_frame) begin
+                    m2f_state <= M2F_STATE_START_FRAME;
+                end else if (read && waitrequest) begin
+                    // If we initiated a read already, and the memory
+                    // controller is busy, we have to wait.
                 end else begin
                     // Keep reading a whole burst length.
                     if (words_requested < BURST_LENGTH) begin
@@ -245,7 +184,7 @@ always @(posedge clock or negedge reset_n) begin
                 // If a word has returned from memory, keep track of it.
                 // We don't want to exit this state (and risk re-entering
                 // it) until all words have come back.
-                if (readdatavalid) begin
+                if (!lcd_next_frame && readdatavalid) begin
                     if (words_read == BURST_LENGTH - 1) begin
                         // Got all the words from this burst.
                         m2f_state <= M2F_STATE_IDLE;
@@ -285,59 +224,68 @@ reg [25:0] pixel_count_latched;
 
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
+        fifo_sclr <= 1'b0;
         f2l_state <= F2L_STATE_IDLE;
         fifo_read <= 1'b0;
         need_shifting <= 1'b0;
         pixel_count <= 1'b0;
         pixel_count_latched <= 1'b0;
     end else begin
-        case (f2l_state)
-            F2L_STATE_IDLE: begin
-                // Only do anything when we're on the correct clock for the
-                // LCD, otherwise we'll generate pixels too fast.
-                if (lcd_tick && lcd_data_enable) begin
-                    if (need_shifting) begin
-                        // Next pixel.
-                        pixel_data[31:0] <= pixel_data[63:32];
-                        need_shifting <= 1'b0;
-                    end else begin
-                        // Start a FIFO read. Data will be available next clock.
-                        fifo_read <= 1'b1;
-                        f2l_state <= F2L_STATE_WAIT;
-                    end
-                end
-            end
-
-            F2L_STATE_WAIT: begin
-                if (fifo_read_wait) begin
-                    // We missed our window, the FIFO was empty.
-                    pixel_data <= 64'h00ff00ff_00ff00ff; // Magenta.
-                end else begin
-                    // Grab the data.
-                    pixel_data <= fifo_read_data;
-                end
-                need_shifting <= 1'b1;
-
-                // Either way go back to waiting.
-                f2l_state <= F2L_STATE_IDLE;
-                fifo_read <= 1'b0;
-            end
-
-            default: begin
-                // Bug.
-                f2l_state <= F2L_STATE_IDLE;
-            end
-        endcase
-
-        if (fifo_read) begin
-            pixel_count <= pixel_count + 1'b1;
-        end
-
+        // If we're at the top of the frame, flush the FIFO.
         if (lcd_next_frame) begin
+            fifo_sclr <= 1'b1;
+            f2l_state <= F2L_STATE_IDLE;
+            fifo_read <= 1'b0;
+            need_shifting <= 1'b0;
+
             if (pixel_count >= 128) begin
                 pixel_count_latched <= pixel_count;
             end
             pixel_count <= 1'b0;
+        end else begin
+            fifo_sclr <= 1'b0;
+            case (f2l_state)
+                F2L_STATE_IDLE: begin
+                    if (lcd_tick && lcd_data_enable) begin
+                        // Only do anything when we're on the correct clock for
+                        // the LCD, otherwise we'll generate pixels too fast.
+                        if (need_shifting) begin
+                            // Next pixel.
+                            pixel_data[31:0] <= pixel_data[63:32];
+                            need_shifting <= 1'b0;
+                        end else begin
+                            // Start a FIFO read. Data will be available next
+                            // clock.
+                            fifo_read <= 1'b1;
+                            f2l_state <= F2L_STATE_WAIT;
+                        end
+                    end
+                end
+
+                F2L_STATE_WAIT: begin
+                    if (fifo_read_wait) begin
+                        // We missed our window, the FIFO was empty.
+                        pixel_data <= 64'h00ff00ff_00ff00ff; // Magenta.
+                    end else begin
+                        // Grab the data.
+                        pixel_data <= fifo_read_data;
+                    end
+                    need_shifting <= 1'b1;
+
+                    // Either way go back to waiting.
+                    f2l_state <= F2L_STATE_IDLE;
+                    fifo_read <= 1'b0;
+                end
+
+                default: begin
+                    // Bug.
+                    f2l_state <= F2L_STATE_IDLE;
+                end
+            endcase
+
+            if (fifo_read) begin
+                pixel_count <= pixel_count + 1'b1;
+            end
         end
     end
 end
