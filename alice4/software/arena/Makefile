@@ -9,7 +9,7 @@ $(APP): $(SRC) arena.h udpbrdcst.h $(LIBGL_SRC)
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
 		-DNETWORKING=1 \
-		-o $(APP) $(SRC) $(LIBGL_SRC)
+		-o $(APP) $(SRC) $(LIBGL_SRC) -lm
 
 run: $(APP)
 	@if [ -z "$(HOST)" ]; then echo 'Set HOST variable first or use run_no_network'; else ./$(APP) -n; fi

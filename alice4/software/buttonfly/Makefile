@@ -9,7 +9,7 @@ $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
-		-o $(APP) $(SRC) $(LIBGL_SRC)
+		-o $(APP) $(SRC) $(LIBGL_SRC) -lm
 
 parser.tab.c parser.tab.h: parser.y
 	bison --defines parser.y

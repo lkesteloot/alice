@@ -8,7 +8,7 @@ $(APP): $(SRC) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
-		-o $(APP) $(SRC) $(LIBGL_SRC)
+		-o $(APP) $(SRC) $(LIBGL_SRC) -lm
 
 run: $(APP)
 	./$(APP) ./logo.bin
