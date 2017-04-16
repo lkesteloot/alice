@@ -61,6 +61,11 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
+    if (!img.convertTo32Bits()) {
+	std::cerr << "Couldn't convert image to 32 bits " << filename << std::endl;
+	exit(EXIT_FAILURE);
+    }
+
     if(img.getImageType() == FIT_RGBF) {
         std::cerr << "image is incompatible type RGBF" << std::endl;
         exit(EXIT_FAILURE);
@@ -94,9 +99,15 @@ int main(int argc, char **argv)
         offsetx = (FRAMEBUFFER_WIDTH - img.getWidth()) / 2;
         offsety = (FRAMEBUFFER_HEIGHT - img.getHeight()) / 2;
     }
+    
+    RGBQUAD rgb;
+    // Test that getPixelColor will succeed
+    if(img.getPixelColor(0, 0, &rgb) == FALSE) {
+        std::cerr << "getPixelColor() failed; incompatible image type" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
-        RGBQUAD rgb;
         unsigned char* row = fb + bytes_per_row * (j + offsety);
         for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
             img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
@@ -107,7 +118,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(0) {
+    if(1) {
         // Take what we wrote to memory and write it back out as a PPM file
         FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
