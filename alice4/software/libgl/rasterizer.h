@@ -3,13 +3,13 @@
 
 #include "basic_types.h"
 
-static const int DRAW_TRIANGLES = 0;
-static const int DRAW_LINES = 1;
-static const int DRAW_POINTS = 2;
-static const int DRAW_LINE_STRIP = 3;
-static const int DRAW_LINE_LOOP = 4;
-static const int DRAW_TRIANGLE_STRIP = 5;
-static const int DRAW_TRIANGLE_FAN = 6;
+#define DRAW_TRIANGLES 0
+#define DRAW_LINES 1
+#define DRAW_POINTS 2
+#define DRAW_LINE_STRIP 3
+#define DRAW_LINE_LOOP 4
+#define DRAW_TRIANGLE_STRIP 5
+#define DRAW_TRIANGLE_FAN 6
 
 int32_t rasterizer_winopen(char *title);
 

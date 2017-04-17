@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <gl.h>
 #include <device.h>
+#include <signal.h>
 #include "connection.h"
 #include "basic_types.h"
 #include "vector.h"
@@ -39,6 +40,10 @@
 
 #ifndef M_PI
 #define M_PI 3.141596
+#endif
+
+#ifndef SIGINFO
+#define SIGINFO 29
 #endif
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
@@ -1787,7 +1792,6 @@ void swapbuffers() {
     TRACE();
 
     rasterizer_swap();
-    flush();
 }
 
 void translate(Coord x, Coord y, Coord z) {
@@ -1877,7 +1881,7 @@ void RGBmode() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
-void addtopup() {
+void addtopup(int32_t menu, char *add) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 

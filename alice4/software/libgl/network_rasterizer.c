@@ -77,6 +77,13 @@ void rasterizer_swap()
         fprintf(save_file, "# frame %d\n", save_file_frame_number);
     }
     send_and_capture_uint8(COMMAND_SWAPBUFFERS);
+
+    flush();
+
+    // XXX force a round trip to fpgasim to throttle
+    send_uint8(COMMAND_GET_VALUATOR);
+    send_uint32(266); // MOUSEX
+    uint32_t val = receive_uint32();
 }
 
 int32_t rasterizer_winopen(char *title)

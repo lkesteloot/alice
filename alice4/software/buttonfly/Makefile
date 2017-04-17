@@ -1,15 +1,17 @@
 .PHONY: clean run
 
+include ../platform.mk
+
 APP=buttonfly
 SRC=buttonfly.c event.c lexer.c parser.tab.c
 HEADERS=bartfont.h buttonfly.h data.h event.h parser.tab.h
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c $(RASTERIZER_SRCS) $(EVENTS_SRCS)
 
 $(APP): $(SRC) $(HEADERS) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
-		-o $(APP) $(SRC) $(LIBGL_SRC)
+		-o $(APP) $(SRC) $(LIBGL_SRC) -lm
 
 parser.tab.c parser.tab.h: parser.y
 	bison --defines parser.y

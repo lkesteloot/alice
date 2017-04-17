@@ -1,3 +1,8 @@
-CXXFLAGS	+=	-Wall
+CXXFLAGS	+=	-g -Wall -I../libgl
+LDLIBS	+=	-lvncserver
 
-ts_test1: ts_test1.cpp
+all: ts_test1 vncts
+
+ts_test1: ts_test1.cpp ../libgl/touchscreen.c
+
+vncts: vncts.cpp ../libgl/touchscreen.c
