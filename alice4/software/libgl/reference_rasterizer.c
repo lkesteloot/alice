@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <string.h>
 
 #include <gl.h>
 #include "rasterizer.h"
@@ -17,8 +21,9 @@ static int zbuffer_enabled;
 
 typedef uint16_t z_t;
 
-unsigned char pixel_colors[480][800][3];
-z_t pixel_depths[480][800];
+static unsigned char pixel_colors[480][800][4];
+static unsigned char *hwfb = NULL;
+static z_t pixel_depths[480][800];
 static const int Z_SHIFT = 16;
 
 static float min(float a, float b)
@@ -210,17 +215,41 @@ void rasterizer_swap()
 {
     static int frame = 0;
 
-    char name[128];
-    sprintf(name, "frame%04d.ppm", frame);
-    FILE *fp = fopen(name, "wb");
-    fprintf(fp, "P6 800 480 255\n");
-    fwrite(pixel_colors, 1, 480 * 800 * 3, fp);
-    fclose(fp);
+    if(hwfb != NULL) {
+
+	memcpy(hwfb, pixel_colors, XMAXSCREEN * YMAXSCREEN * 4);
+
+    } else {
+
+	char name[128];
+	sprintf(name, "frame%04d.ppm", frame);
+	FILE *fp = fopen(name, "wb");
+	fprintf(fp, "P6 800 480 255\n");
+	fwrite(pixel_colors, 1, 480 * 800 * 3, fp);
+	fclose(fp);
+    }
+
     frame++;
 }
 
 int32_t rasterizer_winopen(char *title)
 {
+    int dev_mem = open("/dev/mem", O_RDWR);
+
+    if(dev_mem == 0) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    if(getenv("USE_FRAMEBUFFER") != NULL) {
+	hwfb = (unsigned char *)mmap(0, YMAXSCREEN * XMAXSCREEN * 4, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, 0x38000000);
+
+	if(hwfb == 0) {
+	    perror("mmap");
+	    exit(EXIT_FAILURE);
+	}
+    }
+
     rasterizer_clear(0, 0, 0);
     rasterizer_zclear(0xffffffff);
     if(getenv("SNAP_VERTICES") != NULL) {
