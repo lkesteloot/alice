@@ -1792,7 +1792,6 @@ void swapbuffers() {
     TRACE();
 
     rasterizer_swap();
-    flush();
 }
 
 void translate(Coord x, Coord y, Coord z) {

@@ -78,6 +78,8 @@ void rasterizer_swap()
     }
     send_and_capture_uint8(COMMAND_SWAPBUFFERS);
 
+    flush();
+
     // XXX force a round trip to fpgasim to throttle
     send_uint8(COMMAND_GET_VALUATOR);
     send_uint32(266); // MOUSEX
