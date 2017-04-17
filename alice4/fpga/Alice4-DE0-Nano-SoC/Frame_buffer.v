@@ -42,6 +42,8 @@ localparam M2F_STATE_IDLE = 4'h01;
 localparam M2F_STATE_READ = 4'h02;
 localparam M2F_STATE_READ_WAIT = 4'h03;
 localparam M2F_STATE_WRITE_WAIT = 4'h04;
+localparam M2F_STATE_FLUSH_SDRAM = 4'h05;
+localparam M2F_STATE_FLUSH_FIFO = 4'h06;
 reg [3:0] m2f_state;
 
 // State machine for transferring data from FIFO to LCD.
@@ -127,6 +129,7 @@ always @(posedge clock or negedge reset_n) begin
         word_count_latched <= 1'b0;
         words_requested <= 1'b0;
         words_read <= 1'b0;
+        fifo_sclr <= 1'b0;
     end else begin
         case (m2f_state)
             // Initial state.
@@ -134,15 +137,16 @@ always @(posedge clock or negedge reset_n) begin
                 // Start at beginning of frame memory.
                 address <= FIRST_ADDRESS_64BIT;
                 next_address <= FIRST_ADDRESS_64BIT;
+                fifo_sclr <= 1'b0;
                 m2f_state <= M2F_STATE_IDLE;
             end
 
             // Wait for FIFO to be half-empty.
             M2F_STATE_IDLE: begin
                 // If we should start the next frame, abort and
-                // start over.
+                // flush the queue.
                 if (lcd_next_frame) begin
-                    m2f_state <= M2F_STATE_START_FRAME;
+                    m2f_state <= M2F_STATE_FLUSH_SDRAM;
                 end else if (!fifo_usedw[FIFO_DEPTH_LOG2 - 1]) begin
                     // Start burst reading.
                     words_requested <= 1'b0;
@@ -154,9 +158,9 @@ always @(posedge clock or negedge reset_n) begin
             // Initiate BURST_LENGTH reads and wait for them to complete.
             M2F_STATE_READ: begin
                 // If we should start the next frame, abort and
-                // start over.
+                // flush the queue.
                 if (lcd_next_frame) begin
-                    m2f_state <= M2F_STATE_START_FRAME;
+                    m2f_state <= M2F_STATE_FLUSH_SDRAM;
                 end else if (read && waitrequest) begin
                     // If we initiated a read already, and the memory
                     // controller is busy, we have to wait.
@@ -184,14 +188,35 @@ always @(posedge clock or negedge reset_n) begin
                 // If a word has returned from memory, keep track of it.
                 // We don't want to exit this state (and risk re-entering
                 // it) until all words have come back.
-                if (!lcd_next_frame && readdatavalid) begin
-                    if (words_read == BURST_LENGTH - 1) begin
+                if (readdatavalid) begin
+                    if (!lcd_next_frame && words_read == BURST_LENGTH - 1) begin
                         // Got all the words from this burst.
                         m2f_state <= M2F_STATE_IDLE;
-                    end else begin
-                        words_read <= words_read + 1'b1;
                     end
+                    words_read <= words_read + 1'b1;
                 end
+            end
+
+            // Flush the SDRAM queue.
+            M2F_STATE_FLUSH_SDRAM: begin
+                // We've perhaps queued up a bunch of reads,
+                // because reads can be pipelined. We need for
+                // all those reads to finish before we can
+                // flush the FIFO.
+                if (readdatavalid) begin
+                    // We've read another word.
+                    words_read <= words_read + 1'b1;
+                end
+                if (words_requested == words_read) begin
+                    // Done flushing the SDRAM. Now we can flush the FIFO.
+                    m2f_state <= M2F_STATE_FLUSH_FIFO;
+                end
+            end
+
+            // Flush the FIFO.
+            M2F_STATE_FLUSH_FIFO: begin
+                fifo_sclr <= 1'b1;
+                m2f_state <= M2F_STATE_START_FRAME;
             end
 
             default: begin
@@ -224,26 +249,24 @@ reg [25:0] pixel_count_latched;
 
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
-        fifo_sclr <= 1'b0;
         f2l_state <= F2L_STATE_IDLE;
         fifo_read <= 1'b0;
         need_shifting <= 1'b0;
         pixel_count <= 1'b0;
         pixel_count_latched <= 1'b0;
     end else begin
-        // If we're at the top of the frame, flush the FIFO.
-        if (lcd_next_frame) begin
-            fifo_sclr <= 1'b1;
+        // If we're clearing the FIFO, clear everything else too.
+        if (fifo_sclr) begin
             f2l_state <= F2L_STATE_IDLE;
             fifo_read <= 1'b0;
             need_shifting <= 1'b0;
 
+            // Debug output.
             if (pixel_count >= 128) begin
                 pixel_count_latched <= pixel_count;
             end
             pixel_count <= 1'b0;
         end else begin
-            fifo_sclr <= 1'b0;
             case (f2l_state)
                 F2L_STATE_IDLE: begin
                     if (lcd_tick && lcd_data_enable) begin
@@ -283,6 +306,7 @@ always @(posedge clock or negedge reset_n) begin
                 end
             endcase
 
+            // Debug output.
             if (fifo_read) begin
                 pixel_count <= pixel_count + 1'b1;
             end
