@@ -1,8 +1,10 @@
 .PHONY: clean
 
+include ../platform.mk
+
 APP=insect
 SRC=insect.c mat.c parts.c
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c $(RASTERIZER_SRCS) $(EVENTS_SRCS)
 
 $(APP): $(SRC) insect.h $(LIBGL_SRC)
 	cc -O2 -g -I../sys_include -I../demo_include \

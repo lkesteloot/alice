@@ -1,8 +1,10 @@
 .PHONY: clean run
 
+include ../platform.mk
+
 APP=logo
 SRC=light.c logo.c 
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c $(RASTERIZER_SRCS) $(EVENTS_SRCS)
 
 $(APP): $(SRC) light.h $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \

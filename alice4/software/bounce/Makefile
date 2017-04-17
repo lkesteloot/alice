@@ -1,8 +1,10 @@
 .PHONY: clean run
 
+include ../platform.mk
+
 APP=bounce
 SRC=bounce.c 
-LIBGL_SRC=../libgl/gl.c ../libgl/vector.c ../libgl/network.c ../libgl/network_rasterizer.c ../libgl/network_events.c
+LIBGL_SRC=../libgl/gl.c ../libgl/vector.c $(RASTERIZER_SRCS) $(EVENTS_SRCS)
 
 $(APP): $(SRC) $(LIBGL_SRC)
 	cc -g -I../sys_include -I../demo_include \
