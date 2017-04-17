@@ -92,22 +92,22 @@ module LCD_control(
 
                 // Vertical sync.
                 if (v == V_FRONT - 1) begin
-                    // Front porch end.
+                    // Front porch end, sync pulse start.
                     vs_n <= 1'b0;
                 end
                 if (v == V_FRONT + V_SYNC - 1) begin
-                    // Sync pulse end.
+                    // Sync pulse end, back porch start.
                     vs_n <= 1'b1;
                 end
             end
 
             // Horizontal sync.
             if (h == H_FRONT - 1) begin
-                // Front porch end.
+                // Front porch end, sync pulse start.
                 hs_n <= 1'b0;
             end
             if (h == H_FRONT + H_SYNC - 1) begin
-                // Sync pulse end.
+                // Sync pulse end, back porch start.
                 hs_n <= 1'b1;
             end
             

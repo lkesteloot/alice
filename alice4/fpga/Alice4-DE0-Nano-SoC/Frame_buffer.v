@@ -269,30 +269,42 @@ always @(posedge clock or negedge reset_n) begin
         end else begin
             case (f2l_state)
                 F2L_STATE_IDLE: begin
-                    if (lcd_tick && lcd_data_enable) begin
-                        // Only do anything when we're on the correct clock for
-                        // the LCD, otherwise we'll generate pixels too fast.
-                        if (need_shifting) begin
+                    // See if we should pre-fetch the head of the FIFO.
+                    if (!lcd_tick && !need_shifting && lcd_data_enable) begin
+                        // Start a FIFO read. Data will be available next
+                        // clock. Note that our logic here is faulty.
+                        // We do this if !lcd_tick, but that depends
+                        // on the lcd_tick being half of clock.
+                        // If it were any other ratio, this would
+                        // be wrong. What we really mean is,
+                        // one clock before lcd_tick.
+                        fifo_read <= 1'b1;
+                        f2l_state <= F2L_STATE_WAIT;
+                    end else begin
+                        // See if we need to shift the pixel from
+                        // the high 32 bits to the low ones.
+                        if (lcd_tick && lcd_data_enable && need_shifting) begin
                             // Next pixel.
                             pixel_data[31:0] <= pixel_data[63:32];
                             need_shifting <= 1'b0;
-                        end else begin
-                            // Start a FIFO read. Data will be available next
-                            // clock.
-                            fifo_read <= 1'b1;
-                            f2l_state <= F2L_STATE_WAIT;
                         end
                     end
                 end
 
                 F2L_STATE_WAIT: begin
                     if (fifo_read_wait) begin
-                        // We missed our window, the FIFO was empty.
-                        pixel_data <= 64'h00ff00ff_00ff00ff; // Magenta.
+                        // We missed it. Nothing we can do here will
+                        // fix it, so draw some magenta so that it's
+                        // obvious something went wrong.
+                        pixel_data <= 64'h00ff00ff_00ff00ff;
                     end else begin
-                        // Grab the data.
+                        // Grab the data from the FIFO.
                         pixel_data <= fifo_read_data;
                     end
+
+                    // We got a 64-bit number, but our pixels are
+                    // 32 bits. Record that fact that we still need
+                    // to shift the high 32 bits into the lower ones.
                     need_shifting <= 1'b1;
 
                     // Either way go back to waiting.

@@ -292,17 +292,17 @@ module Main(
     );
 
     // Color assignment. Latch these for clean output.
-    reg [7:0] lcd_red;
-    reg [7:0] lcd_green;
-    reg [7:0] lcd_blue;
 `ifdef LCD_FROM_FB
     wire [7:0] fb_red;
     wire [7:0] fb_green;
     wire [7:0] fb_blue;
-    wire [7:0] lcd_red_next = character_bw ? 8'hFF : fb_red;
-    wire [7:0] lcd_green_next = character_bw ? 8'hFF : fb_green;
-    wire [7:0] lcd_blue_next = character_bw ? 8'hFF : fb_blue;
+    wire [7:0] lcd_red = character_bw ? 8'hFF : fb_red;
+    wire [7:0] lcd_green = character_bw ? 8'hFF : fb_green;
+    wire [7:0] lcd_blue = character_bw ? 8'hFF : fb_blue;
 `else
+    reg [7:0] lcd_red;
+    reg [7:0] lcd_green;
+    reg [7:0] lcd_blue;
     wire [7:0] gray = character_bw ? 8'hFF : 8'h00;
     wire [7:0] lcd_red_next = gray;
     wire [7:0] lcd_green_next = gray;
@@ -311,33 +311,19 @@ module Main(
     reg lcd_data_enable_delayed;
     always @(posedge clock_50) begin
         if (lcd_tick) begin
-            lcd_red <= lcd_red_next;
-            lcd_green <= lcd_green_next;
-            lcd_blue <= lcd_blue_next;
-
+`ifdef LCD_FROM_FB
             // We must delay lcd_data_enable by one clock because
             // the frame buffer has sent us delayed color.
             lcd_data_enable_delayed <= lcd_data_enable;
+`else
+            lcd_red <= lcd_red_next;
+            lcd_green <= lcd_green_next;
+            lcd_blue <= lcd_blue_next;
+`endif
         end
     end
 
     // GPIO pins.
-
-    // Cobbler:
-    /// assign gpio_0[4] = lcd_tick;
-    /// assign gpio_0[6] = lcd_hs_n;
-    /// assign gpio_0[7] = lcd_vs_n;
-    /// assign gpio_0[9] = lcd_data_enable_delayed;
-    /// assign gpio_0[10] = lcd_display_on;
-    /// assign gpio_0[15:12] = lcd_red[5:2];
-    /// assign gpio_0[20:19] = lcd_red[7:6];
-    /// assign gpio_0[21] = lcd_green[2];
-    /// assign gpio_0[27:23] = lcd_green[7:3];
-    /// assign gpio_0[28] = lcd_blue[2];
-    /// assign gpio_0[33:30] = lcd_blue[6:3];
-    /// assign gpio_0[35] = lcd_blue[7];
-
-    // Brad's board:
     assign gpio_0[0] = lcd_red[0];
     assign gpio_0[2] = lcd_red[1];
     assign gpio_0[4] = lcd_red[2];
