@@ -6,6 +6,10 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
+// Increase resolution (move decimal point)
+// Calibrate?
+// Convert to degrees?
+
 #define ADXL345_ADDRESS 0x53
 
 #define ADXL345_THRESH_TAP 0x1D
@@ -158,10 +162,13 @@ int main()
     ADXL345_init(file);
 
     while(1) {
-	uint16_t x = read_u16_le(file, ADXL345_DATAX0);
-	uint16_t y = read_u16_le(file, ADXL345_DATAY0);
-	uint16_t z = read_u16_le(file, ADXL345_DATAZ0);
-	printf("%hd %hd %hd\n", x, y, z);
+	int16_t xdata = read_u16_le(file, ADXL345_DATAX0);
+	int16_t ydata = read_u16_le(file, ADXL345_DATAY0);
+	int16_t zdata = read_u16_le(file, ADXL345_DATAZ0);
+	float xg = xdata / 256.0;
+	float yg = ydata / 256.0;
+	float zg = zdata / 256.0;
+	printf("%f %f %f\n", xg, yg, zg);
 	usleep(100000);
     }
 }
