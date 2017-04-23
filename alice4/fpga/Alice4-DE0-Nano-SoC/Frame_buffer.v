@@ -64,7 +64,7 @@ assign debug_value0 = {
     3'b0, read,
     4'b0,
 
-    3'b0, fifo_write,
+    4'b0,
     3'b0, fifo_write_wait,
     3'b0, fifo_read_wait,
     m2f_state
@@ -77,7 +77,6 @@ localparam FIFO_DEPTH = 64;
 localparam FIFO_DEPTH_LOG2 = 6;
 localparam BURST_LENGTH = FIFO_DEPTH/2;
 reg fifo_sclr;
-reg fifo_write;
 wire fifo_write_wait;
 wire fifo_read_wait;
 reg fifo_read;
@@ -106,9 +105,6 @@ defparam frame_buffer_fifo.add_ram_output_register = "OFF",
          frame_buffer_fifo.underflow_checking = "ON",
          frame_buffer_fifo.use_eab = "ON";
 
-reg [7:0] latency;
-reg [7:0] latency_latched;
-
 // The next address to read after this one.
 reg [28:0] next_address;
 // For debugging.
@@ -124,7 +120,6 @@ always @(posedge clock or negedge reset_n) begin
         address <= 29'h0;
         next_address <= 29'h0;
         read <= 1'b0;
-        latency <= 8'b0;
         word_count <= 1'b0;
         word_count_latched <= 1'b0;
         words_requested <= 1'b0;

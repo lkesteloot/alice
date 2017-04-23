@@ -353,8 +353,8 @@ module Main(
 
     assign gpio_0[17] = lcd_tick;
     assign gpio_0[19] = lcd_display_on;
-    assign gpio_0[21] = lcd_hs_n;
-    assign gpio_0[23] = lcd_vs_n;
+    assign gpio_0[21] = 1'b1; // lcd_hs_n;
+    assign gpio_0[23] = 1'b1; // lcd_vs_n;
     assign gpio_0[25] = lcd_data_enable_delayed;
     assign gpio_0[27] = 1'b1; // PWM backlight brightness.
 
