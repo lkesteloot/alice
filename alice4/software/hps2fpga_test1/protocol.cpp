@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <math.h>
 
+#undef DEBUG_PRINT
+
 // For lightweight communication with the FPGA:
 #define FPGA_MANAGER_BASE 0xFF706000
 #define FPGA_GPO_OFFSET 0x10
@@ -113,12 +115,18 @@ int main()
 	// Start of frame.
 
 	// Write protocol buffer.
+#ifdef DEBUG_PRINT
 	printf("Writing protocol buffer.\n");
+#endif
 	volatile uint64_t *p = protocol_buffer;
-	cmd_clear(&p,
-	    (counter & 0x04) ? 32 : 0,
-	    (counter & 0x02) ? 32 : 0,
-	    (counter & 0x01) ? 32 : 0);
+	if (0) {
+	    cmd_clear(&p,
+		(counter & 0x04) ? 255 : 0,
+		(counter & 0x02) ? 255 : 0,
+		(counter & 0x01) ? 255 : 0);
+	} else {
+	    cmd_clear(&p, 0, 0, 0);
+	}
 	cmd_draw(&p, DRAW_TRIANGLES, 1);
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter/10.0)),
@@ -134,32 +142,42 @@ int main()
 	    0, 50, 100, 150);
 	cmd_swap(&p);
 	cmd_end(&p);
+#ifdef DEBUG_PRINT
 	printf("    Wrote %d words:\n", p - protocol_buffer);
 	for (volatile uint64_t *t = protocol_buffer; t < p; t++) {
 	    printf("        0x%016llX\n", *t);
 	}
+#endif
 
 	// Tell FPGA that our data is ready.
+#ifdef DEBUG_PRINT
 	printf("Telling FPGA that the data is ready.\n");
+#endif
 	*gpo |= H2F_DATA_READY;
 
 	// Wait until we find out that it has heard us.
+#ifdef DEBUG_PRINT
 	printf("Waiting for FPGA to get busy.\n");
+#endif
 	while ((*gpi & F2H_BUSY) == 0) {
 	    // Busy loop.
 	}
 
 	// Let FPGA know that we know that it's busy.
+#ifdef DEBUG_PRINT
 	printf("Telling FPGA that we know it's busy.\n");
+#endif
 	*gpo &= ~H2F_DATA_READY;
 
 	// Wait until it's done rasterizing.
+#ifdef DEBUG_PRINT
 	printf("Waiting for FPGA to finish rasterizing.\n");
+#endif
 	while ((*gpi & F2H_BUSY) != 0) {
 	    // Busy loop.
 	}
 
-	usleep(1000*100);
+	// usleep(1000*100);
 	counter++;
     }
 
