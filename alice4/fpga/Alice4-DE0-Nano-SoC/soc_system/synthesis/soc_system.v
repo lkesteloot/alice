@@ -11,9 +11,15 @@ module soc_system (
 		output wire [63:0] hps_0_f2h_sdram0_data_readdata,      //                      .readdata
 		output wire        hps_0_f2h_sdram0_data_readdatavalid, //                      .readdatavalid
 		input  wire        hps_0_f2h_sdram0_data_read,          //                      .read
-		input  wire [63:0] hps_0_f2h_sdram0_data_writedata,     //                      .writedata
-		input  wire [7:0]  hps_0_f2h_sdram0_data_byteenable,    //                      .byteenable
-		input  wire        hps_0_f2h_sdram0_data_write,         //                      .write
+		input  wire [28:0] hps_0_f2h_sdram1_data_address,       // hps_0_f2h_sdram1_data.address
+		input  wire [7:0]  hps_0_f2h_sdram1_data_burstcount,    //                      .burstcount
+		output wire        hps_0_f2h_sdram1_data_waitrequest,   //                      .waitrequest
+		output wire [63:0] hps_0_f2h_sdram1_data_readdata,      //                      .readdata
+		output wire        hps_0_f2h_sdram1_data_readdatavalid, //                      .readdatavalid
+		input  wire        hps_0_f2h_sdram1_data_read,          //                      .read
+		input  wire [63:0] hps_0_f2h_sdram1_data_writedata,     //                      .writedata
+		input  wire [7:0]  hps_0_f2h_sdram1_data_byteenable,    //                      .byteenable
+		input  wire        hps_0_f2h_sdram1_data_write,         //                      .write
 		output wire [14:0] memory_mem_a,                        //                memory.mem_a
 		output wire [2:0]  memory_mem_ba,                       //                      .mem_ba
 		output wire        memory_mem_ck,                       //                      .mem_ck
@@ -29,7 +35,8 @@ module soc_system (
 		inout  wire [3:0]  memory_mem_dqs_n,                    //                      .mem_dqs_n
 		output wire        memory_mem_odt,                      //                      .mem_odt
 		output wire [3:0]  memory_mem_dm,                       //                      .mem_dm
-		input  wire        memory_oct_rzqin                     //                      .oct_rzqin
+		input  wire        memory_oct_rzqin,                    //                      .oct_rzqin
+		input  wire        reset_reset_n                        //                 reset.reset_n
 	);
 
 	soc_system_hps_0 #(
@@ -60,9 +67,16 @@ module soc_system (
 		.f2h_sdram0_READDATA      (hps_0_f2h_sdram0_data_readdata),      //                 .readdata
 		.f2h_sdram0_READDATAVALID (hps_0_f2h_sdram0_data_readdatavalid), //                 .readdatavalid
 		.f2h_sdram0_READ          (hps_0_f2h_sdram0_data_read),          //                 .read
-		.f2h_sdram0_WRITEDATA     (hps_0_f2h_sdram0_data_writedata),     //                 .writedata
-		.f2h_sdram0_BYTEENABLE    (hps_0_f2h_sdram0_data_byteenable),    //                 .byteenable
-		.f2h_sdram0_WRITE         (hps_0_f2h_sdram0_data_write)          //                 .write
+		.f2h_sdram1_clk           (clk_clk),                             // f2h_sdram1_clock.clk
+		.f2h_sdram1_ADDRESS       (hps_0_f2h_sdram1_data_address),       //  f2h_sdram1_data.address
+		.f2h_sdram1_BURSTCOUNT    (hps_0_f2h_sdram1_data_burstcount),    //                 .burstcount
+		.f2h_sdram1_WAITREQUEST   (hps_0_f2h_sdram1_data_waitrequest),   //                 .waitrequest
+		.f2h_sdram1_READDATA      (hps_0_f2h_sdram1_data_readdata),      //                 .readdata
+		.f2h_sdram1_READDATAVALID (hps_0_f2h_sdram1_data_readdatavalid), //                 .readdatavalid
+		.f2h_sdram1_READ          (hps_0_f2h_sdram1_data_read),          //                 .read
+		.f2h_sdram1_WRITEDATA     (hps_0_f2h_sdram1_data_writedata),     //                 .writedata
+		.f2h_sdram1_BYTEENABLE    (hps_0_f2h_sdram1_data_byteenable),    //                 .byteenable
+		.f2h_sdram1_WRITE         (hps_0_f2h_sdram1_data_write)          //                 .write
 	);
 
 endmodule

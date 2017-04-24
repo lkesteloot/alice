@@ -17,10 +17,17 @@ module soc_system_hps_0 #(
 		output wire [63:0] f2h_sdram0_READDATA,      //                 .readdata
 		output wire        f2h_sdram0_READDATAVALID, //                 .readdatavalid
 		input  wire        f2h_sdram0_READ,          //                 .read
-		input  wire [63:0] f2h_sdram0_WRITEDATA,     //                 .writedata
-		input  wire [7:0]  f2h_sdram0_BYTEENABLE,    //                 .byteenable
-		input  wire        f2h_sdram0_WRITE,         //                 .write
 		input  wire        f2h_sdram0_clk,           // f2h_sdram0_clock.clk
+		input  wire [28:0] f2h_sdram1_ADDRESS,       //  f2h_sdram1_data.address
+		input  wire [7:0]  f2h_sdram1_BURSTCOUNT,    //                 .burstcount
+		output wire        f2h_sdram1_WAITREQUEST,   //                 .waitrequest
+		output wire [63:0] f2h_sdram1_READDATA,      //                 .readdata
+		output wire        f2h_sdram1_READDATAVALID, //                 .readdatavalid
+		input  wire        f2h_sdram1_READ,          //                 .read
+		input  wire [63:0] f2h_sdram1_WRITEDATA,     //                 .writedata
+		input  wire [7:0]  f2h_sdram1_BYTEENABLE,    //                 .byteenable
+		input  wire        f2h_sdram1_WRITE,         //                 .write
+		input  wire        f2h_sdram1_clk,           // f2h_sdram1_clock.clk
 		output wire [14:0] mem_a,                    //           memory.mem_a
 		output wire [2:0]  mem_ba,                   //                 .mem_ba
 		output wire        mem_ck,                   //                 .mem_ck
@@ -73,10 +80,17 @@ module soc_system_hps_0 #(
 		.f2h_sdram0_READDATA      (f2h_sdram0_READDATA),      //                 .readdata
 		.f2h_sdram0_READDATAVALID (f2h_sdram0_READDATAVALID), //                 .readdatavalid
 		.f2h_sdram0_READ          (f2h_sdram0_READ),          //                 .read
-		.f2h_sdram0_WRITEDATA     (f2h_sdram0_WRITEDATA),     //                 .writedata
-		.f2h_sdram0_BYTEENABLE    (f2h_sdram0_BYTEENABLE),    //                 .byteenable
-		.f2h_sdram0_WRITE         (f2h_sdram0_WRITE),         //                 .write
-		.f2h_sdram0_clk           (f2h_sdram0_clk)            // f2h_sdram0_clock.clk
+		.f2h_sdram0_clk           (f2h_sdram0_clk),           // f2h_sdram0_clock.clk
+		.f2h_sdram1_ADDRESS       (f2h_sdram1_ADDRESS),       //  f2h_sdram1_data.address
+		.f2h_sdram1_BURSTCOUNT    (f2h_sdram1_BURSTCOUNT),    //                 .burstcount
+		.f2h_sdram1_WAITREQUEST   (f2h_sdram1_WAITREQUEST),   //                 .waitrequest
+		.f2h_sdram1_READDATA      (f2h_sdram1_READDATA),      //                 .readdata
+		.f2h_sdram1_READDATAVALID (f2h_sdram1_READDATAVALID), //                 .readdatavalid
+		.f2h_sdram1_READ          (f2h_sdram1_READ),          //                 .read
+		.f2h_sdram1_WRITEDATA     (f2h_sdram1_WRITEDATA),     //                 .writedata
+		.f2h_sdram1_BYTEENABLE    (f2h_sdram1_BYTEENABLE),    //                 .byteenable
+		.f2h_sdram1_WRITE         (f2h_sdram1_WRITE),         //                 .write
+		.f2h_sdram1_clk           (f2h_sdram1_clk)            // f2h_sdram1_clock.clk
 	);
 
 	soc_system_hps_0_hps_io hps_io (

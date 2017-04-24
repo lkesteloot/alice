@@ -52,8 +52,14 @@
    internal="hps_0.f2h_sdram0_data"
    type="avalon"
    dir="end" />
+ <interface
+   name="hps_0_f2h_sdram1_data"
+   internal="hps_0.f2h_sdram1_data"
+   type="avalon"
+   dir="end" />
  <interface name="hps_0_h2f_gp" internal="hps_0.h2f_gp" />
  <interface name="memory" internal="hps_0.memory" type="conduit" dir="end" />
+ <interface name="reset" internal="clk_0.clk_in_reset" type="reset" dir="end" />
  <module name="clk_0" kind="clock_source" version="16.1" enabled="1">
   <parameter name="clockFrequency" value="50000000" />
   <parameter name="clockFrequencyKnown" value="true" />
@@ -158,7 +164,7 @@
   <parameter name="EXTRA_SETTINGS" value="" />
   <parameter name="F2H_AXI_CLOCK_FREQ" value="100" />
   <parameter name="F2H_SDRAM0_CLOCK_FREQ" value="50000000" />
-  <parameter name="F2H_SDRAM1_CLOCK_FREQ" value="100" />
+  <parameter name="F2H_SDRAM1_CLOCK_FREQ" value="50000000" />
   <parameter name="F2H_SDRAM2_CLOCK_FREQ" value="100" />
   <parameter name="F2H_SDRAM3_CLOCK_FREQ" value="100" />
   <parameter name="F2H_SDRAM4_CLOCK_FREQ" value="100" />
@@ -170,8 +176,8 @@
   <parameter name="F2SCLK_SDRAMCLK_Enable" value="false" />
   <parameter name="F2SCLK_SDRAMCLK_FREQ" value="0" />
   <parameter name="F2SCLK_WARMRST_Enable" value="false" />
-  <parameter name="F2SDRAM_Type">Avalon-MM Bidirectional</parameter>
-  <parameter name="F2SDRAM_Width" value="64" />
+  <parameter name="F2SDRAM_Type">Avalon-MM Read-Only,Avalon-MM Bidirectional</parameter>
+  <parameter name="F2SDRAM_Width" value="64,64" />
   <parameter name="F2SINTERRUPT_Enable" value="false" />
   <parameter name="F2S_Width" value="0" />
   <parameter name="FIX_READ_LATENCY" value="8" />
@@ -596,10 +602,10 @@
    start="clk_0.clk"
    end="hps_0.f2h_sdram0_clock" />
  <connection
-   kind="reset"
+   kind="clock"
    version="16.1"
-   start="hps_0.h2f_reset"
-   end="clk_0.clk_in_reset" />
+   start="clk_0.clk"
+   end="hps_0.f2h_sdram1_clock" />
  <interconnectRequirement for="$system" name="qsys_mm.clockCrossingAdapter" value="HANDSHAKE" />
  <interconnectRequirement for="$system" name="qsys_mm.enableEccProtection" value="FALSE" />
  <interconnectRequirement for="$system" name="qsys_mm.insertDefaultSlave" value="FALSE" />

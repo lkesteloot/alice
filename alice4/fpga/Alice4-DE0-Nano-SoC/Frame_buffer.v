@@ -14,9 +14,6 @@ module Frame_buffer
     input wire [63:0] readdata,
     input wire readdatavalid,
     output reg read,
-    output wire [63:0] writedata,
-    output wire [7:0] byteenable,
-    output wire write,
 
     // LCD interface:
     input wire lcd_tick,
@@ -53,9 +50,6 @@ reg [3:0] f2l_state;
 
 // Registers and assignments.
 assign burstcount = 8'h01;
-assign byteenable = 8'hFF;
-assign writedata = 64'b0;
-assign write = 1'b0;
 reg [63:0] data;
 
 assign debug_value0 = {
