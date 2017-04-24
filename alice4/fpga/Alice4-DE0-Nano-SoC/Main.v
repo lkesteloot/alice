@@ -111,8 +111,11 @@ module Main(
 
     // 1G minus 128M, in bytes.
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
+    // Size of frame buffer in pixels.
+    localparam FRAME_BUFFER_WIDTH = 800;
+    localparam FRAME_BUFFER_HEIGHT = 480;
     // Number of bytes in frame buffer.
-    localparam FRAME_BUFFER_LENGTH = 800*480*4;
+    localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
     // Position of protocol buffer.
     localparam PROT_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
@@ -283,6 +286,7 @@ module Main(
     wire [31:0] rast_debug_value2;
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
+                 .FB_WIDTH(FRAME_BUFFER_WIDTH),
                  .PROT_ADDRESS(PROT_ADDRESS)) rasterizer(
 
         .clock(clock_50),
