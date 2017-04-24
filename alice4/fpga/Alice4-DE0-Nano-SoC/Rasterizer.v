@@ -1,6 +1,7 @@
 // Takes a stream of graphics commands and performs the drawing
 // operations on the frame buffer.
 module Rasterizer
+    // In bytes.
     #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, PROT_ADDRESS=0)
 (
     // Clock and reset.
@@ -21,6 +22,10 @@ module Rasterizer
     output reg [63:0] writedata,
     output wire [7:0] byteenable,
     output reg write,
+
+    // Front buffer handling.
+    input wire fb_front_buffer,
+    output reg rast_front_buffer,
 
     // These get displayed on the LCD.
     output wire [31:0] debug_value0,
@@ -59,7 +64,8 @@ module Rasterizer
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE = 5'h0D;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX = 5'h0E;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h0F;
-    localparam STATE_CMD_SWAP = 5'h1E;
+    localparam STATE_CMD_SWAP = 5'h1D;
+    localparam STATE_CMD_SWAP_WAIT = 5'h1E;
     localparam STATE_CMD_END = 5'h1F;
     reg [4:0] state;
 
@@ -98,6 +104,9 @@ module Rasterizer
     reg [8:0] tri_max_y;
     reg [28:0] tri_left_address;
 
+    // We draw to the back buffer.
+    wire [28:0] fb_address = rast_front_buffer ? FB_ADDRESS/8 : (FB_ADDRESS + FB_LENGTH)/8;
+
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
             // State.
@@ -111,6 +120,7 @@ module Rasterizer
             tri_min_y <= 1'b0;
             tri_max_x <= 1'b0;
             tri_max_y <= 1'b0;
+            rast_front_buffer <= 1'b0;
 
             // Memory.
             address <= 1'b0;
@@ -185,7 +195,7 @@ module Rasterizer
                 end
 
                 STATE_CMD_CLEAR: begin
-                    address <= FB_ADDRESS/8;
+                    address <= fb_address;
                     writedata <= {
                         8'b0,
                         command_word[47:40], // Blue
@@ -203,7 +213,7 @@ module Rasterizer
                 STATE_CMD_CLEAR_LOOP: begin
                     // Wait until we're not requested to wait.
                     if (!waitrequest) begin
-                        if (address == FB_ADDRESS/8 + FB_LENGTH/8 - 1) begin
+                        if (address == fb_address + FB_LENGTH/8 - 1) begin
                             write <= 1'b0;
                             state <= STATE_READ_COMMAND;
                         end else begin
@@ -309,9 +319,9 @@ module Rasterizer
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX: begin
                     tri_x <= tri_min_x;
                     tri_y <= tri_min_y;
-                    tri_left_address <= FB_ADDRESS/8 + (tri_min_y*FB_WIDTH + tri_min_x)/2;
+                    tri_left_address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
                     writedata <= 64'h0000FF00_0000FF00;
-                    address <= FB_ADDRESS/8 + (tri_min_y*FB_WIDTH + tri_min_x)/2;
+                    address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
                     write <= 1'b1;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
                 end
@@ -338,8 +348,16 @@ module Rasterizer
                 end
 
                 STATE_CMD_SWAP: begin
-                    // Nothing to do currently, we have only one buffer.
-                    state <= STATE_READ_COMMAND;
+                    // Request a swap of buffers.
+                    rast_front_buffer <= !rast_front_buffer;
+                    state <= STATE_CMD_SWAP_WAIT;
+                end
+
+                STATE_CMD_SWAP_WAIT: begin
+                    // Block until the frame buffer has swapped.
+                    if (rast_front_buffer == fb_front_buffer) begin
+                        state <= STATE_READ_COMMAND;
+                    end
                 end
 
                 STATE_CMD_END: begin

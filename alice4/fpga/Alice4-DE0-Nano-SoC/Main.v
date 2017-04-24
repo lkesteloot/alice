@@ -241,6 +241,8 @@ module Main(
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
     wire [31:0] fb_debug_value2;
+    wire rast_front_buffer;
+    wire fb_front_buffer;
     Frame_buffer #(.ADDRESS(FRAME_BUFFER_ADDRESS),
                    .LENGTH(FRAME_BUFFER_LENGTH)) frame_buffer(
         .clock(clock_50),
@@ -261,6 +263,10 @@ module Main(
         .lcd_green(fb_green),
         .lcd_blue(fb_blue),
         .lcd_data_enable(lcd_data_enable),
+
+        // Front buffer handling.
+        .rast_front_buffer(rast_front_buffer),
+        .fb_front_buffer(fb_front_buffer),
 
         // Debugging:
         .debug_value0(fb_debug_value0),
@@ -304,6 +310,10 @@ module Main(
         .writedata(sdram1_writedata),
         .byteenable(sdram1_byteenable),
         .write(sdram1_write),
+
+        // Front buffer handling.
+        .rast_front_buffer(rast_front_buffer),
+        .fb_front_buffer(fb_front_buffer),
 
         // Debugging:
         .debug_value0(rast_debug_value0),
