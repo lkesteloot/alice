@@ -125,11 +125,12 @@ module Main(
     wire reset_n = key[0];
     assign led[1] = !reset_n;
 
-    // Get data from the HPS.
-    wire [31:0] hps_value;
+    // Exchange data with HPS.
+    wire [31:0] f2h_value = { 31'b0, rasterizer_busy };
+    wire [31:0] h2f_value;
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
-         .gp_in(32'h76543210), // Value to the HPS (continuous).
-         .gp_out(hps_value)    // Value from the HPS (latched).
+         .gp_in(f2h_value),    // Value to the HPS (continuous).
+         .gp_out(h2f_value)    // Value from the HPS (latched).
     );
 
     // Interface to HPS.
@@ -253,6 +254,17 @@ module Main(
         .character_row(character_row),
         .bw(character_bw)
     );
+
+    // Rasterizer.
+    wire rasterizer_data_ready = h2f_value[0];
+    wire rasterizer_busy;
+    Rasterizer rasterizer(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .data_ready(rasterizer_data_ready),
+        .busy(rasterizer_busy)
+    );
+
 
     // Color assignment. Latch these for clean output.
     wire [7:0] fb_red;
