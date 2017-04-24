@@ -113,6 +113,8 @@ module Main(
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
     // Number of bytes in frame buffer.
     localparam FRAME_BUFFER_LENGTH = 800*480*4;
+    // Position of protocol buffer.
+    localparam PROT_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
     // Debug LED blink.
     reg [23:0] counter;
@@ -134,12 +136,21 @@ module Main(
     );
 
     // Interface to HPS.
-    wire [28:0] sdram_address;
-    wire [7:0] sdram_burstcount;
-    wire sdram_waitrequest;
-    wire [63:0] sdram_readdata;
-    wire sdram_readdatavalid;
-    wire sdram_read;
+    wire [28:0] sdram0_address;
+    wire [7:0] sdram0_burstcount;
+    wire sdram0_waitrequest;
+    wire [63:0] sdram0_readdata;
+    wire sdram0_readdatavalid;
+    wire sdram0_read;
+    wire [28:0] sdram1_address;
+    wire [7:0] sdram1_burstcount;
+    wire sdram1_waitrequest;
+    wire [63:0] sdram1_readdata;
+    wire sdram1_readdatavalid;
+    wire sdram1_read;
+    wire [63:0] sdram1_writedata;
+    wire [7:0] sdram1_byteenable;
+    wire sdram1_write;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         .memory_mem_a(hps_ddr3_addr),
@@ -158,12 +169,21 @@ module Main(
         .memory_mem_odt(hps_ddr3_odt),
         .memory_mem_dm(hps_ddr3_dm),
         .memory_oct_rzqin(hps_ddr3_rzq),
-        .hps_0_f2h_sdram0_data_address(sdram_address),
-        .hps_0_f2h_sdram0_data_burstcount(sdram_burstcount),
-        .hps_0_f2h_sdram0_data_waitrequest(sdram_waitrequest),
-        .hps_0_f2h_sdram0_data_readdata(sdram_readdata),
-        .hps_0_f2h_sdram0_data_readdatavalid(sdram_readdatavalid),
-        .hps_0_f2h_sdram0_data_read(sdram_read)
+        .hps_0_f2h_sdram0_data_address(sdram0_address),
+        .hps_0_f2h_sdram0_data_burstcount(sdram0_burstcount),
+        .hps_0_f2h_sdram0_data_waitrequest(sdram0_waitrequest),
+        .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
+        .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
+        .hps_0_f2h_sdram0_data_read(sdram0_read),
+        .hps_0_f2h_sdram1_data_address(sdram1_address),
+        .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
+        .hps_0_f2h_sdram1_data_waitrequest(sdram1_waitrequest),
+        .hps_0_f2h_sdram1_data_readdata(sdram1_readdata),
+        .hps_0_f2h_sdram1_data_readdatavalid(sdram1_readdatavalid),
+        .hps_0_f2h_sdram1_data_read(sdram1_read),
+        .hps_0_f2h_sdram1_data_writedata(sdram1_writedata),
+        .hps_0_f2h_sdram1_data_byteenable(sdram1_byteenable),
+        .hps_0_f2h_sdram1_data_write(sdram1_write)
     );
 
     // Generate signals for the LCD.
@@ -208,9 +228,9 @@ module Main(
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
-        .value0(fb_debug_value0),
-        .value1(fb_debug_value1),
-        .value2(fb_debug_value2),
+        .value0(rast_debug_value0),
+        .value1(rast_debug_value1),
+        .value2(rast_debug_value2),
         .character(character)
     );
 
@@ -224,12 +244,12 @@ module Main(
         .reset_n(reset_n),
 
         // Memory interface:
-        .address(sdram_address),
-        .burstcount(sdram_burstcount),
-        .waitrequest(sdram_waitrequest),
-        .readdata(sdram_readdata),
-        .readdatavalid(sdram_readdatavalid),
-        .read(sdram_read),
+        .address(sdram0_address),
+        .burstcount(sdram0_burstcount),
+        .waitrequest(sdram0_waitrequest),
+        .readdata(sdram0_readdata),
+        .readdatavalid(sdram0_readdatavalid),
+        .read(sdram0_read),
 
         // Display interface:
         .lcd_tick(lcd_tick),
@@ -258,13 +278,34 @@ module Main(
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
     wire rasterizer_busy;
-    Rasterizer rasterizer(
+    wire [31:0] rast_debug_value0;
+    wire [31:0] rast_debug_value1;
+    wire [31:0] rast_debug_value2;
+    Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
+                 .FB_LENGTH(FRAME_BUFFER_LENGTH),
+                 .PROT_ADDRESS(PROT_ADDRESS)) rasterizer(
+
         .clock(clock_50),
         .reset_n(reset_n),
         .data_ready(rasterizer_data_ready),
-        .busy(rasterizer_busy)
-    );
+        .busy(rasterizer_busy),
 
+        // Memory:
+        .address(sdram1_address),
+        .burstcount(sdram1_burstcount),
+        .waitrequest(sdram1_waitrequest),
+        .readdata(sdram1_readdata),
+        .readdatavalid(sdram1_readdatavalid),
+        .read(sdram1_read),
+        .writedata(sdram1_writedata),
+        .byteenable(sdram1_byteenable),
+        .write(sdram1_write),
+
+        // Debugging:
+        .debug_value0(rast_debug_value0),
+        .debug_value1(rast_debug_value1),
+        .debug_value2(rast_debug_value2)
+    );
 
     // Color assignment. Latch these for clean output.
     wire [7:0] fb_red;
