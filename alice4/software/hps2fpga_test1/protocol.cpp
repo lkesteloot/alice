@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <stdint.h>
+#include <math.h>
 
 // For lightweight communication with the FPGA:
 #define FPGA_MANAGER_BASE 0xFF706000
@@ -45,6 +46,24 @@
 void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
     *(*p)++ = CMD_CLEAR
+	| ((uint64_t) red << 56)
+	| ((uint64_t) green << 48)
+	| ((uint64_t) blue << 40);
+}
+
+void cmd_draw(volatile uint64_t **p, int type, int count)
+{
+    *(*p)++ = CMD_DRAW
+    	| ((uint64_t) type << 8)
+	| ((uint64_t) count << 16);
+}
+
+void vertex(volatile uint64_t **p, int x, int y, int z,
+    uint8_t red, uint8_t green, uint8_t blue)
+{
+    *(*p)++ =
+    	  ((uint64_t) x << 2)
+	| ((uint64_t) y << 15)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
@@ -97,10 +116,22 @@ int main()
 	printf("Writing protocol buffer.\n");
 	volatile uint64_t *p = protocol_buffer;
 	cmd_clear(&p,
-	    (counter & 0x04) ? 255 : 0,
-	    (counter & 0x02) ? 255 : 0,
-	    (counter & 0x01) ? 255 : 0);
-	counter++;
+	    (counter & 0x04) ? 32 : 0,
+	    (counter & 0x02) ? 32 : 0,
+	    (counter & 0x01) ? 32 : 0);
+	cmd_draw(&p, DRAW_TRIANGLES, 1);
+	vertex(&p,
+	    800/2 + (int) (200*sin(counter/10.0)),
+	    450/2 + (int) (200*cos(counter/10.0)),
+	    0, 50, 100, 150);
+	vertex(&p,
+	    800/2 + (int) (200*sin(counter/10.0 + M_PI*2/3)),
+	    450/2 + (int) (200*cos(counter/10.0 + M_PI*2/3)),
+	    0, 50, 100, 150);
+	vertex(&p,
+	    800/2 + (int) (200*sin(counter/10.0 + M_PI*4/3)),
+	    450/2 + (int) (200*cos(counter/10.0 + M_PI*4/3)),
+	    0, 50, 100, 150);
 	cmd_swap(&p);
 	cmd_end(&p);
 	printf("    Wrote %d words:\n", p - protocol_buffer);
@@ -128,7 +159,8 @@ int main()
 	    // Busy loop.
 	}
 
-	sleep(1);
+	usleep(1000*100);
+	counter++;
     }
 
     exit(EXIT_SUCCESS);
