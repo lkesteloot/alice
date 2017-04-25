@@ -35,10 +35,8 @@ module Rasterizer
 
     // Debugging.
     assign debug_value0 = {
-        6'b0,
-        tri_min_x,
-        7'b0,
-        tri_min_y
+        16'b0,
+        unhandled_count
     };
     assign debug_value1 = pc;
     assign debug_value2 = address;
@@ -80,6 +78,7 @@ module Rasterizer
 
     // Program counter into the protocol buffer.
     reg [26:0] pc;
+    reg [15:0] unhandled_count;
 
     // The most recent command word we've read.
     reg [63:0] command_word;
@@ -92,10 +91,19 @@ module Rasterizer
     reg [63:0] vertex_2;
     wire [9:0] vertex_0_x = vertex_0[11:2];
     wire [8:0] vertex_0_y = vertex_0[23:15];
+    wire [7:0] vertex_0_red = vertex_0[63:56];
+    wire [7:0] vertex_0_green = vertex_0[55:48];
+    wire [7:0] vertex_0_blue = vertex_0[47:40];
     wire [9:0] vertex_1_x = vertex_1[11:2];
     wire [8:0] vertex_1_y = vertex_1[23:15];
+    wire [7:0] vertex_1_red = vertex_1[63:56];
+    wire [7:0] vertex_1_green = vertex_1[55:48];
+    wire [7:0] vertex_1_blue = vertex_1[47:40];
     wire [9:0] vertex_2_x = vertex_2[11:2];
     wire [8:0] vertex_2_y = vertex_2[23:15];
+    wire [7:0] vertex_2_red = vertex_2[63:56];
+    wire [7:0] vertex_2_green = vertex_2[55:48];
+    wire [7:0] vertex_2_blue = vertex_2[47:40];
     reg [9:0] tri_x;
     reg [8:0] tri_y;
     reg [9:0] tri_min_x;
@@ -113,6 +121,7 @@ module Rasterizer
             state <= STATE_INIT;
             busy <= 1'b0;
             pc <= 1'b0;
+            unhandled_count <= 1'b0;
             triangle_count <= 1'b0;
             tri_x <= 1'b0;
             tri_y <= 1'b0;
@@ -187,9 +196,9 @@ module Rasterizer
                         end
 
                         default: begin
-                            // Unhandled command. Skip it and hope there's
-                            // no additional data.
-                            state <= STATE_READ_COMMAND;
+                            // Unhandled command, abort.
+                            unhandled_count <= unhandled_count + 1'b1;
+                            state <= STATE_INIT;
                         end
                     endcase
                 end
@@ -320,7 +329,16 @@ module Rasterizer
                     tri_x <= tri_min_x;
                     tri_y <= tri_min_y;
                     tri_left_address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
-                    writedata <= 64'h0000FF00_0000FF00;
+                    writedata <= {
+                        8'h00,
+                        vertex_0_blue,
+                        vertex_0_green,
+                        vertex_0_red,
+                        8'h00,
+                        vertex_0_blue,
+                        vertex_0_green,
+                        vertex_0_red
+                    };
                     address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
                     write <= 1'b1;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
@@ -361,6 +379,11 @@ module Rasterizer
                 end
 
                 STATE_CMD_END: begin
+                    state <= STATE_INIT;
+                end
+
+                default: begin
+                    // Bug, restart.
                     state <= STATE_INIT;
                 end
             endcase
