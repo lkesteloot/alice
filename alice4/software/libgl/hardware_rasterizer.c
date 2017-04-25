@@ -117,7 +117,7 @@ static float clamp(float v, float low, float high)
 
 void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
 {
-    cmd_clear(&gpu_protocol_current, r, g, b);
+    cmd_clear(&gpu_protocol_next, r, g, b);
     // HW command
 }
 
@@ -144,12 +144,12 @@ void rasterizer_pattern(int enable)
 
 void rasterizer_swap()
 {
-    cmd_swap(&gpu_protocol_current);
-    cmd_end(&gpu_protocol_current);
+    cmd_swap(&gpu_protocol_next);
+    cmd_end(&gpu_protocol_next);
 
 #ifdef DEBUG_PRINT
-    printf("    Wrote %d words:\n", gpu_protocol_current - gpu_protocol_buffer);
-    for (volatile uint64_t *t = gpu_protocol_buffer; t < gpu_protocol_current; t++) {
+    printf("    Wrote %d words:\n", gpu_protocol_next - gpu_protocol_buffer);
+    for (volatile uint64_t *t = gpu_protocol_buffer; t < gpu_protocol_next; t++) {
         printf("        0x%016llX\n", *t);
     }
 #endif
@@ -209,10 +209,9 @@ int32_t rasterizer_winopen(char *title)
         exit(EXIT_FAILURE);
     }
     gpu_protocol_next = gpu_protocol_buffer =
-	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
+	(uint64_t *) (gpu_buffers_base + PROTOCOL_BUFFER_OFFSET);
 
     gpu_frame_start();
-    counter = 0;
 }
 
 void rasterizer_zbuffer(int enable)
@@ -236,13 +235,13 @@ static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_ve
 {
     cmd_draw(&gpu_protocol_next, DRAW_TRIANGLES, 1);
     vertex(&gpu_protocol_next,
-        s0->x / SCREEN_VERTEX_V2-SCALE, s0->y / SCREEN_VERTEX_V2-SCALE, s0->z,
+        s0->x / SCREEN_VERTEX_V2_SCALE, s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
         s0->r, s0->g, s0->b);
     vertex(&gpu_protocol_next,
-        s1->x / SCREEN_VERTEX_V2-SCALE, s1->y / SCREEN_VERTEX_V2-SCALE, s1->z,
+        s1->x / SCREEN_VERTEX_V2_SCALE, s1->y / SCREEN_VERTEX_V2_SCALE, s1->z,
         s1->r, s1->g, s1->b);
     vertex(&gpu_protocol_next,
-        s2->x / SCREEN_VERTEX_V2-SCALE, s2->y / SCREEN_VERTEX_V2-SCALE, s2->z,
+        s2->x / SCREEN_VERTEX_V2_SCALE, s2->y / SCREEN_VERTEX_V2_SCALE, s2->z,
         s2->r, s2->g, s2->b);
 }
 
