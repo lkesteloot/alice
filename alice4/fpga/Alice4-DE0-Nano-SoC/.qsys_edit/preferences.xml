@@ -3,11 +3,11 @@
  <debug showDebugMenu="0" />
  <systemtable filter="All Interfaces">
   <columns>
-   <connections preferredWidth="47" />
+   <connections preferredWidth="79" />
    <irq preferredWidth="34" />
+   <inputclock preferredWidth="119" />
   </columns>
  </systemtable>
- <library
-   expandedCategories="Library/Basic Functions,Library/Qsys Interconnect,Project/System,Library/Qsys Interconnect/Memory-Mapped,Project,Library" />
+ <library expandedCategories="Project,Library" />
  <window width="2010" height="1149" x="0" y="0" />
 </preferences>

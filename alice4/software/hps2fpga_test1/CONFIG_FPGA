@@ -5,4 +5,4 @@ sudo ./memtool write -32 0xFFC25080 0
 echo "Configure FPGA now. Press ENTER when done."
 read
 echo "Enabling bridge..."
-sudo ./memtool write -32 0xFFC25080 0x111
+sudo ./memtool write -32 0xFFC25080 0x333

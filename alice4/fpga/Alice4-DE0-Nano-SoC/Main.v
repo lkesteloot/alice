@@ -3,9 +3,6 @@
 //`define ENABLE_ARDUINO
 `define ENABLE_GPIO0
 //`define ENABLE_GPIO1
-`define ENABLE_HPS
-`define LCD_FROM_FB
-//`define SDRAM_TEST
 
 module Main(
         //////////// CLOCK //////////
@@ -41,7 +38,6 @@ module Main(
         inout [35:0] gpio_1,
 `endif
 
-`ifdef ENABLE_HPS
         //////////// HPS //////////
         /* 3.3-V LVTTL */
         /// inout hps_conv_usb_n,
@@ -99,8 +95,7 @@ module Main(
         input hps_usb_nxt,
         output hps_usb_stp,
         */
-`endif
-        
+
         //////////// KEY ////////////
         /* 3.3-V LVTTL */
         input [1:0] key,
@@ -116,8 +111,13 @@ module Main(
 
     // 1G minus 128M, in bytes.
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
+    // Size of frame buffer in pixels.
+    localparam FRAME_BUFFER_WIDTH = 800;
+    localparam FRAME_BUFFER_HEIGHT = 480;
     // Number of bytes in frame buffer.
-    localparam FRAME_BUFFER_LENGTH = 800*480*4;
+    localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
+    // Position of protocol buffer.
+    localparam PROT_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
     // Debug LED blink.
     reg [23:0] counter;
@@ -130,23 +130,30 @@ module Main(
     wire reset_n = key[0];
     assign led[1] = !reset_n;
 
-    // Get data from the HPS.
-    wire [31:0] hps_value;
+    // Exchange data with HPS.
+    wire [31:0] f2h_value = { 31'b0, rasterizer_busy };
+    wire [31:0] h2f_value;
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
-         .gp_in(32'h76543210), // Value to the HPS (continuous).
-         .gp_out(hps_value)    // Value from the HPS (latched).
+         .gp_in(f2h_value),    // Value to the HPS (continuous).
+         .gp_out(h2f_value)    // Value from the HPS (latched).
     );
 
     // Interface to HPS.
-    wire [28:0] sdram_address;
-    wire [7:0] sdram_burstcount;
-    wire sdram_waitrequest;
-    wire [63:0] sdram_readdata;
-    wire sdram_readdatavalid;
-    wire sdram_read;
-    wire [63:0] sdram_writedata;
-    wire [7:0] sdram_byteenable;
-    wire sdram_write;
+    wire [28:0] sdram0_address;
+    wire [7:0] sdram0_burstcount;
+    wire sdram0_waitrequest;
+    wire [63:0] sdram0_readdata;
+    wire sdram0_readdatavalid;
+    wire sdram0_read;
+    wire [28:0] sdram1_address;
+    wire [7:0] sdram1_burstcount;
+    wire sdram1_waitrequest;
+    wire [63:0] sdram1_readdata;
+    wire sdram1_readdatavalid;
+    wire sdram1_read;
+    wire [63:0] sdram1_writedata;
+    wire [7:0] sdram1_byteenable;
+    wire sdram1_write;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         .memory_mem_a(hps_ddr3_addr),
@@ -165,37 +172,22 @@ module Main(
         .memory_mem_odt(hps_ddr3_odt),
         .memory_mem_dm(hps_ddr3_dm),
         .memory_oct_rzqin(hps_ddr3_rzq),
-        .hps_0_f2h_sdram0_data_address(sdram_address),
-        .hps_0_f2h_sdram0_data_burstcount(sdram_burstcount),
-        .hps_0_f2h_sdram0_data_waitrequest(sdram_waitrequest),
-        .hps_0_f2h_sdram0_data_readdata(sdram_readdata),
-        .hps_0_f2h_sdram0_data_readdatavalid(sdram_readdatavalid),
-        .hps_0_f2h_sdram0_data_read(sdram_read),
-        .hps_0_f2h_sdram0_data_writedata(sdram_writedata),
-        .hps_0_f2h_sdram0_data_byteenable(sdram_byteenable),
-        .hps_0_f2h_sdram0_data_write(sdram_write)
+        .hps_0_f2h_sdram0_data_address(sdram0_address),
+        .hps_0_f2h_sdram0_data_burstcount(sdram0_burstcount),
+        .hps_0_f2h_sdram0_data_waitrequest(sdram0_waitrequest),
+        .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
+        .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
+        .hps_0_f2h_sdram0_data_read(sdram0_read),
+        .hps_0_f2h_sdram1_data_address(sdram1_address),
+        .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
+        .hps_0_f2h_sdram1_data_waitrequest(sdram1_waitrequest),
+        .hps_0_f2h_sdram1_data_readdata(sdram1_readdata),
+        .hps_0_f2h_sdram1_data_readdatavalid(sdram1_readdatavalid),
+        .hps_0_f2h_sdram1_data_read(sdram1_read),
+        .hps_0_f2h_sdram1_data_writedata(sdram1_writedata),
+        .hps_0_f2h_sdram1_data_byteenable(sdram1_byteenable),
+        .hps_0_f2h_sdram1_data_write(sdram1_write)
     );
-
-    // SDRAM test module.
-`ifdef SDRAM_TEST
-    wire [31:0] sdram_debug_value0;
-    wire [31:0] sdram_debug_value1;
-    SDRAM_test sdram_test(
-        .clock(clock_50),
-        .reset_n(reset_n),
-        .address(sdram_address),
-        .burstcount(sdram_burstcount),
-        .waitrequest(sdram_waitrequest),
-        .readdata(sdram_readdata),
-        .readdatavalid(sdram_readdatavalid),
-        .read(sdram_read),
-        .writedata(sdram_writedata),
-        .byteenable(sdram_byteenable),
-        .write(sdram_write),
-        .debug_value0(sdram_debug_value0),
-        .debug_value1(sdram_debug_value1)
-    );
-`endif
 
     // Generate signals for the LCD.
     wire [9:0] lcd_x;
@@ -239,9 +231,9 @@ module Main(
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
-        .value0(fb_debug_value0),
-        .value1(fb_debug_value1),
-        .value2(fb_debug_value2),
+        .value0(rast_debug_value0),
+        .value1(rast_debug_value1),
+        .value2(rast_debug_value2),
         .character(character)
     );
 
@@ -249,31 +241,32 @@ module Main(
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
     wire [31:0] fb_debug_value2;
+    wire rast_front_buffer;
+    wire fb_front_buffer;
     Frame_buffer #(.ADDRESS(FRAME_BUFFER_ADDRESS),
                    .LENGTH(FRAME_BUFFER_LENGTH)) frame_buffer(
         .clock(clock_50),
         .reset_n(reset_n),
 
         // Memory interface:
-        .address(sdram_address),
-        .burstcount(sdram_burstcount),
-        .waitrequest(sdram_waitrequest),
-        .readdata(sdram_readdata),
-        .readdatavalid(sdram_readdatavalid),
-        .read(sdram_read),
-        .writedata(sdram_writedata),
-        .byteenable(sdram_byteenable),
-        .write(sdram_write),
+        .address(sdram0_address),
+        .burstcount(sdram0_burstcount),
+        .waitrequest(sdram0_waitrequest),
+        .readdata(sdram0_readdata),
+        .readdatavalid(sdram0_readdatavalid),
+        .read(sdram0_read),
 
         // Display interface:
         .lcd_tick(lcd_tick),
         .lcd_next_frame(next_frame),
-`ifdef LCD_FROM_FB
         .lcd_red(fb_red),
         .lcd_green(fb_green),
         .lcd_blue(fb_blue),
-`endif
         .lcd_data_enable(lcd_data_enable),
+
+        // Front buffer handling.
+        .rast_front_buffer(rast_front_buffer),
+        .fb_front_buffer(fb_front_buffer),
 
         // Debugging:
         .debug_value0(fb_debug_value0),
@@ -291,35 +284,56 @@ module Main(
         .bw(character_bw)
     );
 
+    // Rasterizer.
+    wire rasterizer_data_ready = h2f_value[0];
+    wire rasterizer_busy;
+    wire [31:0] rast_debug_value0;
+    wire [31:0] rast_debug_value1;
+    wire [31:0] rast_debug_value2;
+    Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
+                 .FB_LENGTH(FRAME_BUFFER_LENGTH),
+                 .FB_WIDTH(FRAME_BUFFER_WIDTH),
+                 .PROT_ADDRESS(PROT_ADDRESS)) rasterizer(
+
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .data_ready(rasterizer_data_ready),
+        .busy(rasterizer_busy),
+
+        // Memory:
+        .address(sdram1_address),
+        .burstcount(sdram1_burstcount),
+        .waitrequest(sdram1_waitrequest),
+        .readdata(sdram1_readdata),
+        .readdatavalid(sdram1_readdatavalid),
+        .read(sdram1_read),
+        .writedata(sdram1_writedata),
+        .byteenable(sdram1_byteenable),
+        .write(sdram1_write),
+
+        // Front buffer handling.
+        .rast_front_buffer(rast_front_buffer),
+        .fb_front_buffer(fb_front_buffer),
+
+        // Debugging:
+        .debug_value0(rast_debug_value0),
+        .debug_value1(rast_debug_value1),
+        .debug_value2(rast_debug_value2)
+    );
+
     // Color assignment. Latch these for clean output.
-`ifdef LCD_FROM_FB
     wire [7:0] fb_red;
     wire [7:0] fb_green;
     wire [7:0] fb_blue;
     wire [7:0] lcd_red = character_bw ? 8'hFF : fb_red;
     wire [7:0] lcd_green = character_bw ? 8'hFF : fb_green;
     wire [7:0] lcd_blue = character_bw ? 8'hFF : fb_blue;
-`else
-    reg [7:0] lcd_red;
-    reg [7:0] lcd_green;
-    reg [7:0] lcd_blue;
-    wire [7:0] gray = character_bw ? 8'hFF : 8'h00;
-    wire [7:0] lcd_red_next = gray;
-    wire [7:0] lcd_green_next = gray;
-    wire [7:0] lcd_blue_next = gray;
-`endif
     reg lcd_data_enable_delayed;
     always @(posedge clock_50) begin
         if (lcd_tick) begin
-`ifdef LCD_FROM_FB
             // We must delay lcd_data_enable by one clock because
             // the frame buffer has sent us delayed color.
             lcd_data_enable_delayed <= lcd_data_enable;
-`else
-            lcd_red <= lcd_red_next;
-            lcd_green <= lcd_green_next;
-            lcd_blue <= lcd_blue_next;
-`endif
         end
     end
 
@@ -353,8 +367,8 @@ module Main(
 
     assign gpio_0[17] = lcd_tick;
     assign gpio_0[19] = lcd_display_on;
-    assign gpio_0[21] = lcd_hs_n;
-    assign gpio_0[23] = lcd_vs_n;
+    assign gpio_0[21] = 1'b1; // lcd_hs_n;
+    assign gpio_0[23] = 1'b1; // lcd_vs_n;
     assign gpio_0[25] = lcd_data_enable_delayed;
     assign gpio_0[27] = 1'b1; // PWM backlight brightness.
 

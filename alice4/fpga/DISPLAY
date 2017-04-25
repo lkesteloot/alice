@@ -177,3 +177,44 @@
         - 2 x GND
     - They seem symmetric. Let's pick the outer one (GPIO 1).
 
+
+Buffers:
+    Frame buffer 1: 0x3800_0000, length 0x0017_7000 (800x480x4)
+    Frame buffer 2: 0x3817_7000, length 0x0017_7000 (800x480x4)
+    Z buffer:       0x382e_e000, length 0x0017_7000 (800x480x4)
+    Triangles:      0x3846_5000, length 0x07b9_b000 (123 MB)
+    Top of RAM:     0x4000_0000
+
+Communication bits:
+    "Data ready", written by ARM
+    "Busy", written by FPGA.
+
+Sequence
+    FPGA                            ARM
+    ----                            ---
+    Wait for "Data ready" = 1
+                                    Write triangle buffer.
+                                    Data ready = 1
+                                    Wait for "Busy" = 1
+    Busy = 1
+    Wait for "Data ready" = 0
+                                    Data ready = 0
+                                    Wait for "Busy" = 0
+    Rasterize scene.
+    Busy = 0
+
+Swap buffers:
+    Each module has its own concept of front buffer (0 or 1).
+    Rasterizer.
+        reg rast_front_buffer
+        Writes to back buffer.
+        CMD_SWAP must:
+            Toggle rast_front_buffer.
+            Block until fb_front_buffer == rast_front_buffer
+    Frame_buffer.
+        reg fb_front_buffer
+        In M2F_STATE_START_FRAME.
+            Copy rast_front_buffer to fb_front_buffer.
+            Starts reading from front buffer.
+
+

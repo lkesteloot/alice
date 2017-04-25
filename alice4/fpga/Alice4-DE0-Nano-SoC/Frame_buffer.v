@@ -14,9 +14,6 @@ module Frame_buffer
     input wire [63:0] readdata,
     input wire readdatavalid,
     output reg read,
-    output wire [63:0] writedata,
-    output wire [7:0] byteenable,
-    output wire write,
 
     // LCD interface:
     input wire lcd_tick,
@@ -26,6 +23,10 @@ module Frame_buffer
     output wire [7:0] lcd_blue,
     input wire lcd_data_enable,
 
+    // Front buffer handling.
+    input wire rast_front_buffer,
+    output reg fb_front_buffer,
+
     // These get displayed on the LCD.
     output wire [31:0] debug_value0,
     output wire [31:0] debug_value1,
@@ -33,8 +34,10 @@ module Frame_buffer
 );
 
 // Convert to 64-bit-based addresses.
-localparam FIRST_ADDRESS_64BIT = ADDRESS/8;
-localparam LAST_ADDRESS_64BIT = FIRST_ADDRESS_64BIT + LENGTH/8 - 1;
+localparam FIRST_ADDRESS0_64BIT = ADDRESS/8;
+localparam LAST_ADDRESS0_64BIT = FIRST_ADDRESS0_64BIT + LENGTH/8 - 1;
+localparam FIRST_ADDRESS1_64BIT = ADDRESS/8 + LENGTH/8;
+localparam LAST_ADDRESS1_64BIT = FIRST_ADDRESS1_64BIT + LENGTH/8 - 1;
 
 // State machine for transferring data from SDRAM to FIFO.
 localparam M2F_STATE_START_FRAME = 4'h00;
@@ -53,9 +56,6 @@ reg [3:0] f2l_state;
 
 // Registers and assignments.
 assign burstcount = 8'h01;
-assign byteenable = 8'hFF;
-assign writedata = 64'b0;
-assign write = 1'b0;
 reg [63:0] data;
 
 assign debug_value0 = {
@@ -64,7 +64,7 @@ assign debug_value0 = {
     3'b0, read,
     4'b0,
 
-    3'b0, fifo_write,
+    4'b0,
     3'b0, fifo_write_wait,
     3'b0, fifo_read_wait,
     m2f_state
@@ -77,7 +77,6 @@ localparam FIFO_DEPTH = 64;
 localparam FIFO_DEPTH_LOG2 = 6;
 localparam BURST_LENGTH = FIFO_DEPTH/2;
 reg fifo_sclr;
-reg fifo_write;
 wire fifo_write_wait;
 wire fifo_read_wait;
 reg fifo_read;
@@ -106,9 +105,6 @@ defparam frame_buffer_fifo.add_ram_output_register = "OFF",
          frame_buffer_fifo.underflow_checking = "ON",
          frame_buffer_fifo.use_eab = "ON";
 
-reg [7:0] latency;
-reg [7:0] latency_latched;
-
 // The next address to read after this one.
 reg [28:0] next_address;
 // For debugging.
@@ -124,7 +120,7 @@ always @(posedge clock or negedge reset_n) begin
         address <= 29'h0;
         next_address <= 29'h0;
         read <= 1'b0;
-        latency <= 8'b0;
+        fb_front_buffer <= 1'b0;
         word_count <= 1'b0;
         word_count_latched <= 1'b0;
         words_requested <= 1'b0;
@@ -134,9 +130,16 @@ always @(posedge clock or negedge reset_n) begin
         case (m2f_state)
             // Initial state.
             M2F_STATE_START_FRAME: begin
-                // Start at beginning of frame memory.
-                address <= FIRST_ADDRESS_64BIT;
-                next_address <= FIRST_ADDRESS_64BIT;
+                fb_front_buffer <= rast_front_buffer;
+
+                // Start at beginning of front buffer frame memory.
+                if (rast_front_buffer) begin
+                    address <= FIRST_ADDRESS1_64BIT;
+                    next_address <= FIRST_ADDRESS1_64BIT;
+                end else begin
+                    address <= FIRST_ADDRESS0_64BIT;
+                    next_address <= FIRST_ADDRESS0_64BIT;
+                end
                 fifo_sclr <= 1'b0;
                 m2f_state <= M2F_STATE_IDLE;
             end
@@ -173,9 +176,15 @@ always @(posedge clock or negedge reset_n) begin
                         words_requested <= words_requested + 1'b1;
 
                         // Compute the next address after this read.
-                        if (next_address == LAST_ADDRESS_64BIT) begin
+                        if (next_address == LAST_ADDRESS0_64BIT ||
+                            next_address == LAST_ADDRESS1_64BIT) begin
+
                             // We're done with this frame.
-                            next_address <= FIRST_ADDRESS_64BIT;
+                            if (fb_front_buffer) begin
+                                next_address <= FIRST_ADDRESS1_64BIT;
+                            end else begin
+                                next_address <= FIRST_ADDRESS0_64BIT;
+                            end
                         end else begin
                             next_address <= next_address + 1'b1;
                         end
