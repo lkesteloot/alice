@@ -12,19 +12,98 @@
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
-static int snap_vertices = 0;
+
+// For lightweight communication with the FPGA:
+#define FPGA_MANAGER_BASE 0xFF706000
+#define FPGA_GPO_OFFSET 0x10
+#define FPGA_GPI_OFFSET 0x14
+
+// HPS-to-FPGA:
+#define H2F_DATA_READY (1 << 0)
+
+// FPGA-to-HPS:
+#define F2H_BUSY (1 << 0)
+
+// Shared memory addresses:
+#define BASE 0x38000000
+#define RAM_SIZE 0x40000000
+#define COLOR_BUFFER_1_OFFSET 0
+#define BUFFER_SIZE (800*480*4)
+#define COLOR_BUFFER_2_OFFSET (COLOR_BUFFER_1_OFFSET + BUFFER_SIZE)
+#define Z_BUFFER_OFFSET (COLOR_BUFFER_2_OFFSET + BUFFER_SIZE)
+#define PROTOCOL_BUFFER_OFFSET (Z_BUFFER_OFFSET + BUFFER_SIZE)
+
+// Protocol command number:
+#define CMD_CLEAR 1
+#define CMD_ZCLEAR 2
+#define CMD_PATTERN 3
+#define CMD_DRAW 4
+#define CMD_BITMAP 5
+#define CMD_SWAP 6
+#define CMD_END 7
+
+// Draw type:
+#define DRAW_TRIANGLES 0
+#define DRAW_LINES 1
+#define DRAW_POINTS 2
+#define DRAW_LINE_STRIP 3
+#define DRAW_TRIANGLE_STRIP 5
+#define DRAW_TRIANGLE_FAN 6
+
+static uint8_t *fpga_manager_base;
+static uint8_t *gpu_buffers_base;
+static volatile uint32_t *fpga_gpo;
+static volatile uint32_t *fpga_gpi;
+static volatile uint64_t *gpu_protocol_buffer;
+static volatile uint64_t *gpu_protocol_next;
+
+static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
+{
+    *(*p)++ = CMD_CLEAR
+	| ((uint64_t) red << 56)
+	| ((uint64_t) green << 48)
+	| ((uint64_t) blue << 40);
+}
+
+static void cmd_draw(volatile uint64_t **p, int type, int count)
+{
+    *(*p)++ = CMD_DRAW
+    	| ((uint64_t) type << 8)
+	| ((uint64_t) count << 16);
+}
+
+static void vertex(volatile uint64_t **p, int x, int y, int z,
+    uint8_t red, uint8_t green, uint8_t blue)
+{
+    *(*p)++ =
+    	  ((uint64_t) x << 2)
+	| ((uint64_t) y << 15)
+	| ((uint64_t) red << 56)
+	| ((uint64_t) green << 48)
+	| ((uint64_t) blue << 40);
+}
+
+static void cmd_swap(volatile uint64_t **p)
+{
+    *(*p)++ = CMD_SWAP;
+}
+
+static void cmd_end(volatile uint64_t **p)
+{
+    *(*p)++ = CMD_END;
+}
+
+static void gpu_frame_start()
+{
+    *fpga_gpo = 0;
+    gpu_protocol_next = gpu_protocol_buffer;
+}
 
 static float the_linewidth;
-static uint16_t the_pattern[16];
+static uint16_t the_pattern[16]; // XXX
 static int pattern_enabled = 0;
 static int zbuffer_enabled;
 
-typedef uint16_t z_t;
-
-static unsigned char pixel_colors[480][800][4];
-static unsigned char *hwfb = NULL;
-static z_t pixel_depths[480][800];
-static const int Z_SHIFT = 16;
 
 static float min(float a, float b)
 {
@@ -36,162 +115,10 @@ static float clamp(float v, float low, float high)
     return v > high ? high : (v < low ? low : v);
 }
 
-float triArea2f(float v0[2], float v1[2], float v2[2])
-{
-    float      s, a, b, c;
-    float      av[2], bv[2], cv[2];
-
-    /*
-     * faster area calculation?  length of cross product / 2? */
-    av[0] = v1[0] - v0[0];
-    av[1] = v1[1] - v0[1];
-
-    bv[0] = v2[0] - v1[0];
-    bv[1] = v2[1] - v1[1];
-
-    cv[0] = v0[0] - v2[0];
-    cv[1] = v0[1] - v2[1];
-
-    a = sqrt(av[0] * av[0] + av[1] * av[1]);
-    b = sqrt(bv[0] * bv[0] + bv[1] * bv[1]);
-    c = sqrt(cv[0] * cv[0] + cv[1] * cv[1]);
-
-    s = (a + b + c) / 2;
-    return sqrt(s * (s - a) * (s - b) * (s - c));
-}
-
-void calcBaryCoords2f(float v0[2], float v1[2], float v2[2], float p[2],
-    float *a, float *b, float *c)
-{
-    float area;
-    area = triArea2f(v0, v1, v2);
-    *a = triArea2f(v1, v2, p) / area;
-    *b = triArea2f(v2, v0, p) / area;
-    *c = triArea2f(v0, v1, p) / area;
-}
-
-typedef void (*pixelFunc)(int x, int y, float bary[3], void *data);
-
-void boxi2DClear(int bbox[4])
-{
-    bbox[0] = INT_MAX;
-    bbox[1] = INT_MIN;
-    bbox[2] = INT_MAX;
-    bbox[3] = INT_MIN;
-}
-
-void boxi2DGrow(int bbox[4], float *v)
-{
-    if(floor(v[0]) < bbox[0]) bbox[0] = floor(v[0]);
-    if(ceil(v[0]) > bbox[1]) bbox[1] = ceil(v[0]);
-    if(floor(v[1]) < bbox[2]) bbox[2] = floor(v[1]);
-    if(ceil(v[1]) > bbox[3]) bbox[3] = ceil(v[1]);
-}
-
-void boxi2DIsect(int bb1[4], int bb2[4], int r[4])
-{
-    r[0] = (bb1[0] < bb2[0]) ? bb1[0] : bb1[0];
-    r[1] = (bb1[1] > bb2[1]) ? bb1[1] : bb1[1];
-    r[2] = (bb1[2] < bb2[2]) ? bb1[2] : bb1[2];
-    r[3] = (bb1[3] > bb2[3]) ? bb1[3] : bb1[3];
-}
-
-float evalHalfPlane(float v0[2], float v1[2], float v2[2], float x, float y)
-{
-    float n[2];
-
-    n[0] = - (v1[1] - v0[1]);
-    n[1] = v1[0] - v0[0];
-
-    return ((x - v0[0]) * n[0] + (y - v0[1]) * n[1]) / 
-        ((v2[0] - v0[0]) * n[0] + (v2[1] - v0[1]) * n[1]);
-}
-
-void calcHalfPlaneDiffs(float v0[2], float v1[2], float v2[2],
-    float *dx, float *dy)
-{
-    *dx = evalHalfPlane(v0, v1, v2, 1, 0) - evalHalfPlane(v0, v1, v2, 0, 0);
-    *dy = evalHalfPlane(v0, v1, v2, 0, 1) - evalHalfPlane(v0, v1, v2, 0, 0);
-}
-
-void triRast(float v0[2], float v1[2], float v2[2], int viewport[4],
-    void *data, pixelFunc doPixel)
-{
-    int bbox[4];
-    int i, j;
-    float bary[3];
-    float dxa, dxb, dxc;
-    float dya, dyb, dyc;
-    float rowa, rowb, rowc;
-
-    boxi2DClear(bbox);
-    boxi2DGrow(bbox, v0);
-    boxi2DGrow(bbox, v1);
-    boxi2DGrow(bbox, v2);
-    boxi2DIsect(bbox, viewport, bbox);
-
-    calcHalfPlaneDiffs(v1, v2, v0, &dxa, &dya);
-    rowa = evalHalfPlane(v1, v2, v0, bbox[0] + 0.5f, bbox[2] + 0.5f);
-
-    calcHalfPlaneDiffs(v2, v0, v1, &dxb, &dyb);
-    rowb = evalHalfPlane(v2, v0, v1, bbox[0] + 0.5f, bbox[2] + 0.5f);
-
-    calcHalfPlaneDiffs(v0, v1, v2, &dxc, &dyc);
-    rowc = evalHalfPlane(v0, v1, v2, bbox[0] + 0.5f, bbox[2] + 0.5f);
-
-    for(j = bbox[2]; j < bbox[3]; j++) {
-        bary[0] = rowa;
-        bary[1] = rowb;
-        bary[2] = rowc;
-	for(i = bbox[0]; i < bbox[1]; i++) {
-	    if((bary[0] > -0.001 && bary[0] < 1.001f) &&
-	        (bary[1] > -0.001 && bary[1] < 1.001f) &&
-	        (bary[2] > -0.001 && bary[2] < 1.001f))
-		    doPixel(i, j, bary, data);
-	    bary[0] += dxa;
-	    bary[1] += dxb;
-	    bary[2] += dxc;
-	}
-	rowa += dya;
-	rowb += dyb;
-	rowc += dyc;
-    }
-}
-
-void pixel(int x, int y, float bary[3], void *data)
-{
-    screen_vertex *s = (screen_vertex *)data;
-
-    if(pattern_enabled) {
-        int px = x % 16;
-        int py = y % 16;
-        if(!(the_pattern[py] & (1 << px)))
-            return;
-    }
-
-    uint8_t r = bary[0] * s[0].r + bary[1] * s[1].r + bary[2] * s[2].r;
-    uint8_t g = bary[0] * s[0].g + bary[1] * s[1].g + bary[2] * s[2].g;
-    uint8_t b = bary[0] * s[0].b + bary[1] * s[1].b + bary[2] * s[2].b;
-    uint32_t z_ = (bary[0] * s[0].z + bary[1] * s[1].z + bary[2] * s[2].z);
-
-    z_t z = z_ >> Z_SHIFT;
-
-    if(!zbuffer_enabled || (z < pixel_depths[480 - 1 - y][x])) {
-        pixel_colors[480 - 1 - y][x][0] = r;
-        pixel_colors[480 - 1 - y][x][1] = g;
-        pixel_colors[480 - 1 - y][x][2] = b;
-        pixel_depths[480 - 1 - y][x] = z;
-    }
-}
-
 void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
 {
-    for(int j = 0; j < 480; j++)
-        for(int i = 0; i < 800; i++) {
-            pixel_colors[j][i][0] = r;
-            pixel_colors[j][i][1] = g;
-            pixel_colors[j][i][2] = b;
-        }
+    cmd_clear(&gpu_protocol_current, r, g, b);
+    // HW command
 }
 
 void rasterizer_linewidth(float w)
@@ -201,6 +128,8 @@ void rasterizer_linewidth(float w)
 
 void rasterizer_setpattern(uint16_t pattern[16])
 {
+    // XXX
+    // HW command
     for (int i = 0; i < 16; i++) {
         the_pattern[i] = pattern[i];
     }
@@ -208,68 +137,93 @@ void rasterizer_setpattern(uint16_t pattern[16])
 
 void rasterizer_pattern(int enable)
 {
+    // XXX
+    // HW command
     pattern_enabled = enable;
 }
 
 void rasterizer_swap()
 {
-    static int frame = 0;
+    cmd_swap(&gpu_protocol_current);
+    cmd_end(&gpu_protocol_current);
 
-    if(hwfb != NULL) {
+#ifdef DEBUG_PRINT
+    printf("    Wrote %d words:\n", gpu_protocol_current - gpu_protocol_buffer);
+    for (volatile uint64_t *t = gpu_protocol_buffer; t < gpu_protocol_current; t++) {
+        printf("        0x%016llX\n", *t);
+    }
+#endif
 
-	memcpy(hwfb, pixel_colors, XMAXSCREEN * YMAXSCREEN * 4);
+    // Tell FPGA that our data is ready.
+#ifdef DEBUG_PRINT
+    printf("Telling FPGA that the data is ready.\n");
+#endif
+    *fpga_gpo |= H2F_DATA_READY;
 
-    } else {
-
-	char name[128];
-	sprintf(name, "frame%04d.ppm", frame);
-	FILE *fp = fopen(name, "wb");
-	fprintf(fp, "P6 800 480 255\n");
-	fwrite(pixel_colors, 1, 480 * 800 * 3, fp);
-	fclose(fp);
+    // Wait until we find out that it has heard us.
+#ifdef DEBUG_PRINT
+    printf("Waiting for FPGA to get busy.\n");
+#endif
+    while ((*fpga_gpi & F2H_BUSY) == 0) {
+        // Busy loop.
     }
 
-    frame++;
+    // Let FPGA know that we know that it's busy.
+#ifdef DEBUG_PRINT
+    printf("Telling FPGA that we know it's busy.\n");
+#endif
+    *fpga_gpo &= ~H2F_DATA_READY;
+
+    // Wait until it's done rasterizing.
+#ifdef DEBUG_PRINT
+    printf("Waiting for FPGA to finish rasterizing.\n");
+#endif
+    while ((*fpga_gpi & F2H_BUSY) != 0) {
+        // Busy loop.
+    }
 }
 
 int32_t rasterizer_winopen(char *title)
 {
     int dev_mem = open("/dev/mem", O_RDWR);
-
     if(dev_mem == 0) {
         perror("open");
         exit(EXIT_FAILURE);
     }
 
-    if(getenv("USE_FRAMEBUFFER") != NULL) {
-	hwfb = (unsigned char *)mmap(0, YMAXSCREEN * XMAXSCREEN * 4, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, 0x38000000);
-
-	if(hwfb == 0) {
-	    perror("mmap");
-	    exit(EXIT_FAILURE);
-	}
+    // Get access to lightweight FPGA communication.
+    fpga_manager_base = (uint8_t *) mmap(0, 64,
+	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, FPGA_MANAGER_BASE);
+    if(fpga_manager_base == 0) {
+        perror("mmap for gpu manager base");
+        exit(EXIT_FAILURE);
     }
+    fpga_gpo = (uint32_t*)(fpga_manager_base + FPGA_GPO_OFFSET);
+    fpga_gpi = (uint32_t*)(fpga_manager_base + FPGA_GPI_OFFSET);
 
-    rasterizer_clear(0, 0, 0);
-    rasterizer_zclear(0xffffffff);
-    if(getenv("SNAP_VERTICES") != NULL) {
-        snap_vertices = 1;
-        printf("Vertex values in X and Y will be rounded to nearest pixel corner\n");
+    // Get access to the various RAM buffers.
+    gpu_buffers_base = (uint8_t *) mmap(0, RAM_SIZE - BASE,
+	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, BASE);
+    if(gpu_buffers_base == 0) {
+        perror("mmap for buffers");
+        exit(EXIT_FAILURE);
     }
-    return 1;
+    gpu_protocol_next = gpu_protocol_buffer =
+	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
+
+    gpu_frame_start();
+    counter = 0;
 }
 
 void rasterizer_zbuffer(int enable)
 {
+    // Store now, pass in with DRAW command and primitives
     zbuffer_enabled = enable;
 }
 
 void rasterizer_zclear(uint32_t z)
 {
-    z = 0xffff; // XXX fpgasim does this
-    for(int j = 0; j < 480; j++)
-        for(int i = 0; i < 800; i++)
-            pixel_depths[j][i] = z;
+    // XXX
 }
 
 void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
@@ -280,29 +234,16 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    float v0[2];
-    float v1[2];
-    float v2[2];
-    v0[0] = s0->x / (float)SCREEN_VERTEX_V2_SCALE;
-    v0[1] = s0->y / (float)SCREEN_VERTEX_V2_SCALE;
-    v1[0] = s1->x / (float)SCREEN_VERTEX_V2_SCALE;
-    v1[1] = s1->y / (float)SCREEN_VERTEX_V2_SCALE;
-    v2[0] = s2->x / (float)SCREEN_VERTEX_V2_SCALE;
-    v2[1] = s2->y / (float)SCREEN_VERTEX_V2_SCALE;
-    if(snap_vertices) {
-        v0[0] = floor(v0[0]);
-        v0[1] = floor(v0[1]);
-        v1[0] = floor(v1[0]);
-        v1[1] = floor(v1[1]);
-        v2[0] = floor(v2[0]);
-        v2[1] = floor(v2[1]);
-    }
-    static int viewport[4] = {0, 0, 800, 480};
-    screen_vertex s[3];
-    s[0] = *s0;
-    s[1] = *s1;
-    s[2] = *s2;
-    triRast(v0, v1, v2, viewport, s, pixel);
+    cmd_draw(&gpu_protocol_next, DRAW_TRIANGLES, 1);
+    vertex(&gpu_protocol_next,
+        s0->x / SCREEN_VERTEX_V2-SCALE, s0->y / SCREEN_VERTEX_V2-SCALE, s0->z,
+        s0->r, s0->g, s0->b);
+    vertex(&gpu_protocol_next,
+        s1->x / SCREEN_VERTEX_V2-SCALE, s1->y / SCREEN_VERTEX_V2-SCALE, s1->z,
+        s1->r, s1->g, s1->b);
+    vertex(&gpu_protocol_next,
+        s2->x / SCREEN_VERTEX_V2-SCALE, s2->y / SCREEN_VERTEX_V2-SCALE, s2->z,
+        s2->r, s2->g, s2->b);
 }
 
 
