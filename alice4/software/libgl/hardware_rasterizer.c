@@ -10,6 +10,8 @@
 #include "rasterizer.h"
 #include "connection.h"
 
+#define DEBUG_PRINT 0
+
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 
