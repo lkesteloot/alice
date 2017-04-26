@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 
     uint8_t *mem = (uint8_t *) mmap(0, offset + count*word_size/8,
 	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, base_address);
-    if(mem == 0) {
+    if(mem == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }

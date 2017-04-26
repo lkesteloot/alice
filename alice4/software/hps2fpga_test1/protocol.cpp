@@ -92,7 +92,7 @@ int main()
     // Get access to lightweight FPGA communication.
     uint8_t *fpga_manager_base = (uint8_t *) mmap(0, 64,
 	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, FPGA_MANAGER_BASE);
-    if(fpga_manager_base == 0) {
+    if(fpga_manager_base == MAP_FAILED) {
         perror("mmap for fpga manager base");
         exit(EXIT_FAILURE);
     }
@@ -102,7 +102,7 @@ int main()
     // Get access to the various RAM buffers.
     uint8_t *buffers_base = (uint8_t *) mmap(0, RAM_SIZE - BASE,
 	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, BASE);
-    if(buffers_base == 0) {
+    if(buffers_base == MAP_FAILED) {
         perror("mmap for buffers");
         exit(EXIT_FAILURE);
     }

@@ -19,7 +19,7 @@ int main()
 
     unsigned char *mem = (unsigned char *)mmap(0, 64, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, FPGA_MANAGER_BASE);
 
-    if(mem == 0) {
+    if(mem == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
