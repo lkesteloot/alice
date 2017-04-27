@@ -183,6 +183,8 @@ void rasterizer_swap()
     while ((*fpga_gpi & F2H_BUSY) != 0) {
         // Busy loop.
     }
+
+    gpu_protocol_next = gpu_protocol_buffer;
 }
 
 int32_t rasterizer_winopen(char *title)
