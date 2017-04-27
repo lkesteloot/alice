@@ -79,7 +79,7 @@ static void vertex(volatile uint64_t **p, int x, int y, int z,
 {
     *(*p)++ =
     	  ((uint64_t) x << 2)
-	| ((uint64_t) y << 15)
+	| ((uint64_t) (DISPLAY_HEIGHT - 1 - y) << 15)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
