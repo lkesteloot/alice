@@ -11,7 +11,7 @@
 void usage(char *argv[])
 {
     fprintf(stderr, "\n");
-    fprintf(stderr, "Usage: %s imagename fbaddress bytes_per_row [mode]\n", argv[0]);
+    fprintf(stderr, "Usage: %s imagename fbbase bytes_per_row [mode]\n", argv[0]);
     fprintf(stderr, "\t\"mode\" can be 8 for 8-byte pixels or 4 for 4 bytes or 3 for 3 bytes.\n");
     fprintf(stderr, "\tThe default for \"mode\" is 8.\n");
     fprintf(stderr, "\n");
@@ -20,6 +20,23 @@ void usage(char *argv[])
 
 static const unsigned int FRAMEBUFFER_WIDTH = 800;
 static const unsigned int FRAMEBUFFER_HEIGHT = 480;
+
+void put_image(fipImage &img, int offsetx, int offsety, unsigned char *fb, int bytes_per_pixel, unsigned int bytes_per_row)
+{
+    memset(fb, 0, FRAMEBUFFER_HEIGHT * bytes_per_row);
+
+    RGBQUAD rgb;
+    for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
+        unsigned char* row = fb + bytes_per_row * (j + offsety);
+        for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
+            img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
+            unsigned char *pixel = row + (i + offsetx) * bytes_per_pixel;
+            pixel[0] = rgb.rgbRed;
+            pixel[1] = rgb.rgbGreen;
+            pixel[2] = rgb.rgbBlue;
+        }
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -83,20 +100,20 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    unsigned char *fb = (unsigned char *)mmap(0, FRAMEBUFFER_HEIGHT * bytes_per_row, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, address);
+    unsigned char *fb = (unsigned char *)mmap(0, FRAMEBUFFER_HEIGHT * bytes_per_row * 2, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, address);
 
     if(fb == 0) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
 
-    memset(fb, 0, FRAMEBUFFER_HEIGHT * bytes_per_row);
-
     int offsetx = 0;
     int offsety = 0;
 
-    if(img.getWidth() <= FRAMEBUFFER_WIDTH && img.getHeight() <= FRAMEBUFFER_HEIGHT) {
+    if(img.getWidth() <= FRAMEBUFFER_WIDTH) {
         offsetx = (FRAMEBUFFER_WIDTH - img.getWidth()) / 2;
+    }
+    if(img.getHeight() <= FRAMEBUFFER_HEIGHT) {
         offsety = (FRAMEBUFFER_HEIGHT - img.getHeight()) / 2;
     }
     
@@ -107,18 +124,10 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
-        unsigned char* row = fb + bytes_per_row * (j + offsety);
-        for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
-            img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
-            unsigned char *pixel = row + (i + offsetx) * bytes_per_pixel;
-            pixel[0] = rgb.rgbRed;
-            pixel[1] = rgb.rgbGreen;
-            pixel[2] = rgb.rgbBlue;
-        }
-    }
+    put_image(img, offsetx, offsety, fb, bytes_per_pixel, bytes_per_row);
+    put_image(img, offsetx, offsety, fb + FRAMEBUFFER_HEIGHT * bytes_per_row, bytes_per_pixel, bytes_per_row);
 
-    if(1) {
+    if(0) {
         // Take what we wrote to memory and write it back out as a PPM file
         FILE *fp = fopen("debug_output.ppm", "wb");
         static unsigned char fb2[FRAMEBUFFER_WIDTH * FRAMEBUFFER_HEIGHT * 3];
