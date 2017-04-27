@@ -23,11 +23,11 @@ static const unsigned int FRAMEBUFFER_HEIGHT = 480;
 
 void put_image(fipImage &img, int offsetx, int offsety, unsigned char *fb, int bytes_per_pixel, unsigned int bytes_per_row)
 {
-    memset(fb, 0, FRAMEBUFFER_HEIGHT * bytes_per_row);
-
     RGBQUAD rgb;
     for (unsigned int j = 0; j < std::min(FRAMEBUFFER_HEIGHT, img.getHeight()); j++) {
         unsigned char* row = fb + bytes_per_row * (j + offsety);
+	memset(row, 0, bytes_per_row);
+
         for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
             img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
             unsigned char *pixel = row + (i + offsetx) * bytes_per_pixel;
