@@ -113,6 +113,9 @@ int main()
     int counter = 0;
     while (1) {
 	// Start of frame.
+	if ((*gpi & F2H_BUSY) != 0) {
+	    printf("Warning: FPGA is busy at top of loop.\n");
+	}
 
 	// Write protocol buffer.
 #ifdef DEBUG_PRINT
