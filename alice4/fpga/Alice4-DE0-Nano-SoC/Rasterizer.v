@@ -132,9 +132,9 @@ module Rasterizer
     wire signed [10:0] tri_max_sx = $signed({1'b0, tri_max_x});
     wire signed [9:0] tri_max_sy = $signed({1'b0, tri_max_y});
     reg [28:0] tri_address_row;
-    reg signed [9:0] tri_x01;
-    reg signed [9:0] tri_x12;
-    reg signed [9:0] tri_x20;
+    reg signed [10:0] tri_x01;
+    reg signed [10:0] tri_x12;
+    reg signed [10:0] tri_x20;
     reg signed [10:0] tri_y01;
     reg signed [10:0] tri_y12;
     reg signed [10:0] tri_y20;
@@ -371,11 +371,11 @@ module Rasterizer
                     // This naming is a bit weird, but x01 is the
                     // x increment for each pixel. Its value is based
                     // on the difference in Y.
-                    tri_x01 <= vertex_0_sy - vertex_1_sy;
+                    tri_x01 <= (vertex_0_sy - vertex_1_sy) << 1;
                     tri_y01 <= vertex_1_sx - vertex_0_sx;
-                    tri_x12 <= vertex_1_sy - vertex_2_sy;
+                    tri_x12 <= (vertex_1_sy - vertex_2_sy) << 1;
                     tri_y12 <= vertex_2_sx - vertex_1_sx;
-                    tri_x20 <= vertex_2_sy - vertex_0_sy;
+                    tri_x20 <= (vertex_2_sy - vertex_0_sy) << 1;
                     tri_y20 <= vertex_0_sx - vertex_2_sx;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE2;
                 end
@@ -431,8 +431,8 @@ module Rasterizer
                                 tri_y <= tri_y + 1'b1;
                                 address <= tri_address_row;
                                 tri_address_row <= tri_address_row + FB_WIDTH/2;
-                                // TODO this is wrong, tri_w0 isn't set yet:
-                                write <= inside_triangle;
+                                write <= (tri_w0_row <= 0 && tri_w1_row <= 0 && tri_w2_row <= 0)
+                                    || (tri_w0_row >= 0 && tri_w1_row >= 0 && tri_w2_row >= 0);
 
                                 // _row registers are pre-incremented:
                                 tri_w0 <= tri_w0_row;
