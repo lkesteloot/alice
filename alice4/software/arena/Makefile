@@ -9,7 +9,7 @@ $(APP): $(SRC) arena.h udpbrdcst.h $(LIBGL_SRC)
 	cc -std=c99 -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
-		-DNETWORKING=1 \
+		-DNETWORKING=0 \
 		-o $(APP) $(SRC) $(LIBGL_SRC) -lm
 
 run: $(APP)
