@@ -335,8 +335,8 @@ module Main(
             // We must delay lcd_data_enable by one clock because
             // the frame buffer has sent us delayed color.
             lcd_data_enable_delayed <= lcd_data_enable;
+            character_bw_latched <= character_bw;
         end
-        character_bw_latched <= character_bw;
     end
 
     // GPIO pins.
