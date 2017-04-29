@@ -325,16 +325,18 @@ module Main(
     wire [7:0] fb_red;
     wire [7:0] fb_green;
     wire [7:0] fb_blue;
-    wire [7:0] lcd_red = character_bw ? 8'hFF : fb_red;
-    wire [7:0] lcd_green = character_bw ? 8'hFF : fb_green;
-    wire [7:0] lcd_blue = character_bw ? 8'hFF : fb_blue;
+    wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'hFF : fb_red;
+    wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'hFF : fb_green;
+    wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'hFF : fb_blue;
     reg lcd_data_enable_delayed;
+    reg character_bw_latched;
     always @(posedge clock_50) begin
         if (lcd_tick) begin
             // We must delay lcd_data_enable by one clock because
             // the frame buffer has sent us delayed color.
             lcd_data_enable_delayed <= lcd_data_enable;
         end
+        character_bw_latched <= character_bw;
     end
 
     // GPIO pins.
@@ -367,8 +369,8 @@ module Main(
 
     assign gpio_0[17] = lcd_tick;
     assign gpio_0[19] = lcd_display_on;
-    assign gpio_0[21] = 1'b1; // lcd_hs_n;
-    assign gpio_0[23] = 1'b1; // lcd_vs_n;
+    assign gpio_0[21] = sw[1] ? 1'b1 : lcd_hs_n;
+    assign gpio_0[23] = sw[2] ? 1'b1 : lcd_vs_n;
     assign gpio_0[25] = lcd_data_enable_delayed;
     assign gpio_0[27] = 1'b1; // PWM backlight brightness.
 
