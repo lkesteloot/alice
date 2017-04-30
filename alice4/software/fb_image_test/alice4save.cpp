@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 
     int dev_mem = open("/dev/mem", O_RDWR);
 
-    if(dev_mem == 0) {
+    if(dev_mem == -1) {
         perror("open");
         exit(EXIT_FAILURE);
     }

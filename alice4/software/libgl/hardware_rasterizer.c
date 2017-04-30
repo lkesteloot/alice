@@ -190,7 +190,7 @@ void rasterizer_swap()
 int32_t rasterizer_winopen(char *title)
 {
     int dev_mem = open("/dev/mem", O_RDWR);
-    if(dev_mem == 0) {
+    if(dev_mem == -1) {
         perror("open");
         exit(EXIT_FAILURE);
     }
@@ -198,7 +198,7 @@ int32_t rasterizer_winopen(char *title)
     // Get access to lightweight FPGA communication.
     fpga_manager_base = (uint8_t *) mmap(0, 64,
 	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, FPGA_MANAGER_BASE);
-    if(fpga_manager_base == 0) {
+    if(fpga_manager_base == MAP_FAILED) {
         perror("mmap for gpu manager base");
         exit(EXIT_FAILURE);
     }
@@ -208,7 +208,7 @@ int32_t rasterizer_winopen(char *title)
     // Get access to the various RAM buffers.
     gpu_buffers_base = (uint8_t *) mmap(0, RAM_SIZE - BASE,
 	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, BASE);
-    if(gpu_buffers_base == 0) {
+    if(gpu_buffers_base == MAP_FAILED) {
         perror("mmap for buffers");
         exit(EXIT_FAILURE);
     }
