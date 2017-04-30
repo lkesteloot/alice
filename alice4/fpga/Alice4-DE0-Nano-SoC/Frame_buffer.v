@@ -43,8 +43,6 @@ localparam LAST_ADDRESS1_64BIT = FIRST_ADDRESS1_64BIT + LENGTH/8 - 1;
 localparam M2F_STATE_START_FRAME = 4'h00;
 localparam M2F_STATE_IDLE = 4'h01;
 localparam M2F_STATE_READ = 4'h02;
-localparam M2F_STATE_READ_WAIT = 4'h03;
-localparam M2F_STATE_WRITE_WAIT = 4'h04;
 localparam M2F_STATE_FLUSH_SDRAM = 4'h05;
 localparam M2F_STATE_FLUSH_FIFO = 4'h06;
 reg [3:0] m2f_state;
@@ -73,15 +71,14 @@ assign debug_value1 = word_count_latched;
 assign debug_value2 = pixel_count_latched;
 
 // FIFO.
-localparam FIFO_DEPTH = 64;
-localparam FIFO_DEPTH_LOG2 = 6;
-localparam BURST_LENGTH = FIFO_DEPTH/2;
+localparam FIFO_DEPTH = 256;
+localparam FIFO_DEPTH_LOG2 = 8;
+localparam BURST_LENGTH = 32;
 reg fifo_sclr;
 wire fifo_write_wait;
 wire fifo_read_wait;
 reg fifo_read;
 wire [63:0] fifo_read_data;
-reg [31:0] fifo_read_data_latched;
 wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw;
 scfifo frame_buffer_fifo(
         .aclr(!reset_n),
@@ -150,7 +147,7 @@ always @(posedge clock or negedge reset_n) begin
                 // flush the queue.
                 if (lcd_next_frame) begin
                     m2f_state <= M2F_STATE_FLUSH_SDRAM;
-                end else if (!fifo_usedw[FIFO_DEPTH_LOG2 - 1]) begin
+                end else if (fifo_usedw < FIFO_DEPTH - BURST_LENGTH) begin
                     // Start burst reading.
                     words_requested <= 1'b0;
                     words_read <= 1'b0;
@@ -334,30 +331,5 @@ always @(posedge clock or negedge reset_n) begin
         end
     end
 end
-
-// Dump the FIFO to the debug output, one per second.
-/*
-reg [25:0] counter;
-always @(posedge clock or negedge reset_n) begin
-    if (!reset_n) begin
-        counter <= 26'b0;
-        fifo_read <= 1'b0;
-        fifo_read_data_latched <= 32'hDEAD_BEEF;
-    end else begin
-        if (counter == 26'd49_999_999) begin
-            fifo_read <= 1'b1;
-            counter <= counter + 1'b1;
-        end else if (counter == 26'd50_000_000) begin
-            if (!fifo_read_wait) begin
-                fifo_read <= 1'b0;
-                fifo_read_data_latched <= fifo_read_data[31:0];
-                counter <= 0;
-            end
-        end else begin
-            counter <= counter + 1'b1;
-        end
-    end
-end
-*/
 
 endmodule

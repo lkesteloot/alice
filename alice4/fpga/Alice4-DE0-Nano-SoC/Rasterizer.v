@@ -35,7 +35,12 @@ module Rasterizer
 
     // Debugging.
     assign debug_value0 = {
-        16'b0,
+        3'b0,
+        busy,
+        3'b0,
+        data_ready,
+        3'b0,
+        state,
         unhandled_count
     };
     assign debug_value1 = pc;
@@ -59,7 +64,8 @@ module Rasterizer
     localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 5'h0A;
     localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 5'h0B;
     localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 5'h0C;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE = 5'h0D;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 5'h0D;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 5'h10;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX = 5'h0E;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h0F;
     localparam STATE_CMD_SWAP = 5'h1D;
@@ -86,9 +92,11 @@ module Rasterizer
 
     // Drawing state.
     reg [15:0] triangle_count;
+    // Current triangle's raw vertices:
     reg [63:0] vertex_0;
     reg [63:0] vertex_1;
     reg [63:0] vertex_2;
+    // Pull out the vertex data (raw bits):
     wire [9:0] vertex_0_x = vertex_0[11:2];
     wire [8:0] vertex_0_y = vertex_0[23:15];
     wire [7:0] vertex_0_red = vertex_0[63:56];
@@ -104,13 +112,51 @@ module Rasterizer
     wire [7:0] vertex_2_red = vertex_2[63:56];
     wire [7:0] vertex_2_green = vertex_2[55:48];
     wire [7:0] vertex_2_blue = vertex_2[47:40];
+    // Signed versions of the vertices, so subtractions can get negative
+    // results. Must prepend with a zero bit so that the MSB isn't
+    // interpreted as a sign.
+    wire signed [10:0] vertex_0_sx = $signed({1'b0, vertex_0_x});
+    wire signed [9:0] vertex_0_sy = $signed({1'b0, vertex_0_y});
+    wire signed [10:0] vertex_1_sx = $signed({1'b0, vertex_1_x});
+    wire signed [9:0] vertex_1_sy = $signed({1'b0, vertex_1_y});
+    wire signed [10:0] vertex_2_sx = $signed({1'b0, vertex_2_x});
+    wire signed [9:0] vertex_2_sy = $signed({1'b0, vertex_2_y});
     reg [9:0] tri_x;
     reg [8:0] tri_y;
     reg [9:0] tri_min_x;
     reg [8:0] tri_min_y;
     reg [9:0] tri_max_x;
     reg [8:0] tri_max_y;
-    reg [28:0] tri_left_address;
+    wire signed [10:0] tri_min_sx = $signed({1'b0, tri_min_x});
+    wire signed [9:0] tri_min_sy = $signed({1'b0, tri_min_y});
+    wire signed [10:0] tri_max_sx = $signed({1'b0, tri_max_x});
+    wire signed [9:0] tri_max_sy = $signed({1'b0, tri_max_y});
+    reg [28:0] tri_address_row;
+    reg signed [10:0] tri_x01;
+    reg signed [10:0] tri_x12;
+    reg signed [10:0] tri_x20;
+    reg signed [10:0] tri_y01;
+    reg signed [10:0] tri_y12;
+    reg signed [10:0] tri_y20;
+    reg signed [21:0] tri_w0_row;
+    reg signed [21:0] tri_w1_row;
+    reg signed [21:0] tri_w2_row;
+    reg signed [21:0] tri_w0;
+    reg signed [21:0] tri_w1;
+    reg signed [21:0] tri_w2;
+    wire inside_triangle = (tri_w0 <= 0 && tri_w1 <= 0 && tri_w2 <= 0)
+        || (tri_w0 >= 0 && tri_w1 >= 0 && tri_w2 >= 0);
+    wire [28:0] upper_left_address =
+        fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
+    wire signed [21:0] initial_w0_row =
+        (vertex_2_sx - vertex_1_sx)*(tri_min_sy - vertex_1_sy) -
+        (vertex_2_sy - vertex_1_sy)*(tri_min_sx - vertex_1_sx);
+    wire signed [21:0] initial_w1_row =
+        (vertex_0_sx - vertex_2_sx)*(tri_min_sy - vertex_2_sy) -
+        (vertex_0_sy - vertex_2_sy)*(tri_min_sx - vertex_2_sx);
+    wire signed [21:0] initial_w2_row =
+        (vertex_1_sx - vertex_0_sx)*(tri_min_sy - vertex_0_sy) -
+        (vertex_1_sy - vertex_0_sy)*(tri_min_sx - vertex_0_sx);
 
     // We draw to the back buffer.
     wire [28:0] fb_address = rast_front_buffer ? FB_ADDRESS/8 : (FB_ADDRESS + FB_LENGTH)/8;
@@ -288,47 +334,74 @@ module Rasterizer
 
                     if (readdatavalid) begin
                         vertex_2 <= readdata;
-                        state <= STATE_CMD_DRAW_TRIANGLE_PREPARE;
+                        state <= STATE_CMD_DRAW_TRIANGLE_PREPARE1;
                     end
                 end
 
-                STATE_CMD_DRAW_TRIANGLE_PREPARE: begin
-                    // Compute bounding box.
-                    tri_min_x <= (vertex_0_x < vertex_1_x)
+                STATE_CMD_DRAW_TRIANGLE_PREPARE1: begin
+                    // Compute bounding box, rounding to even pixels.
+                    tri_min_x <= ((vertex_0_x < vertex_1_x)
                                     ? (vertex_0_x < vertex_2_x)
                                         ? vertex_0_x 
                                         : vertex_2_x
                                     : (vertex_1_x < vertex_2_x)
                                         ? vertex_1_x
-                                        : vertex_2_x;
-                    tri_min_y <= (vertex_0_y < vertex_1_y)
+                                        : vertex_2_x) & ~10'b1;
+                    tri_min_y <= ((vertex_0_y < vertex_1_y)
                                     ? (vertex_0_y < vertex_2_y)
                                         ? vertex_0_y 
                                         : vertex_2_y
                                     : (vertex_1_y < vertex_2_y)
                                         ? vertex_1_y
-                                        : vertex_2_y;
-                    tri_max_x <= (vertex_0_x > vertex_1_x)
+                                        : vertex_2_y) & ~9'b1;
+                    tri_max_x <= ((vertex_0_x > vertex_1_x)
                                     ? (vertex_0_x > vertex_2_x)
                                         ? vertex_0_x 
                                         : vertex_2_x
                                     : (vertex_1_x > vertex_2_x)
                                         ? vertex_1_x
-                                        : vertex_2_x;
-                    tri_max_y <= (vertex_0_y > vertex_1_y)
+                                        : vertex_2_x) & ~10'b1;
+                    tri_max_y <= ((vertex_0_y > vertex_1_y)
                                     ? (vertex_0_y > vertex_2_y)
                                         ? vertex_0_y 
                                         : vertex_2_y
                                     : (vertex_1_y > vertex_2_y)
                                         ? vertex_1_y
-                                        : vertex_2_y;
+                                        : vertex_2_y) & ~9'b1;
+                    // This naming is a bit weird, but x01 is the
+                    // x increment for each pixel. Its value is based
+                    // on the difference in Y.
+                    tri_x01 <= (vertex_0_sy - vertex_1_sy) << 1;
+                    tri_y01 <= vertex_1_sx - vertex_0_sx;
+                    tri_x12 <= (vertex_1_sy - vertex_2_sy) << 1;
+                    tri_y12 <= vertex_2_sx - vertex_1_sx;
+                    tri_x20 <= (vertex_2_sy - vertex_0_sy) << 1;
+                    tri_y20 <= vertex_0_sx - vertex_2_sx;
+                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE2;
+                end
+
+                STATE_CMD_DRAW_TRIANGLE_PREPARE2: begin
+                    tri_w0_row <= initial_w0_row;
+                    tri_w1_row <= initial_w1_row;
+                    tri_w2_row <= initial_w2_row;
+                    tri_w0 <= initial_w0_row;
+                    tri_w1 <= initial_w1_row;
+                    tri_w2 <= initial_w2_row;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX;
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX: begin
                     tri_x <= tri_min_x;
                     tri_y <= tri_min_y;
-                    tri_left_address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
+                    tri_address_row <= upper_left_address;
+                    // Pre-increment these six:
+                    tri_w0_row <= tri_w0_row + tri_y12;
+                    tri_w1_row <= tri_w1_row + tri_y20;
+                    tri_w2_row <= tri_w2_row + tri_y01;
+                    tri_w0 <= tri_w0 + tri_x12;
+                    tri_w1 <= tri_w1 + tri_x20;
+                    tri_w2 <= tri_w2 + tri_x01;
+                    // Flat color:
                     writedata <= {
                         8'h00,
                         vertex_0_blue,
@@ -339,28 +412,45 @@ module Rasterizer
                         vertex_0_green,
                         vertex_0_red
                     };
-                    address <= fb_address + (tri_min_y*FB_WIDTH + tri_min_x)/2;
-                    write <= 1'b1;
+                    address <= upper_left_address;
+                    write <= inside_triangle;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
                     // Wait until we're not requested to wait.
-                    if (!waitrequest) begin
-                        if (tri_x >= tri_max_x) begin
+                    if (!write || !waitrequest) begin
+                        if (tri_x == tri_max_x) begin
                             if (tri_y == tri_max_y) begin
-                                write <= 1'b0;
                                 // Next triangle.
+                                write <= 1'b0;
                                 state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
                             end else begin
+                                // Next row.
                                 tri_x <= tri_min_x;
                                 tri_y <= tri_y + 1'b1;
-                                address <= tri_left_address;
-                                tri_left_address <= tri_left_address + FB_WIDTH/2;
+                                address <= tri_address_row;
+                                tri_address_row <= tri_address_row + FB_WIDTH/2;
+                                write <= (tri_w0_row <= 0 && tri_w1_row <= 0 && tri_w2_row <= 0)
+                                    || (tri_w0_row >= 0 && tri_w1_row >= 0 && tri_w2_row >= 0);
+
+                                // _row registers are pre-incremented:
+                                tri_w0 <= tri_w0_row;
+                                tri_w1 <= tri_w1_row;
+                                tri_w2 <= tri_w2_row;
+                                tri_w0_row <= tri_w0_row + tri_y12;
+                                tri_w1_row <= tri_w1_row + tri_y20;
+                                tri_w2_row <= tri_w2_row + tri_y01;
                             end
                         end else begin
+                            // Next pixel on this row.
                             address <= address + 1'b1;
                             tri_x <= tri_x + 2'd2;
+                            write <= inside_triangle;
+                            // These are pre-incremented.
+                            tri_w0 <= tri_w0 + tri_x12;
+                            tri_w1 <= tri_w1 + tri_x20;
+                            tri_w2 <= tri_w2 + tri_x01;
                         end
                     end
                 end

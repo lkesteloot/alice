@@ -189,7 +189,7 @@ Communication bits:
     "Data ready", written by ARM
     "Busy", written by FPGA.
 
-Sequence
+Command buffer sequence
     FPGA                            ARM
     ----                            ---
     Wait for "Data ready" = 1
@@ -217,4 +217,56 @@ Swap buffers:
             Copy rast_front_buffer to fb_front_buffer.
             Starts reading from front buffer.
 
+Rasterizing triangle:
+    Find min and max of vertices.
+    Clamp min and max to screen (optional).
+    Make triangle counter-clockwise (optional).
+    Compute edge equations.
+        STATE_CMD_DRAW_TRIANGLE_PREPARE: begin
+            // Edge equations.
+            tri_x01 <= vertex_0_y - vertex_1_y
+            tri_y01 <= vertex_1_x - vertex_0_x
+            tri_x12 <= vertex_1_y - vertex_2_y
+            tri_y12 <= vertex_2_x - vertex_1_x
+            tri_x20 <= vertex_2_y - vertex_0_y
+            tri_y20 <= vertex_0_x - vertex_2_x
+            tri_w0_row <= (vertex_2_x - vertex_1_x)*(tri_min_y - vertex_1_y) -
+                          (vertex_2_y - vertex_1_y)*(tri_min_x - vertex_1_x)
+            tri_w1_row <= (vertex_0_x - vertex_2_x)*(tri_min_y - vertex_2_y) -
+                          (vertex_0_y - vertex_2_y)*(tri_min_x - vertex_2_x)
+            tri_w2_row <= (vertex_1_x - vertex_0_x)*(tri_min_y - vertex_0_y) -
+                          (vertex_1_y - vertex_0_y)*(tri_min_x - vertex_0_x)
+    Compute biases (optional).
+    Walk bbox.
+        address = upper-left corner
+        tri_left_address = upper-left corner
+        tri_x = tri_min_x
+        tri_y = tri_min_y
+        tri_w0 = tri_w0_row
+        tri_w1 = tri_w1_row
+        tri_w2 = tri_w2_row
+
+        loop:
+            write = tri_w0 >= bias0 && tri_w1 >= bias1 && tri_w2 >= bias2
+
+            if tri_x = tri_max_x
+                if tri_y = tri_max_y
+                    break loop
+                else:
+                    tri_x = tri_min_x
+                    tri_y++
+                    tri_w0_row += tri_y12
+                    tri_w1_row += tri_y20
+                    tri_w2_row += tri_y01
+                    tri_w0 = tri_w0_row
+                    tri_w1 = tri_w1_row
+                    tri_w2 = tri_w2_row
+                    tri_left_address += STRIDE
+                    address = tri_left_address
+            else:
+                tri_x++
+                tri_w0 += tri_x12
+                tri_w1 += tri_x20
+                tri_w2 += tri_x01
+                p += BYTES_PER_PIXEL
 

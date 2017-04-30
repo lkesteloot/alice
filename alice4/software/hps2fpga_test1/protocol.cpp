@@ -83,6 +83,8 @@ void cmd_end(volatile uint64_t **p)
 
 int main()
 {
+    float speed = 0.01;
+
     int dev_mem = open("/dev/mem", O_RDWR);
     if(dev_mem == 0) {
         perror("open");
@@ -113,6 +115,9 @@ int main()
     int counter = 0;
     while (1) {
 	// Start of frame.
+	if ((*gpi & F2H_BUSY) != 0) {
+	    printf("Warning: FPGA is busy at top of loop.\n");
+	}
 
 	// Write protocol buffer.
 #ifdef DEBUG_PRINT
@@ -129,16 +134,16 @@ int main()
 	}
 	cmd_draw(&p, DRAW_TRIANGLES, 1);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter/10.0)),
-	    450/2 + (int) (200*cos(counter/10.0)),
+	    800/2 + (int) (200*sin(counter*speed)),
+	    450/2 + (int) (200*cos(counter*speed)),
 	    0, 50, 100, 150);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter/10.0 + M_PI*2/3)),
-	    450/2 + (int) (200*cos(counter/10.0 + M_PI*2/3)),
+	    800/2 + (int) (200*sin(counter*speed + M_PI*2/3)),
+	    450/2 + (int) (200*cos(counter*speed + M_PI*2/3)),
 	    0, 50, 100, 150);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter/10.0 + M_PI*4/3)),
-	    450/2 + (int) (200*cos(counter/10.0 + M_PI*4/3)),
+	    800/2 + (int) (200*sin(counter*speed + M_PI*4/3)),
+	    450/2 + (int) (200*cos(counter*speed + M_PI*4/3)),
 	    0, 50, 100, 150);
 	cmd_swap(&p);
 	cmd_end(&p);
