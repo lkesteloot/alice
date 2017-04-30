@@ -45,6 +45,8 @@ static void drain_touchscreen()
 	drained ++;
 	switch(e) {
 	    case TOUCHSCREEN_START:
+		mousex = x;
+		mousey = 480 - 1 - y; // GL valuator MOUSEY is 0 at bottom
 		if(device_queued[LEFTMOUSE]) {
 		    ev.device = LEFTMOUSE;
 		    ev.val = 1;
