@@ -50,9 +50,9 @@ static void drain_touchscreen()
 		    ev.val = 1;
 		    enqueue_event(&ev);
 		    for(int j = 0; j < 2; j++) {
-			if(tied_valuators[LEFTMOUSE][0]) {
-			    ev.device = tied_valuators[LEFTMOUSE][0];
-			    ev.val = events_get_valuator(tied_valuators[LEFTMOUSE][0]);
+			if(tied_valuators[LEFTMOUSE][j]) {
+			    ev.device = tied_valuators[LEFTMOUSE][j];
+			    ev.val = events_get_valuator(tied_valuators[LEFTMOUSE][j]);
 			    enqueue_event(&ev);
 			}
 		    }
@@ -68,9 +68,9 @@ static void drain_touchscreen()
 		    ev.val = 0;
 		    enqueue_event(&ev);
 		    for(int j = 0; j < 2; j++) {
-			if(tied_valuators[LEFTMOUSE][0]) {
-			    ev.device = tied_valuators[LEFTMOUSE][0];
-			    ev.val = events_get_valuator(tied_valuators[LEFTMOUSE][0]);
+			if(tied_valuators[LEFTMOUSE][j]) {
+			    ev.device = tied_valuators[LEFTMOUSE][j];
+			    ev.val = events_get_valuator(tied_valuators[LEFTMOUSE][j]);
 			    enqueue_event(&ev);
 			}
 		    }
@@ -136,5 +136,5 @@ void events_tie(int32_t button, int32_t val1, int32_t val2)
     // XXX except that network_events is probably more efficient handling
     // XXX tie() itself...
     tied_valuators[button][0] = val1;
-    tied_valuators[button][0] = val2;
+    tied_valuators[button][1] = val2;
 }
