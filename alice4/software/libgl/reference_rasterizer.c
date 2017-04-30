@@ -244,7 +244,7 @@ int32_t rasterizer_winopen(char *title)
     if(getenv("USE_FRAMEBUFFER") != NULL) {
 	hwfb = (unsigned char *)mmap(0, YMAXSCREEN * XMAXSCREEN * 4, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, 0x38000000);
 
-	if(hwfb == 0) {
+	if(hwfb == MAP_FAILED) {
 	    perror("mmap");
 	    exit(EXIT_FAILURE);
 	}

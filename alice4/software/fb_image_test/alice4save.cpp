@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 
     unsigned char *fb = (unsigned char *)mmap(0, FRAMEBUFFER_HEIGHT * BYTES_PER_ROW * 2, PROT_READ | PROT_WRITE, /* MAP_NOCACHE | */ MAP_SHARED , dev_mem, FRAMEBUFFER_ADDRESS);
 
-    if(fb == 0) {
+    if(fb == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
