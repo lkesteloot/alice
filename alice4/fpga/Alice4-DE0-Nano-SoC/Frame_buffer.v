@@ -132,10 +132,10 @@ always @(posedge clock or negedge reset_n) begin
                 // Start at beginning of front buffer frame memory.
                 if (rast_front_buffer) begin
                     address <= FIRST_ADDRESS1_64BIT;
-                    next_address <= FIRST_ADDRESS1_64BIT;
+                    next_address <= FIRST_ADDRESS1_64BIT + 1'b1;
                 end else begin
                     address <= FIRST_ADDRESS0_64BIT;
-                    next_address <= FIRST_ADDRESS0_64BIT;
+                    next_address <= FIRST_ADDRESS0_64BIT + 1'b1;
                 end
                 fifo_sclr <= 1'b0;
                 m2f_state <= M2F_STATE_IDLE;
