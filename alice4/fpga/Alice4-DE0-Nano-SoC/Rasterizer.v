@@ -59,15 +59,20 @@ module Rasterizer
     localparam STATE_DECODE_COMMAND = 5'h05;
     localparam STATE_CMD_CLEAR = 5'h06;
     localparam STATE_CMD_CLEAR_LOOP = 5'h07;
-    localparam STATE_CMD_DRAW = 5'h08;
-    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 5'h09;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 5'h0A;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 5'h0B;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 5'h0C;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 5'h0D;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 5'h10;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX = 5'h0E;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h0F;
+    localparam STATE_CMD_PATTERN = 5'h08;
+    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 5'h09;
+    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 5'h0A;
+    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 5'h0B;
+    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 5'h0C;
+    localparam STATE_CMD_DRAW = 5'h0D;
+    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 5'h0E;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 5'h0F;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 5'h10;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 5'h11;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 5'h12;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 5'h13;
+    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX = 5'h14;
+    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h15;
     localparam STATE_CMD_SWAP = 5'h1D;
     localparam STATE_CMD_SWAP_WAIT = 5'h1E;
     localparam STATE_CMD_END = 5'h1F;
@@ -91,6 +96,7 @@ module Rasterizer
     wire [7:0] command = command_word[7:0];
 
     // Drawing state.
+    reg [255:0] pattern;
     reg [15:0] triangle_count;
     // Current triangle's raw vertices:
     reg [63:0] vertex_0;
@@ -176,6 +182,7 @@ module Rasterizer
             tri_max_x <= 1'b0;
             tri_max_y <= 1'b0;
             rast_front_buffer <= 1'b0;
+            pattern = 1'b0;
 
             // Memory.
             address <= 1'b0;
@@ -229,6 +236,10 @@ module Rasterizer
                             state <= STATE_CMD_CLEAR;
                         end
 
+                        CMD_PATTERN: begin
+                            state <= STATE_CMD_PATTERN;
+                        end
+
                         CMD_DRAW: begin
                             state <= STATE_CMD_DRAW;
                         end
@@ -274,6 +285,75 @@ module Rasterizer
                         end else begin
                             address <= address + 1'b1;
                         end
+                    end
+                end
+
+                STATE_CMD_PATTERN: begin
+                    // Read first pattern word.
+                    address <= pc;
+                    read <= 1'b1;
+                    pc <= pc + 1'b1;
+                    state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0;
+                end
+
+                STATE_CMD_PATTERN_WAIT_READ_0: begin
+                    // When no longer told to wait, deassert the request lines.
+                    if (!waitrequest) begin
+                        read <= 1'b0;
+                    end
+
+                    // If we have data, grab it.
+                    if (readdatavalid) begin
+                        pattern[63:0] <= readdata;
+                        address <= pc;
+                        read <= 1'b1;
+                        pc <= pc + 1'b1;
+                        state <= STATE_CMD_PATTERN_WAIT_READ_1;
+                    end
+                end
+
+                STATE_CMD_PATTERN_WAIT_READ_1: begin
+                    // When no longer told to wait, deassert the request lines.
+                    if (!waitrequest) begin
+                        read <= 1'b0;
+                    end
+
+                    // If we have data, grab it.
+                    if (readdatavalid) begin
+                        pattern[127:64] <= readdata;
+                        address <= pc;
+                        read <= 1'b1;
+                        pc <= pc + 1'b1;
+                        state <= STATE_CMD_PATTERN_WAIT_READ_2;
+                    end
+                end
+
+                STATE_CMD_PATTERN_WAIT_READ_2: begin
+                    // When no longer told to wait, deassert the request lines.
+                    if (!waitrequest) begin
+                        read <= 1'b0;
+                    end
+
+                    // If we have data, grab it.
+                    if (readdatavalid) begin
+                        pattern[191:128] <= readdata;
+                        address <= pc;
+                        read <= 1'b1;
+                        pc <= pc + 1'b1;
+                        state <= STATE_CMD_PATTERN_WAIT_READ_3;
+                    end
+                end
+
+                STATE_CMD_PATTERN_WAIT_READ_3: begin
+                    // When no longer told to wait, deassert the request lines.
+                    if (!waitrequest) begin
+                        read <= 1'b0;
+                    end
+
+                    // If we have data, grab it.
+                    if (readdatavalid) begin
+                        pattern[255:192] <= readdata;
+                        state <= STATE_READ_COMMAND;
                     end
                 end
 
