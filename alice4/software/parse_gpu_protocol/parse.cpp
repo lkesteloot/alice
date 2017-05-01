@@ -49,6 +49,14 @@ void parse_vertex(uint64_t v, unsigned int *x, unsigned int *y, unsigned int *z,
     *b = (v >> 40) & 0xFF;
 }
 
+void parse_PATTERN(uint64_t command_quad, uint64_t pattern[])
+{
+    printf("setpattern");
+    for (int i = 0; i < 16; i++)
+        printf(" %04llX", (pattern[i / 4] >> ((i % 4) * 16)) & 0xFFFF);
+    printf("\n");
+}
+
 void parse_DRAW(uint64_t command_quad, uint64_t vertex_data[])
 {
     static int prev_zbuffer = 0;
@@ -137,6 +145,11 @@ void parse_END(uint64_t command_quad)
     check_new_frame();
 
     printf("end\n");
+}
+
+int quad_count_PATTERN(uint64_t command_quad)
+{
+    return 4;
 }
 
 int quad_count_DRAW(uint64_t command_quad)
@@ -234,8 +247,9 @@ int main(int argc, char **argv)
                     break;
 
                 case CMD_PATTERN:
-                    fprintf(stderr, "parsed PATTERN, not yet implemented\n");
-                    exit(EXIT_FAILURE);
+                    quad_count = quad_count_PATTERN(command_quad);
+                    next_quad = 0;
+                    state = GATHERING;
                     break;
 
                 case CMD_DRAW:
@@ -266,7 +280,9 @@ int main(int argc, char **argv)
             more_quads[next_quad++] = quad;
             if(--quad_count == 0) {
                 switch(command_quad & 0xF) {
-                    // case CMD_PATTERN:
+                    case CMD_PATTERN:
+                        parse_PATTERN(command_quad, more_quads);
+                        break;
 
                     case CMD_DRAW:
                         parse_DRAW(command_quad, more_quads);
