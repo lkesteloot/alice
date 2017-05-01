@@ -59,6 +59,10 @@ static volatile uint32_t *fpga_gpi;
 static volatile uint64_t *gpu_protocol_buffer;
 static volatile uint64_t *gpu_protocol_next;
 
+static float the_linewidth;
+static int pattern_enabled = 0;
+static int zbuffer_enabled = 0;
+
 static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
     *(*p)++ = CMD_CLEAR
@@ -67,11 +71,26 @@ static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t
 	| ((uint64_t) blue << 40);
 }
 
+static void cmd_pattern(volatile uint64_t **p, uint16_t pattern[16])
+{
+    printf("Sending pattern %x\n", (int) pattern[0]);
+    *(*p)++ = CMD_PATTERN;
+    for (int n = 0; n < 16; n += 4) {
+	*(*p)++ =
+	    ((uint64_t) pattern[n + 0] << 0) |
+	    ((uint64_t) pattern[n + 1] << 16) |
+	    ((uint64_t) pattern[n + 2] << 32) |
+	    ((uint64_t) pattern[n + 3] << 48);
+    }
+}
+
 static void cmd_draw(volatile uint64_t **p, int type, int count)
 {
     *(*p)++ = CMD_DRAW
     	| ((uint64_t) type << 8)
-	| ((uint64_t) count << 16);
+	| ((uint64_t) count << 16)
+	| ((uint64_t) zbuffer_enabled << 32)
+	| ((uint64_t) pattern_enabled << 33);
 }
 
 static void vertex(volatile uint64_t **p, int x, int y, int z,
@@ -101,11 +120,6 @@ static void gpu_frame_start()
     gpu_protocol_next = gpu_protocol_buffer;
 }
 
-static float the_linewidth;
-static uint16_t the_pattern[16]; // XXX
-static int pattern_enabled = 0;
-static int zbuffer_enabled;
-
 
 static float min(float a, float b)
 {
@@ -130,17 +144,12 @@ void rasterizer_linewidth(float w)
 
 void rasterizer_setpattern(uint16_t pattern[16])
 {
-    // XXX
-    // HW command
-    for (int i = 0; i < 16; i++) {
-        the_pattern[i] = pattern[i];
-    }
+    cmd_pattern(&gpu_protocol_next, pattern);
 }
 
 void rasterizer_pattern(int enable)
 {
-    // XXX
-    // HW command
+    // Store now, pass in with DRAW command and primitives
     pattern_enabled = enable;
 }
 
