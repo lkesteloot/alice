@@ -73,7 +73,6 @@ static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t
 
 static void cmd_pattern(volatile uint64_t **p, uint16_t pattern[16])
 {
-    printf("Sending pattern %x\n", (int) pattern[0]);
     *(*p)++ = CMD_PATTERN;
     for (int n = 0; n < 16; n += 4) {
 	*(*p)++ =
