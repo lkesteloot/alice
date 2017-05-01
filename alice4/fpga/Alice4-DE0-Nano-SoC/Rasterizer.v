@@ -71,7 +71,6 @@ module Rasterizer
     localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 5'h11;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 5'h12;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 5'h13;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX = 5'h14;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h15;
     localparam STATE_CMD_SWAP = 5'h1D;
     localparam STATE_CMD_SWAP_WAIT = 5'h1E;
@@ -94,6 +93,8 @@ module Rasterizer
     // The most recent command word we've read.
     reg [63:0] command_word;
     wire [7:0] command = command_word[7:0];
+    wire use_z_buffer = command_word[32];
+    wire draw_with_pattern = command_word[33];
 
     // Drawing state.
     reg [255:0] pattern;
@@ -138,6 +139,7 @@ module Rasterizer
     wire signed [10:0] tri_max_sx = $signed({1'b0, tri_max_x});
     wire signed [9:0] tri_max_sy = $signed({1'b0, tri_max_y});
     reg [28:0] tri_address_row;
+    reg [28:0] tri_address;
     reg signed [10:0] tri_x01;
     reg signed [10:0] tri_x12;
     reg signed [10:0] tri_x20;
@@ -150,8 +152,9 @@ module Rasterizer
     reg signed [21:0] tri_w0;
     reg signed [21:0] tri_w1;
     reg signed [21:0] tri_w2;
-    wire inside_triangle = (tri_w0 <= 0 && tri_w1 <= 0 && tri_w2 <= 0)
-        || (tri_w0 >= 0 && tri_w1 >= 0 && tri_w2 >= 0);
+    wire inside_triangle = ((tri_w0 <= 0 && tri_w1 <= 0 && tri_w2 <= 0)
+            || (tri_w0 >= 0 && tri_w1 >= 0 && tri_w2 >= 0))
+        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x[3:0]}]);
     wire [28:0] upper_left_address =
         fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
     wire signed [21:0] initial_w0_row =
@@ -293,7 +296,7 @@ module Rasterizer
                     address <= pc;
                     read <= 1'b1;
                     pc <= pc + 1'b1;
-                    state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0;
+                    state <= STATE_CMD_PATTERN_WAIT_READ_0;
                 end
 
                 STATE_CMD_PATTERN_WAIT_READ_0: begin
@@ -365,6 +368,11 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_READ_0: begin
+                    // Turn off write, we may have left it on for
+                    // the lower-right pixel of the last triangle's
+                    // bounding box.
+                    write <= 1'b0;
+
                     if (triangle_count == 1'b0) begin
                         // Done with all the triangles we had to draw.
                         state <= STATE_READ_COMMAND;
@@ -467,20 +475,10 @@ module Rasterizer
                     tri_w0 <= initial_w0_row;
                     tri_w1 <= initial_w1_row;
                     tri_w2 <= initial_w2_row;
-                    state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX;
-                end
-
-                STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX: begin
                     tri_x <= tri_min_x;
                     tri_y <= tri_min_y;
                     tri_address_row <= upper_left_address;
-                    // Pre-increment these six:
-                    tri_w0_row <= tri_w0_row + tri_y12;
-                    tri_w1_row <= tri_w1_row + tri_y20;
-                    tri_w2_row <= tri_w2_row + tri_y01;
-                    tri_w0 <= tri_w0 + tri_x12;
-                    tri_w1 <= tri_w1 + tri_x20;
-                    tri_w2 <= tri_w2 + tri_x01;
+                    tri_address <= upper_left_address;
                     // Flat color:
                     writedata <= {
                         8'h00,
@@ -492,29 +490,27 @@ module Rasterizer
                         vertex_0_green,
                         vertex_0_red
                     };
-                    address <= upper_left_address;
-                    write <= inside_triangle;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
                     // Wait until we're not requested to wait.
                     if (!write || !waitrequest) begin
+                        write <= inside_triangle;
+                        address <= tri_address;
+
                         if (tri_x == tri_max_x) begin
                             if (tri_y == tri_max_y) begin
-                                // Next triangle.
-                                write <= 1'b0;
+                                // Next triangle. We might still turn on
+                                // write this clock, but we'll turn
+                                // it off in the next state.
                                 state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
                             end else begin
                                 // Next row.
                                 tri_x <= tri_min_x;
                                 tri_y <= tri_y + 1'b1;
-                                address <= tri_address_row;
+                                tri_address <= tri_address_row;
                                 tri_address_row <= tri_address_row + FB_WIDTH/2;
-                                write <= (tri_w0_row <= 0 && tri_w1_row <= 0 && tri_w2_row <= 0)
-                                    || (tri_w0_row >= 0 && tri_w1_row >= 0 && tri_w2_row >= 0);
-
-                                // _row registers are pre-incremented:
                                 tri_w0 <= tri_w0_row;
                                 tri_w1 <= tri_w1_row;
                                 tri_w2 <= tri_w2_row;
@@ -524,10 +520,8 @@ module Rasterizer
                             end
                         end else begin
                             // Next pixel on this row.
-                            address <= address + 1'b1;
+                            tri_address <= tri_address + 1'b1;
                             tri_x <= tri_x + 2'd2;
-                            write <= inside_triangle;
-                            // These are pre-incremented.
                             tri_w0 <= tri_w0 + tri_x12;
                             tri_w1 <= tri_w1 + tri_x20;
                             tri_w2 <= tri_w2 + tri_x01;
