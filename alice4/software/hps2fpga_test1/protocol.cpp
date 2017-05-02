@@ -53,11 +53,25 @@ void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 	| ((uint64_t) blue << 40);
 }
 
-void cmd_draw(volatile uint64_t **p, int type, int count)
+void cmd_pattern(volatile uint64_t **p,
+	uint64_t pattern0,
+	uint64_t pattern1,
+	uint64_t pattern2,
+	uint64_t pattern3)
+{
+    *(*p)++ = CMD_PATTERN;
+    *(*p)++ = pattern0;
+    *(*p)++ = pattern1;
+    *(*p)++ = pattern2;
+    *(*p)++ = pattern3;
+}
+
+void cmd_draw(volatile uint64_t **p, int type, int count, int pattern_enable)
 {
     *(*p)++ = CMD_DRAW
     	| ((uint64_t) type << 8)
-	| ((uint64_t) count << 16);
+	| ((uint64_t) count << 16)
+	| ((uint64_t) pattern_enable << 33);
 }
 
 void vertex(volatile uint64_t **p, int x, int y, int z,
@@ -83,7 +97,7 @@ void cmd_end(volatile uint64_t **p)
 
 int main()
 {
-    float speed = 0.01;
+    float speed = 0.001;
 
     int dev_mem = open("/dev/mem", O_RDWR);
     if(dev_mem == -1) {
@@ -132,7 +146,13 @@ int main()
 	} else {
 	    cmd_clear(&p, 0, 0, 0);
 	}
-	cmd_draw(&p, DRAW_TRIANGLES, 1);
+	cmd_pattern(&p,
+		0x5555aaaa5555aaaaLL,
+		0x5555aaaa5555aaaaLL,
+		0x5555aaaa5555aaaaLL,
+		0x5555aaaa5555aaaaLL);
+	int pattern_enable = (counter & 0x40) != 0;
+	cmd_draw(&p, DRAW_TRIANGLES, 1, pattern_enable);
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter*speed)),
 	    450/2 + (int) (200*cos(counter*speed)),
