@@ -1,4 +1,4 @@
-CXXFLAGS	+=	-g -Wall -I../libgl
+CXXFLAGS	+=	-O2 -g -Wall -I../libgl
 LDLIBS	+=	-lvncserver
 
 all: ts_test1 vncts
