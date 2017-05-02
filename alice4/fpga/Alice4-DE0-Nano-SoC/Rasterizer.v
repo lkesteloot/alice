@@ -20,7 +20,7 @@ module Rasterizer
     input wire readdatavalid,
     output reg read,
     output reg [63:0] writedata,
-    output wire [7:0] byteenable,
+    output reg [7:0] byteenable,
     output reg write,
 
     // Front buffer handling.
@@ -47,7 +47,6 @@ module Rasterizer
     assign debug_value2 = address;
 
     // Constants.
-    assign byteenable = 8'hFF;
     assign burstcount = 8'h01;
 
     // State machine.
@@ -128,7 +127,8 @@ module Rasterizer
     wire signed [9:0] vertex_1_sy = $signed({1'b0, vertex_1_y});
     wire signed [10:0] vertex_2_sx = $signed({1'b0, vertex_2_x});
     wire signed [9:0] vertex_2_sy = $signed({1'b0, vertex_2_y});
-    reg [9:0] tri_x;
+    reg [9:0] tri_x_0;
+    reg [9:0] tri_x_1;
     reg [8:0] tri_y;
     reg [9:0] tri_min_x;
     reg [8:0] tri_min_y;
@@ -149,12 +149,18 @@ module Rasterizer
     reg signed [21:0] tri_w0_row;
     reg signed [21:0] tri_w1_row;
     reg signed [21:0] tri_w2_row;
-    reg signed [21:0] tri_w0;
-    reg signed [21:0] tri_w1;
-    reg signed [21:0] tri_w2;
-    wire inside_triangle = ((tri_w0 <= 0 && tri_w1 <= 0 && tri_w2 <= 0)
-            || (tri_w0 >= 0 && tri_w1 >= 0 && tri_w2 >= 0))
-        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x[3:0]}]);
+    reg signed [21:0] tri_w0_0;
+    reg signed [21:0] tri_w1_0;
+    reg signed [21:0] tri_w2_0;
+    reg signed [21:0] tri_w0_1;
+    reg signed [21:0] tri_w1_1;
+    reg signed [21:0] tri_w2_1;
+    wire inside_triangle_0 = ((tri_w0_0 <= 0 && tri_w1_0 <= 0 && tri_w2_0 <= 0)
+            || (tri_w0_0 >= 0 && tri_w1_0 >= 0 && tri_w2_0 >= 0))
+        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_0[3:0]}]);
+    wire inside_triangle_1 = ((tri_w0_1 <= 0 && tri_w1_1 <= 0 && tri_w2_1 <= 0)
+            || (tri_w0_1 >= 0 && tri_w1_1 >= 0 && tri_w2_1 >= 0))
+        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_1[3:0]}]);
     wire [28:0] upper_left_address =
         fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
     wire signed [21:0] initial_w0_row =
@@ -178,7 +184,8 @@ module Rasterizer
             pc <= 1'b0;
             unhandled_count <= 1'b0;
             triangle_count <= 1'b0;
-            tri_x <= 1'b0;
+            tri_x_0 <= 1'b0;
+            tri_x_1 <= 1'b0;
             tri_y <= 1'b0;
             tri_min_x <= 1'b0;
             tri_min_y <= 1'b0;
@@ -276,6 +283,7 @@ module Rasterizer
                         command_word[63:56]  // Red
                     };
                     write <= 1;
+                    byteenable <= 8'hFF;
                     state <= STATE_CMD_CLEAR_LOOP;
                 end
 
@@ -459,11 +467,11 @@ module Rasterizer
                     // This naming is a bit weird, but x01 is the
                     // x increment for each pixel. Its value is based
                     // on the difference in Y.
-                    tri_x01 <= (vertex_0_sy - vertex_1_sy) << 1;
+                    tri_x01 <= vertex_0_sy - vertex_1_sy;
                     tri_y01 <= vertex_1_sx - vertex_0_sx;
-                    tri_x12 <= (vertex_1_sy - vertex_2_sy) << 1;
+                    tri_x12 <= vertex_1_sy - vertex_2_sy;
                     tri_y12 <= vertex_2_sx - vertex_1_sx;
-                    tri_x20 <= (vertex_2_sy - vertex_0_sy) << 1;
+                    tri_x20 <= vertex_2_sy - vertex_0_sy;
                     tri_y20 <= vertex_0_sx - vertex_2_sx;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE2;
                 end
@@ -472,10 +480,14 @@ module Rasterizer
                     tri_w0_row <= initial_w0_row;
                     tri_w1_row <= initial_w1_row;
                     tri_w2_row <= initial_w2_row;
-                    tri_w0 <= initial_w0_row;
-                    tri_w1 <= initial_w1_row;
-                    tri_w2 <= initial_w2_row;
-                    tri_x <= tri_min_x;
+                    tri_w0_0 <= initial_w0_row;
+                    tri_w1_0 <= initial_w1_row;
+                    tri_w2_0 <= initial_w2_row;
+                    tri_w0_1 <= initial_w0_row + tri_x12;
+                    tri_w1_1 <= initial_w1_row + tri_x20;
+                    tri_w2_1 <= initial_w2_row + tri_x01;
+                    tri_x_0 <= tri_min_x;
+                    tri_x_1 <= tri_min_x + 1'b1;
                     tri_y <= tri_min_y;
                     tri_address_row <= upper_left_address;
                     tri_address <= upper_left_address;
@@ -496,10 +508,14 @@ module Rasterizer
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
                     // Wait until we're not requested to wait.
                     if (!write || !waitrequest) begin
-                        write <= inside_triangle;
+                        // Decide whether to draw this pixel.
+                        write <= inside_triangle_0 || inside_triangle_1;
+                        byteenable <= {{4{inside_triangle_1}},
+                                       {4{inside_triangle_0}}};
                         address <= tri_address;
 
-                        if (tri_x == tri_max_x) begin
+                        // Advance to the next pixel.
+                        if (tri_x_0 == tri_max_x) begin
                             if (tri_y == tri_max_y) begin
                                 // Next triangle. We might still turn on
                                 // write this clock, but we'll turn
@@ -507,13 +523,17 @@ module Rasterizer
                                 state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
                             end else begin
                                 // Next row.
-                                tri_x <= tri_min_x;
+                                tri_x_0 <= tri_min_x;
+                                tri_x_1 <= tri_min_x + 1'b1;
                                 tri_y <= tri_y + 1'b1;
                                 tri_address <= tri_address_row;
                                 tri_address_row <= tri_address_row + FB_WIDTH/2;
-                                tri_w0 <= tri_w0_row;
-                                tri_w1 <= tri_w1_row;
-                                tri_w2 <= tri_w2_row;
+                                tri_w0_0 <= tri_w0_row;
+                                tri_w1_0 <= tri_w1_row;
+                                tri_w2_0 <= tri_w2_row;
+                                tri_w0_1 <= tri_w0_row + tri_x12;
+                                tri_w1_1 <= tri_w1_row + tri_x20;
+                                tri_w2_1 <= tri_w2_row + tri_x01;
                                 tri_w0_row <= tri_w0_row + tri_y12;
                                 tri_w1_row <= tri_w1_row + tri_y20;
                                 tri_w2_row <= tri_w2_row + tri_y01;
@@ -521,10 +541,14 @@ module Rasterizer
                         end else begin
                             // Next pixel on this row.
                             tri_address <= tri_address + 1'b1;
-                            tri_x <= tri_x + 2'd2;
-                            tri_w0 <= tri_w0 + tri_x12;
-                            tri_w1 <= tri_w1 + tri_x20;
-                            tri_w2 <= tri_w2 + tri_x01;
+                            tri_x_0 <= tri_x_0 + 2'd2;
+                            tri_x_1 <= tri_x_1 + 2'd2;
+                            tri_w0_0 <= tri_w0_0 + (tri_x12 << 1);
+                            tri_w1_0 <= tri_w1_0 + (tri_x20 << 1);
+                            tri_w2_0 <= tri_w2_0 + (tri_x01 << 1);
+                            tri_w0_1 <= tri_w0_1 + (tri_x12 << 1);
+                            tri_w1_1 <= tri_w1_1 + (tri_x20 << 1);
+                            tri_w2_1 <= tri_w2_1 + (tri_x01 << 1);
                         end
                     end
                 end
