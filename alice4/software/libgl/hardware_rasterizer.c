@@ -11,6 +11,7 @@
 #include "connection.h"
 
 #undef DEBUG_PRINT
+#undef SKIP_FPGA_WORK
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
@@ -152,6 +153,12 @@ void rasterizer_pattern(int enable)
     pattern_enabled = enable;
 }
 
+static int framerate_print = 0;
+static float framerate_duration_sum = 0.0; 
+static int framerate_duration_count = 0; 
+static time_t framerate_previous_print_time;
+static struct timeval framerate_previous_frame_end;
+
 void rasterizer_swap()
 {
     cmd_swap(&gpu_protocol_next);
@@ -163,6 +170,8 @@ void rasterizer_swap()
         printf("        0x%016llX\n", *t);
     }
 #endif
+
+#ifndef SKIP_FPGA_WORK
 
     // Tell FPGA that our data is ready.
 #ifdef DEBUG_PRINT
@@ -192,11 +201,42 @@ void rasterizer_swap()
         // Busy loop.
     }
 
+#endif /* SKIP_FPGA_WORK */
+
     gpu_protocol_next = gpu_protocol_buffer;
+
+    if(framerate_print) {
+	struct timeval now;
+	float duration;
+
+	gettimeofday(&now, NULL);
+	duration = now.tv_sec + now.tv_usec / 1000000.0 - framerate_previous_frame_end.tv_sec - framerate_previous_frame_end.tv_usec / 1000000.0;
+
+	framerate_duration_sum += duration;
+	framerate_duration_count ++;
+
+	framerate_previous_frame_end = now;
+
+	if(now.tv_sec > framerate_previous_print_time) {
+	    framerate_previous_print_time = now.tv_sec;
+
+	    printf("%0.2f frames per second\n", 1.0 / (framerate_duration_sum / framerate_duration_count));
+
+	    framerate_duration_sum = 0.0;
+	    framerate_duration_count = 0;
+	}
+    }
 }
 
 int32_t rasterizer_winopen(char *title)
 {
+    if(getenv("PRINT_FRAME_RATE") != NULL) {
+	printf("will print frame rate every second or so\n");
+	framerate_print = 1;
+	gettimeofday(&framerate_previous_frame_end, NULL);
+	framerate_previous_print_time = framerate_previous_frame_end.tv_sec;
+    }
+
     int dev_mem = open("/dev/mem", O_RDWR);
     if(dev_mem == -1) {
         perror("open");
