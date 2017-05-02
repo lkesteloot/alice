@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include <gl.h>
 #include "rasterizer.h"
