@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stddef.h>
 #include <limits.h>
 #include <math.h>
 #include <unistd.h>
@@ -58,8 +59,59 @@ static uint8_t *fpga_manager_base;
 static uint8_t *gpu_buffers_base;
 static volatile uint32_t *fpga_gpo;
 static volatile uint32_t *fpga_gpi;
-static volatile uint64_t *gpu_protocol_buffer;
-static volatile uint64_t *gpu_protocol_next;
+static volatile uint64_t *gpu_protocol_buffer; // The fixed buffer from which the GPU reads commands
+
+// N.B.  This is a const variable meant to be compile-time-only.
+// If this variable is changed to be settable at run-time, a
+// synchronization point must be added to wait on GPU and copy between
+// staging to gpu buffers as necessary.
+static const int double_buffer_commands = 1;
+static int must_wait_on_gpu = 0;
+
+#define MAX_PROTOCOL_QUAD_COUNT (10 * 1024 * 1024 / sizeof(uint64_t))
+static volatile uint64_t staging_protocol_buffer[MAX_PROTOCOL_QUAD_COUNT]; // Optional buffer for protocol double-buffering
+
+static volatile uint64_t *protocol_buffer; // The base of the protocol buffer to be used, either GPU or staging
+static volatile uint64_t *protocol_next; // The next location to fill in the protocol buffer
+
+void gpu_start()
+{
+#ifndef SKIP_FPGA_WORK
+
+    // Tell FPGA that our data is ready.
+#ifdef DEBUG_PRINT
+    printf("Telling FPGA that the data is ready.\n");
+#endif
+    *fpga_gpo |= H2F_DATA_READY;
+
+    // Wait until we find out that it has heard us.
+#ifdef DEBUG_PRINT
+    printf("Waiting for FPGA to get busy.\n");
+#endif
+    while ((*fpga_gpi & F2H_BUSY) == 0) {
+        // Busy loop.
+    }
+
+    // Let FPGA know that we know that it's busy.
+#ifdef DEBUG_PRINT
+    printf("Telling FPGA that we know it's busy.\n");
+#endif
+    *fpga_gpo &= ~H2F_DATA_READY;
+#endif /* SKIP_FPGA_WORK */
+}
+
+void gpu_wait()
+{
+#ifndef SKIP_FPGA_WORK
+    // Wait until it's done rasterizing.
+#ifdef DEBUG_PRINT
+    printf("Waiting for FPGA to finish rasterizing.\n");
+#endif
+    while ((*fpga_gpi & F2H_BUSY) != 0) {
+        // Busy loop.
+    }
+#endif /* SKIP_FPGA_WORK */
+}
 
 static float the_linewidth;
 static int pattern_enabled = 0;
@@ -118,7 +170,7 @@ static void cmd_end(volatile uint64_t **p)
 static void gpu_frame_start()
 {
     *fpga_gpo = 0;
-    gpu_protocol_next = gpu_protocol_buffer;
+    protocol_next = protocol_buffer;
 }
 
 
@@ -134,7 +186,7 @@ static float clamp(float v, float low, float high)
 
 void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
 {
-    cmd_clear(&gpu_protocol_next, r, g, b);
+    cmd_clear(&protocol_next, r, g, b);
     // HW command
 }
 
@@ -145,7 +197,7 @@ void rasterizer_linewidth(float w)
 
 void rasterizer_setpattern(uint16_t pattern[16])
 {
-    cmd_pattern(&gpu_protocol_next, pattern);
+    cmd_pattern(&protocol_next, pattern);
 }
 
 void rasterizer_pattern(int enable)
@@ -162,49 +214,45 @@ static struct timeval framerate_previous_frame_end;
 
 void rasterizer_swap()
 {
-    cmd_swap(&gpu_protocol_next);
-    cmd_end(&gpu_protocol_next);
+    cmd_swap(&protocol_next);
+    cmd_end(&protocol_next);
 
 #ifdef DEBUG_PRINT
-    printf("    Wrote %d words:\n", gpu_protocol_next - gpu_protocol_buffer);
-    for (volatile uint64_t *t = gpu_protocol_buffer; t < gpu_protocol_next; t++) {
+    printf("    Wrote %d words:\n", protocol_next - protocol_buffer);
+    for (volatile uint64_t *t = protocol_buffer; t < protocol_next; t++) {
         printf("        0x%016llX\n", *t);
     }
 #endif
 
-#ifndef SKIP_FPGA_WORK
+    if(double_buffer_commands) {
 
-    // Tell FPGA that our data is ready.
-#ifdef DEBUG_PRINT
-    printf("Telling FPGA that the data is ready.\n");
-#endif
-    *fpga_gpo |= H2F_DATA_READY;
+	// Double buffer the command list.  If the GPU might have
+	// been busy, make sure it has finished.
+        if(must_wait_on_gpu) {
+            must_wait_on_gpu = 0;
+            gpu_wait();
+        }
 
-    // Wait until we find out that it has heard us.
-#ifdef DEBUG_PRINT
-    printf("Waiting for FPGA to get busy.\n");
-#endif
-    while ((*fpga_gpi & F2H_BUSY) == 0) {
-        // Busy loop.
+        // Then copy the staing buffer to the GPU buffer
+        ptrdiff_t byte_count = (char*)protocol_next - (char*)protocol_buffer;
+        memcpy(gpu_protocol_buffer, protocol_buffer, byte_count);
+
+	// Finally, kick off the GPU, and note that we will need
+	// to wait for it to finish before copying the staging data
+	// next time.
+        gpu_start();
+        must_wait_on_gpu = 1;
+
+    } else {
+
+	// Don't double buffer.  Just send off the commands to the
+	// GPU and then wait to be done.
+        gpu_start();
+        gpu_wait();
+
     }
 
-    // Let FPGA know that we know that it's busy.
-#ifdef DEBUG_PRINT
-    printf("Telling FPGA that we know it's busy.\n");
-#endif
-    *fpga_gpo &= ~H2F_DATA_READY;
-
-    // Wait until it's done rasterizing.
-#ifdef DEBUG_PRINT
-    printf("Waiting for FPGA to finish rasterizing.\n");
-#endif
-    while ((*fpga_gpi & F2H_BUSY) != 0) {
-        // Busy loop.
-    }
-
-#endif /* SKIP_FPGA_WORK */
-
-    gpu_protocol_next = gpu_protocol_buffer;
+    protocol_next = protocol_buffer;
 
     if(framerate_print) {
 	struct timeval now;
@@ -261,8 +309,15 @@ int32_t rasterizer_winopen(char *title)
         perror("mmap for buffers");
         exit(EXIT_FAILURE);
     }
-    gpu_protocol_next = gpu_protocol_buffer =
+    gpu_protocol_buffer = 
 	(uint64_t *) (gpu_buffers_base + PROTOCOL_BUFFER_OFFSET);
+
+    if(double_buffer_commands)
+        protocol_buffer = staging_protocol_buffer;
+    else
+        protocol_buffer = gpu_protocol_buffer;
+
+    protocol_next = protocol_buffer;
 
     gpu_frame_start();
 }
@@ -286,14 +341,14 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    cmd_draw(&gpu_protocol_next, DRAW_TRIANGLES, 1);
-    vertex(&gpu_protocol_next,
+    cmd_draw(&protocol_next, DRAW_TRIANGLES, 1);
+    vertex(&protocol_next,
         s0->x / SCREEN_VERTEX_V2_SCALE, s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
         s0->r, s0->g, s0->b);
-    vertex(&gpu_protocol_next,
+    vertex(&protocol_next,
         s1->x / SCREEN_VERTEX_V2_SCALE, s1->y / SCREEN_VERTEX_V2_SCALE, s1->z,
         s1->r, s1->g, s1->b);
-    vertex(&gpu_protocol_next,
+    vertex(&protocol_next,
         s2->x / SCREEN_VERTEX_V2_SCALE, s2->y / SCREEN_VERTEX_V2_SCALE, s2->z,
         s2->r, s2->g, s2->b);
 }
