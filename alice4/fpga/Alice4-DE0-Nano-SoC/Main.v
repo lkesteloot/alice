@@ -131,7 +131,12 @@ module Main(
     assign led[1] = !reset_n;
 
     // Exchange data with HPS.
-    wire [31:0] f2h_value = { 31'b0, rasterizer_busy };
+    wire [31:0] f2h_value = {
+        29'b0,
+        rast_front_buffer,
+        fb_front_buffer,
+        rasterizer_busy
+    };
     wire [31:0] h2f_value;
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
          .gp_in(f2h_value),    // Value to the HPS (continuous).
