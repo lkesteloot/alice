@@ -332,9 +332,9 @@ module Main(
     wire [7:0] fb_red;
     wire [7:0] fb_green;
     wire [7:0] fb_blue;
-    wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'hFF : fb_red;
-    wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'hFF : fb_green;
-    wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'hFF : fb_blue;
+    wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
+    wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'h00 : fb_green;
+    wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'h00 : fb_blue;
     reg lcd_data_enable_delayed;
     reg character_bw_latched;
     always @(posedge clock_50) begin
