@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
     RGBmode();
     reshapeviewport();
 
+    // RGB corners.
     c1[0] = 1.0;
     c1[1] = 0.0;
     c1[2] = 0.0;
@@ -30,6 +31,16 @@ int main(int argc, char *argv[]) {
     c3[0] = 0.0;
     c3[1] = 0.0;
     c3[2] = 1.0;
+
+    // All red corners.
+    if (1) {
+        c2[0] = 1.0;
+        c2[1] = 0.0;
+        c2[2] = 0.0;
+        c3[0] = 1.0;
+        c3[1] = 0.0;
+        c3[2] = 0.0;
+    }
 
     float t = 0;
     float r = 1.0;
