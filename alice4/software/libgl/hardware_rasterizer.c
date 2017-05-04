@@ -358,7 +358,7 @@ int32_t rasterizer_winopen(char *title)
 	else if(framestats_print == 2)
 	    printf("will print durations for some portions of frame continuously\n");
 	else {
-	    fprintf(stderr, "%d value for \"PRINT_FRAME_STATS\" is not defined\n");
+	    fprintf(stderr, "%d value for \"PRINT_FRAME_STATS\" is not defined\n", framestats_print);
 	    exit(EXIT_FAILURE);
 	}
 	gettimeofday(&framestats_previous_frame_end, NULL);
