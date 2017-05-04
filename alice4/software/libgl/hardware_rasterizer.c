@@ -28,6 +28,8 @@ static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 
 // FPGA-to-HPS:
 #define F2H_BUSY (1 << 0)
+#define F2H_FB_FRONTBUFFER (1 << 1)
+#define F2H_RASTERIZER_FRONTBUFFER (1 << 2)
 
 // Shared memory addresses:
 #define BASE 0x38000000
@@ -113,9 +115,10 @@ void gpu_wait()
 #endif /* SKIP_FPGA_WORK */
 }
 
-static float the_linewidth;
-static int pattern_enabled = 0;
-static int zbuffer_enabled = 0;
+static void gpu_frame_start()
+{
+    *fpga_gpo = 0;
+}
 
 static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -137,7 +140,7 @@ static void cmd_pattern(volatile uint64_t **p, uint16_t pattern[16])
     }
 }
 
-static void cmd_draw(volatile uint64_t **p, int type, int count)
+static void cmd_draw(volatile uint64_t **p, int zbuffer_enabled, int pattern_enabled, int type, int count)
 {
     *(*p)++ = CMD_DRAW
     	| ((uint64_t) type << 8)
@@ -167,12 +170,10 @@ static void cmd_end(volatile uint64_t **p)
     *(*p)++ = CMD_END;
 }
 
-static void gpu_frame_start()
-{
-    *fpga_gpo = 0;
-    protocol_next = protocol_buffer;
-}
 
+static float the_linewidth;
+static int pattern_enabled = 0;
+static int zbuffer_enabled = 0;
 
 static float min(float a, float b)
 {
@@ -206,16 +207,33 @@ void rasterizer_pattern(int enable)
     pattern_enabled = enable;
 }
 
-static int framerate_print = 0;
-static float framerate_duration_sum = 0.0; 
-static int framerate_duration_count = 0; 
-static time_t framerate_previous_print_time;
-static struct timeval framerate_previous_frame_end;
+static int framestats_print = 0;
+static float framestats_frame_duration_sum = 0.0; 
+static float framestats_cpu_duration_sum = 0.0; 
+static float framestats_copy_duration_sum = 0.0; 
+static float framestats_gpu_duration_sum = 0.0; 
+static float framestats_wait_duration_sum = 0.0; 
+static int framestats_duration_count = 0; 
+static time_t framestats_previous_print_time;
+static struct timeval framestats_previous_frame_end;
+
+float diff_timevals(struct timeval *t1, struct timeval *t2)
+{
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_usec / 1000000.0 - t2->tv_usec / 1000000.0);
+}
 
 void rasterizer_swap()
 {
     cmd_swap(&protocol_next);
     cmd_end(&protocol_next);
+
+    if(framestats_print) {
+	struct timeval now;
+	float duration;
+
+	gettimeofday(&now, NULL);
+	framestats_cpu_duration_sum += diff_timevals(&now, &framestats_previous_frame_end);
+    }
 
 #ifdef DEBUG_PRINT
     printf("    Wrote %d words:\n", protocol_next - protocol_buffer);
@@ -225,17 +243,37 @@ void rasterizer_swap()
 #endif
 
     if(double_buffer_commands) {
+	struct timeval then, now;
 
 	// Double buffer the command list.  If the GPU might have
 	// been busy, make sure it has finished.
         if(must_wait_on_gpu) {
             must_wait_on_gpu = 0;
+
+	    if(framestats_print)
+		gettimeofday(&then, NULL);
+
             gpu_wait();
+
+	    if(framestats_print) {
+		gettimeofday(&now, NULL);
+		float duration = diff_timevals(&now, &then);
+		framestats_wait_duration_sum += duration;
+	    }
         }
 
         // Then copy the staing buffer to the GPU buffer
         ptrdiff_t byte_count = (char*)protocol_next - (char*)protocol_buffer;
+
+	if(framestats_print)
+	    gettimeofday(&then, NULL);
+
         memcpy(gpu_protocol_buffer, protocol_buffer, byte_count);
+
+	if(framestats_print) {
+	    gettimeofday(&now, NULL);
+	    framestats_copy_duration_sum += diff_timevals(&now, &then);
+	}
 
 	// Finally, kick off the GPU, and note that we will need
 	// to wait for it to finish before copying the staging data
@@ -247,43 +285,85 @@ void rasterizer_swap()
 
 	// Don't double buffer.  Just send off the commands to the
 	// GPU and then wait to be done.
+	struct timeval then, now;
+
+	if(framestats_print)
+	    gettimeofday(&then, NULL);
+
         gpu_start();
         gpu_wait();
 
+	if(framestats_print) {
+	    gettimeofday(&now, NULL);
+	    framestats_gpu_duration_sum += diff_timevals(&now, &then);
+	}
     }
 
     protocol_next = protocol_buffer;
 
-    if(framerate_print) {
+    if(framestats_print) {
 	struct timeval now;
 	float duration;
 
 	gettimeofday(&now, NULL);
-	duration = now.tv_sec + now.tv_usec / 1000000.0 - framerate_previous_frame_end.tv_sec - framerate_previous_frame_end.tv_usec / 1000000.0;
 
-	framerate_duration_sum += duration;
-	framerate_duration_count ++;
+	framestats_frame_duration_sum += diff_timevals(&now, &framestats_previous_frame_end);
 
-	framerate_previous_frame_end = now;
+	framestats_duration_count ++;
+	framestats_previous_frame_end = now;
 
-	if(now.tv_sec > framerate_previous_print_time) {
-	    framerate_previous_print_time = now.tv_sec;
+	if((framestats_print == 2) || (now.tv_sec > framestats_previous_print_time)) {
 
-	    printf("%0.2f frames per second\n", 1.0 / (framerate_duration_sum / framerate_duration_count));
+	    framestats_previous_print_time = now.tv_sec;
 
-	    framerate_duration_sum = 0.0;
-	    framerate_duration_count = 0;
+	    static int printed_header = 0;
+
+	    if(double_buffer_commands) {
+		if(!printed_header)  {
+		    printed_header = 1;
+		    printf("frame ms, cpu ms, copy ms, wait ms\n");
+		}
+		printf("%0.2f, %0.2f, %0.2f, %0.2f\n",
+		    framestats_frame_duration_sum / framestats_duration_count * 1000,
+		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
+		    framestats_copy_duration_sum / framestats_duration_count * 1000,
+		    framestats_wait_duration_sum / framestats_duration_count * 1000);
+	    } else {
+		if(!printed_header)  {
+		    printed_header = 1;
+		    printf("frame ms, cpu ms, gpu ms\n");
+		}
+		printf("%0.2f, %0.2f, %0.2f\n",
+		    framestats_frame_duration_sum / framestats_duration_count * 1000,
+		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
+		    framestats_gpu_duration_sum / framestats_duration_count * 1000);
+	    }
+
+	    framestats_cpu_duration_sum = 0.0;
+	    framestats_copy_duration_sum = 0.0;
+	    framestats_wait_duration_sum = 0.0;
+	    framestats_gpu_duration_sum = 0.0;
+	    framestats_frame_duration_sum = 0.0;
+	    framestats_duration_count = 0;
 	}
     }
 }
 
 int32_t rasterizer_winopen(char *title)
 {
-    if(getenv("PRINT_FRAME_RATE") != NULL) {
-	printf("will print frame rate every second or so\n");
-	framerate_print = 1;
-	gettimeofday(&framerate_previous_frame_end, NULL);
-	framerate_previous_print_time = framerate_previous_frame_end.tv_sec;
+    if(getenv("PRINT_FRAME_STATS") != NULL) {
+	framestats_print = atoi(getenv("PRINT_FRAME_STATS"));
+	if(framestats_print == 1)
+	    printf("will print durations for some portions of frame every second or so\n");
+	else if(framestats_print == 2)
+	    printf("will print durations for some portions of frame continuously\n");
+	else {
+	    fprintf(stderr, "%d value for \"PRINT_FRAME_STATS\" is not defined\n");
+	    exit(EXIT_FAILURE);
+	}
+	gettimeofday(&framestats_previous_frame_end, NULL);
+
+	framestats_previous_print_time = framestats_previous_frame_end.tv_sec;
     }
 
     int dev_mem = open("/dev/mem", O_RDWR);
@@ -341,7 +421,7 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    cmd_draw(&protocol_next, DRAW_TRIANGLES, 1);
+    cmd_draw(&protocol_next, zbuffer_enabled, pattern_enabled, DRAW_TRIANGLES, 1);
     vertex(&protocol_next,
         s0->x / SCREEN_VERTEX_V2_SCALE, s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
         s0->r, s0->g, s0->b);
