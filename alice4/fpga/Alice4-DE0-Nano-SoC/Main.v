@@ -204,6 +204,7 @@ module Main(
     wire lcd_hs_n;
     wire lcd_vs_n;
     wire lcd_display_on = sw[0];
+    wire lcd_pwm;
     wire next_frame;
     LCD_control lcd_control(
         .clock(clock_50),
@@ -377,12 +378,42 @@ module Main(
     assign gpio_0[21] = sw[1] ? 1'b1 : lcd_hs_n;
     assign gpio_0[23] = sw[2] ? 1'b1 : lcd_vs_n;
     assign gpio_0[25] = lcd_data_enable_delayed;
-    assign gpio_0[27] = 1'b1; // PWM backlight brightness.
+    assign gpio_0[27] = lcd_pwm;
 
     // LCD clock.
     always @(posedge clock_50) begin
         // 25 MHz.
         lcd_tick <= ~lcd_tick;
     end
+
+    // LCD backlight PWM.
+    // Brightness value between 0 and 1000 inclusive, where both
+    // ends cause no waveform at all.
+    localparam PWM_MAX_VALUE = 1000;
+    localparam PWM_BITS = 10;
+    wire pwm_tick;
+    // Get the brightness from the CPU, unless bit 1 is 0, in which
+    // case make it full brightness. This is to handle the power-on case.
+    wire [PWM_BITS-1:0] pwm_value =
+        h2f_value[1] ? h2f_value[PWM_BITS-1+2:2] : PWM_MAX_VALUE;
+    // PWM frequency of 200 Hz (50 MHz / 250 / PWM_MAX_VALUE). We tried
+    // 1 kHz and 5 kHz, which caused bad audible whining, and 20 kHz, which
+    // didn't work because the signal probably got too sloppy and
+    // messed up the constant-current circuit. At 200 Hz we can
+    // barely hear a low-pitched buzz.
+    Prescaler #(.SCALE(250),
+                .SCALE_BITS(8)) pwm_prescaler(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .tick(pwm_tick)
+    );
+    PWM #(.MAX_VALUE(PWM_MAX_VALUE),
+          .BITS(PWM_BITS)) pwm(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .tick(pwm_tick),
+        .value(pwm_value),
+        .signal(lcd_pwm)
+    );
 
 endmodule
