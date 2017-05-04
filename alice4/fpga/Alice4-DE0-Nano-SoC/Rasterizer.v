@@ -7,6 +7,7 @@ module Rasterizer
     // Clock and reset.
     input clock,
     input wire reset_n,
+    input test_mode,
 
     // Semaphores to data-producing module.
     input data_ready,
@@ -155,12 +156,14 @@ module Rasterizer
     reg signed [21:0] tri_w0_1;
     reg signed [21:0] tri_w1_1;
     reg signed [21:0] tri_w2_1;
-    wire inside_triangle_0 = ((tri_w0_0 <= 0 && tri_w1_0 <= 0 && tri_w2_0 <= 0)
+    wire inside_triangle_0 = (((tri_w0_0 <= 0 && tri_w1_0 <= 0 && tri_w2_0 <= 0)
             || (tri_w0_0 >= 0 && tri_w1_0 >= 0 && tri_w2_0 >= 0))
-        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_0[3:0]}]);
-    wire inside_triangle_1 = ((tri_w0_1 <= 0 && tri_w1_1 <= 0 && tri_w2_1 <= 0)
+        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_0[3:0]}]))
+        || test_mode;
+    wire inside_triangle_1 = (((tri_w0_1 <= 0 && tri_w1_1 <= 0 && tri_w2_1 <= 0)
             || (tri_w0_1 >= 0 && tri_w1_1 >= 0 && tri_w2_1 >= 0))
-        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_1[3:0]}]);
+        && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_1[3:0]}]))
+        || test_mode;
     wire [28:0] upper_left_address =
         fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
     wire signed [21:0] initial_w0_row =
@@ -443,13 +446,13 @@ module Rasterizer
                                     : (vertex_1_x < vertex_2_x)
                                         ? vertex_1_x
                                         : vertex_2_x) & ~10'b1;
-                    tri_min_y <= ((vertex_0_y < vertex_1_y)
+                    tri_min_y <= (vertex_0_y < vertex_1_y)
                                     ? (vertex_0_y < vertex_2_y)
                                         ? vertex_0_y 
                                         : vertex_2_y
                                     : (vertex_1_y < vertex_2_y)
                                         ? vertex_1_y
-                                        : vertex_2_y) & ~9'b1;
+                                        : vertex_2_y;
                     tri_max_x <= ((vertex_0_x > vertex_1_x)
                                     ? (vertex_0_x > vertex_2_x)
                                         ? vertex_0_x 
@@ -457,13 +460,13 @@ module Rasterizer
                                     : (vertex_1_x > vertex_2_x)
                                         ? vertex_1_x
                                         : vertex_2_x) & ~10'b1;
-                    tri_max_y <= ((vertex_0_y > vertex_1_y)
+                    tri_max_y <= (vertex_0_y > vertex_1_y)
                                     ? (vertex_0_y > vertex_2_y)
                                         ? vertex_0_y 
                                         : vertex_2_y
                                     : (vertex_1_y > vertex_2_y)
                                         ? vertex_1_y
-                                        : vertex_2_y) & ~9'b1;
+                                        : vertex_2_y;
                     // This naming is a bit weird, but x01 is the
                     // x increment for each pixel. Its value is based
                     // on the difference in Y.
