@@ -76,8 +76,30 @@ static volatile uint64_t staging_protocol_buffer[MAX_PROTOCOL_QUAD_COUNT]; // Op
 static volatile uint64_t *protocol_buffer; // The base of the protocol buffer to be used, either GPU or staging
 static volatile uint64_t *protocol_next; // The next location to fill in the protocol buffer
 
+static int rasterizer_start_buffer;
+
+void gpu_finish_rasterizing()
+{
+#ifndef SKIP_FPGA_WORK
+    // Wait until it's done rasterizing.
+#ifdef DEBUG_PRINT
+    printf("Prev Rasterizer FRONTBUFFER is %d\n", rasterizer_start_buffer);
+    printf("Cur Rasterizer FRONTBUFFER is %d\n", *fpga_gpi & F2H_RASTERIZER_FRONTBUFFER);
+    printf("Waiting for FPGA to switch rasterization to the other buffer.\n");
+#endif
+    while ((*fpga_gpi & F2H_RASTERIZER_FRONTBUFFER) == rasterizer_start_buffer) {
+        // Busy loop.
+    }
+#endif /* SKIP_FPGA_WORK */
+}
+
 void gpu_start()
 {
+    rasterizer_start_buffer = *fpga_gpi & F2H_RASTERIZER_FRONTBUFFER;
+#ifdef DEBUG_PRINT
+    printf("Rasterizer FRONTBUFFER is %d\n", rasterizer_start_buffer);
+#endif
+
 #ifndef SKIP_FPGA_WORK
 
     // Tell FPGA that our data is ready.
@@ -107,7 +129,7 @@ void gpu_wait()
 #ifndef SKIP_FPGA_WORK
     // Wait until it's done rasterizing.
 #ifdef DEBUG_PRINT
-    printf("Waiting for FPGA to finish rasterizing.\n");
+    printf("Waiting for FPGA to finish vsync.\n");
 #endif
     while ((*fpga_gpi & F2H_BUSY) != 0) {
         // Busy loop.
@@ -212,10 +234,12 @@ static float framestats_frame_duration_sum = 0.0;
 static float framestats_cpu_duration_sum = 0.0; 
 static float framestats_copy_duration_sum = 0.0; 
 static float framestats_gpu_duration_sum = 0.0; 
+static float framestats_raster_duration_sum = 0.0; 
 static float framestats_wait_duration_sum = 0.0; 
 static int framestats_duration_count = 0; 
 static time_t framestats_previous_print_time;
 static struct timeval framestats_previous_frame_end;
+static struct timeval framestats_rasterizer_start;
 
 float diff_timevals(struct timeval *t1, struct timeval *t2)
 {
@@ -248,8 +272,19 @@ void rasterizer_swap()
 	// Double buffer the command list.  If the GPU might have
 	// been busy, make sure it has finished.
         if(must_wait_on_gpu) {
-            must_wait_on_gpu = 0;
 
+	    // Wait for GPU to finish rasterizing
+	    if(framestats_print) {
+		gettimeofday(&then, NULL);
+
+		gpu_finish_rasterizing();
+
+		gettimeofday(&now, NULL);
+		float duration = diff_timevals(&now, &then);
+		framestats_raster_duration_sum += duration;
+	    }
+
+	    // Now wait for VSYNC
 	    if(framestats_print)
 		gettimeofday(&then, NULL);
 
@@ -260,6 +295,8 @@ void rasterizer_swap()
 		float duration = diff_timevals(&now, &then);
 		framestats_wait_duration_sum += duration;
 	    }
+
+            must_wait_on_gpu = 0;
         }
 
         // Then copy the staing buffer to the GPU buffer
@@ -282,6 +319,7 @@ void rasterizer_swap()
 	// to wait for it to finish before copying the staging data
 	// next time.
         gpu_start();
+
         must_wait_on_gpu = 1;
 
     } else {
@@ -294,6 +332,19 @@ void rasterizer_swap()
 	    gettimeofday(&then, NULL);
 
         gpu_start();
+
+	// Wait for GPU to finish rasterizing if we want to print timing info
+	if(framestats_print) {
+	    gettimeofday(&then, NULL);
+
+	    gpu_finish_rasterizing();
+
+	    gettimeofday(&now, NULL);
+	    float duration = diff_timevals(&now, &then);
+	    framestats_raster_duration_sum += duration;
+	}
+
+        //
         gpu_wait();
 
 	if(framestats_print) {
@@ -324,21 +375,25 @@ void rasterizer_swap()
 	    if(double_buffer_commands) {
 		if(!printed_header)  {
 		    printed_header = 1;
-		    printf("frame ms, cpu ms, copy ms, wait ms\n");
+		    printf("total frame ms, cpu, copy, raster wait, est total raster, F2H_BUSY wait\n");
 		}
-		printf("%0.2f, %0.2f, %0.2f, %0.2f\n",
+		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f\n",
 		    framestats_frame_duration_sum / framestats_duration_count * 1000,
 		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
 		    framestats_copy_duration_sum / framestats_duration_count * 1000,
+		    framestats_raster_duration_sum / framestats_duration_count * 1000,
+		    (framestats_cpu_duration_sum + framestats_copy_duration_sum + framestats_raster_duration_sum) / framestats_duration_count * 1000,
 		    framestats_wait_duration_sum / framestats_duration_count * 1000);
 	    } else {
 		if(!printed_header)  {
 		    printed_header = 1;
-		    printf("frame ms, cpu ms, gpu ms\n");
+		    printf("total frame ms, cpu , raster wait, est total raster, F2H_BUSY wait\n");
 		}
-		printf("%0.2f, %0.2f, %0.2f\n",
+		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f\n",
 		    framestats_frame_duration_sum / framestats_duration_count * 1000,
 		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
+		    framestats_raster_duration_sum / framestats_duration_count * 1000,
+		    (framestats_cpu_duration_sum + framestats_copy_duration_sum + framestats_raster_duration_sum) / framestats_duration_count * 1000,
 		    framestats_gpu_duration_sum / framestats_duration_count * 1000);
 	    }
 
@@ -346,6 +401,7 @@ void rasterizer_swap()
 	    framestats_copy_duration_sum = 0.0;
 	    framestats_wait_duration_sum = 0.0;
 	    framestats_gpu_duration_sum = 0.0;
+	    framestats_raster_duration_sum = 0.0;
 	    framestats_frame_duration_sum = 0.0;
 	    framestats_duration_count = 0;
 	}
