@@ -219,7 +219,24 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
     int w0_row = edgeFunction(&vs[1], &vs[2], minX, minY);
     int w1_row = edgeFunction(&vs[2], &vs[0], minX, minY);
     int w2_row = edgeFunction(&vs[0], &vs[1], minX, minY);
-    int area = edgeFunction(&vs[0], &vs[1], vs[2].x, vs[2].y);
+    // area is in s31.0 format.
+    int32_t area = edgeFunction(&vs[0], &vs[1], vs[2].x, vs[2].y);
+    if (area == 0) {
+	// Empty triangle.
+	return;
+    }
+    // recip_area is in s0.31 format.
+    int32_t recip_area = 0x7FFFFFFFL / area;
+    // Color.
+    int red_row = w0_row*vs[0].r + w1_row*vs[1].r + w2_row*vs[2].r;
+    int red_incr = x12*vs[0].r + x20*vs[1].r + x01*vs[2].r;
+    int red_row_incr = y12*vs[0].r + y20*vs[1].r + y01*vs[2].r;
+    int green_row = w0_row*vs[0].g + w1_row*vs[1].g + w2_row*vs[2].g;
+    int green_incr = x12*vs[0].g + x20*vs[1].g + x01*vs[2].g;
+    int green_row_incr = y12*vs[0].g + y20*vs[1].g + y01*vs[2].g;
+    int blue_row = w0_row*vs[0].b + w1_row*vs[1].b + w2_row*vs[2].b;
+    int blue_incr = x12*vs[0].b + x20*vs[1].b + x01*vs[2].b;
+    int blue_row_incr = y12*vs[0].b + y20*vs[1].b + y01*vs[2].b;
 
     // The comparison value.
     int bias0 = isTopLeft(&vs[1], &vs[2]) ? 0 : 1;
@@ -234,6 +251,9 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	int w0 = w0_row;
 	int w1 = w1_row;
 	int w2 = w2_row;
+	int red = red_row;
+	int green = green_row;
+	int blue = blue_row;
 	uint16_t rowPattern = pattern == nil ? 0xFFFF : pattern[y % 16];
 
 	for (int x = minX; x <= maxX; x++) {
@@ -258,9 +278,9 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 		}
 
 		if (drawPixel) {
-		    p[0] = (w0*vs[0].r + w1*vs[1].r + w2*vs[2].r)/area;
-		    p[1] = (w0*vs[0].g + w1*vs[1].g + w2*vs[2].g)/area;
-		    p[2] = (w0*vs[0].b + w1*vs[1].b + w2*vs[2].b)/area;
+		    p[0] = (red*(int64_t)recip_area) >> 31;
+		    p[1] = (green*(int64_t)recip_area) >> 31;
+		    p[2] = (blue*(int64_t)recip_area) >> 31;
 		    [sdram write:1
 			    bank:CBUFFER_BANK
 			     row:(y*WIDTH + x)/sdram.columnCount
@@ -278,6 +298,9 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	    w0 += x12;
 	    w1 += x20;
 	    w2 += x01;
+	    red += red_incr;
+	    green += green_incr;
+	    blue += blue_incr;
 	    p += BYTES_PER_PIXEL;
 	    zptr++;
 	}
@@ -285,6 +308,9 @@ bool isTopLeft(screen_vertex *a, screen_vertex *b) {
 	w0_row += y12;
 	w1_row += y20;
 	w2_row += y01;
+	red_row += red_row_incr;
+	green_row += green_row_incr;
+	blue_row += blue_row_incr;
 	row_pixel += STRIDE;
 	row_zptr += WIDTH;
     }
