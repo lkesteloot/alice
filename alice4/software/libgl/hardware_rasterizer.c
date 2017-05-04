@@ -268,7 +268,10 @@ void rasterizer_swap()
 	if(framestats_print)
 	    gettimeofday(&then, NULL);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
         memcpy(gpu_protocol_buffer, protocol_buffer, byte_count);
+#pragma GCC diagnostic pop
 
 	if(framestats_print) {
 	    gettimeofday(&now, NULL);

@@ -355,7 +355,10 @@ short mx, my;
 		for (num=0, scan=b->popup; num != (i-2);
 		     num++, scan=scan->next)
 		;	/* Keep on scanning... */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 		system(scan->action);
+#pragma GCC diagnostic pop
 	}
 }
 
@@ -441,7 +444,10 @@ button_struct *selected;
 	/* Now, do action */
 	if ((selected->action != NULL) && !needpipe)
 	{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 		system(selected->action);
+#pragma GCC diagnostic pop
 	}
 	/* Ok, now build submenus if we can */
 	if (fp != NULL)

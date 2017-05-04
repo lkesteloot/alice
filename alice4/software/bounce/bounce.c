@@ -648,7 +648,10 @@ char *name;
 			exit(1);
 		}
 	}
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 	fread(&magic,sizeof(int),1,inf);
+#pragma GCC diagnostic pop
         magic = ntohl(magic);
 	if(magic != FASTMAGIC) {
 		fprintf(stderr,"readfast: bad magic in object file\n");
@@ -660,9 +663,15 @@ char *name;
 	obj->material = ntohl(obj->material);
 	obj->display = ntohl(obj->display);
 	obj->ablend = ntohl(obj->ablend);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 	fread(&obj->npoints,sizeof(int),1,inf);
+#pragma GCC diagnostic pop
 	obj->npoints = ntohl(obj->npoints);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 	fread(&obj->colors,sizeof(int),1,inf);
+#pragma GCC diagnostic pop
 	obj->colors = ntohl(obj->colors);
 
 	/*
@@ -677,7 +686,10 @@ char *name;
 	//obj->data = (int *) (((int)(obj->data)) & 0xfffff000);
 
 	for (i = 0, ip = obj->data;  i < nlongs/4;  i++, ip += 4) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 		fread(ip, 3 * sizeof(int), 1, inf);
+#pragma GCC diagnostic pop
                 ip[0] = ntohl(ip[0]);
                 ip[1] = ntohl(ip[1]);
                 ip[2] = ntohl(ip[2]);
