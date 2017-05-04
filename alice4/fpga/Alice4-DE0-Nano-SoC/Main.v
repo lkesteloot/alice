@@ -203,7 +203,7 @@ module Main(
     wire lcd_data_enable;
     wire lcd_hs_n;
     wire lcd_vs_n;
-    wire lcd_display_on = sw[0];
+    wire lcd_display_on = 1'b1;
     wire lcd_pwm;
     wire next_frame;
     LCD_control lcd_control(
@@ -303,6 +303,7 @@ module Main(
 
         .clock(clock_50),
         .reset_n(reset_n),
+        .test_mode(sw[0]),
         .data_ready(rasterizer_data_ready),
         .busy(rasterizer_busy),
 
