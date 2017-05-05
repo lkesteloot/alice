@@ -15,8 +15,8 @@
 #include <netdb.h>
 #include <sys/time.h>
 // #include <sys/termio.h>
-#include <sys/filio.h> // Was termio
-// #define FIONBIO		0x5421
+// #include <sys/filio.h> // Was termio
+#define FIONBIO		0x5421
 #include <errno.h>
 
 
