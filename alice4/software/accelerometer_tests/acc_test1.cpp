@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <fcntl.h>
 #include <unistd.h>
@@ -168,7 +169,10 @@ int main()
 	float xg = xdata / 256.0;
 	float yg = ydata / 256.0;
 	float zg = zdata / 256.0;
-	printf("%f %f %f\n", xg, yg, zg);
+	printf("%f, %f, %f\n", xg, yg, zg);
+	float theta_y = atan2(yg, zg);
+	float theta_x = atan2(xg, zg);
+	printf("    %f, %f\n", theta_y / M_PI * 180.0, theta_x / M_PI * 180.0);
 	usleep(100000);
     }
 }
