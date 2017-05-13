@@ -40,7 +40,7 @@ module Rasterizer
         busy,
         3'b0,
         data_ready,
-        3'b0,
+        2'b0,
         state,
         unhandled_count
     };
@@ -51,38 +51,40 @@ module Rasterizer
     assign burstcount = 8'h01;
 
     // State machine.
-    localparam STATE_INIT = 5'h00;
-    localparam STATE_WAIT_FOR_DATA = 5'h01;
-    localparam STATE_WAIT_FOR_NO_DATA = 5'h02;
-    localparam STATE_READ_COMMAND = 5'h03;
-    localparam STATE_WAIT_READ_COMMAND = 5'h04;
-    localparam STATE_DECODE_COMMAND = 5'h05;
-    localparam STATE_CMD_CLEAR = 5'h06;
-    localparam STATE_CMD_CLEAR_LOOP = 5'h07;
-    localparam STATE_CMD_PATTERN = 5'h08;
-    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 5'h09;
-    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 5'h0A;
-    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 5'h0B;
-    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 5'h0C;
-    localparam STATE_CMD_DRAW = 5'h0D;
-    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 5'h0E;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 5'h0F;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 5'h10;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 5'h11;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 5'h12;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 5'h13;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 5'h14;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 5'h15;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 5'h16;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 5'h17;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 5'h18;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 5'h19;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 5'h1A;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 5'h1B;
-    localparam STATE_CMD_SWAP = 5'h1D;
-    localparam STATE_CMD_SWAP_WAIT = 5'h1E;
-    localparam STATE_CMD_END = 5'h1F;
-    reg [4:0] state;
+    localparam STATE_INIT = 6'h00;
+    localparam STATE_WAIT_FOR_DATA = 6'h01;
+    localparam STATE_WAIT_FOR_NO_DATA = 6'h02;
+    localparam STATE_READ_COMMAND = 6'h03;
+    localparam STATE_WAIT_READ_COMMAND = 6'h04;
+    localparam STATE_DECODE_COMMAND = 6'h05;
+    localparam STATE_CMD_CLEAR = 6'h06;
+    localparam STATE_CMD_CLEAR_LOOP = 6'h07;
+    localparam STATE_CMD_PATTERN = 6'h08;
+    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h09;
+    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0A;
+    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0B;
+    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h0C;
+    localparam STATE_CMD_DRAW = 6'h0D;
+    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h0E;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h0F;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h10;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h11;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h12;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h13;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h14;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 6'h15;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 6'h16;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 6'h17;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 6'h18;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 6'h19;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 6'h1A;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1B;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h1C;
+    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h1D;
+    localparam STATE_CMD_SWAP = 6'h3D;
+    localparam STATE_CMD_SWAP_WAIT = 6'h3E;
+    localparam STATE_CMD_END = 6'h3F;
+    reg [5:0] state;
 
     // Protocol command number:
     localparam CMD_CLEAR = 8'd1;
@@ -222,7 +224,7 @@ module Rasterizer
           .LPM_WIDTHD(32),
           .LPM_NREPRESENTATION("UNSIGNED"),
           .LPM_DREPRESENTATION("SIGNED"),
-          .LPM_PIPELINE(4)) area_divider(
+          .LPM_PIPELINE(6)) area_divider(
             .clock(clock),
             .clken(area_reciprocal_enabled),
             .numer(32'h7FFF_FFFF),
@@ -579,12 +581,22 @@ module Rasterizer
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE6: begin
                     // Reciprocal latency 4.
-                    area_reciprocal_enabled <= 1'b0;
-                    tri_area_recip <= tri_area_recip_result;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE7;
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE7: begin
+                    // Reciprocal latency 5.
+                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE8;
+                end
+
+                STATE_CMD_DRAW_TRIANGLE_PREPARE8: begin
+                    // Reciprocal latency 6.
+                    area_reciprocal_enabled <= 1'b0;
+                    tri_area_recip <= tri_area_recip_result;
+                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE9;
+                end
+
+                STATE_CMD_DRAW_TRIANGLE_PREPARE9: begin
                     tri_red_row <=
                         tri_w0_row*vertex_0_red +
                         tri_w1_row*vertex_1_red +
@@ -621,10 +633,10 @@ module Rasterizer
                         tri_w0_row_incr*vertex_0_blue +
                         tri_w1_row_incr*vertex_1_blue +
                         tri_w2_row_incr*vertex_2_blue;
-                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE8;
+                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE10;
                 end
 
-                STATE_CMD_DRAW_TRIANGLE_PREPARE8: begin
+                STATE_CMD_DRAW_TRIANGLE_PREPARE10: begin
                     tri_red_row <= tri_red_row*tri_area_recip;
                     tri_red_incr <= tri_red_incr*tri_area_recip;
                     tri_red_row_incr <= tri_red_row_incr*tri_area_recip;
@@ -634,10 +646,10 @@ module Rasterizer
                     tri_blue_row <= tri_blue_row*tri_area_recip;
                     tri_blue_incr <= tri_blue_incr*tri_area_recip;
                     tri_blue_row_incr <= tri_blue_row_incr*tri_area_recip;
-                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE9;
+                    state <= STATE_CMD_DRAW_TRIANGLE_PREPARE11;
                 end
 
-                STATE_CMD_DRAW_TRIANGLE_PREPARE9: begin
+                STATE_CMD_DRAW_TRIANGLE_PREPARE11: begin
                     tri_red_0 <= tri_red_row;
                     tri_red_0 <= tri_red_row + tri_red_incr;
                     tri_green_0 <= tri_green_row;
