@@ -45,6 +45,10 @@
 #define DRAW_TRIANGLE_STRIP 5
 #define DRAW_TRIANGLE_FAN 6
 
+#define TEST_PATTERN 0
+#define TEST_SPINNING_TRIANGLE 1
+#define TEST_TWO_TRIANGLES 0
+
 void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
     *(*p)++ = CMD_CLEAR
@@ -97,7 +101,7 @@ void cmd_end(volatile uint64_t **p)
 
 int main()
 {
-    float speed = 0.001;
+    float speed = 0.01;
 
     int dev_mem = open("/dev/mem", O_RDWR);
     if(dev_mem == -1) {
@@ -125,7 +129,8 @@ int main()
     volatile uint64_t *protocol_buffer =
 	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
 
-    *gpo = 0;
+    int brightness = 1000;
+    *gpo = (brightness << 2) | (1 << 1);
     int counter = 0;
     while (1) {
 	// Start of frame.
@@ -146,25 +151,52 @@ int main()
 	} else {
 	    cmd_clear(&p, 0, 0, 0);
 	}
+#if TEST_PATTERN
 	cmd_pattern(&p,
 		0x5555aaaa5555aaaaLL,
 		0x5555aaaa5555aaaaLL,
 		0x5555aaaa5555aaaaLL,
 		0x5555aaaa5555aaaaLL);
-	int pattern_enable = (counter & 0x40) != 0;
+#endif
+	int pattern_enable = (counter & 0x40) != 0 && TEST_PATTERN;
+#if TEST_SPINNING_TRIANGLE
 	cmd_draw(&p, DRAW_TRIANGLES, 1, pattern_enable);
-	vertex(&p,
-	    800/2 + (int) (200*sin(counter*speed)),
-	    450/2 + (int) (200*cos(counter*speed)),
-	    0, 50, 100, 150);
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter*speed + M_PI*2/3)),
 	    450/2 + (int) (200*cos(counter*speed + M_PI*2/3)),
-	    0, 50, 100, 150);
+	    0, 255, 0, 0);
+	vertex(&p,
+	    800/2 + (int) (200*sin(counter*speed)),
+	    450/2 + (int) (200*cos(counter*speed)),
+	    0, 0, 0, 0);
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter*speed + M_PI*4/3)),
 	    450/2 + (int) (200*cos(counter*speed + M_PI*4/3)),
-	    0, 50, 100, 150);
+	    0, 0, 0, 0);
+#endif
+#if TEST_TWO_TRIANGLES
+	cmd_draw(&p, DRAW_TRIANGLES, 2, pattern_enable);
+
+	// vertex(&p, 416, 346, 0, 255, 255, 255);
+	// vertex(&p, 392, 346, 0, 255, 255, 255);
+	// vertex(&p, 416, 321, 0, 255, 255, 255);
+
+	int dy = ((counter / 50) % 20) - 10;
+
+	// Bottom triangle.
+	vertex(&p, 392, 346 + dy, 0, 255, 200, 255);
+	vertex(&p, 416, 321 + dy, 0, 255, 200, 255);
+	vertex(&p, 392, 321 + dy, 0, 255, 200, 255);
+
+	// Top triangle.
+	vertex(&p, 416, 321 + dy, 0, 255, 255, 200);
+	vertex(&p, 392, 321 + dy, 0, 255, 255, 200);
+	vertex(&p, 416, 296 + dy, 0, 255, 255, 200);
+
+	// vertex(&p, 392, 321, 0, 200, 255, 255);
+	// vertex(&p, 416, 296, 0, 200, 255, 255);
+	// vertex(&p, 392, 297, 0, 200, 255, 255);
+#endif
 	cmd_swap(&p);
 	cmd_end(&p);
 #ifdef DEBUG_PRINT
