@@ -168,11 +168,11 @@ int main()
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter*speed)),
 	    450/2 + (int) (200*cos(counter*speed)),
-	    0, 0, 0, 0);
+	    0, 0, 255, 0);
 	vertex(&p,
 	    800/2 + (int) (200*sin(counter*speed + M_PI*4/3)),
 	    450/2 + (int) (200*cos(counter*speed + M_PI*4/3)),
-	    0, 0, 0, 0);
+	    0, 0, 0, 255);
 #endif
 #if TEST_TWO_TRIANGLES
 	cmd_draw(&p, DRAW_TRIANGLES, 2, pattern_enable);
