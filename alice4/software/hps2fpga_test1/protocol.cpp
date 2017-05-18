@@ -8,6 +8,9 @@
 
 #undef DEBUG_PRINT
 
+#define WIDTH 800
+#define HEIGHT 480
+
 // For lightweight communication with the FPGA:
 #define FPGA_MANAGER_BASE 0xFF706000
 #define FPGA_GPO_OFFSET 0x10
@@ -23,7 +26,7 @@
 #define BASE 0x38000000
 #define RAM_SIZE 0x40000000
 #define COLOR_BUFFER_1_OFFSET 0
-#define BUFFER_SIZE (800*480*4)
+#define BUFFER_SIZE (WIDTH*HEIGHT*4)
 #define COLOR_BUFFER_2_OFFSET (COLOR_BUFFER_1_OFFSET + BUFFER_SIZE)
 #define Z_BUFFER_OFFSET (COLOR_BUFFER_2_OFFSET + BUFFER_SIZE)
 #define PROTOCOL_BUFFER_OFFSET (Z_BUFFER_OFFSET + BUFFER_SIZE)
@@ -46,8 +49,9 @@
 #define DRAW_TRIANGLE_FAN 6
 
 #define TEST_PATTERN 0
-#define TEST_SPINNING_TRIANGLE 1
+#define TEST_SPINNING_TRIANGLE 0
 #define TEST_TWO_TRIANGLES 0
+#define TEST_TWO_OVERLAPPING_TRIANGLES 1
 
 void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -70,11 +74,12 @@ void cmd_pattern(volatile uint64_t **p,
     *(*p)++ = pattern3;
 }
 
-void cmd_draw(volatile uint64_t **p, int type, int count, int pattern_enable)
+void cmd_draw(volatile uint64_t **p, int type, int count, int z_enable, int pattern_enable)
 {
     *(*p)++ = CMD_DRAW
     	| ((uint64_t) type << 8)
 	| ((uint64_t) count << 16)
+	| ((uint64_t) z_enable << 32)
 	| ((uint64_t) pattern_enable << 33);
 }
 
@@ -84,6 +89,7 @@ void vertex(volatile uint64_t **p, int x, int y, int z,
     *(*p)++ =
     	  ((uint64_t) x << 2)
 	| ((uint64_t) y << 15)
+	| ((uint64_t) z << 24)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
@@ -160,22 +166,22 @@ int main()
 #endif
 	int pattern_enable = (counter & 0x40) != 0 && TEST_PATTERN;
 #if TEST_SPINNING_TRIANGLE
-	cmd_draw(&p, DRAW_TRIANGLES, 1, pattern_enable);
+	cmd_draw(&p, DRAW_TRIANGLES, 1, false, pattern_enable);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter*speed + M_PI*2/3)),
-	    450/2 + (int) (200*cos(counter*speed + M_PI*2/3)),
+	    WIDTH/2 + (int) (200*sin(counter*speed + M_PI*2/3)),
+	    HEIGHT/2 + (int) (200*cos(counter*speed + M_PI*2/3)),
 	    0, 255, 0, 0);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter*speed)),
-	    450/2 + (int) (200*cos(counter*speed)),
+	    WIDTH/2 + (int) (200*sin(counter*speed)),
+	    HEIGHT/2 + (int) (200*cos(counter*speed)),
 	    0, 0, 255, 0);
 	vertex(&p,
-	    800/2 + (int) (200*sin(counter*speed + M_PI*4/3)),
-	    450/2 + (int) (200*cos(counter*speed + M_PI*4/3)),
+	    WIDTH/2 + (int) (200*sin(counter*speed + M_PI*4/3)),
+	    HEIGHT/2 + (int) (200*cos(counter*speed + M_PI*4/3)),
 	    0, 0, 0, 255);
 #endif
 #if TEST_TWO_TRIANGLES
-	cmd_draw(&p, DRAW_TRIANGLES, 2, pattern_enable);
+	cmd_draw(&p, DRAW_TRIANGLES, 2, false, pattern_enable);
 
 	// vertex(&p, 416, 346, 0, 255, 255, 255);
 	// vertex(&p, 392, 346, 0, 255, 255, 255);
@@ -196,6 +202,45 @@ int main()
 	// vertex(&p, 392, 321, 0, 200, 255, 255);
 	// vertex(&p, 416, 296, 0, 200, 255, 255);
 	// vertex(&p, 392, 297, 0, 200, 255, 255);
+#endif
+#if TEST_TWO_OVERLAPPING_TRIANGLES
+	// Enable and disable Z buffering every 2 seconds.
+	cmd_draw(&p, DRAW_TRIANGLES, 2, counter / 120 % 2, pattern_enable);
+
+	float t = counter*speed;
+	float dt = M_PI*2/6;
+	int z_front = 1000;
+	int z_back = 10000;
+	// Switch order of triangles every second.
+	for (int i = 0; i < 2; i++) {
+	    if ((i == 0) ^ (counter / 60 % 2 == 0)) {
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t)),
+		    HEIGHT/2 + (int) (200*cos(t)),
+		    z_front, 255, 0, 0);
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t + 2*dt)),
+		    HEIGHT/2 + (int) (200*cos(t + 2*dt)),
+		    z_front, 0, 255, 0);
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t + 4*dt)),
+		    HEIGHT/2 + (int) (200*cos(t + 4*dt)),
+		    z_back, 0, 0, 255);
+	    } else {
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t + dt)),
+		    HEIGHT/2 + (int) (200*cos(t + dt)),
+		    z_back, 255, 255, 0);
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t + 3*dt)),
+		    HEIGHT/2 + (int) (200*cos(t + 3*dt)),
+		    z_front, 0, 255, 255);
+		vertex(&p,
+		    WIDTH/2 + (int) (200*sin(t + 5*dt)),
+		    HEIGHT/2 + (int) (200*cos(t + 5*dt)),
+		    z_front, 255, 0, 255);
+	    }
+	}
 #endif
 	cmd_swap(&p);
 	cmd_end(&p);
@@ -234,7 +279,6 @@ int main()
 	    // Busy loop.
 	}
 
-	// usleep(1000*100);
 	counter++;
     }
 
