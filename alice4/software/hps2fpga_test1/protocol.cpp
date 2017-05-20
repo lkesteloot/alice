@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 #include <stdint.h>
 #include <math.h>
+#include <time.h>
 
 #undef DEBUG_PRINT
 
@@ -52,6 +53,12 @@
 #define TEST_SPINNING_TRIANGLE 0
 #define TEST_TWO_TRIANGLES 0
 #define TEST_TWO_OVERLAPPING_TRIANGLES 1
+
+// Returns time difference in seconds.
+double diff_timespecs(struct timespec *t1, struct timespec *t2)
+{
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+}
 
 void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -114,6 +121,8 @@ void cmd_end(volatile uint64_t **p)
 int main()
 {
     float speed = 0.01;
+    struct timespec before_time;
+    struct timespec after_time;
 
     int dev_mem = open("/dev/mem", O_RDWR);
     if(dev_mem == -1) {
@@ -282,9 +291,13 @@ int main()
 #ifdef DEBUG_PRINT
 	printf("Waiting for FPGA to finish rasterizing.\n");
 #endif
+	clock_gettime(CLOCK_MONOTONIC, &before_time);
 	while ((*gpi & F2H_BUSY) != 0) {
 	    // Busy loop.
 	}
+	clock_gettime(CLOCK_MONOTONIC, &after_time);
+	printf("Time spent rendering: %.1f ms\n",
+	    diff_timespecs(&after_time, &before_time)*1000);
 
 	counter++;
     }
