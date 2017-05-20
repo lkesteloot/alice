@@ -61,6 +61,12 @@ void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 	| ((uint64_t) blue << 40);
 }
 
+void cmd_zclear(volatile uint64_t **p, uint16_t z)
+{
+    *(*p)++ = CMD_ZCLEAR
+	| ((uint64_t) z << 16);
+}
+
 void cmd_pattern(volatile uint64_t **p,
 	uint64_t pattern0,
 	uint64_t pattern1,
@@ -157,6 +163,7 @@ int main()
 	} else {
 	    cmd_clear(&p, 0, 0, 0);
 	}
+	cmd_zclear(&p, 0xFFFF);
 #if TEST_PATTERN
 	cmd_pattern(&p,
 		0x5555aaaa5555aaaaLL,
@@ -209,8 +216,8 @@ int main()
 
 	float t = counter*speed;
 	float dt = M_PI*2/6;
-	int z_front = 1000;
-	int z_back = 10000;
+	int z_front = 0;
+	int z_back = 65000;
 	// Switch order of triangles every second.
 	for (int i = 0; i < 2; i++) {
 	    if ((i == 0) ^ (counter / 60 % 2 == 0)) {
