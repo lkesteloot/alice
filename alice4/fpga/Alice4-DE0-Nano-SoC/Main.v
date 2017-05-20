@@ -117,7 +117,7 @@ module Main(
     // Number of bytes in frame buffer.
     localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
     // Position of protocol buffer.
-    localparam PROT_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
+    localparam CMD_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
     // Debug LED blink.
     reg [23:0] counter;
@@ -299,7 +299,7 @@ module Main(
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
-                 .PROT_ADDRESS(PROT_ADDRESS)) rasterizer(
+                 .CMD_ADDRESS(CMD_ADDRESS)) rasterizer(
 
         .clock(clock_50),
         .reset_n(reset_n),

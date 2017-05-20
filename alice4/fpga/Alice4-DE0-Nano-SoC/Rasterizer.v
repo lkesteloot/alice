@@ -2,7 +2,7 @@
 // operations on the frame buffer.
 module Rasterizer
     // In bytes.
-    #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, PROT_ADDRESS=0)
+    #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, CMD_ADDRESS=0)
 (
     // Clock and reset.
     input clock,
@@ -50,6 +50,9 @@ module Rasterizer
     // Constants.
     assign burstcount = 8'h01;
 
+    // Address of Z buffer. It's after the two color buffers.
+    localparam Z_ADDRESS = FB_ADDRESS + 2*FB_LENGTH;
+
     // State machine.
     localparam STATE_INIT = 6'h00;
     localparam STATE_WAIT_FOR_DATA = 6'h01;
@@ -59,31 +62,33 @@ module Rasterizer
     localparam STATE_DECODE_COMMAND = 6'h05;
     localparam STATE_CMD_CLEAR = 6'h06;
     localparam STATE_CMD_CLEAR_LOOP = 6'h07;
-    localparam STATE_CMD_PATTERN = 6'h08;
-    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h09;
-    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0A;
-    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0B;
-    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h0C;
-    localparam STATE_CMD_DRAW = 6'h0D;
-    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h0E;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h0F;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h10;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h11;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h12;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h13;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h14;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 6'h15;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 6'h16;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 6'h17;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 6'h18;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 6'h19;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 6'h1A;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1B;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h1C;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h1D;
-    localparam STATE_CMD_SWAP = 6'h3D;
-    localparam STATE_CMD_SWAP_WAIT = 6'h3E;
-    localparam STATE_CMD_END = 6'h3F;
+    localparam STATE_CMD_ZCLEAR = 6'h08;
+    localparam STATE_CMD_ZCLEAR_LOOP = 6'h09;
+    localparam STATE_CMD_PATTERN = 6'h0A;
+    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h0B;
+    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0C;
+    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0D;
+    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h0E;
+    localparam STATE_CMD_DRAW = 6'h0F;
+    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h10;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h11;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h12;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h13;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h14;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h15;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h16;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 6'h17;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 6'h18;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 6'h19;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 6'h1A;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 6'h1B;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 6'h1C;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1D;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h1E;
+    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h1F;
+    localparam STATE_CMD_SWAP = 6'h20;
+    localparam STATE_CMD_SWAP_WAIT = 6'h21;
+    localparam STATE_CMD_END = 6'h22;
     reg [5:0] state;
 
     // Protocol command number:
@@ -104,6 +109,7 @@ module Rasterizer
     wire [7:0] command = command_word[7:0];
     wire use_z_buffer = command_word[32];
     wire draw_with_pattern = command_word[33];
+    wire [31:0] z_clear_value = { 16'b0, command_word[31:16] };
 
     // Drawing state.
     reg [255:0] pattern;
@@ -276,7 +282,7 @@ module Rasterizer
                 STATE_WAIT_FOR_NO_DATA: begin
                     if (!data_ready) begin
                         state <= STATE_READ_COMMAND;
-                        pc <= PROT_ADDRESS/8;
+                        pc <= CMD_ADDRESS/8;
                     end
                 end
 
@@ -304,6 +310,10 @@ module Rasterizer
                     case (command)
                         CMD_CLEAR: begin
                             state <= STATE_CMD_CLEAR;
+                        end
+
+                        CMD_ZCLEAR: begin
+                            state <= STATE_CMD_ZCLEAR;
                         end
 
                         CMD_PATTERN: begin
@@ -351,6 +361,26 @@ module Rasterizer
                     // Wait until we're not requested to wait.
                     if (!waitrequest) begin
                         if (address == fb_address + FB_LENGTH/8 - 1) begin
+                            write <= 1'b0;
+                            state <= STATE_READ_COMMAND;
+                        end else begin
+                            address <= address + 1'b1;
+                        end
+                    end
+                end
+
+                STATE_CMD_ZCLEAR: begin
+                    address <= Z_ADDRESS/8;
+                    writedata <= { z_clear_value, z_clear_value };
+                    write <= 1;
+                    byteenable <= 8'hFF;
+                    state <= STATE_CMD_ZCLEAR_LOOP;
+                end
+
+                STATE_CMD_ZCLEAR_LOOP: begin
+                    // Wait until we're not requested to wait.
+                    if (!waitrequest) begin
+                        if (address == Z_ADDRESS + FB_LENGTH/8 - 1) begin
                             write <= 1'b0;
                             state <= STATE_READ_COMMAND;
                         end else begin

@@ -1,4 +1,66 @@
 
+- Z buffer plan:
+    - Make Z test.
+        - Use protocol.
+        - Make two triangles that intersect.
+        - Have them rotate.
+    - Add a memory controller port:
+        1. Front buffer scanout.
+        2. Read command buffer and Z.
+        3. Write color and Z.
+    - Create a read FIFO:
+        - Width:
+            - 29 bits: color address.
+            - 48 bits: color.
+            - 29 bits: Z address.
+            - 64 bits: Z.
+            - 2 bits: which pixel is active.
+            - 172 bits total.
+            - Could use address offset:
+                - 800*480/2 = 192,000 = 18 bits.
+                - 132 bits total.
+        - Depth 32?
+    - Create a write FIFO:
+        - Width:
+            - (Same as above).
+        - Depth 32?
+    - In triangle setup:
+        - Set up Z address
+        - Set up Z values.
+    - In draw loop:
+        - Block if size of both FIFOs exceeds size of write FIFO.
+        - Instead of assigning writeenable, write to read FIFO.
+        - Also initiate Z read.
+    - When Z read returns:
+        - Also read from read FIFO.
+        - Store in registers.
+        - One clock later, compare Z.
+        - If succeeds, or if Z-buffer is disabled, write to write FIFO.
+        - No need for state machine, it's a pipeline.
+    - If write FIFO is not empty:
+        - Read entry.
+        - Write to color buffer.
+        - Write to Z buffer.
+        - Use state machine.
+    - Need to flush FIFOs before the next triangle.
+        - Could do that at end of triangle.
+        - Or could do that both at beginning of triangle (after setup)
+            and before swap.
+    - Keep track of total number of pixels in the pipeline.
+        - Single global register.
+        - Algorithm:
+            - If read_z and read_write_fifo:
+                - Do nothing.
+            - else if read_z:
+                - count++
+            - else if read_write_fifo:
+                - count--
+            - else:
+                - Do nothing.
+        - That's fine for counting what's in the FIFOs, but can't be
+            used for flushing the FIFOs. Maybe use the end of Z write
+            for that.
+
 - Naming conventions:
     - Registers and wires: all lower case with underscores.
     - Modules: Sentence capitalization (first letter only) with underscores.
