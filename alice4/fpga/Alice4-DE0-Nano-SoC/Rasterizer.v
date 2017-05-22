@@ -13,16 +13,29 @@ module Rasterizer
     input data_ready,
     output reg busy,
 
-    // Memory interface.
-    output reg [28:0] address,
-    output wire [7:0] burstcount,
-    input wire waitrequest,
-    input wire [63:0] readdata,
-    input wire readdatavalid,
-    output reg read,
-    output reg [63:0] writedata,
-    output reg [7:0] byteenable,
-    output reg write,
+    // Memory interface for reading command buffer and Z pixels.
+    output reg [28:0] read_address,
+    output wire [7:0] read_burstcount,
+    input wire read_waitrequest,
+    input wire [63:0] read_readdata,
+    input wire read_readdatavalid,
+    output reg read_read,
+
+    // Memory interface for writing color pixels.
+    output reg [28:0] write_color_address,
+    output wire [7:0] write_color_burstcount,
+    input wire write_color_waitrequest,
+    output reg [63:0] write_color_writedata,
+    output reg [7:0] write_color_byteenable,
+    output reg write_color_write,
+
+    // Memory interface for writing Z pixels.
+    output reg [28:0] write_z_address,
+    output wire [7:0] write_z_burstcount,
+    input wire write_z_waitrequest,
+    output reg [63:0] write_z_writedata,
+    output reg [7:0] write_z_byteenable,
+    output reg write_z_write,
 
     // Front buffer handling.
     input wire fb_front_buffer,
@@ -48,7 +61,9 @@ module Rasterizer
     assign debug_value2 = tri_area_recip;
 
     // Constants.
-    assign burstcount = 8'h01;
+    assign read_burstcount = 8'h01;
+    assign write_color_burstcount = 8'h01;
+    assign write_z_burstcount = 8'h01;
 
     // Address of Z buffer. It's after the two color buffers.
     localparam Z_ADDRESS = FB_ADDRESS + 2*FB_LENGTH;
@@ -261,10 +276,16 @@ module Rasterizer
             area_reciprocal_enabled <= 1'b0;
 
             // Memory.
-            address <= 1'b0;
-            read <= 1'b0;
-            writedata <= 1'b0;
-            write <= 1'b0;
+            read_address <= 1'b0;
+            read_read <= 1'b0;
+            write_color_address <= 1'b0;
+            write_color_writedata <= 1'b0;
+            write_color_byteenable <= 1'b0;
+            write_color_write <= 1'b0;
+            write_z_address <= 1'b0;
+            write_z_writedata <= 1'b0;
+            write_z_byteenable <= 1'b0;
+            write_z_write <= 1'b0;
         end else begin
             case (state)
                 STATE_INIT: begin
@@ -287,21 +308,21 @@ module Rasterizer
                 end
 
                 STATE_READ_COMMAND: begin
-                    address <= pc;
-                    read <= 1'b1;
+                    read_address <= pc;
+                    read_read <= 1'b1;
                     pc <= pc + 1'b1;
                     state <= STATE_WAIT_READ_COMMAND;
                 end
 
                 STATE_WAIT_READ_COMMAND: begin
                     // When no longer told to wait, deassert the request lines.
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
                     // If we have data, grab it.
-                    if (readdatavalid) begin
-                        command_word <= readdata;
+                    if (read_readdatavalid) begin
+                        command_word <= read_readdata;
                         state <= STATE_DECODE_COMMAND;
                     end
                 end
@@ -341,8 +362,8 @@ module Rasterizer
                 end
 
                 STATE_CMD_CLEAR: begin
-                    address <= fb_address;
-                    writedata <= {
+                    write_color_address <= fb_address;
+                    write_color_writedata <= {
                         8'b0,
                         command_word[47:40], // Blue
                         command_word[55:48], // Green
@@ -352,62 +373,62 @@ module Rasterizer
                         command_word[55:48], // Green
                         command_word[63:56]  // Red
                     };
-                    write <= 1;
-                    byteenable <= 8'hFF;
+                    write_color_write <= 1'b1;
+                    write_color_byteenable <= 8'hFF;
                     state <= STATE_CMD_CLEAR_LOOP;
                 end
 
                 STATE_CMD_CLEAR_LOOP: begin
                     // Wait until we're not requested to wait.
-                    if (!waitrequest) begin
-                        if (address == fb_address + FB_LENGTH/8 - 1) begin
-                            write <= 1'b0;
+                    if (!write_color_waitrequest) begin
+                        if (write_color_address == fb_address + FB_LENGTH/8 - 1) begin
+                            write_color_write <= 1'b0;
                             state <= STATE_READ_COMMAND;
                         end else begin
-                            address <= address + 1'b1;
+                            write_color_address <= write_color_address + 1'b1;
                         end
                     end
                 end
 
                 STATE_CMD_ZCLEAR: begin
-                    address <= Z_ADDRESS/8;
-                    writedata <= { z_clear_value, z_clear_value };
-                    write <= 1;
-                    byteenable <= 8'hFF;
+                    write_z_address <= Z_ADDRESS/8;
+                    write_z_writedata <= { z_clear_value, z_clear_value };
+                    write_z_write <= 1'b1;
+                    write_z_byteenable <= 8'hFF;
                     state <= STATE_CMD_ZCLEAR_LOOP;
                 end
 
                 STATE_CMD_ZCLEAR_LOOP: begin
                     // Wait until we're not requested to wait.
-                    if (!waitrequest) begin
-                        if (address == Z_ADDRESS + FB_LENGTH/8 - 1) begin
-                            write <= 1'b0;
+                    if (!write_z_waitrequest) begin
+                        if (write_z_address == Z_ADDRESS + FB_LENGTH/8 - 1) begin
+                            write_z_write <= 1'b0;
                             state <= STATE_READ_COMMAND;
                         end else begin
-                            address <= address + 1'b1;
+                            write_z_address <= write_z_address + 1'b1;
                         end
                     end
                 end
 
                 STATE_CMD_PATTERN: begin
                     // Read first pattern word.
-                    address <= pc;
-                    read <= 1'b1;
+                    read_address <= pc;
+                    read_read <= 1'b1;
                     pc <= pc + 1'b1;
                     state <= STATE_CMD_PATTERN_WAIT_READ_0;
                 end
 
                 STATE_CMD_PATTERN_WAIT_READ_0: begin
                     // When no longer told to wait, deassert the request lines.
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
                     // If we have data, grab it.
-                    if (readdatavalid) begin
-                        pattern[63:0] <= readdata;
-                        address <= pc;
-                        read <= 1'b1;
+                    if (read_readdatavalid) begin
+                        pattern[63:0] <= read_readdata;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_PATTERN_WAIT_READ_1;
                     end
@@ -415,15 +436,15 @@ module Rasterizer
 
                 STATE_CMD_PATTERN_WAIT_READ_1: begin
                     // When no longer told to wait, deassert the request lines.
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
                     // If we have data, grab it.
-                    if (readdatavalid) begin
-                        pattern[127:64] <= readdata;
-                        address <= pc;
-                        read <= 1'b1;
+                    if (read_readdatavalid) begin
+                        pattern[127:64] <= read_readdata;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_PATTERN_WAIT_READ_2;
                     end
@@ -431,15 +452,15 @@ module Rasterizer
 
                 STATE_CMD_PATTERN_WAIT_READ_2: begin
                     // When no longer told to wait, deassert the request lines.
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
                     // If we have data, grab it.
-                    if (readdatavalid) begin
-                        pattern[191:128] <= readdata;
-                        address <= pc;
-                        read <= 1'b1;
+                    if (read_readdatavalid) begin
+                        pattern[191:128] <= read_readdata;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_PATTERN_WAIT_READ_3;
                     end
@@ -447,13 +468,13 @@ module Rasterizer
 
                 STATE_CMD_PATTERN_WAIT_READ_3: begin
                     // When no longer told to wait, deassert the request lines.
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
                     // If we have data, grab it.
-                    if (readdatavalid) begin
-                        pattern[255:192] <= readdata;
+                    if (read_readdatavalid) begin
+                        pattern[255:192] <= read_readdata;
                         state <= STATE_READ_COMMAND;
                     end
                 end
@@ -469,7 +490,7 @@ module Rasterizer
                     // Turn off write, we may have left it on for
                     // the lower-right pixel of the last triangle's
                     // bounding box.
-                    write <= 1'b0;
+                    write_color_write <= 1'b0;
 
                     if (triangle_count == 1'b0) begin
                         // Done with all the triangles we had to draw.
@@ -478,48 +499,48 @@ module Rasterizer
                         triangle_count <= triangle_count - 1'b1;
 
                         // Read first vertex.
-                        address <= pc;
-                        read <= 1'b1;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0;
                     end
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0: begin
-                    if (!waitrequest && !readdatavalid) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest && !read_readdatavalid) begin
+                        read_read <= 1'b0;
                     end
 
-                    if (readdatavalid) begin
-                        vertex_0 <= readdata;
-                        address <= pc;
-                        read <= 1'b1;
+                    if (read_readdatavalid) begin
+                        vertex_0 <= read_readdata;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1;
                     end
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1: begin
-                    if (!waitrequest && !readdatavalid) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest && !read_readdatavalid) begin
+                        read_read <= 1'b0;
                     end
 
-                    if (readdatavalid) begin
-                        vertex_1 <= readdata;
-                        address <= pc;
-                        read <= 1'b1;
+                    if (read_readdatavalid) begin
+                        vertex_1 <= read_readdata;
+                        read_address <= pc;
+                        read_read <= 1'b1;
                         pc <= pc + 1'b1;
                         state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2;
                     end
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2: begin
-                    if (!waitrequest) begin
-                        read <= 1'b0;
+                    if (!read_waitrequest) begin
+                        read_read <= 1'b0;
                     end
 
-                    if (readdatavalid) begin
-                        vertex_2 <= readdata;
+                    if (read_readdatavalid) begin
+                        vertex_2 <= read_readdata;
                         state <= STATE_CMD_DRAW_TRIANGLE_PREPARE1;
                     end
                 end
@@ -691,13 +712,13 @@ module Rasterizer
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
                     // Wait until we're not requested to wait.
-                    if (!write || !waitrequest) begin
+                    if (!write_color_write || !write_color_waitrequest) begin
                         // Decide whether to draw this pixel.
-                        write <= inside_triangle_0 || inside_triangle_1;
-                        byteenable <= {{4{inside_triangle_1}},
+                        write_color_write <= inside_triangle_0 || inside_triangle_1;
+                        write_color_byteenable <= {{4{inside_triangle_1}},
                                        {4{inside_triangle_0}}};
-                        address <= tri_address;
-                        writedata <= {
+                        write_color_address <= tri_address;
+                        write_color_writedata <= {
                             // Pixel 1.
                             8'h00,
                             tri_blue_byte_1,
