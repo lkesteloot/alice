@@ -207,7 +207,7 @@ HSYNC
 Text GLabel 3675 4100 2    60   Input ~ 0
 VSYNC
 Text GLabel 3675 4200 2    60   Input ~ 0
-DISPLAY_ENABLE
+DATA_ENABLE
 Text GLabel 5125 2950 0    60   BiDi ~ 0
 X+
 Text GLabel 5125 3050 0    60   BiDi ~ 0
@@ -286,7 +286,7 @@ HSYNC
 Text GLabel 8000 4325 2    60   Input ~ 0
 VSYNC
 Text GLabel 8000 4425 2    60   Input ~ 0
-DISPLAY_ENABLE
+DATA_ENABLE
 NoConn ~ 6225 2800
 NoConn ~ 6225 2900
 NoConn ~ 6225 3000
