@@ -1,13 +1,46 @@
 
 - Z buffer plan:
-    - Make Z test.
-        - Use protocol.
-        - Make two triangles that intersect.
-        - Have them rotate.
+    - To do:
+        * Make Z test.
+            * Use protocol.
+            * Make two triangles that intersect.
+            * Have them rotate, change order, and turn Z buffering on
+                and off.
+        * Add memory controllers.
+        - Update code to use new controllers.
+        - Try adding .qip files of qsys output.
+        - Make write FIFO.
+            - Takes as parameters:
+                - Third memory controller fields:
+                    - address
+                    - writedata
+                    - write
+                    - waitrequest
+                    - byteenable
+                - FIFO controls:
+                    - enqueue
+                    - color_address
+                    - color
+                    - z_address
+                    - z
+                    - pixel_active
+                    - fifo_size
+                - clock
+                - reset_n
+            - Instantiate sc_fifo.
+            - Enqueue based on "enqueue". Pack values.
+            - If (!write or !waitrequest) and queue not empty:
+                - Dequeue and write to color.
+                - Write to Z.
+            - Need simple state machine for dequeuing and waiting
+                for memory write.
+        - In rasterization loop, write to write FIFO, blocking if
+            it's nearly full.
     - Add a memory controller port:
-        1. Front buffer scanout.
-        2. Read command buffer and Z.
-        3. Write color and Z.
+        0. Front buffer scanout.
+        1. Read command buffer and Z.
+        2. Write color.
+        3. Write Z.
     - Create a read FIFO:
         - Width:
             - 29 bits: color address.
