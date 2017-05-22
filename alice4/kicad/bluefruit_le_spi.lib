@@ -1,0 +1,34 @@
+EESchema-LIBRARY Version 2.3
+#encoding utf-8
+#
+# touchscreen_controller
+#
+DEF bluefruit_le_spi U 0 40 Y Y 1 F N
+F0 "U" 0 0 60 H V C CNN
+F1 "bluefruit_le_spi" 0 -550 60 H V C CNN
+F2 "" 0 0 60 H V C CNN
+F3 "" 0 0 60 H V C CNN
+DRAW
+S -300 500 300 -500 0 1 0 N
+X SCK 1 -450 400 200 R 50 50 1 1 I
+X MISO 2 -450 300 200 R 50 50 1 1 O
+X MOSI 3 -450 200 200 R 50 50 1 1 I
+X CS 4 -450 100 200 R 50 50 1 1 I
+X IRQ 5 -450 0 200 R 50 50 1 1 O
+X DFU 6 -450 -100 200 R 50 50 1 1 I
+X RST 7 -450 -200 200 R 50 50 1 1 I
+X GND 8 -450 -300 200 R 50 50 1 1 W
+X VIN 9 -450 -400 200 R 50 50 1 1 W
+
+ENDDRAW
+ENDDEF
+#
+#End Library
+#
+# Put this in your .pro file, adding "../" if necessary
+# "LibName31=bluefruit_le_spi"
+#
+#
+# Put this in your .sch file:"
+# "LIBS:bluefruit_le_spi"
+#
