@@ -1,0 +1,5 @@
+(fp_lib_table
+  (lib (name "STMPE610")(type KiCad)(uri $KIPRJMOD/../touchscreen_controller.pretty)(options "")(descr ""))
+  (lib (name "DIH_2x7x2mm")(type KiCad)(uri $KIPRJMOD/../DIH_2x7x2mm.pretty)(options "")(descr ""))
+  (lib (name "DIP40")(type KiCad)(uri $KIPRJMOD/../DIP40.pretty)(options "")(descr ""))
+)
