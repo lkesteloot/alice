@@ -86,6 +86,9 @@ static void drain_touchscreen()
     }
 }
 
+static float theta_x_smoothed, theta_y_smoothed;
+static const float decay = .5;
+
 int32_t events_get_valuator(int32_t device)
 {
     drain_touchscreen();
@@ -94,12 +97,19 @@ int32_t events_get_valuator(int32_t device)
     else if(device == MOUSEY)
 	return mousey;
     else if(device == DIAL0 || device == DIAL1) {
-	float theta_x, theta_y;
+	float theta_x, theta_y, value;
+
 	accelerometer_read(&theta_y, &theta_x);
+
+	theta_x_smoothed = theta_x_smoothed * decay + theta_x * (1 - decay);
+	theta_y_smoothed = theta_y_smoothed * decay + theta_y * (1 - decay);
+
 	if(device == DIAL0)
-	    return theta_x / (2 * M_PI) * 3600;
+	    value = theta_x_smoothed / (2 * M_PI) * 3600;
 	else /* device == DIAL1 */
-	    return theta_y / (2 * M_PI) * 3600;
+	    value = theta_y_smoothed / (2 * M_PI) * 3600;
+
+	return value;
     } else
 	printf("warning: unimplemented evaluator %d\n", device);
     return 0;
@@ -137,6 +147,7 @@ int32_t events_winopen(char *title)
 {
     touchscreen_init();
     accelerometer_init();
+    accelerometer_read(&theta_y_smoothed, &theta_x_smoothed);
     drain_touchscreen();
     return 0;
 }
