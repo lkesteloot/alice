@@ -7,16 +7,29 @@
             * Have them rotate, change order, and turn Z buffering on
                 and off.
         * Add memory controllers.
-        - Update code to use new controllers.
-        - Try adding .qip files of qsys output.
+        * Update code to use new controllers.
+        * Try adding .qip files of qsys output.
+            - First compile: 5:58
+            - Second compile: 5:49
+            - First compile adding qip file: 6:07
+            - Second compile adding qip file: 6:05
+            - First compile removing soc file: 8:02
+            - Second compile removing soc file:
         - Make write FIFO.
-            - Takes as parameters:
+            * Takes as parameters:
                 - Third memory controller fields:
-                    - address
-                    - writedata
-                    - write
-                    - waitrequest
-                    - byteenable
+                    - write_color_address
+                    - write_color_burstcount
+                    - write_color_waitrequest
+                    - write_color_writedata
+                    - write_color_byteenable
+                    - write_color_write
+                    - write_z_address
+                    - write_z_burstcount
+                    - write_z_waitrequest
+                    - write_z_writedata
+                    - write_z_byteenable
+                    - write_z_write
                 - FIFO controls:
                     - enqueue
                     - color_address
@@ -27,8 +40,85 @@
                     - fifo_size
                 - clock
                 - reset_n
-            - Instantiate sc_fifo.
+            * Instantiate sc_fifo.
             - Enqueue based on "enqueue". Pack values.
+            - Possible cases:
+                - State:
+                    1. Queue has item.
+                    2. Waiting for write color.
+                    3. Waiting for write Z.
+                    4. Fifo read (last clock).
+                - Cases:
+                    -   Q  C  Z  F  
+                    -   -  -  -  -      Nothing.
+                    -   -  -  -  *      Assert write.
+                    -   -  -  *  -
+                    -   -  -  *  *      Invalid.
+                    -   -  *  -  -
+                    -   -  *  -  *      Invalid.
+                    -   -  *  *  -
+                    -   -  *  *  *      Invalid.
+                    -   *  -  -  -
+                    -   *  -  -  *
+                    -   *  -  *  -
+                    -   *  -  *  *      Invalid.
+                    -   *  *  -  -
+                    -   *  *  -  *      Invalid.
+                    -   *  *  *  -
+                    -   *  *  *  *      Invalid.
+
+
+                    Q   CWr CWa ZWr ZWa FRd
+                    -   -   X   -   X   -    Nothing
+                    -   -   X   -   X   *    Start write.
+                    -   -   X   *   -   -
+                    -   -   X   *   -   *
+                    -   -   X   *   *   -
+                    -   -   X   *   *   *
+                    -   *   -   -   X   -
+                    -   *   -   -   X   *
+                    -   *   -   *   -   -
+                    -   *   -   *   -   *
+                    -   *   -   *   *   -
+                    -   *   -   *   *   *
+                    -   *   *   -   X   -
+                    -   *   *   -   X   *
+                    -   *   *   *   -   -
+                    -   *   *   *   -   *
+                    -   *   *   *   *   -
+                    -   *   *   *   *   *
+                    *   -   X   -   X   -
+                    *   -   X   -   X   *
+                    *   -   X   *   -   -
+                    *   -   X   *   -   *
+                    *   -   X   *   *   -
+                    *   -   X   *   *   *
+                    *   *   -   -   X   -
+                    *   *   -   -   X   *
+                    *   *   -   *   -   -
+                    *   *   -   *   -   *
+                    *   *   -   *   *   -
+                    *   *   -   *   *   *
+                    *   *   *   -   X   -
+                    *   *   *   -   X   *
+                    *   *   *   *   -   -
+                    *   *   *   *   -   *
+                    *   *   *   *   *   -
+                    *   *   *   *   *   *
+                                        
+
+                - Time:
+                    - Queue is empty. Do nothing.
+
+                    - Queue has item. Assert fifo_read.
+                    - Word is available from queue. Assert memory write, deassert fifo_read.
+                    - No wait request. Deassert memory write.
+
+                    - Queue has item. Assert fifo_read.
+                    - Word is available from queue. Assert memory write, deassert fifo_read.
+                    - Wait request. Do nothing.
+                    - No wait request. Deassert memory write.
+
             - If (!write or !waitrequest) and queue not empty:
                 - Dequeue and write to color.
                 - Write to Z.
