@@ -97,9 +97,9 @@ int32_t events_get_valuator(int32_t device)
 	float theta_x, theta_y;
 	accelerometer_read(&theta_y, &theta_x);
 	if(device == DIAL0)
-	    return theta_x / M_PI * 3600;
+	    return theta_x / (2 * M_PI) * 3600;
 	else /* device == DIAL1 */
-	    return theta_y / M_PI * 3600;
+	    return theta_y / (2 * M_PI) * 3600;
     } else
 	printf("warning: unimplemented evaluator %d\n", device);
     return 0;
