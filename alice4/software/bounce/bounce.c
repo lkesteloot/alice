@@ -488,8 +488,21 @@ drawbox()
 
 calcbox()
 {
+    	// mousey = 0 -> rx = -50
+	// mousey = 480 -> rx = -850
 	rx = -800*getvaluator(MOUSEY)/YMAXSCREEN - 50;
+    	// mousex = 0 -> ry = 50
+	// mousex = 800 -> ry = 850
 	ry = 50 + 800*getvaluator(MOUSEX)/XMAXSCREEN;
+
+	int tilt_left = -200;
+	int tilt_right = 200;
+	int tilt_forward = 650;
+	int tilt_back = 150;
+	int rx2 = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+	int ry2 = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+	rx = -800*rx2/YMAXSCREEN - 50;
+	ry = 50 + 800*ry2/XMAXSCREEN;
 }
 
 
