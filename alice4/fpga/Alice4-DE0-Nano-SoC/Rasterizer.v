@@ -140,21 +140,23 @@ module Rasterizer
     reg [63:0] vertex_0;
     reg [63:0] vertex_1;
     reg [63:0] vertex_2;
-    // Pull out the vertex data (raw bits):
+    // Pull out the vertex data (raw bits). Extend colors and Z to 32 bits so
+    // that later multiplies will have sufficient precision.
     wire [9:0] vertex_0_x = vertex_0[11:2];
     wire [8:0] vertex_0_y = vertex_0[23:15];
-    // Extend colors to 32 bits so that later multiplies will
-    // have sufficient precision.
+    wire signed [31:0] vertex_0_z = {16'b0, vertex_0[39:24]};
     wire signed [31:0] vertex_0_red = {24'b0, vertex_0[63:56]};
     wire signed [31:0] vertex_0_green = {24'b0, vertex_0[55:48]};
     wire signed [31:0] vertex_0_blue = {24'b0, vertex_0[47:40]};
     wire [9:0] vertex_1_x = vertex_1[11:2];
     wire [8:0] vertex_1_y = vertex_1[23:15];
+    wire signed [31:0] vertex_1_z = {16'b0, vertex_1[39:24]};
     wire signed [31:0] vertex_1_red = {24'b0, vertex_1[63:56]};
     wire signed [31:0] vertex_1_green = {24'b0, vertex_1[55:48]};
     wire signed [31:0] vertex_1_blue = {24'b0, vertex_1[47:40]};
     wire [9:0] vertex_2_x = vertex_2[11:2];
     wire [8:0] vertex_2_y = vertex_2[23:15];
+    wire signed [31:0] vertex_2_z = {16'b0, vertex_2[39:24]};
     wire signed [31:0] vertex_2_red = {24'b0, vertex_2[63:56]};
     wire signed [31:0] vertex_2_green = {24'b0, vertex_2[55:48]};
     wire signed [31:0] vertex_2_blue = {24'b0, vertex_2[47:40]};
@@ -178,8 +180,10 @@ module Rasterizer
     wire signed [9:0] tri_min_sy = $signed({1'b0, tri_min_y});
     wire signed [10:0] tri_max_sx = $signed({1'b0, tri_max_x});
     wire signed [9:0] tri_max_sy = $signed({1'b0, tri_max_y});
-    reg [28:0] tri_address_row;
-    reg [28:0] tri_address;
+    reg [28:0] tri_color_address_row;
+    reg [28:0] tri_color_address;
+    reg [28:0] tri_z_address_row;
+    reg [28:0] tri_z_address;
     // s31.0 format:
     // TODO could be smaller.
     reg signed [31:0] tri_area;
@@ -217,6 +221,12 @@ module Rasterizer
     reg signed [63:0] tri_blue_row;
     reg signed [63:0] tri_blue_incr;
     reg signed [63:0] tri_blue_row_incr;
+    // Z.
+    reg signed [63:0] tri_z_0;
+    reg signed [63:0] tri_z_1;
+    reg signed [63:0] tri_z_row;
+    reg signed [63:0] tri_z_incr;
+    reg signed [63:0] tri_z_row_incr;
     wire inside_triangle_0 = (((tri_w0_0 <= 0 && tri_w1_0 <= 0 && tri_w2_0 <= 0)
             || (tri_w0_0 >= 0 && tri_w1_0 >= 0 && tri_w2_0 >= 0))
         && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_0[3:0]}]))
@@ -225,8 +235,10 @@ module Rasterizer
             || (tri_w0_1 >= 0 && tri_w1_1 >= 0 && tri_w2_1 >= 0))
         && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_1[3:0]}]))
         || test_mode;
-    wire [28:0] upper_left_address =
+    wire [28:0] upper_left_color_address =
         fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
+    wire [28:0] upper_left_z_address =
+        Z_ADDRESS/8 + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
     wire signed [21:0] initial_w0_row =
         (vertex_2_sx - vertex_1_sx)*(tri_min_sy - vertex_1_sy) -
         (vertex_2_sy - vertex_1_sy)*(tri_min_sx - vertex_1_sx);
@@ -239,9 +251,11 @@ module Rasterizer
     wire [7:0] tri_red_byte_0 = tri_red_0[38:31];
     wire [7:0] tri_green_byte_0 = tri_green_0[38:31];
     wire [7:0] tri_blue_byte_0 = tri_blue_0[38:31];
+    wire [31:0] tri_z_value_0 = tri_z_0[62:31];
     wire [7:0] tri_red_byte_1 = tri_red_1[38:31];
     wire [7:0] tri_green_byte_1 = tri_green_1[38:31];
     wire [7:0] tri_blue_byte_1 = tri_blue_1[38:31];
+    wire [31:0] tri_z_value_1 = tri_z_1[62:31];
 
     // Divider for the area reciprocal.
     // https://www.altera.com/en_US/pdfs/literature/ug/ug_lpm_alt_mfug.pdf
@@ -726,8 +740,10 @@ module Rasterizer
                         tri_x_0 <= tri_min_x;
                         tri_x_1 <= tri_min_x + 1'b1;
                         tri_y <= tri_min_y;
-                        tri_address_row <= upper_left_address;
-                        tri_address <= upper_left_address;
+                        tri_color_address_row <= upper_left_color_address;
+                        tri_color_address <= upper_left_color_address;
+                        tri_z_address_row <= upper_left_z_address;
+                        tri_z_address <= upper_left_z_address;
                         state <= STATE_CMD_DRAW_TRIANGLE_PREPARE3;
                     end
                 end
@@ -801,6 +817,18 @@ module Rasterizer
                         tri_w0_row_incr*vertex_0_blue +
                         tri_w1_row_incr*vertex_1_blue +
                         tri_w2_row_incr*vertex_2_blue;
+                    tri_z_row <=
+                        tri_w0_row*vertex_0_z +
+                        tri_w1_row*vertex_1_z +
+                        tri_w2_row*vertex_2_z;
+                    tri_z_incr <=
+                        tri_w0_incr*vertex_0_z +
+                        tri_w1_incr*vertex_1_z +
+                        tri_w2_incr*vertex_2_z;
+                    tri_z_row_incr <=
+                        tri_w0_row_incr*vertex_0_z +
+                        tri_w1_row_incr*vertex_1_z +
+                        tri_w2_row_incr*vertex_2_z;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE10;
                 end
 
@@ -819,11 +847,13 @@ module Rasterizer
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE11: begin
                     tri_red_0 <= tri_red_row;
-                    tri_red_0 <= tri_red_row + tri_red_incr;
+                    tri_red_1 <= tri_red_row + tri_red_incr;
                     tri_green_0 <= tri_green_row;
-                    tri_green_0 <= tri_green_row + tri_green_incr;
+                    tri_green_1 <= tri_green_row + tri_green_incr;
                     tri_blue_0 <= tri_blue_row;
-                    tri_blue_0 <= tri_blue_row + tri_blue_incr;
+                    tri_blue_1 <= tri_blue_row + tri_blue_incr;
+                    tri_z_0 <= tri_z_row;
+                    tri_z_1 <= tri_z_row + tri_z_incr;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
                 end
 
@@ -833,7 +863,7 @@ module Rasterizer
                         // Decide whether to draw this pixel.
                         write_fifo_enqueue <= inside_triangle_0 || inside_triangle_1;
                         write_fifo_pixel_active <= { inside_triangle_1, inside_triangle_0 };
-                        write_fifo_color_address <= tri_address;
+                        write_fifo_color_address <= tri_color_address;
                         write_fifo_color <= {
                             // Pixel 1.
                             8'h00,
@@ -846,6 +876,8 @@ module Rasterizer
                             tri_green_byte_0,
                             tri_red_byte_0
                         };
+                        write_fifo_z_address <= tri_z_address;
+                        write_fifo_z <= { tri_z_value_1, tri_z_value_0 };
 
                         // Advance to the next pixel.
                         if (tri_x_0 == tri_max_x) begin
@@ -859,8 +891,10 @@ module Rasterizer
                                 tri_x_0 <= tri_min_x;
                                 tri_x_1 <= tri_min_x + 1'b1;
                                 tri_y <= tri_y + 1'b1;
-                                tri_address <= tri_address_row;
-                                tri_address_row <= tri_address_row + FB_WIDTH/2;
+                                tri_color_address <= tri_color_address_row;
+                                tri_color_address_row <= tri_color_address_row + FB_WIDTH/2;
+                                tri_z_address <= tri_z_address_row;
+                                tri_z_address_row <= tri_z_address_row + FB_WIDTH/2;
                                 tri_w0_0 <= tri_w0_row;
                                 tri_w1_0 <= tri_w1_row;
                                 tri_w2_0 <= tri_w2_row;
@@ -876,13 +910,17 @@ module Rasterizer
                                 tri_green_1 <= tri_green_row + tri_green_incr;
                                 tri_blue_0 <= tri_blue_row;
                                 tri_blue_1 <= tri_blue_row + tri_blue_incr;
+                                tri_z_0 <= tri_z_row;
+                                tri_z_1 <= tri_z_row + tri_z_incr;
                                 tri_red_row <= tri_red_row + tri_red_row_incr;
                                 tri_green_row <= tri_green_row + tri_green_row_incr;
                                 tri_blue_row <= tri_blue_row + tri_blue_row_incr;
+                                tri_z_row <= tri_z_row + tri_z_row_incr;
                             end
                         end else begin
                             // Next pixel on this row.
-                            tri_address <= tri_address + 1'b1;
+                            tri_color_address <= tri_color_address + 1'b1;
+                            tri_z_address <= tri_z_address + 1'b1;
                             tri_x_0 <= tri_x_0 + 2'd2;
                             tri_x_1 <= tri_x_1 + 2'd2;
                             tri_w0_0 <= tri_w0_0 + (tri_w0_incr << 1);
@@ -897,6 +935,8 @@ module Rasterizer
                             tri_green_1 <= tri_green_1 + (tri_green_incr << 1);
                             tri_blue_0 <= tri_blue_0 + (tri_blue_incr << 1);
                             tri_blue_1 <= tri_blue_1 + (tri_blue_incr << 1);
+                            tri_z_0 <= tri_z_0 + (tri_z_incr << 1);
+                            tri_z_1 <= tri_z_1 + (tri_z_incr << 1);
                         end
                     end else begin
                         // FIFO full, blocked.
@@ -909,7 +949,7 @@ module Rasterizer
                         write_color_write <= inside_triangle_0 || inside_triangle_1;
                         write_color_byteenable <= {{4{inside_triangle_1}},
                                        {4{inside_triangle_0}}};
-                        write_color_address <= tri_address;
+                        write_color_address <= tri_color_address;
                         write_color_writedata <= {
                             // Pixel 1.
                             8'h00,
@@ -935,8 +975,8 @@ module Rasterizer
                                 tri_x_0 <= tri_min_x;
                                 tri_x_1 <= tri_min_x + 1'b1;
                                 tri_y <= tri_y + 1'b1;
-                                tri_address <= tri_address_row;
-                                tri_address_row <= tri_address_row + FB_WIDTH/2;
+                                tri_color_address <= tri_color_address_row;
+                                tri_color_address_row <= tri_color_address_row + FB_WIDTH/2;
                                 tri_w0_0 <= tri_w0_row;
                                 tri_w1_0 <= tri_w1_row;
                                 tri_w2_0 <= tri_w2_row;
@@ -958,7 +998,7 @@ module Rasterizer
                             end
                         end else begin
                             // Next pixel on this row.
-                            tri_address <= tri_address + 1'b1;
+                            tri_color_address <= tri_color_address + 1'b1;
                             tri_x_0 <= tri_x_0 + 2'd2;
                             tri_x_1 <= tri_x_1 + 2'd2;
                             tri_w0_0 <= tri_w0_0 + (tri_w0_incr << 1);

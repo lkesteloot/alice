@@ -15,7 +15,7 @@
             - Second compile adding qip file: 6:05
             - First compile removing soc file: 8:02
             - Second compile removing soc file:
-        - Make write FIFO.
+        * Make write FIFO.
             * Takes as parameters:
                 - Third memory controller fields:
                     - write_color_address
@@ -41,7 +41,7 @@
                 - clock
                 - reset_n
             * Instantiate sc_fifo.
-            - Enqueue based on "enqueue". Pack values.
+            * Enqueue based on "enqueue". Pack values.
             - Possible cases:
                 - State:
                     1. Queue has item.
