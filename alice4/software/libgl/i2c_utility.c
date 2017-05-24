@@ -19,6 +19,22 @@ uint32_t read_u32(int fd, int reg)
     return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
 
+uint16_t read_u16_le(int fd, int reg)
+{
+    unsigned char buf[2];
+    buf[0] = reg;
+    if (write(fd, buf, 1) != 1) {
+        fprintf(stderr, "write register number failed\n");
+	exit(EXIT_FAILURE);
+    }
+  
+    if (read(fd, buf, 2) != 2) {
+        fprintf(stderr, "read register value failed\n");
+	exit(EXIT_FAILURE);
+    }
+    return (buf[1] << 8) | buf[0];
+}
+
 uint16_t read_u16(int fd, int reg)
 {
     unsigned char buf[2];
