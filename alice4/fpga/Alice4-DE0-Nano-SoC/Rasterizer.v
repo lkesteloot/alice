@@ -842,6 +842,9 @@ module Rasterizer
                     tri_blue_row <= tri_blue_row*tri_area_recip;
                     tri_blue_incr <= tri_blue_incr*tri_area_recip;
                     tri_blue_row_incr <= tri_blue_row_incr*tri_area_recip;
+                    tri_z_row <= tri_z_row*tri_area_recip;
+                    tri_z_incr <= tri_z_incr*tri_area_recip;
+                    tri_z_row_incr <= tri_z_row_incr*tri_area_recip;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE11;
                 end
 
@@ -867,14 +870,20 @@ module Rasterizer
                         write_fifo_color <= {
                             // Pixel 1.
                             8'h00,
-                            tri_blue_byte_1,
-                            tri_green_byte_1,
-                            tri_red_byte_1,
+                            // tri_blue_byte_1,
+                            // tri_green_byte_1,
+                            // tri_red_byte_1,
+                            tri_z_value_1[15:8],
+                            tri_z_value_1[15:8],
+                            tri_z_value_1[15:8],
                             // Pixel 0.
                             8'h00,
-                            tri_blue_byte_0,
-                            tri_green_byte_0,
-                            tri_red_byte_0
+                            // tri_blue_byte_0,
+                            // tri_green_byte_0,
+                            // tri_red_byte_0
+                            tri_z_value_0[15:8],
+                            tri_z_value_0[15:8],
+                            tri_z_value_0[15:8]
                         };
                         write_fifo_z_address <= tri_z_address;
                         write_fifo_z <= { tri_z_value_1, tri_z_value_0 };
