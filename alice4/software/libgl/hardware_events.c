@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include "event_service.h"
 #include "touchscreen.h"
 #include "device.h"
@@ -92,7 +93,14 @@ int32_t events_get_valuator(int32_t device)
 	return mousex;
     else if(device == MOUSEY)
 	return mousey;
-    else
+    else if(device == DIAL0 || device == DIAL1) {
+	float theta_x, theta_y;
+	accelerometer_read(&theta_y, &theta_x);
+	if(device == DIAL0)
+	    return theta_x / M_PI * 3600;
+	else /* device == DIAL1 */
+	    return theta_y / M_PI * 3600;
+    } else
 	printf("warning: unimplemented evaluator %d\n", device);
     return 0;
 }
@@ -128,6 +136,7 @@ int32_t events_qread_continue(int16_t *value)
 int32_t events_winopen(char *title)
 {
     touchscreen_init();
+    accelerometer_init();
     drain_touchscreen();
     return 0;
 }
