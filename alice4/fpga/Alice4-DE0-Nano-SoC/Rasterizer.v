@@ -44,8 +44,8 @@ module Rasterizer
         state,
         unhandled_count
     };
-    assign debug_value1 = tri_area;
-    assign debug_value2 = tri_area_recip;
+    assign debug_value1 = pc;
+    assign debug_value2 = command_word[31:0];
 
     // Constants.
     assign burstcount = 8'h01;
@@ -325,7 +325,11 @@ module Rasterizer
                         default: begin
                             // Unhandled command, abort.
                             unhandled_count <= unhandled_count + 1'b1;
-                            state <= STATE_INIT;
+			    // grantham : on unexpected command, don't
+			    // transition to any more states -
+			    // PC will be in debug1 and command will
+			    // be in debug2
+                            // state <= STATE_INIT;
                         end
                     endcase
                 end
