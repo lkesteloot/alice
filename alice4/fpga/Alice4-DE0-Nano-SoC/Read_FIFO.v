@@ -33,6 +33,9 @@ module Read_FIFO
     output reg [1:0] write_pixel_active // Bit 0 is the left-most pixel.
 );
 
+    // Latched Z from memory.
+    reg [63:0] memory_z;
+
     // Pack the FIFO data.
     wire [187:0] fifo_write_data = {
         pixel_active,
@@ -48,6 +51,18 @@ module Read_FIFO
     wire [28:0] fifo_z_address = fifo_read_data[121:93];
     wire [63:0] fifo_z = fifo_read_data[185:122];
     wire [1:0] fifo_pixel_active = fifo_read_data[187:186];
+
+    // Z computation.
+    wire [31:0] fifo_z_0 = fifo_z[31:0];
+    wire [31:0] fifo_z_1 = fifo_z[63:32];
+    wire [31:0] memory_z_0 = memory_z[31:0];
+    wire [31:0] memory_z_1 = memory_z[63:32];
+    wire z_pass_0 = fifo_z_0 <= memory_z_0;
+    wire z_pass_1 = fifo_z_1 <= memory_z_1;
+    wire [1:0] new_pixel_active = {
+        fifo_pixel_active[1] && z_pass_1,
+        fifo_pixel_active[0] && z_pass_0
+    };
 
     // FIFO implementation.
     wire fifo_empty;
@@ -78,21 +93,29 @@ module Read_FIFO
         if (!reset_n) begin
             fifo_read <= 1'b0;
             write_enqueue <= 1'b0;
+            memory_z <= 1'b0;
         end else begin
-            if (!fifo_empty) begin
+            if (!fifo_empty && (!z_active || read_readdatavalid)) begin
                 fifo_read <= 1'b1;
+
+                // Grab data from memory if it's available.
+                if (z_active && read_readdatavalid) begin
+                    memory_z <= read_readdata;
+                end
             end else begin
                 fifo_read <= 1'b0;
             end
 
             // See if we were reading in the previous clock.
             if (fifo_read) begin
-                write_enqueue <= 1'b1;
+                // Enqueue if Z if off, or if either new Z pixel is not behind
+                // existing pixel.
+                write_enqueue <= !z_active || |new_pixel_active;
                 write_color_address <= fifo_color_address;
                 write_color <= fifo_color;
                 write_z_address <= fifo_z_address;
                 write_z <= fifo_z;
-                write_pixel_active <= fifo_pixel_active;
+                write_pixel_active <= new_pixel_active;
             end else begin
                 write_enqueue <= 1'b0;
             end

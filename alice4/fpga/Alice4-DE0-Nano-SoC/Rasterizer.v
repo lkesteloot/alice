@@ -104,9 +104,10 @@ module Rasterizer
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1D;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h1E;
     localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h1F;
-    localparam STATE_CMD_SWAP = 6'h20;
-    localparam STATE_CMD_SWAP_WAIT = 6'h21;
-    localparam STATE_CMD_END = 6'h22;
+    localparam STATE_CMD_DRAW_TRIANGLE_FLUSH_FIFO = 6'h20;
+    localparam STATE_CMD_SWAP = 6'h21;
+    localparam STATE_CMD_SWAP_WAIT = 6'h22;
+    localparam STATE_CMD_END = 6'h23;
     reg [5:0] state;
 
     // Protocol command number:
@@ -118,7 +119,9 @@ module Rasterizer
     localparam CMD_SWAP = 8'd6;
     localparam CMD_END = 8'd7;
 
-    // Program counter into the protocol buffer.
+    reg [10:0] tmp_counter;
+
+    // Program counter into the command buffer.
     reg [26:0] pc;
     reg [15:0] unhandled_count;
 
@@ -595,11 +598,6 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_READ_0: begin
-                    // Turn off write, we may have left it on for
-                    // the lower-right pixel of the last triangle's
-                    // bounding box.
-                    read_fifo_enqueue <= 1'b0;
-
                     if (triangle_count == 1'b0) begin
                         // Done with all the triangles we had to draw.
                         state <= STATE_READ_COMMAND;
@@ -838,94 +836,138 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
-                    if (both_fifo_size < BOTH_FIFO_MAX) begin
-                        // Decide whether to draw this pixel.
-                        read_fifo_enqueue <= inside_triangle_0 || inside_triangle_1;
-                        read_fifo_pixel_active <= { inside_triangle_1, inside_triangle_0 };
-                        read_fifo_color_address <= tri_color_address;
-                        read_fifo_color <= {
-                            // Pixel 1.
-                            8'h00,
-                            tri_blue_byte_1,
-                            tri_green_byte_1,
-                            tri_red_byte_1,
-                            // tri_z_value_1[15:8],
-                            // tri_z_value_1[15:8],
-                            // tri_z_value_1[15:8],
-                            // Pixel 0.
-                            8'h00,
-                            tri_blue_byte_0,
-                            tri_green_byte_0,
-                            tri_red_byte_0
-                            // tri_z_value_0[15:8],
-                            // tri_z_value_0[15:8],
-                            // tri_z_value_0[15:8]
-                        };
-                        read_fifo_z_address <= tri_z_address;
-                        read_fifo_z <= { tri_z_value_1, tri_z_value_0 };
+                    if (use_z_buffer && read_read && read_waitrequest) begin
+                        // We asked to read from the Z pixel, but the memory
+                        // controller is asking us to wait. Do nothing.
 
-                        // Advance to the next pixel.
-                        if (tri_x_0 == tri_max_x) begin
-                            if (tri_y == tri_max_y) begin
-                                // Next triangle. We might still turn on
-                                // write this clock, but we'll turn
-                                // it off in the next state.
-                                state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
+                        read_fifo_enqueue <= 1'b0;
+                    end else begin
+                        // Turn off Z pixel reading.
+                        read_read <= 1'b0;
+
+                        // Don't enqueue more than either FIFO can handle.
+                        if (both_fifo_size < BOTH_FIFO_MAX) begin
+                            // Decide whether to draw this pixel.
+                            read_fifo_enqueue <= inside_triangle_0 || inside_triangle_1;
+                            read_fifo_pixel_active <= { inside_triangle_1, inside_triangle_0 };
+                            read_fifo_color_address <= tri_color_address;
+                            read_fifo_color <= {
+                                // Pixel 1.
+                                8'h00,
+                                tri_blue_byte_1,
+                                tri_green_byte_1,
+                                tri_red_byte_1,
+                                // Pixel 0.
+                                8'h00,
+                                tri_blue_byte_0,
+                                tri_green_byte_0,
+                                tri_red_byte_0
+                            };
+                            read_fifo_z_address <= use_z_buffer ? tri_z_address : 1'b0;
+                            read_fifo_z <= { tri_z_value_1, tri_z_value_0 };
+
+                            // Initiate a read for the Z pixel.
+                            read_read <= use_z_buffer && (inside_triangle_0 || inside_triangle_1);
+                            read_address <= tri_z_address;
+
+                            // Advance to the next pixel.
+                            if (tri_x_0 == tri_max_x) begin
+                                if (tri_y == tri_max_y) begin
+                                    // Next triangle. We might still turn on
+                                    // write this clock, but we'll turn
+                                    // it off in the next state.
+                                    tmp_counter <= 1'b0;
+                                    state <= STATE_CMD_DRAW_TRIANGLE_FLUSH_FIFO;
+                                end else begin
+                                    // Next row.
+                                    tri_x_0 <= tri_min_x;
+                                    tri_x_1 <= tri_min_x + 1'b1;
+                                    tri_y <= tri_y + 1'b1;
+                                    tri_color_address <= tri_color_address_row;
+                                    tri_color_address_row <= tri_color_address_row + FB_WIDTH/2;
+                                    tri_z_address <= tri_z_address_row;
+                                    tri_z_address_row <= tri_z_address_row + FB_WIDTH/2;
+                                    tri_w0_0 <= tri_w0_row;
+                                    tri_w1_0 <= tri_w1_row;
+                                    tri_w2_0 <= tri_w2_row;
+                                    tri_w0_1 <= tri_w0_row + tri_w0_incr;
+                                    tri_w1_1 <= tri_w1_row + tri_w1_incr;
+                                    tri_w2_1 <= tri_w2_row + tri_w2_incr;
+                                    tri_w0_row <= tri_w0_row + tri_w0_row_incr;
+                                    tri_w1_row <= tri_w1_row + tri_w1_row_incr;
+                                    tri_w2_row <= tri_w2_row + tri_w2_row_incr;
+                                    tri_red_0 <= tri_red_row;
+                                    tri_red_1 <= tri_red_row + tri_red_incr;
+                                    tri_green_0 <= tri_green_row;
+                                    tri_green_1 <= tri_green_row + tri_green_incr;
+                                    tri_blue_0 <= tri_blue_row;
+                                    tri_blue_1 <= tri_blue_row + tri_blue_incr;
+                                    tri_z_0 <= tri_z_row;
+                                    tri_z_1 <= tri_z_row + tri_z_incr;
+                                    tri_red_row <= tri_red_row + tri_red_row_incr;
+                                    tri_green_row <= tri_green_row + tri_green_row_incr;
+                                    tri_blue_row <= tri_blue_row + tri_blue_row_incr;
+                                    tri_z_row <= tri_z_row + tri_z_row_incr;
+                                end
                             end else begin
-                                // Next row.
-                                tri_x_0 <= tri_min_x;
-                                tri_x_1 <= tri_min_x + 1'b1;
-                                tri_y <= tri_y + 1'b1;
-                                tri_color_address <= tri_color_address_row;
-                                tri_color_address_row <= tri_color_address_row + FB_WIDTH/2;
-                                tri_z_address <= tri_z_address_row;
-                                tri_z_address_row <= tri_z_address_row + FB_WIDTH/2;
-                                tri_w0_0 <= tri_w0_row;
-                                tri_w1_0 <= tri_w1_row;
-                                tri_w2_0 <= tri_w2_row;
-                                tri_w0_1 <= tri_w0_row + tri_w0_incr;
-                                tri_w1_1 <= tri_w1_row + tri_w1_incr;
-                                tri_w2_1 <= tri_w2_row + tri_w2_incr;
-                                tri_w0_row <= tri_w0_row + tri_w0_row_incr;
-                                tri_w1_row <= tri_w1_row + tri_w1_row_incr;
-                                tri_w2_row <= tri_w2_row + tri_w2_row_incr;
-                                tri_red_0 <= tri_red_row;
-                                tri_red_1 <= tri_red_row + tri_red_incr;
-                                tri_green_0 <= tri_green_row;
-                                tri_green_1 <= tri_green_row + tri_green_incr;
-                                tri_blue_0 <= tri_blue_row;
-                                tri_blue_1 <= tri_blue_row + tri_blue_incr;
-                                tri_z_0 <= tri_z_row;
-                                tri_z_1 <= tri_z_row + tri_z_incr;
-                                tri_red_row <= tri_red_row + tri_red_row_incr;
-                                tri_green_row <= tri_green_row + tri_green_row_incr;
-                                tri_blue_row <= tri_blue_row + tri_blue_row_incr;
-                                tri_z_row <= tri_z_row + tri_z_row_incr;
+                                // Next pixel on this row.
+                                tri_color_address <= tri_color_address + 1'b1;
+                                tri_z_address <= tri_z_address + 1'b1;
+                                tri_x_0 <= tri_x_0 + 2'd2;
+                                tri_x_1 <= tri_x_1 + 2'd2;
+                                tri_w0_0 <= tri_w0_0 + (tri_w0_incr << 1);
+                                tri_w1_0 <= tri_w1_0 + (tri_w1_incr << 1);
+                                tri_w2_0 <= tri_w2_0 + (tri_w2_incr << 1);
+                                tri_w0_1 <= tri_w0_1 + (tri_w0_incr << 1);
+                                tri_w1_1 <= tri_w1_1 + (tri_w1_incr << 1);
+                                tri_w2_1 <= tri_w2_1 + (tri_w2_incr << 1);
+                                tri_red_0 <= tri_red_0 + (tri_red_incr << 1);
+                                tri_red_1 <= tri_red_1 + (tri_red_incr << 1);
+                                tri_green_0 <= tri_green_0 + (tri_green_incr << 1);
+                                tri_green_1 <= tri_green_1 + (tri_green_incr << 1);
+                                tri_blue_0 <= tri_blue_0 + (tri_blue_incr << 1);
+                                tri_blue_1 <= tri_blue_1 + (tri_blue_incr << 1);
+                                tri_z_0 <= tri_z_0 + (tri_z_incr << 1);
+                                tri_z_1 <= tri_z_1 + (tri_z_incr << 1);
                             end
                         end else begin
-                            // Next pixel on this row.
-                            tri_color_address <= tri_color_address + 1'b1;
-                            tri_z_address <= tri_z_address + 1'b1;
-                            tri_x_0 <= tri_x_0 + 2'd2;
-                            tri_x_1 <= tri_x_1 + 2'd2;
-                            tri_w0_0 <= tri_w0_0 + (tri_w0_incr << 1);
-                            tri_w1_0 <= tri_w1_0 + (tri_w1_incr << 1);
-                            tri_w2_0 <= tri_w2_0 + (tri_w2_incr << 1);
-                            tri_w0_1 <= tri_w0_1 + (tri_w0_incr << 1);
-                            tri_w1_1 <= tri_w1_1 + (tri_w1_incr << 1);
-                            tri_w2_1 <= tri_w2_1 + (tri_w2_incr << 1);
-                            tri_red_0 <= tri_red_0 + (tri_red_incr << 1);
-                            tri_red_1 <= tri_red_1 + (tri_red_incr << 1);
-                            tri_green_0 <= tri_green_0 + (tri_green_incr << 1);
-                            tri_green_1 <= tri_green_1 + (tri_green_incr << 1);
-                            tri_blue_0 <= tri_blue_0 + (tri_blue_incr << 1);
-                            tri_blue_1 <= tri_blue_1 + (tri_blue_incr << 1);
-                            tri_z_0 <= tri_z_0 + (tri_z_incr << 1);
-                            tri_z_1 <= tri_z_1 + (tri_z_incr << 1);
+                            // FIFO full, blocked.
+                            read_fifo_enqueue <= 1'b0;
                         end
+                    end
+                end
+
+                STATE_CMD_DRAW_TRIANGLE_FLUSH_FIFO: begin
+                    // Turn off write, we may have left it on for
+                    // the lower-right pixel of the triangle's
+                    // bounding box.
+                    read_fifo_enqueue <= 1'b0;
+
+                    // We jumped here after the last pixel, so we must make
+                    // sure that we respect the wait request first.
+                    if (read_read && read_waitrequest) begin
+                        // We asked to read from the Z pixel, but the memory
+                        // controller is asking us to wait. Do nothing.
                     end else begin
-                        // FIFO full, blocked.
-                        read_fifo_enqueue <= 1'b0;
+                        // Turn off Z pixel reading.
+                        read_read <= 1'b0;
+
+                        // We must wait for the read and write FIFOs to flush
+                        // completely, for two reasons:
+                        //
+                        // We must flush the read FIFO because we have
+                        // outstanding reads in the "read" memory port, and
+                        // those would interfere with the subsequent vertex
+                        // or command read.
+                        //
+                        // We must flush the write FIFO because there are
+                        // Z pixels waiting to be written, and if we start
+                        // a new triangle, we might read a stale Z
+                        // value from memory.
+                        if (both_fifo_size == 0 || tmp_counter == 11'd1000) begin
+                            state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
+                        end
+                        tmp_counter <= tmp_counter + 1'b1;
                     end
                 end
 
