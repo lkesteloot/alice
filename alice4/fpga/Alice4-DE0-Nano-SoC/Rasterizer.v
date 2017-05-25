@@ -1,8 +1,6 @@
 // Takes a stream of graphics commands and performs the drawing
 // operations on the frame buffer.
 
-`define USE_WRITE_FIFO
-
 module Rasterizer
     // In bytes.
     #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, CMD_ADDRESS=0)
@@ -381,16 +379,6 @@ module Rasterizer
             // Memory.
             read_address <= 1'b0;
             read_read <= 1'b0;
-`ifndef USE_WRITE_FIFO
-            write_color_address <= 1'b0;
-            write_color_writedata <= 1'b0;
-            write_color_byteenable <= 1'b0;
-            write_color_write <= 1'b0;
-            write_z_address <= 1'b0;
-            write_z_writedata <= 1'b0;
-            write_z_byteenable <= 1'b0;
-            write_z_write <= 1'b0;
-`endif
         end else begin
             case (state)
                 STATE_INIT: begin
@@ -466,7 +454,6 @@ module Rasterizer
                     endcase
                 end
 
-`ifdef USE_WRITE_FIFO
                 STATE_CMD_CLEAR: begin
                     if (both_fifo_size < BOTH_FIFO_MAX) begin
                         read_fifo_z_active <= 1'b0;
@@ -529,56 +516,6 @@ module Rasterizer
                         end
                     end
                 end
-`else
-                STATE_CMD_CLEAR: begin
-                    write_color_address <= fb_address;
-                    write_color_writedata <= {
-                        8'b0,
-                        color_clear_blue,
-                        color_clear_green,
-                        color_clear_red,
-                        8'b0,
-                        color_clear_blue,
-                        color_clear_green,
-                        color_clear_red,
-                    };
-                    write_color_write <= 1'b1;
-                    write_color_byteenable <= 8'hFF;
-                    state <= STATE_CMD_CLEAR_LOOP;
-                end
-
-                STATE_CMD_CLEAR_LOOP: begin
-                    // Wait until we're not requested to wait.
-                    if (!write_color_waitrequest) begin
-                        if (write_color_address == fb_address + FB_LENGTH/8 - 1) begin
-                            write_color_write <= 1'b0;
-                            state <= STATE_READ_COMMAND;
-                        end else begin
-                            write_color_address <= write_color_address + 1'b1;
-                        end
-                    end
-                end
-
-                STATE_CMD_ZCLEAR: begin
-                    write_z_address <= Z_ADDRESS/8;
-                    write_z_writedata <= { z_clear_value, z_clear_value };
-                    write_z_write <= 1'b1;
-                    write_z_byteenable <= 8'hFF;
-                    state <= STATE_CMD_ZCLEAR_LOOP;
-                end
-
-                STATE_CMD_ZCLEAR_LOOP: begin
-                    // Wait until we're not requested to wait.
-                    if (!write_z_waitrequest) begin
-                        if (write_z_address == Z_ADDRESS + FB_LENGTH/8 - 1) begin
-                            write_z_write <= 1'b0;
-                            state <= STATE_READ_COMMAND;
-                        end else begin
-                            write_z_address <= write_z_address + 1'b1;
-                        end
-                    end
-                end
-`endif
 
                 STATE_CMD_PATTERN: begin
                     // Read first pattern word.
@@ -661,11 +598,7 @@ module Rasterizer
                     // Turn off write, we may have left it on for
                     // the lower-right pixel of the last triangle's
                     // bounding box.
-`ifdef USE_WRITE_FIFO
                     read_fifo_enqueue <= 1'b0;
-`else
-                    write_color_write <= 1'b0;
-`endif
 
                     if (triangle_count == 1'b0) begin
                         // Done with all the triangles we had to draw.
@@ -905,7 +838,6 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
-`ifdef USE_WRITE_FIFO
                     if (both_fifo_size < BOTH_FIFO_MAX) begin
                         // Decide whether to draw this pixel.
                         read_fifo_enqueue <= inside_triangle_0 || inside_triangle_1;
@@ -995,80 +927,6 @@ module Rasterizer
                         // FIFO full, blocked.
                         read_fifo_enqueue <= 1'b0;
                     end
-`else
-                    // Wait until we're not requested to wait.
-                    if (!write_color_write || !write_color_waitrequest) begin
-                        // Decide whether to draw this pixel.
-                        write_color_write <= inside_triangle_0 || inside_triangle_1;
-                        write_color_byteenable <= {{4{inside_triangle_1}},
-                                       {4{inside_triangle_0}}};
-                        write_color_address <= tri_color_address;
-                        write_color_writedata <= {
-                            // Pixel 1.
-                            8'h00,
-                            tri_blue_byte_1,
-                            tri_green_byte_1,
-                            tri_red_byte_1,
-                            // Pixel 0.
-                            8'h00,
-                            tri_blue_byte_0,
-                            tri_green_byte_0,
-                            tri_red_byte_0
-                        };
-
-                        // Advance to the next pixel.
-                        if (tri_x_0 == tri_max_x) begin
-                            if (tri_y == tri_max_y) begin
-                                // Next triangle. We might still turn on
-                                // write this clock, but we'll turn
-                                // it off in the next state.
-                                state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
-                            end else begin
-                                // Next row.
-                                tri_x_0 <= tri_min_x;
-                                tri_x_1 <= tri_min_x + 1'b1;
-                                tri_y <= tri_y + 1'b1;
-                                tri_color_address <= tri_color_address_row;
-                                tri_color_address_row <= tri_color_address_row + FB_WIDTH/2;
-                                tri_w0_0 <= tri_w0_row;
-                                tri_w1_0 <= tri_w1_row;
-                                tri_w2_0 <= tri_w2_row;
-                                tri_w0_1 <= tri_w0_row + tri_w0_incr;
-                                tri_w1_1 <= tri_w1_row + tri_w1_incr;
-                                tri_w2_1 <= tri_w2_row + tri_w2_incr;
-                                tri_w0_row <= tri_w0_row + tri_w0_row_incr;
-                                tri_w1_row <= tri_w1_row + tri_w1_row_incr;
-                                tri_w2_row <= tri_w2_row + tri_w2_row_incr;
-                                tri_red_0 <= tri_red_row;
-                                tri_red_1 <= tri_red_row + tri_red_incr;
-                                tri_green_0 <= tri_green_row;
-                                tri_green_1 <= tri_green_row + tri_green_incr;
-                                tri_blue_0 <= tri_blue_row;
-                                tri_blue_1 <= tri_blue_row + tri_blue_incr;
-                                tri_red_row <= tri_red_row + tri_red_row_incr;
-                                tri_green_row <= tri_green_row + tri_green_row_incr;
-                                tri_blue_row <= tri_blue_row + tri_blue_row_incr;
-                            end
-                        end else begin
-                            // Next pixel on this row.
-                            tri_color_address <= tri_color_address + 1'b1;
-                            tri_x_0 <= tri_x_0 + 2'd2;
-                            tri_x_1 <= tri_x_1 + 2'd2;
-                            tri_w0_0 <= tri_w0_0 + (tri_w0_incr << 1);
-                            tri_w1_0 <= tri_w1_0 + (tri_w1_incr << 1);
-                            tri_w2_0 <= tri_w2_0 + (tri_w2_incr << 1);
-                            tri_w0_1 <= tri_w0_1 + (tri_w0_incr << 1);
-                            tri_w1_1 <= tri_w1_1 + (tri_w1_incr << 1);
-                            tri_w2_1 <= tri_w2_1 + (tri_w2_incr << 1);
-                            tri_red_0 <= tri_red_0 + (tri_red_incr << 1);
-                            tri_red_1 <= tri_red_1 + (tri_red_incr << 1);
-                            tri_green_0 <= tri_green_0 + (tri_green_incr << 1);
-                            tri_green_1 <= tri_green_1 + (tri_green_incr << 1);
-                            tri_blue_0 <= tri_blue_0 + (tri_blue_incr << 1);
-                            tri_blue_1 <= tri_blue_1 + (tri_blue_incr << 1);
-                        end
-                    end
-`endif
                 end
 
                 STATE_CMD_SWAP: begin

@@ -114,9 +114,9 @@ module Main(
     // Size of frame buffer in pixels.
     localparam FRAME_BUFFER_WIDTH = 800;
     localparam FRAME_BUFFER_HEIGHT = 480;
-    // Number of bytes in frame buffer.
+    // Number of bytes in frame buffer (color or Z).
     localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
-    // Position of protocol buffer.
+    // Position of command buffer.
     localparam CMD_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
     // Debug LED blink.
