@@ -150,6 +150,12 @@ static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t
 	| ((uint64_t) blue << 40);
 }
 
+static void cmd_zclear(volatile uint64_t **p, uint16_t z)
+{
+    *(*p)++ = CMD_ZCLEAR
+	| ((uint64_t) z << 16);
+}
+
 static void cmd_pattern(volatile uint64_t **p, uint16_t pattern[16])
 {
     *(*p)++ = CMD_PATTERN;
@@ -174,9 +180,12 @@ static void cmd_draw(volatile uint64_t **p, int zbuffer_enabled, int pattern_ena
 static void vertex(volatile uint64_t **p, int x, int y, int z,
     uint8_t red, uint8_t green, uint8_t blue)
 {
+    // TODO z values here (in logo) are negative. Should be
+    // just 16 bits unsigned.
     *(*p)++ =
     	  ((uint64_t) x << 2)
 	| ((uint64_t) (DISPLAY_HEIGHT - 1 - y) << 15)
+	| ((uint64_t) ((uint16_t)(z >> 16)) << 24)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
@@ -210,7 +219,6 @@ static float clamp(float v, float low, float high)
 void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
 {
     cmd_clear(&protocol_next, r, g, b);
-    // HW command
 }
 
 void rasterizer_linewidth(float w)
@@ -469,7 +477,7 @@ void rasterizer_zbuffer(int enable)
 
 void rasterizer_zclear(uint32_t z)
 {
-    // XXX
+    cmd_zclear(&protocol_next, z);
 }
 
 void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
