@@ -114,10 +114,10 @@ module Main(
     // Size of frame buffer in pixels.
     localparam FRAME_BUFFER_WIDTH = 800;
     localparam FRAME_BUFFER_HEIGHT = 480;
-    // Number of bytes in frame buffer.
+    // Number of bytes in frame buffer (color or Z).
     localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
-    // Position of protocol buffer.
-    localparam PROT_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
+    // Position of command buffer.
+    localparam CMD_ADDRESS = FRAME_BUFFER_ADDRESS + 3*FRAME_BUFFER_LENGTH;
 
     // Debug LED blink.
     reg [23:0] counter;
@@ -156,11 +156,21 @@ module Main(
     wire [63:0] sdram1_readdata;
     wire sdram1_readdatavalid;
     wire sdram1_read;
-    wire [63:0] sdram1_writedata;
-    wire [7:0] sdram1_byteenable;
-    wire sdram1_write;
+    wire [28:0] sdram2_address;
+    wire [7:0] sdram2_burstcount;
+    wire sdram2_waitrequest;
+    wire [63:0] sdram2_writedata;
+    wire [7:0] sdram2_byteenable;
+    wire sdram2_write;
+    wire [28:0] sdram3_address;
+    wire [7:0] sdram3_burstcount;
+    wire sdram3_waitrequest;
+    wire [63:0] sdram3_writedata;
+    wire [7:0] sdram3_byteenable;
+    wire sdram3_write;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
+        // Physical memory interface.
         .memory_mem_a(hps_ddr3_addr),
         .memory_mem_ba(hps_ddr3_ba),
         .memory_mem_ck(hps_ddr3_ck_p),
@@ -177,21 +187,34 @@ module Main(
         .memory_mem_odt(hps_ddr3_odt),
         .memory_mem_dm(hps_ddr3_dm),
         .memory_oct_rzqin(hps_ddr3_rzq),
+        // sdram0: SDRAM interface for front buffer video scan-out.
         .hps_0_f2h_sdram0_data_address(sdram0_address),
         .hps_0_f2h_sdram0_data_burstcount(sdram0_burstcount),
         .hps_0_f2h_sdram0_data_waitrequest(sdram0_waitrequest),
         .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
         .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
         .hps_0_f2h_sdram0_data_read(sdram0_read),
+        // sdram1: SDRAM interface for command buffer reading and Z pixel reading.
         .hps_0_f2h_sdram1_data_address(sdram1_address),
         .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
         .hps_0_f2h_sdram1_data_waitrequest(sdram1_waitrequest),
         .hps_0_f2h_sdram1_data_readdata(sdram1_readdata),
         .hps_0_f2h_sdram1_data_readdatavalid(sdram1_readdatavalid),
         .hps_0_f2h_sdram1_data_read(sdram1_read),
-        .hps_0_f2h_sdram1_data_writedata(sdram1_writedata),
-        .hps_0_f2h_sdram1_data_byteenable(sdram1_byteenable),
-        .hps_0_f2h_sdram1_data_write(sdram1_write)
+        // sdram2: SDRAM interface for color pixel writing.
+        .hps_0_f2h_sdram2_data_address(sdram2_address),
+        .hps_0_f2h_sdram2_data_burstcount(sdram2_burstcount),
+        .hps_0_f2h_sdram2_data_waitrequest(sdram2_waitrequest),
+        .hps_0_f2h_sdram2_data_writedata(sdram2_writedata),
+        .hps_0_f2h_sdram2_data_byteenable(sdram2_byteenable),
+        .hps_0_f2h_sdram2_data_write(sdram2_write),
+        // sdram3: SDRAM interface for Z pixel writing.
+        .hps_0_f2h_sdram3_data_address(sdram3_address),
+        .hps_0_f2h_sdram3_data_burstcount(sdram3_burstcount),
+        .hps_0_f2h_sdram3_data_waitrequest(sdram3_waitrequest),
+        .hps_0_f2h_sdram3_data_writedata(sdram3_writedata),
+        .hps_0_f2h_sdram3_data_byteenable(sdram3_byteenable),
+        .hps_0_f2h_sdram3_data_write(sdram3_write)
     );
 
     // Generate signals for the LCD.
@@ -299,7 +322,7 @@ module Main(
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
-                 .PROT_ADDRESS(PROT_ADDRESS)) rasterizer(
+                 .CMD_ADDRESS(CMD_ADDRESS)) rasterizer(
 
         .clock(clock_50),
         .reset_n(reset_n),
@@ -307,16 +330,29 @@ module Main(
         .data_ready(rasterizer_data_ready),
         .busy(rasterizer_busy),
 
-        // Memory:
-        .address(sdram1_address),
-        .burstcount(sdram1_burstcount),
-        .waitrequest(sdram1_waitrequest),
-        .readdata(sdram1_readdata),
-        .readdatavalid(sdram1_readdatavalid),
-        .read(sdram1_read),
-        .writedata(sdram1_writedata),
-        .byteenable(sdram1_byteenable),
-        .write(sdram1_write),
+        // Memory interface for reading command buffer and Z pixels.
+        .read_address(sdram1_address),
+        .read_burstcount(sdram1_burstcount),
+        .read_waitrequest(sdram1_waitrequest),
+        .read_readdata(sdram1_readdata),
+        .read_readdatavalid(sdram1_readdatavalid),
+        .read_read(sdram1_read),
+
+        // Memory interface for writing color pixels.
+        .write_color_address(sdram2_address),
+        .write_color_burstcount(sdram2_burstcount),
+        .write_color_waitrequest(sdram2_waitrequest),
+        .write_color_writedata(sdram2_writedata),
+        .write_color_byteenable(sdram2_byteenable),
+        .write_color_write(sdram2_write),
+
+        // Memory interface for writing Z pixels.
+        .write_z_address(sdram3_address),
+        .write_z_burstcount(sdram3_burstcount),
+        .write_z_waitrequest(sdram3_waitrequest),
+        .write_z_writedata(sdram3_writedata),
+        .write_z_byteenable(sdram3_byteenable),
+        .write_z_write(sdram3_write),
 
         // Front buffer handling.
         .rast_front_buffer(rast_front_buffer),
@@ -416,5 +452,16 @@ module Main(
         .value(pwm_value),
         .signal(lcd_pwm)
     );
+
+    // Test the FIFO behavior.
+    wire [31:0] test_debug_value0;
+    wire [31:0] test_debug_value1;
+    wire [31:0] test_debug_value2;
+    Test_FIFO test_fifo(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .debug_value0(test_debug_value0),
+        .debug_value1(test_debug_value1),
+        .debug_value2(test_debug_value2));
 
 endmodule
