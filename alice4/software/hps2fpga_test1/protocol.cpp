@@ -9,8 +9,13 @@
 
 #undef DEBUG_PRINT
 
+// Number of visible pixels.
 #define WIDTH 800
 #define HEIGHT 480
+
+// Number of pixels we clock out.
+#define FULL_WIDTH 992
+#define FULL_HEIGHT 500
 
 // For lightweight communication with the FPGA:
 #define FPGA_MANAGER_BASE 0xFF706000
@@ -225,8 +230,8 @@ int main()
 
 	float t = counter*speed;
 	float dt = M_PI*2/6;
-	int z_front = 0;
-	int z_back = 65000;
+	int z_front = 10000;
+	int z_back = 60000;
 	// Switch order of triangles every second.
 	for (int i = 0; i < 2; i++) {
 	    if ((i == 0) ^ (counter / 60 % 2 == 0)) {
@@ -296,8 +301,12 @@ int main()
 	    // Busy loop.
 	}
 	clock_gettime(CLOCK_MONOTONIC, &after_time);
-	printf("Time spent rendering: %.1f ms\n",
-	    diff_timespecs(&after_time, &before_time)*1000);
+	double elapsed = diff_timespecs(&after_time, &before_time);
+	double frame_time = FULL_WIDTH*FULL_HEIGHT/25e6;
+	int frames = (int) ceil(elapsed/frame_time);
+	double fps = 1/(frames*frame_time);
+	printf("Time spent rendering: %.1f ms (%d frames, %.1f FPS)\n",
+	    elapsed*1000, frames, fps);
 
 	counter++;
     }
