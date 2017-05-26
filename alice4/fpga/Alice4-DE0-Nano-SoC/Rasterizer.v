@@ -455,7 +455,7 @@ module Rasterizer
 
                         default: begin
                             // Unhandled command, abort.
-                            /// unhandled_count <= unhandled_count + 1'b1;
+                            unhandled_count <= unhandled_count + 1'b1;
                             state <= STATE_INIT;
                         end
                     endcase
@@ -976,8 +976,11 @@ module Rasterizer
                         // Z pixels waiting to be written, and if we start
                         // a new triangle, we might read a stale Z
                         // value from memory.
-                        if ((both_fifo_size == 0 /*&& tmp_counter > 11'd500*/) || tmp_counter == 11'd1000) begin
-                            unhandled_count <= tmp_counter;
+                        //
+                        // TODO: There may be a bug here where the sum of the
+                        // sizes is 0 when the data is between the two FIFOs.
+                        if ((both_fifo_size == 0 && !read_fifo_enqueue) || tmp_counter == 11'd1000) begin
+                            /// unhandled_count <= tmp_counter;
                             state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
                         end
                         tmp_counter <= tmp_counter + 1'b1;

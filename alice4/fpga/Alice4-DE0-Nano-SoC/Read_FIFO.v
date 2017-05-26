@@ -35,6 +35,7 @@ module Read_FIFO
 
     // Latched Z from memory.
     reg [63:0] memory_z;
+    reg [63:0] memory_z_delayed;
 
     // Pack the FIFO data.
     wire [187:0] fifo_write_data = {
@@ -55,14 +56,11 @@ module Read_FIFO
     // Z computation.
     wire [31:0] fifo_z_0 = fifo_z[31:0];
     wire [31:0] fifo_z_1 = fifo_z[63:32];
-    wire [31:0] memory_z_0 = memory_z[31:0];
-    wire [31:0] memory_z_1 = memory_z[63:32];
+    wire [31:0] memory_z_0 = memory_z_delayed[31:0];
+    wire [31:0] memory_z_1 = memory_z_delayed[63:32];
     wire z_pass_0 = fifo_z_0 <= memory_z_0;
     wire z_pass_1 = fifo_z_1 <= memory_z_1;
-    wire [1:0] new_pixel_active = {
-        fifo_pixel_active[1] && z_pass_1,
-        fifo_pixel_active[0] && z_pass_0
-    };
+    wire [1:0] new_pixel_active = fifo_pixel_active & { z_pass_1, z_pass_0 };
 
     // FIFO implementation.
     wire fifo_empty;
@@ -108,6 +106,7 @@ module Read_FIFO
                 fifo_read <= 1'b0;
             end
             fifo_read_delayed <= fifo_read;
+            memory_z_delayed <= memory_z;
 
             // See if we were reading two clocks ago.
             if (fifo_read_delayed) begin
