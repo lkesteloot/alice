@@ -453,4 +453,15 @@ module Main(
         .signal(lcd_pwm)
     );
 
+    // Test the FIFO behavior.
+    wire [31:0] test_debug_value0;
+    wire [31:0] test_debug_value1;
+    wire [31:0] test_debug_value2;
+    Test_FIFO test_fifo(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .debug_value0(test_debug_value0),
+        .debug_value1(test_debug_value1),
+        .debug_value2(test_debug_value2));
+
 endmodule

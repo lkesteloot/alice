@@ -277,8 +277,8 @@ always @(posedge clock or negedge reset_n) begin
                 F2L_STATE_IDLE: begin
                     // See if we should pre-fetch the head of the FIFO.
                     if (!lcd_tick && !need_shifting && lcd_data_enable) begin
-                        // Start a FIFO read. Data will be available next
-                        // clock. Note that our logic here is faulty.
+                        // Start a FIFO read. Data will be available in
+                        // two clocks. Note that our logic here is faulty.
                         // We do this if !lcd_tick, but that depends
                         // on the lcd_tick being half of clock.
                         // If it were any other ratio, this would

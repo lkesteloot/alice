@@ -38,8 +38,9 @@ module Write_FIFO
 
     // State machine.
     localparam STATE_INIT = 2'h0;
-    localparam STATE_WRITE = 2'h1;
-    localparam STATE_WAIT = 2'h2;
+    localparam STATE_READ = 2'h1;
+    localparam STATE_WRITE = 2'h2;
+    localparam STATE_WAIT = 2'h3;
     reg [1:0] state;
 
     // Pack the FIFO data.
@@ -109,13 +110,16 @@ module Write_FIFO
                 STATE_INIT: begin
                     if (!fifo_empty) begin
                         fifo_read <= 1'b1;
-                        state <= STATE_WRITE;
+                        state <= STATE_READ;
                     end
                 end
 
-                STATE_WRITE: begin
+                STATE_READ: begin
                     fifo_read <= 1'b0;
+                    state <= STATE_WRITE;
+                end
 
+                STATE_WRITE: begin
                     // Grab the data.
                     /// fifo_read_data_reg <= fifo_read_data;
 

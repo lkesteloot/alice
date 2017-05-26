@@ -1,6 +1,10 @@
 // Takes a stream of graphics commands and performs the drawing
 // operations on the frame buffer.
 
+// Disables drawing the triangle pixels, which massively speeds up
+// compilation.
+/// `define DISABLE_DRAWING
+
 module Rasterizer
     // In bytes.
     #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, CMD_ADDRESS=0)
@@ -451,7 +455,7 @@ module Rasterizer
 
                         default: begin
                             // Unhandled command, abort.
-                            unhandled_count <= unhandled_count + 1'b1;
+                            /// unhandled_count <= unhandled_count + 1'b1;
                             state <= STATE_INIT;
                         end
                     endcase
@@ -851,6 +855,9 @@ module Rasterizer
                             read_fifo_enqueue <= inside_triangle_0 || inside_triangle_1;
                             read_fifo_pixel_active <= { inside_triangle_1, inside_triangle_0 };
                             read_fifo_color_address <= tri_color_address;
+`ifdef DISABLE_DRAWING
+                            read_fifo_color <= 64'h00FFFF00_00FFFF00;
+`else
                             read_fifo_color <= {
                                 // Pixel 1.
                                 8'h00,
@@ -863,8 +870,13 @@ module Rasterizer
                                 tri_green_byte_0,
                                 tri_red_byte_0
                             };
+`endif
                             read_fifo_z_address <= use_z_buffer ? tri_z_address : 1'b0;
+`ifdef DISABLE_DRAWING
+                            read_fifo_z <= 64'b0;
+`else
                             read_fifo_z <= { tri_z_value_1, tri_z_value_0 };
+`endif
 
                             // Initiate a read for the Z pixel.
                             read_read <= use_z_buffer && (inside_triangle_0 || inside_triangle_1);
@@ -964,7 +976,8 @@ module Rasterizer
                         // Z pixels waiting to be written, and if we start
                         // a new triangle, we might read a stale Z
                         // value from memory.
-                        if (both_fifo_size == 0 || tmp_counter == 11'd1000) begin
+                        if ((both_fifo_size == 0 /*&& tmp_counter > 11'd500*/) || tmp_counter == 11'd1000) begin
+                            unhandled_count <= tmp_counter;
                             state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
                         end
                         tmp_counter <= tmp_counter + 1'b1;

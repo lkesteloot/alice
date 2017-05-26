@@ -68,6 +68,7 @@ module Read_FIFO
     wire fifo_empty;
     wire fifo_full;
     reg fifo_read;
+    reg fifo_read_delayed;
     scfifo fifo(
             .aclr(!reset_n),
             .clock(clock),
@@ -92,6 +93,7 @@ module Read_FIFO
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
             fifo_read <= 1'b0;
+            fifo_read_delayed <= 1'b0;
             write_enqueue <= 1'b0;
             memory_z <= 1'b0;
         end else begin
@@ -105,17 +107,18 @@ module Read_FIFO
             end else begin
                 fifo_read <= 1'b0;
             end
+            fifo_read_delayed <= fifo_read;
 
-            // See if we were reading in the previous clock.
-            if (fifo_read) begin
-                // Enqueue if Z if off, or if either new Z pixel is not behind
+            // See if we were reading two clocks ago.
+            if (fifo_read_delayed) begin
+                // Enqueue if Z is off, or if either new Z pixel is not behind
                 // existing pixel.
                 write_enqueue <= !z_active || |new_pixel_active;
                 write_color_address <= fifo_color_address;
                 write_color <= fifo_color;
                 write_z_address <= fifo_z_address;
                 write_z <= fifo_z;
-                write_pixel_active <= new_pixel_active;
+                write_pixel_active <= z_active ? new_pixel_active : fifo_pixel_active;
             end else begin
                 write_enqueue <= 1'b0;
             end
