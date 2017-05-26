@@ -45,6 +45,7 @@
 #define CMD_BITMAP 5
 #define CMD_SWAP 6
 #define CMD_END 7
+#define CMD_CZCLEAR 8
 
 // Draw type:
 #define DRAW_TRIANGLES 0
@@ -77,6 +78,15 @@ void cmd_zclear(volatile uint64_t **p, uint16_t z)
 {
     *(*p)++ = CMD_ZCLEAR
 	| ((uint64_t) z << 16);
+}
+
+void cmd_czclear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue, uint16_t z)
+{
+    *(*p)++ = CMD_CZCLEAR
+	| ((uint64_t) z << 16)
+	| ((uint64_t) red << 56)
+	| ((uint64_t) green << 48)
+	| ((uint64_t) blue << 40);
 }
 
 void cmd_pattern(volatile uint64_t **p,
@@ -174,10 +184,13 @@ int main()
 		(counter & 0x04) ? 255 : 0,
 		(counter & 0x02) ? 255 : 0,
 		(counter & 0x01) ? 255 : 0);
-	} else {
+	    cmd_zclear(&p, 0xFFFF);
+	} else if (0) {
 	    cmd_clear(&p, 0, 0, 0);
+	    cmd_zclear(&p, 0xFFFF);
+	} else {
+	    cmd_czclear(&p, 0, 0, 0, 0xFFFF);
 	}
-	cmd_zclear(&p, 0xFFFF);
 #if TEST_PATTERN
 	cmd_pattern(&p,
 		0x5555aaaa5555aaaaLL,
