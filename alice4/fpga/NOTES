@@ -309,3 +309,104 @@ Next:
         https://www.developpez.net/forums/d1566375/autres-langages/autres-langages/vhdl/echange-donnees-hps-fpga-via-dma/
     Check size of generated binary.
 
+
+When queue data is available:
+
+    Still to do:
+        Check whether queue is empty in read_queue.
+            Empty has delay. How to handle that?
+            Maybe use usedw, since it's a lower bound on size.
+            See scfifo-avalon bridge.
+            Check online how to read safely from scfifo.
+        Handle separate waits.
+
+    // Only read from the queue if we have no delay.
+    read_queue <= !wait_request && !slot1_full && !slot2_full;
+
+    // One clock after read_queue.
+    got_queue_data <= !queue_empty;
+
+    // Two clocks after read_queue.
+    case ({got_queue_data,waitrequest,slot1_full,slot2_full})
+        4'b0000: begin
+            // Nothing to do.
+        end
+
+        4'bxx01: begin
+            // Can't happen, raise an error.
+        end
+
+        4'b0010: begin
+            mem <= slot1;
+            slot1_full <= 0;
+        end
+
+        4'b0011: begin
+            mem <= slot1;
+            slot1 <= slot2;
+            slot2_full <= 0;
+        end
+
+        4'b01xx: begin
+            // Steady-state, waiting for memory to stop waiting.
+        end
+
+        4'b1000: begin
+            mem <= queue;
+        end
+
+        4'b1010: begin
+            mem <= slot1;
+            slot1 <= queue;
+        end
+
+        4'b1011: begin
+            mem <= slot1;
+            slot1 <= slot2;
+            slot2 <= queue;
+        end
+
+        4'b1100: begin
+            slot1 <= queue;
+            slot1_full <= 1;
+        end
+
+        4'b1110: begin
+            slot2 <= queue;
+            slot2_full <= 1;
+        end
+
+        4'b1111: begin
+            // Can't happen, raise error.
+        end
+    endcase
+
+    queue avail mem wait    slot1 full  slot2 full
+        N           N           N           N       nothing
+        N           N           N           Y       can't happen.
+        N           N           Y           N       mem <= slot1, clear slot 1
+        N           N           Y           Y       mem <= slot1, slot1 <= slot2, clear slot 2
+        N           Y           X           X       steady-state
+        Y           N           N           N       mem <= queue
+        Y           N           N           Y       can't happen.
+        Y           N           Y           N       mem <= slot1, slot1 <= queue
+        Y           N           Y           Y       mem <= slot1, slot1 <= slot2, slot2 <= queue
+        Y           Y           N           N       slot1 <= queue
+        Y           Y           N           Y       can't happen.
+        Y           Y           Y           N       slot2 <= queue
+        Y           Y           Y           Y       can't happen
+
+{head: {
+  text: 'Alice 4 Write FIFO',
+  tick: 0
+}, signal: [
+  {name: 'clock',         wave: 'P......................'},
+  {name: 'read queue',    wave: '010..1.0..10...1..0....'},
+  {name: 'queue empty',   wave: '0......................'},
+  {name: 'queue data',    wave: 'x.=x..==x..=x...===x...', data: "A B C D E F G"},
+  {name: 'buffer',        wave: 'x..=x..==x..=x...===x..', data: "A B C D E F G"},
+  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x.', data: "A B C D E F G"},
+  {name: 'color write',   wave: '0..10..1.0..1.0..1...0.'},
+  {name: 'color wait',    wave: '0............10...10...', phase: 0.5},
+]}
+
