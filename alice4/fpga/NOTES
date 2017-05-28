@@ -328,71 +328,95 @@ Next:
 When queue data is available:
 
     Still to do:
-        Check whether queue is empty in read_queue.
-            Empty has delay. How to handle that?
-            Maybe use usedw, since it's a lower bound on size.
-            See scfifo-avalon bridge.
-            Check online how to read safely from scfifo.
         Handle separate waits.
 
-    // Only read from the queue if we have no delay.
-    read_queue <= !wait_request && !slot1_full && !slot2_full;
+    reg mem_write;
+    wire mem_wait = mem_write && mem_waitrequest;
+    reg error;
 
-    // One clock after read_queue.
+    // Only read from the queue if we're not asked to wait for memory,
+    // and we have no slots with data.
+    read_queue <= !wait_request && !slot1_full;
+
+    // One clock after read_queue, the empty signal indicates whether the queue
+    // was empty when we tried to read.
     got_queue_data <= !queue_empty;
 
-    // Two clocks after read_queue.
-    case ({got_queue_data,waitrequest,slot1_full,slot2_full})
+    // Default to no error unless something happens below.
+    error <= 0;
+
+    // Two clocks after read_queue, the data is ready.
+    case ({got_queue_data,mem_wait,slot1_full,slot2_full})
         4'b0000: begin
-            // Nothing to do.
+            // No new data, no old data. Nothing to do.
+            mem_write <= 0;
         end
 
         4'bxx01: begin
-            // Can't happen, raise an error.
+            // Can't have slot2 filled without slot1 filled; raise an error.
+            error <= 1;
         end
 
         4'b0010: begin
+            // No new data, but we have old data that can be written.
             mem <= slot1;
             slot1_full <= 0;
+            mem_write <= 1;
         end
 
         4'b0011: begin
+            // No new data, but we have old data that can be written.
             mem <= slot1;
             slot1 <= slot2;
             slot2_full <= 0;
+            mem_write <= 1;
         end
 
         4'b01xx: begin
-            // Steady-state, waiting for memory to stop waiting.
+            // Steady-state, waiting for memory. Doesn't matter what's in
+            // the slots, they'll wait.
+            mem_write <= 1;
         end
 
         4'b1000: begin
+            // Got new data, can use it right away.
             mem <= queue;
+            mem_write <= 1;
         end
 
         4'b1010: begin
+            // Got new data, replace slot1 and send slot1 to memory.
             mem <= slot1;
             slot1 <= queue;
+            mem_write <= 1;
         end
 
         4'b1011: begin
+            // Got new data, replace slot2, send slot1 to memory, and slot2 to slot1.
             mem <= slot1;
             slot1 <= slot2;
             slot2 <= queue;
+            mem_write <= 1;
         end
 
         4'b1100: begin
+            // Have new data but can't write to memory. Put it in slot1.
             slot1 <= queue;
             slot1_full <= 1;
+            mem_write <= 1;
         end
 
         4'b1110: begin
+            // Have new data but can't write to memory. Put it in slot2.
             slot2 <= queue;
             slot2_full <= 1;
+            mem_write <= 1;
         end
 
         4'b1111: begin
-            // Can't happen, raise error.
+            // In principle this can't happen because we wouldn't have asked to
+            // read from the queue. Raise an error.
+            error <= 1;
         end
     endcase
 
