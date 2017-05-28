@@ -301,6 +301,21 @@ Four cases:
     Suppress  |  Fails     Works
               |
 
+Wavedrom for Test_FIFO:
+
+{head: {
+  text: 'Alice 4 FIFO Test',
+  tick: 0
+}, signal: [
+  {name: 'clock',                  wave: 'p..........|............'},
+  {name: 'step',                   wave: 'x=========x|x=========x.', data: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "100", "101", "102", "103", "104", "105", "106", "107", "108"]},
+  {name: 'write',                  wave: '0.1.......0|............'},
+  {name: 'write data',             wave: 'x.========x|............', data: ["0", "1", "2", "3", "4", "5", "6", "7"]},
+  {name: 'read',                   wave: '0..........|..1.......0.'},
+  {name: 'read data',              wave: '0..........|..=========.', data: ["0", "0", "1", "2", "3", "4", "5", "6"]},
+  {name: 'size',                   wave: '=..========|...========.', data: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "7", "6", "5", "4", "3", "2", "1", "0"]},
+]}
+
 Next:
 
     Check pin assignment of all Main() parameters.
