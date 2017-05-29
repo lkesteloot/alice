@@ -17,6 +17,9 @@
 #define FULL_WIDTH 992
 #define FULL_HEIGHT 500
 
+// 10 MB of buffer.
+#define MAX_COMMAND_QUAD_COUNT (10 * 1024 * 1024 / sizeof(uint64_t))
+
 // For lightweight communication with the FPGA:
 #define FPGA_MANAGER_BASE 0xFF706000
 #define FPGA_GPO_OFFSET 0x10
@@ -31,6 +34,8 @@
 
 // FPGA-to-HPS:
 #define F2H_BUSY (1 << 0)
+#define F2H_FRAME_BUFFER_FRONTBUFFER (1 << 1)
+#define F2H_RASTERIZER_FRONTBUFFER (1 << 2)
 #define F2H_HOME_BUTTON (1 << 3)
 
 // Shared memory addresses:
@@ -52,10 +57,9 @@
 #define CMD_END 7
 #define CMD_CZCLEAR 8
 
-// Returns time difference in seconds.
-static double diff_timespecs(struct timespec *t1, struct timespec *t2)
+static int get_rasterizer_buffer_number(Awesome *awesome)
 {
-    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+    return (*awesome->gpi & F2H_RASTERIZER_FRONTBUFFER) != 0;
 }
 
 void awesome_init(Awesome *awesome)
@@ -85,8 +89,14 @@ void awesome_init(Awesome *awesome)
     }
     awesome->command_buffer =
 	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
-    awesome->p = NULL;
+
     awesome->home_button = 0;
+    awesome->rasterizer_buffer_number = 0;
+}
+
+volatile uint64_t *awesome_get_command_buffer(Awesome *awesome)
+{
+    return awesome->command_buffer;
 }
 
 int awesome_get_home_button(Awesome *awesome)
@@ -105,71 +115,71 @@ int awesome_get_home_button(Awesome *awesome)
     return awesome->home_button;
 }
 
-void awesome_clear(Awesome *awesome, uint8_t red, uint8_t green, uint8_t blue)
+void awesome_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
 {
-    *awesome->p++ = CMD_CLEAR
+    *(*p)++ = CMD_CLEAR
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
 }
 
-void awesome_zclear(Awesome *awesome, uint16_t z)
+void awesome_zclear(volatile uint64_t **p, uint16_t z)
 {
-    *awesome->p++ = CMD_ZCLEAR
+    *(*p)++ = CMD_ZCLEAR
 	| ((uint64_t) z << 16);
 }
 
-void awesome_czclear(Awesome *awesome, uint8_t red, uint8_t green, uint8_t blue, uint16_t z)
+void awesome_czclear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue, uint16_t z)
 {
-    *awesome->p++ = CMD_CZCLEAR
+    *(*p)++ = CMD_CZCLEAR
 	| ((uint64_t) z << 16)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
 }
 
-void awesome_pattern(Awesome *awesome,
+void awesome_pattern(volatile uint64_t **p,
 	uint64_t pattern0,
 	uint64_t pattern1,
 	uint64_t pattern2,
 	uint64_t pattern3)
 {
-    *awesome->p++ = CMD_PATTERN;
-    *awesome->p++ = pattern0;
-    *awesome->p++ = pattern1;
-    *awesome->p++ = pattern2;
-    *awesome->p++ = pattern3;
+    *(*p)++ = CMD_PATTERN;
+    *(*p)++ = pattern0;
+    *(*p)++ = pattern1;
+    *(*p)++ = pattern2;
+    *(*p)++ = pattern3;
 }
 
-void awesome_draw(Awesome *awesome, int type, int count, int z_enable, int pattern_enable)
+void awesome_draw(volatile uint64_t **p, int type, int count, int z_enable, int pattern_enable)
 {
-    *awesome->p++ = CMD_DRAW
+    *(*p)++ = CMD_DRAW
     	| ((uint64_t) type << 8)
 	| ((uint64_t) count << 16)
 	| ((uint64_t) z_enable << 32)
 	| ((uint64_t) pattern_enable << 33);
 }
 
-void awesome_vertex(Awesome *awesome, int x, int y, int z,
+void awesome_vertex(volatile uint64_t **p, int x, int y, int z,
     uint8_t red, uint8_t green, uint8_t blue)
 {
-    *awesome->p++ =
+    *(*p)++ =
     	  ((uint64_t) x << 2)
 	| ((uint64_t) y << 15)
-	| ((uint64_t) z << 24)
+	| ((uint64_t) ((uint16_t) (z >> 16)) << 24)
 	| ((uint64_t) red << 56)
 	| ((uint64_t) green << 48)
 	| ((uint64_t) blue << 40);
 }
 
-void awesome_swap(Awesome *awesome)
+void awesome_swap(volatile uint64_t **p)
 {
-    *awesome->p++ = CMD_SWAP;
+    *(*p)++ = CMD_SWAP;
 }
 
-void awesome_end(Awesome *awesome)
+void awesome_end(volatile uint64_t **p)
 {
-    *awesome->p++ = CMD_END;
+    *(*p)++ = CMD_END;
 }
 
 void awesome_set_brightness(Awesome *awesome, int brightness)
@@ -184,25 +194,16 @@ void awesome_disable_brightness(Awesome *awesome)
     *awesome->gpo &= ~H2F_BRIGHTNESS_ENABLED;
 }
 
-void awesome_start_frame(Awesome *awesome)
+void awesome_init_frame(Awesome *awesome)
 {
     // Start of frame.
     if ((*awesome->gpi & F2H_BUSY) != 0) {
 	printf("Warning: FPGA is busy at top of loop.\n");
     }
-
-    awesome->p = awesome->command_buffer;
 }
 
-void awesome_end_frame(Awesome *awesome)
+void awesome_start_rasterizing(Awesome *awesome)
 {
-#ifdef DEBUG_PRINT
-    printf("    Wrote %d words:\n", awesome->p - awesome->command_buffer);
-    for (volatile uint64_t *t = awesome->command_buffer; t < awesome->p; t++) {
-	printf("        0x%016llX\n", *t);
-    }
-#endif
-
     // Tell FPGA that our data is ready.
 #ifdef DEBUG_PRINT
     printf("Telling FPGA that the data is ready.\n");
@@ -217,26 +218,33 @@ void awesome_end_frame(Awesome *awesome)
 	// Busy loop.
     }
 
+    // Record which buffer the rasterizer is drawing into.
+    awesome->rasterizer_buffer_number = get_rasterizer_buffer_number(awesome);
+
     // Let FPGA know that we know that it's busy.
 #ifdef DEBUG_PRINT
     printf("Telling FPGA that we know it's busy.\n");
 #endif
     *awesome->gpo &= ~H2F_DATA_READY;
+}
 
+void awesome_wait_for_end_of_rasterization(Awesome *awesome)
+{
     // Wait until it's done rasterizing.
+    while (get_rasterizer_buffer_number(awesome) ==
+	awesome->rasterizer_buffer_number) {
+
+        // Busy loop.
+    }
+}
+
+void awesome_wait_for_end_of_processing(Awesome *awesome)
+{
+    // Wait until all commands have been processed.
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to finish rasterizing.\n");
 #endif
-    struct timespec before_time;
-    struct timespec after_time;
-    clock_gettime(CLOCK_MONOTONIC, &before_time);
     while ((*awesome->gpi & F2H_BUSY) != 0) {
 	// Busy loop.
     }
-    clock_gettime(CLOCK_MONOTONIC, &after_time);
-    awesome->elapsed = diff_timespecs(&after_time, &before_time);
-    awesome->frame_time = FULL_WIDTH*FULL_HEIGHT/25e6;
-    awesome->frames = (int) ceil(awesome->elapsed/awesome->frame_time);
-    awesome->fps = 1/(awesome->frames*awesome->frame_time);
 }
-

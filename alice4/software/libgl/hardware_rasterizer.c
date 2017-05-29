@@ -4,70 +4,30 @@
 #include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <string.h>
 #include <sys/time.h>
+#include "awesome.h"
 
 #include <gl.h>
 #include "rasterizer.h"
 #include "connection.h"
 
 #undef DEBUG_PRINT
+#undef DEBUG_PRINT_VERBOSE
 #undef SKIP_FPGA_WORK
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 
-// For lightweight communication with the FPGA:
-#define FPGA_MANAGER_BASE 0xFF706000
-#define FPGA_GPO_OFFSET 0x10
-#define FPGA_GPI_OFFSET 0x14
+static Awesome awesome;
 
-// HPS-to-FPGA:
-#define H2F_DATA_READY (1 << 0)
-
-// FPGA-to-HPS:
-#define F2H_BUSY (1 << 0)
-#define F2H_FB_FRONTBUFFER (1 << 1)
-#define F2H_RASTERIZER_FRONTBUFFER (1 << 2)
-
-// Shared memory addresses:
-#define BASE 0x38000000
-#define RAM_SIZE 0x40000000
-#define COLOR_BUFFER_1_OFFSET 0
-#define BUFFER_SIZE (800*480*4)
-#define COLOR_BUFFER_2_OFFSET (COLOR_BUFFER_1_OFFSET + BUFFER_SIZE)
-#define Z_BUFFER_OFFSET (COLOR_BUFFER_2_OFFSET + BUFFER_SIZE)
-#define PROTOCOL_BUFFER_OFFSET (Z_BUFFER_OFFSET + BUFFER_SIZE)
-
-// Protocol command number:
-#define CMD_CLEAR 1
-#define CMD_ZCLEAR 2
-#define CMD_PATTERN 3
-#define CMD_DRAW 4
-#define CMD_BITMAP 5
-#define CMD_SWAP 6
-#define CMD_END 7
-
-// Draw type:
-#define DRAW_TRIANGLES 0
-#define DRAW_LINES 1
-#define DRAW_POINTS 2
-#define DRAW_LINE_STRIP 3
-#define DRAW_TRIANGLE_STRIP 5
-#define DRAW_TRIANGLE_FAN 6
-
-static uint8_t *fpga_manager_base;
-static uint8_t *gpu_buffers_base;
-static volatile uint32_t *fpga_gpo;
-static volatile uint32_t *fpga_gpi;
 static volatile uint64_t *gpu_protocol_buffer; // The fixed buffer from which the GPU reads commands
 
 // N.B.  This is a const variable meant to be compile-time-only.
 // If this variable is changed to be settable at run-time, a
 // synchronization point must be added to wait on GPU and copy between
 // staging to gpu buffers as necessary.
-static const int double_buffer_commands = 1;
+static const int double_buffer_commands = 0;
 static int must_wait_on_gpu = 0;
 
 #define MAX_PROTOCOL_QUAD_COUNT (10 * 1024 * 1024 / sizeof(uint64_t))
@@ -83,44 +43,16 @@ void gpu_finish_rasterizing()
 #ifndef SKIP_FPGA_WORK
     // Wait until it's done rasterizing.
 #ifdef DEBUG_PRINT
-    printf("Prev Rasterizer FRONTBUFFER is %d\n", rasterizer_start_buffer);
-    printf("Cur Rasterizer FRONTBUFFER is %d\n", *fpga_gpi & F2H_RASTERIZER_FRONTBUFFER);
     printf("Waiting for FPGA to switch rasterization to the other buffer.\n");
 #endif
-    while ((*fpga_gpi & F2H_RASTERIZER_FRONTBUFFER) == rasterizer_start_buffer) {
-        // Busy loop.
-    }
+    awesome_wait_for_end_of_rasterization(&awesome);
 #endif /* SKIP_FPGA_WORK */
 }
 
 void gpu_start()
 {
-    rasterizer_start_buffer = *fpga_gpi & F2H_RASTERIZER_FRONTBUFFER;
-#ifdef DEBUG_PRINT
-    printf("Rasterizer FRONTBUFFER is %d\n", rasterizer_start_buffer);
-#endif
-
 #ifndef SKIP_FPGA_WORK
-
-    // Tell FPGA that our data is ready.
-#ifdef DEBUG_PRINT
-    printf("Telling FPGA that the data is ready.\n");
-#endif
-    *fpga_gpo |= H2F_DATA_READY;
-
-    // Wait until we find out that it has heard us.
-#ifdef DEBUG_PRINT
-    printf("Waiting for FPGA to get busy.\n");
-#endif
-    while ((*fpga_gpi & F2H_BUSY) == 0) {
-        // Busy loop.
-    }
-
-    // Let FPGA know that we know that it's busy.
-#ifdef DEBUG_PRINT
-    printf("Telling FPGA that we know it's busy.\n");
-#endif
-    *fpga_gpo &= ~H2F_DATA_READY;
+    awesome_start_rasterizing(&awesome);
 #endif /* SKIP_FPGA_WORK */
 }
 
@@ -131,76 +63,9 @@ void gpu_wait()
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to finish vsync.\n");
 #endif
-    while ((*fpga_gpi & F2H_BUSY) != 0) {
-        // Busy loop.
-    }
+    awesome_wait_for_end_of_processing(&awesome);
 #endif /* SKIP_FPGA_WORK */
 }
-
-static void gpu_frame_start()
-{
-    *fpga_gpo = 0;
-}
-
-static void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
-{
-    *(*p)++ = CMD_CLEAR
-	| ((uint64_t) red << 56)
-	| ((uint64_t) green << 48)
-	| ((uint64_t) blue << 40);
-}
-
-static void cmd_zclear(volatile uint64_t **p, uint16_t z)
-{
-    *(*p)++ = CMD_ZCLEAR
-	| ((uint64_t) z << 16);
-}
-
-static void cmd_pattern(volatile uint64_t **p, uint16_t pattern[16])
-{
-    *(*p)++ = CMD_PATTERN;
-    for (int n = 0; n < 16; n += 4) {
-	*(*p)++ =
-	    ((uint64_t) pattern[n + 0] << 0) |
-	    ((uint64_t) pattern[n + 1] << 16) |
-	    ((uint64_t) pattern[n + 2] << 32) |
-	    ((uint64_t) pattern[n + 3] << 48);
-    }
-}
-
-static void cmd_draw(volatile uint64_t **p, int zbuffer_enabled, int pattern_enabled, int type, int count)
-{
-    *(*p)++ = CMD_DRAW
-    	| ((uint64_t) type << 8)
-	| ((uint64_t) count << 16)
-	| ((uint64_t) zbuffer_enabled << 32)
-	| ((uint64_t) pattern_enabled << 33);
-}
-
-static void vertex(volatile uint64_t **p, int x, int y, int z,
-    uint8_t red, uint8_t green, uint8_t blue)
-{
-    // TODO z values here (in logo) are negative. Should be
-    // just 16 bits unsigned.
-    *(*p)++ =
-    	  ((uint64_t) x << 2)
-	| ((uint64_t) (DISPLAY_HEIGHT - 1 - y) << 15)
-	| ((uint64_t) ((uint16_t)(z >> 16)) << 24)
-	| ((uint64_t) red << 56)
-	| ((uint64_t) green << 48)
-	| ((uint64_t) blue << 40);
-}
-
-static void cmd_swap(volatile uint64_t **p)
-{
-    *(*p)++ = CMD_SWAP;
-}
-
-static void cmd_end(volatile uint64_t **p)
-{
-    *(*p)++ = CMD_END;
-}
-
 
 static float the_linewidth;
 static int pattern_enabled = 0;
@@ -218,7 +83,7 @@ static float clamp(float v, float low, float high)
 
 void rasterizer_clear(uint8_t r, uint8_t g, uint8_t b)
 {
-    cmd_clear(&protocol_next, r, g, b);
+    awesome_clear(&protocol_next, r, g, b);
 }
 
 void rasterizer_linewidth(float w)
@@ -226,9 +91,23 @@ void rasterizer_linewidth(float w)
     the_linewidth = w;
 }
 
+// Packs four uint16 into a single uint64;
+static uint64_t pattern16to64(uint16_t pattern[4])
+{
+    return
+	(((uint64_t) pattern[0]) << 0) |
+	(((uint64_t) pattern[1]) << 16) |
+	(((uint64_t) pattern[2]) << 32) |
+	(((uint64_t) pattern[3]) << 48);
+}
+
 void rasterizer_setpattern(uint16_t pattern[16])
 {
-    cmd_pattern(&protocol_next, pattern);
+    awesome_pattern(&protocol_next,
+    	pattern16to64(pattern + 0),
+    	pattern16to64(pattern + 4),
+    	pattern16to64(pattern + 8),
+    	pattern16to64(pattern + 12));
 }
 
 void rasterizer_pattern(int enable)
@@ -256,8 +135,8 @@ float diff_timevals(struct timeval *t1, struct timeval *t2)
 
 void rasterizer_swap()
 {
-    cmd_swap(&protocol_next);
-    cmd_end(&protocol_next);
+    awesome_swap(&protocol_next);
+    awesome_end(&protocol_next);
 
     if(framestats_print) {
 	struct timeval now;
@@ -268,11 +147,13 @@ void rasterizer_swap()
     }
 
 #ifdef DEBUG_PRINT
-    printf("    Wrote %d words:\n", protocol_next - protocol_buffer);
+    printf("    Wrote %d words\n", protocol_next - protocol_buffer);
+#ifdef DEBUG_PRINT_VERBOSE
     for (volatile uint64_t *t = protocol_buffer; t < protocol_next; t++) {
         printf("        0x%016llX\n", *t);
     }
-#endif
+#endif // DEBUG_PRINT_VERBOSE
+#endif // DEBUG_PRINT
 
     if(double_buffer_commands) {
 	struct timeval then, now;
@@ -362,6 +243,7 @@ void rasterizer_swap()
     }
 
     protocol_next = protocol_buffer;
+    awesome_init_frame(&awesome);
 
     if(framestats_print) {
 	struct timeval now;
@@ -433,31 +315,9 @@ int32_t rasterizer_winopen(char *title)
 	framestats_previous_print_time = framestats_previous_frame_end.tv_sec;
     }
 
-    int dev_mem = open("/dev/mem", O_RDWR);
-    if(dev_mem == -1) {
-        perror("open");
-        exit(EXIT_FAILURE);
-    }
-
-    // Get access to lightweight FPGA communication.
-    fpga_manager_base = (uint8_t *) mmap(0, 64,
-	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, FPGA_MANAGER_BASE);
-    if(fpga_manager_base == MAP_FAILED) {
-        perror("mmap for gpu manager base");
-        exit(EXIT_FAILURE);
-    }
-    fpga_gpo = (uint32_t*)(fpga_manager_base + FPGA_GPO_OFFSET);
-    fpga_gpi = (uint32_t*)(fpga_manager_base + FPGA_GPI_OFFSET);
-
-    // Get access to the various RAM buffers.
-    gpu_buffers_base = (uint8_t *) mmap(0, RAM_SIZE - BASE,
-	PROT_READ | PROT_WRITE, MAP_SHARED, dev_mem, BASE);
-    if(gpu_buffers_base == MAP_FAILED) {
-        perror("mmap for buffers");
-        exit(EXIT_FAILURE);
-    }
-    gpu_protocol_buffer = 
-	(uint64_t *) (gpu_buffers_base + PROTOCOL_BUFFER_OFFSET);
+    // Initialize the interface to the FPGA.
+    awesome_init(&awesome);
+    gpu_protocol_buffer = awesome_get_command_buffer(&awesome);
 
     if(double_buffer_commands)
         protocol_buffer = staging_protocol_buffer;
@@ -465,8 +325,7 @@ int32_t rasterizer_winopen(char *title)
         protocol_buffer = gpu_protocol_buffer;
 
     protocol_next = protocol_buffer;
-
-    gpu_frame_start();
+    awesome_init_frame(&awesome);
 }
 
 void rasterizer_zbuffer(int enable)
@@ -477,7 +336,7 @@ void rasterizer_zbuffer(int enable)
 
 void rasterizer_zclear(uint32_t z)
 {
-    cmd_zclear(&protocol_next, z);
+    awesome_zclear(&protocol_next, z);
 }
 
 void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
@@ -488,15 +347,18 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    cmd_draw(&protocol_next, zbuffer_enabled, pattern_enabled, DRAW_TRIANGLES, 1);
-    vertex(&protocol_next,
-        s0->x / SCREEN_VERTEX_V2_SCALE, s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
+    awesome_draw(&protocol_next, AWESOME_DRAW_TRIANGLES, 1, zbuffer_enabled, pattern_enabled);
+    awesome_vertex(&protocol_next,
+        s0->x / SCREEN_VERTEX_V2_SCALE,
+	DISPLAY_HEIGHT - 1 - s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
         s0->r, s0->g, s0->b);
-    vertex(&protocol_next,
-        s1->x / SCREEN_VERTEX_V2_SCALE, s1->y / SCREEN_VERTEX_V2_SCALE, s1->z,
+    awesome_vertex(&protocol_next,
+        s1->x / SCREEN_VERTEX_V2_SCALE,
+	DISPLAY_HEIGHT - 1 - s1->y / SCREEN_VERTEX_V2_SCALE, s1->z,
         s1->r, s1->g, s1->b);
-    vertex(&protocol_next,
-        s2->x / SCREEN_VERTEX_V2_SCALE, s2->y / SCREEN_VERTEX_V2_SCALE, s2->z,
+    awesome_vertex(&protocol_next,
+        s2->x / SCREEN_VERTEX_V2_SCALE,
+	DISPLAY_HEIGHT - 1 - s2->y / SCREEN_VERTEX_V2_SCALE, s2->z,
         s2->r, s2->g, s2->b);
 }
 
