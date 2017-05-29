@@ -86,32 +86,34 @@ module Rasterizer
     localparam STATE_CMD_CLEAR_LOOP = 6'h07;
     localparam STATE_CMD_ZCLEAR = 6'h08;
     localparam STATE_CMD_ZCLEAR_LOOP = 6'h09;
-    localparam STATE_CMD_PATTERN = 6'h0A;
-    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h0B;
-    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0C;
-    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0D;
-    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h0E;
-    localparam STATE_CMD_DRAW = 6'h0F;
-    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h10;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h11;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h12;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h13;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h14;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h15;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h16;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 6'h17;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 6'h18;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 6'h19;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 6'h1A;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 6'h1B;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 6'h1C;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1D;
-    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h1E;
-    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h1F;
-    localparam STATE_CMD_DRAW_TRIANGLE_FLUSH_FIFO = 6'h20;
-    localparam STATE_CMD_SWAP = 6'h21;
-    localparam STATE_CMD_SWAP_WAIT = 6'h22;
-    localparam STATE_CMD_END = 6'h23;
+    localparam STATE_CMD_CZCLEAR = 6'h0A;
+    localparam STATE_CMD_CZCLEAR_LOOP = 6'h0B;
+    localparam STATE_CMD_PATTERN = 6'h0C;
+    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h0D;
+    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0E;
+    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0F;
+    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h10;
+    localparam STATE_CMD_DRAW = 6'h11;
+    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h12;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h13;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h14;
+    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h15;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h16;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h17;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h18;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE4 = 6'h19;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE5 = 6'h1A;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE6 = 6'h1B;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE7 = 6'h1C;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE8 = 6'h1D;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE9 = 6'h1E;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE10 = 6'h1F;
+    localparam STATE_CMD_DRAW_TRIANGLE_PREPARE11 = 6'h20;
+    localparam STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP = 6'h21;
+    localparam STATE_CMD_DRAW_TRIANGLE_FLUSH_FIFO = 6'h22;
+    localparam STATE_CMD_SWAP = 6'h23;
+    localparam STATE_CMD_SWAP_WAIT = 6'h24;
+    localparam STATE_CMD_END = 6'h25;
     reg [5:0] state;
 
     // Protocol command number:
@@ -122,6 +124,7 @@ module Rasterizer
     localparam CMD_BITMAP = 8'd5;
     localparam CMD_SWAP = 8'd6;
     localparam CMD_END = 8'd7;
+    localparam CMD_CZCLEAR = 8'd8;
 
     reg [10:0] tmp_counter;
 
@@ -459,6 +462,10 @@ module Rasterizer
                             state <= STATE_CMD_END;
                         end
 
+                        CMD_CZCLEAR: begin
+                            state <= STATE_CMD_CZCLEAR;
+                        end
+
                         default: begin
                             // Unhandled command, abort.
                             unhandled_count <= unhandled_count + 1'b1;
@@ -526,6 +533,43 @@ module Rasterizer
                         state <= STATE_READ_COMMAND;
                     end else begin
                         if (both_fifo_size < BOTH_FIFO_MAX) begin
+                            read_fifo_z_address <= read_fifo_z_address + 1'b1;
+                            read_fifo_enqueue <= 1'b1;
+                        end else begin
+                            read_fifo_enqueue <= 1'b0;
+                        end
+                    end
+                end
+
+                STATE_CMD_CZCLEAR: begin
+                    if (both_fifo_size < BOTH_FIFO_MAX) begin
+                        read_fifo_z_active <= 1'b0;
+                        read_fifo_color_address <= fb_address;
+                        read_fifo_color <= {
+                            8'b0,
+                            color_clear_blue,
+                            color_clear_green,
+                            color_clear_red,
+                            8'b0,
+                            color_clear_blue,
+                            color_clear_green,
+                            color_clear_red,
+                        };
+                        read_fifo_z_address <= Z_ADDRESS/8;
+                        read_fifo_z <= { z_clear_value, z_clear_value };
+                        read_fifo_pixel_active <= 2'b11;
+                        read_fifo_enqueue <= 1'b1;
+                        state <= STATE_CMD_CZCLEAR_LOOP;
+                    end
+                end
+
+                STATE_CMD_CZCLEAR_LOOP: begin
+                    if (read_fifo_z_address == Z_ADDRESS/8 + FB_LENGTH/8 - 1) begin
+                        read_fifo_enqueue <= 1'b0;
+                        state <= STATE_READ_COMMAND;
+                    end else begin
+                        if (both_fifo_size < BOTH_FIFO_MAX) begin
+                            read_fifo_color_address <= read_fifo_color_address + 1'b1;
                             read_fifo_z_address <= read_fifo_z_address + 1'b1;
                             read_fifo_enqueue <= 1'b1;
                         end else begin
