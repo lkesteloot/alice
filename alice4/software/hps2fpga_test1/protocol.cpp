@@ -24,9 +24,11 @@
 
 // HPS-to-FPGA:
 #define H2F_DATA_READY (1 << 0)
+#define H2F_HOME_BUTTON (1 << 12)
 
 // FPGA-to-HPS:
 #define F2H_BUSY (1 << 0)
+#define F2H_HOME_BUTTON (1 << 3)
 
 // Shared memory addresses:
 #define BASE 0x38000000
@@ -60,10 +62,28 @@
 #define TEST_TWO_TRIANGLES 0
 #define TEST_TWO_OVERLAPPING_TRIANGLES 1
 
+static int home_button = 0;
+
 // Returns time difference in seconds.
 double diff_timespecs(struct timespec *t1, struct timespec *t2)
 {
     return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+}
+
+int get_home_button(volatile uint32_t *gpi, volatile uint32_t *gpo)
+{
+    int f2h_home_button = (*gpi & F2H_HOME_BUTTON) != 0;
+
+    if (f2h_home_button != home_button) {
+	home_button = f2h_home_button;
+	if (home_button) {
+	    *gpo |= H2F_HOME_BUTTON;
+	} else {
+	    *gpo &= ~H2F_HOME_BUTTON;
+	}
+    }
+
+    return home_button;
 }
 
 void cmd_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
@@ -166,7 +186,7 @@ int main()
 	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
 
     int brightness = 1000;
-    *gpo = (brightness << 2) | (1 << 1);
+    *gpo = (home_button ? H2F_HOME_BUTTON : 0) | (brightness << 2) | (1 << 1);
     int counter = 0;
     while (1) {
 	// Start of frame.
@@ -318,8 +338,9 @@ int main()
 	double frame_time = FULL_WIDTH*FULL_HEIGHT/25e6;
 	int frames = (int) ceil(elapsed/frame_time);
 	double fps = 1/(frames*frame_time);
-	printf("Time spent rendering: %.1f ms (%d frames, %.1f FPS)\n",
-	    elapsed*1000, frames, fps);
+	printf("Time spent rendering: %.1f ms (%d frames, %.1f FPS) (home button %s)\n",
+	    elapsed*1000, frames, fps,
+	    get_home_button(gpi, gpo) ? "pressed" : "not pressed");
 
 	counter++;
     }
