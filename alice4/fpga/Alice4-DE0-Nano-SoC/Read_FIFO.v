@@ -53,11 +53,13 @@ module Read_FIFO
     wire [63:0] fifo_z = fifo_read_data[185:122];
     wire [1:0] fifo_pixel_active = fifo_read_data[187:186];
 
-    // Z computation.
+    // Unpack pixels.
     wire [31:0] fifo_z_0 = fifo_z[31:0];
     wire [31:0] fifo_z_1 = fifo_z[63:32];
     wire [31:0] memory_z_0 = memory_z_delayed[31:0];
     wire [31:0] memory_z_1 = memory_z_delayed[63:32];
+
+    // Z computation. Hard-code "less than or equal to" (ZF_LEQUAL).
     wire z_pass_0 = fifo_z_0 <= memory_z_0;
     wire z_pass_1 = fifo_z_1 <= memory_z_1;
     wire [1:0] new_pixel_active = fifo_pixel_active & { z_pass_1, z_pass_0 };
@@ -66,7 +68,7 @@ module Read_FIFO
     wire fifo_empty;
     wire fifo_full;
     reg fifo_read;
-    reg fifo_read_delayed;
+    reg got_fifo_data;
     scfifo fifo(
             .aclr(!reset_n),
             .clock(clock),
@@ -91,36 +93,35 @@ module Read_FIFO
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
             fifo_read <= 1'b0;
-            fifo_read_delayed <= 1'b0;
+            got_fifo_data <= 1'b0;
             write_enqueue <= 1'b0;
             memory_z <= 1'b0;
+            memory_z_delayed <= 1'b0;
         end else begin
-            if (!fifo_empty && (!z_active || read_readdatavalid)) begin
-                fifo_read <= 1'b1;
+            // If memory has data, or if we don't care about memory (Z is
+            // off), initiate a queue read.
+            fifo_read <= !z_active || read_readdatavalid;
 
-                // Grab data from memory if it's available.
-                if (z_active && read_readdatavalid) begin
-                    memory_z <= read_readdata;
-                end
-            end else begin
-                fifo_read <= 1'b0;
-            end
-            fifo_read_delayed <= fifo_read;
+            // Doesn't hurt to always grab the memory data. At worst we won't
+            // use it.
+            memory_z <= read_readdata;
+
+            // One clock after the queue read, we know whether the read was
+            // valid (queue not empty).
+            got_fifo_data <= fifo_read && !fifo_empty;
+
+            // Delay the memory read too.
             memory_z_delayed <= memory_z;
 
-            // See if we were reading two clocks ago.
-            if (fifo_read_delayed) begin
-                // Enqueue if Z is off, or if either new Z pixel is not behind
-                // existing pixel.
-                write_enqueue <= !z_active || |new_pixel_active;
-                write_color_address <= fifo_color_address;
-                write_color <= fifo_color;
-                write_z_address <= fifo_z_address;
-                write_z <= fifo_z;
-                write_pixel_active <= z_active ? new_pixel_active : fifo_pixel_active;
-            end else begin
-                write_enqueue <= 1'b0;
-            end
+            // One clock after that, we have access to the queue data (if
+            // available) and the delayed memory read. Enqueue if Z is
+            // off, or if either new Z pixel is not behind existing pixel.
+            write_enqueue <= got_fifo_data && (!z_active || |new_pixel_active);
+            write_color_address <= fifo_color_address;
+            write_color <= fifo_color;
+            write_z_address <= fifo_z_address;
+            write_z <= fifo_z;
+            write_pixel_active <= z_active ? new_pixel_active : fifo_pixel_active;
         end
     end
 
