@@ -328,12 +328,14 @@ module Rasterizer
     wire [63:0] write_fifo_z;
     wire [1:0] write_fifo_pixel_active;
     wire [WRITE_FIFO_DEPTH_LOG2-1:0] write_fifo_size;
+    wire [7:0] write_fifo_error;
     Write_FIFO
         #(.FIFO_DEPTH(WRITE_FIFO_DEPTH),
           .FIFO_DEPTH_LOG2(WRITE_FIFO_DEPTH_LOG2)) write_fifo(
 
             .clock(clock),
             .reset_n(reset_n),
+            .error(write_fifo_error),
 
             // Memory interface for writing color pixels.
             .write_color_address(write_color_address),
@@ -387,6 +389,10 @@ module Rasterizer
             read_address <= 1'b0;
             read_read <= 1'b0;
         end else begin
+            /// if (write_fifo_error != 0) begin
+            ///     unhandled_count <= write_fifo_error;
+            /// end
+
             case (state)
                 STATE_INIT: begin
                     busy <= 1'b0;

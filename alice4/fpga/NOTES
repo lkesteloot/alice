@@ -324,128 +324,18 @@ Next:
         https://www.developpez.net/forums/d1566375/autres-langages/autres-langages/vhdl/echange-donnees-hps-fpga-via-dma/
     Check size of generated binary.
 
-
-When queue data is available:
-
-    Still to do:
-        Handle separate waits.
-
-    reg mem_write;
-    wire mem_wait = mem_write && mem_waitrequest;
-    reg error;
-
-    // Only read from the queue if we're not asked to wait for memory,
-    // and we have no slots with data.
-    read_queue <= !wait_request && !slot1_full;
-
-    // One clock after read_queue, the empty signal indicates whether the queue
-    // was empty when we tried to read.
-    got_queue_data <= !queue_empty;
-
-    // Default to no error unless something happens below.
-    error <= 0;
-
-    // Two clocks after read_queue, the data is ready.
-    case ({got_queue_data,mem_wait,slot1_full,slot2_full})
-        4'b0000: begin
-            // No new data, no old data. Nothing to do.
-            mem_write <= 0;
-        end
-
-        4'bxx01: begin
-            // Can't have slot2 filled without slot1 filled; raise an error.
-            error <= 1;
-        end
-
-        4'b0010: begin
-            // No new data, but we have old data that can be written.
-            mem <= slot1;
-            slot1_full <= 0;
-            mem_write <= 1;
-        end
-
-        4'b0011: begin
-            // No new data, but we have old data that can be written.
-            mem <= slot1;
-            slot1 <= slot2;
-            slot2_full <= 0;
-            mem_write <= 1;
-        end
-
-        4'b01xx: begin
-            // Steady-state, waiting for memory. Doesn't matter what's in
-            // the slots, they'll wait.
-            mem_write <= 1;
-        end
-
-        4'b1000: begin
-            // Got new data, can use it right away.
-            mem <= queue;
-            mem_write <= 1;
-        end
-
-        4'b1010: begin
-            // Got new data, replace slot1 and send slot1 to memory.
-            mem <= slot1;
-            slot1 <= queue;
-            mem_write <= 1;
-        end
-
-        4'b1011: begin
-            // Got new data, replace slot2, send slot1 to memory, and slot2 to slot1.
-            mem <= slot1;
-            slot1 <= slot2;
-            slot2 <= queue;
-            mem_write <= 1;
-        end
-
-        4'b1100: begin
-            // Have new data but can't write to memory. Put it in slot1.
-            slot1 <= queue;
-            slot1_full <= 1;
-            mem_write <= 1;
-        end
-
-        4'b1110: begin
-            // Have new data but can't write to memory. Put it in slot2.
-            slot2 <= queue;
-            slot2_full <= 1;
-            mem_write <= 1;
-        end
-
-        4'b1111: begin
-            // In principle this can't happen because we wouldn't have asked to
-            // read from the queue. Raise an error.
-            error <= 1;
-        end
-    endcase
-
-    queue avail mem wait    slot1 full  slot2 full
-        N           N           N           N       nothing
-        N           N           N           Y       can't happen.
-        N           N           Y           N       mem <= slot1, clear slot 1
-        N           N           Y           Y       mem <= slot1, slot1 <= slot2, clear slot 2
-        N           Y           X           X       steady-state
-        Y           N           N           N       mem <= queue
-        Y           N           N           Y       can't happen.
-        Y           N           Y           N       mem <= slot1, slot1 <= queue
-        Y           N           Y           Y       mem <= slot1, slot1 <= slot2, slot2 <= queue
-        Y           Y           N           N       slot1 <= queue
-        Y           Y           N           Y       can't happen.
-        Y           Y           Y           N       slot2 <= queue
-        Y           Y           Y           Y       can't happen
-
 {head: {
   text: 'Alice 4 Write FIFO',
   tick: 0
 }, signal: [
-  {name: 'clock',         wave: 'P......................'},
-  {name: 'read queue',    wave: '010..1.0..10...1..0....'},
-  {name: 'queue empty',   wave: '0......................'},
-  {name: 'queue data',    wave: 'x.=x..==x..=x...===x...', data: "A B C D E F G"},
-  {name: 'buffer',        wave: 'x..=x..==x..=x...===x..', data: "A B C D E F G"},
-  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x.', data: "A B C D E F G"},
-  {name: 'color write',   wave: '0..10..1.0..1.0..1...0.'},
-  {name: 'color wait',    wave: '0............10...10...', phase: 0.5},
+  {name: 'clock',         wave: 'P.............................'},
+  {name: 'read queue',    wave: '010..1.0..10...1..0...1..0....'},
+  {name: 'queue empty',   wave: '0.............................'},
+  {name: 'queue data',    wave: 'x.=x..==x..=x...===x...===x...', data: "A B C D E F G H I J"},
+  {name: 'slot1_full',    wave: 'x..=x..==x..=x...===x....=....', data: "A B C D E F G I"},
+  {name: 'slot2_full',    wave: 'x..=x..==x..=x...===x.....=...', data: "A B C D E F G J"},
+  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x..=.....', data: "A B C D E F G H"},
+  {name: 'color write',   wave: '0..10..1.0..1.0..1...0..1.....'},
+  {name: 'color wait',    wave: '0............10...10.....1....', phase: 0.5},
 ]}
 
