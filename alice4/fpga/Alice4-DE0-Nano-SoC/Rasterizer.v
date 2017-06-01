@@ -266,6 +266,15 @@ module Rasterizer
     wire [7:0] tri_blue_byte_1 = tri_blue_1[38:31];
     wire [31:0] tri_z_value_1 = tri_z_1[62:31];
 
+    wire write_fifo_enqueue;
+    wire [28:0] write_fifo_color_address;
+    wire [63:0] write_fifo_color;
+    wire [28:0] write_fifo_z_address;
+    wire [63:0] write_fifo_z;
+    wire [1:0] write_fifo_pixel_active;
+    wire [WRITE_FIFO_DEPTH_LOG2-1:0] write_fifo_size;
+    wire [7:0] write_fifo_error;
+
     // Divider for the area reciprocal.
     // https://www.altera.com/en_US/pdfs/literature/ug/ug_lpm_alt_mfug.pdf
     wire signed [31:0] tri_area_recip_result;
@@ -324,14 +333,6 @@ module Rasterizer
         );
 
     // Write FIFO for writing pixels to memory.
-    wire write_fifo_enqueue;
-    wire [28:0] write_fifo_color_address;
-    wire [63:0] write_fifo_color;
-    wire [28:0] write_fifo_z_address;
-    wire [63:0] write_fifo_z;
-    wire [1:0] write_fifo_pixel_active;
-    wire [WRITE_FIFO_DEPTH_LOG2-1:0] write_fifo_size;
-    wire [7:0] write_fifo_error;
     Write_FIFO
         #(.FIFO_DEPTH(WRITE_FIFO_DEPTH),
           .FIFO_DEPTH_LOG2(WRITE_FIFO_DEPTH_LOG2)) write_fifo(
@@ -490,7 +491,7 @@ module Rasterizer
                             8'b0,
                             color_clear_blue,
                             color_clear_green,
-                            color_clear_red,
+                            color_clear_red
                         };
                         read_fifo_z_address <= 1'b0;
                         read_fifo_z <= 1'b0;
@@ -553,7 +554,7 @@ module Rasterizer
                             8'b0,
                             color_clear_blue,
                             color_clear_green,
-                            color_clear_red,
+                            color_clear_red
                         };
                         read_fifo_z_address <= Z_ADDRESS/8;
                         read_fifo_z <= { z_clear_value, z_clear_value };

@@ -40,16 +40,16 @@ localparam FIRST_ADDRESS1_64BIT = ADDRESS/8 + LENGTH/8;
 localparam LAST_ADDRESS1_64BIT = FIRST_ADDRESS1_64BIT + LENGTH/8 - 1;
 
 // State machine for transferring data from SDRAM to FIFO.
-localparam M2F_STATE_START_FRAME = 4'h00;
-localparam M2F_STATE_IDLE = 4'h01;
-localparam M2F_STATE_READ = 4'h02;
-localparam M2F_STATE_FLUSH_SDRAM = 4'h05;
-localparam M2F_STATE_FLUSH_FIFO = 4'h06;
+localparam M2F_STATE_START_FRAME = 4'h0;
+localparam M2F_STATE_IDLE = 4'h1;
+localparam M2F_STATE_READ = 4'h2;
+localparam M2F_STATE_FLUSH_SDRAM = 4'h5;
+localparam M2F_STATE_FLUSH_FIFO = 4'h6;
 reg [3:0] m2f_state;
 
 // State machine for transferring data from FIFO to LCD.
-localparam F2L_STATE_IDLE = 4'h00;
-localparam F2L_STATE_WAIT = 4'h01;
+localparam F2L_STATE_IDLE = 4'h0;
+localparam F2L_STATE_WAIT = 4'h1;
 reg [3:0] f2l_state;
 
 // Registers and assignments.

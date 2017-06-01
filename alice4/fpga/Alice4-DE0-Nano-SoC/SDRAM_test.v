@@ -18,12 +18,12 @@ module SDRAM_test(
 );
 
 // State machine.
-localparam STATE_INIT = 4'h00;
-localparam STATE_WRITE_START = 4'h01;
-localparam STATE_WRITE_WAIT = 4'h02;
-localparam STATE_READ_START = 4'h03;
-localparam STATE_READ_WAIT = 4'h04;
-localparam STATE_DONE = 4'h05;
+localparam STATE_INIT = 4'h0;
+localparam STATE_WRITE_START = 4'h1;
+localparam STATE_WRITE_WAIT = 4'h2;
+localparam STATE_READ_START = 4'h3;
+localparam STATE_READ_WAIT = 4'h4;
+localparam STATE_DONE = 4'h5;
 reg [3:0] state;
 
 // Registers and assignments.

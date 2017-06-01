@@ -258,6 +258,9 @@ module Main(
 
     // Generate characters themselves.
     wire [6:0] character;
+    wire [31:0] rast_debug_value0;
+    wire [31:0] rast_debug_value1;
+    wire [31:0] rast_debug_value2;
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
@@ -273,6 +276,9 @@ module Main(
     wire [31:0] fb_debug_value2;
     wire rast_front_buffer;
     wire fb_front_buffer;
+    wire [7:0] fb_red;
+    wire [7:0] fb_green;
+    wire [7:0] fb_blue;
     Frame_buffer #(.ADDRESS(FRAME_BUFFER_ADDRESS),
                    .LENGTH(FRAME_BUFFER_LENGTH)) frame_buffer(
         .clock(clock_50),
@@ -317,9 +323,6 @@ module Main(
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
     wire rasterizer_busy;
-    wire [31:0] rast_debug_value0;
-    wire [31:0] rast_debug_value1;
-    wire [31:0] rast_debug_value2;
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
@@ -366,9 +369,6 @@ module Main(
     );
 
     // Color assignment. Latch these for clean output.
-    wire [7:0] fb_red;
-    wire [7:0] fb_green;
-    wire [7:0] fb_blue;
     wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
     wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'h00 : fb_green;
     wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'h00 : fb_blue;
