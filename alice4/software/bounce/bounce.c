@@ -23,7 +23,7 @@
 #define W 3
 
 int freeze = FALSE;
-int spin = FALSE;
+int spin = TRUE;
 int objecton = FALSE;
 int normson = FALSE;
 int lighton[3] = {
@@ -249,10 +249,7 @@ drawimage()
 	check_q();
 
 	zbuffer(FALSE);
-	if (machine == MACH_ECLIPSE) /*running on an eclipse*/
-		czclear(0,0xff800000);
-	else
-		czclear(0,0);	/* Simultaneously clear z and color buffers */
+	czclear(0,0xffffffff);
 
 	lmbind(LMODEL, 1);
 
@@ -280,8 +277,8 @@ drawimage()
 		rotate(1800, 'z');
 		if (spin)
 		{
-			orx += 50;
-			ory += 50;
+			orx += 50.0 / 3.0;
+			ory += 50.0 / 3.0;
 		}
 		rotate(orx, 'x');
 		rotate(ory, 'y');
@@ -329,20 +326,7 @@ char **argv;
 	RGBmode();
 	gconfig();
 
-	gversion(machinetype);
-	if (strncmp (machinetype,"GL4DPI", strlen("GL4DPI")) == 0)
-		machine = MACH_ECLIPSE;
-	else if (strncmp (machinetype, "GL4DGT", strlen("GL4DGT")) == 0)
-		machine = MACH_CLOVER2;
-	else machine = MACH_CLOVER1;
-
-	/* Setup to use simultaneous z and color buffer clear */
-	if (machine == MACH_CLOVER1) {
-		lsetdepth(0, 0x7fffff);
-	} else {
-		zfunction(ZF_GEQUAL);
-		lsetdepth(0x7fffff, 0x0ff);
-	}
+	lsetdepth(0, 0x7fffff);
 
 	initobjects();
 
