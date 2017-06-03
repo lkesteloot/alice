@@ -48,6 +48,8 @@ float view[4][4] = {
 float tmp[4][4];
 short mx, my, omx, omy, nmx, nmy;
 
+short ory2, orx2;
+
 int bend_left(), bend_right(), bend_forward(), move_single(), move_double();
 
 typedef struct polygon_struct {
@@ -98,6 +100,20 @@ Poly *elbow, *double_cylinder, *single_cylinder;
 int function=0;
 #define REORIENT 1
 
+void reorient(short ax, short ay);
+
+short tilt_left = -200;
+short tilt_right = 200;
+short tilt_forward = 650;
+short tilt_back = 150;
+
+void get_tilt(short *tiltx, short *tilty)
+{
+    *tiltx = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+    *tilty = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+}
+
+
 #ifndef MAIN
 #define MAIN main
 #endif
@@ -110,6 +126,8 @@ char	*argv[];
 	int i, j;
 
 	initialize(argv[0]);
+
+	get_tilt(&orx2, &ory2);
 
 	while(TRUE) {
 
@@ -151,9 +169,26 @@ char	*argv[];
 
 		switch(function) {
 
-		case REORIENT:
-			reorient();
+		    case REORIENT: {
+
+			reorient(nmx-omx, omy-nmy);
 			break;
+		    }
+
+		    default : {
+			short rx2, ry2;
+
+			get_tilt(&rx2, &ry2);
+
+			short ax = (ry2 - ory2) / 2;
+			short ay = (orx2 - rx2) / 2;
+
+			orx2 = rx2;
+			ory2 = ry2;
+
+			reorient(ax, ay);
+			break;
+		    }
 		}
 
 		omx=nmx; 
@@ -375,25 +410,26 @@ move_single() {
 	translate(0.0, 0.0, -s_cyl);
 }
 
-
-reorient() {
-
-
+void reorient(short ax, short ay)
+{
 	pushmatrix();
 
 	loadmatrix(ident_matrix);
 
-	rotate((Angle) (nmx-omx), 'y');
-	rotate((Angle) (omy-nmy), 'x');
+	rotate(-450, 'y');
 
+	rotate((Angle) ax, 'y');
+	rotate((Angle) ay, 'x');
+
+	rotate(450, 'y');
 
 	multmatrix(view);
 
 	getmatrix(view);
 
 	popmatrix();
-
 }
+
 
 print_matrix(m)
 float m[4][4];
