@@ -52,7 +52,9 @@ short dev, val;
 int active;
 long gid;
 
-short mx, my, omx, omy, nmx, nmy;
+short mx, my, omx, omy;
+
+short ory2, orx2;
 
 float dt = 0.5;
 float dw = 0.9;
@@ -247,6 +249,19 @@ int display_mode=4;
 
 int menu, surface_menu;
 
+void reorient(short ax, short ay);
+
+short tilt_left = -200;
+short tilt_right = 200;
+short tilt_forward = 650;
+short tilt_back = 150;
+
+void get_tilt(short *tiltx, short *tilty)
+{
+    *tiltx = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+    *tilty = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+}
+
 main (argc, argv)
 int	argc;
 char	*argv[];
@@ -261,6 +276,22 @@ char	*argv[];
 		exit(1);
 	}
     initialize(argv[0]);
+
+    // XXX grantham
+    get_tilt(&orx2, &ory2);
+
+    if (!started) {
+	grav = -0.008;
+	damp = 0.995;
+	light_vector[X] = view[0][1];
+	light_vector[Y] = view[1][1];
+	light_vector[Z] = view[2][1];
+
+	grav_vec[X] = light_vector[X] * grav;
+	grav_vec[Y] = light_vector[Y] * grav;
+	grav_vec[Z] = light_vector[Z] * grav;
+	started = 1;
+    }
 
     while(TRUE) {
 
@@ -299,9 +330,13 @@ char	*argv[];
                         }
 		    }
 
-                    qread(&omx); qread(&omy);
-                    if (val) function = REORIENT;
-                    else function = 0;
+                    if (val) {
+			qread(&omx); qread(&omy);
+			function = REORIENT;
+		    } else {
+			function = 0;
+			get_tilt(&orx2, &ory2);
+		    }
 
 		    break;
 
@@ -334,9 +369,33 @@ char	*argv[];
 
 	switch(function) {
 
-	    case REORIENT:
-		reorient();
+	    case REORIENT: {
+		short nmx = getvaluator(MOUSEX);
+		short nmy = getvaluator(MOUSEY);
+
+		short ax = (nmx-omx)*2;
+		short ay = (omy-nmy)*2;
+
+		omx=nmx; omy=nmy;
+
+		reorient(ax, ay);
 		break;
+	    }
+
+	    default : {
+		short rx2, ry2;
+
+		get_tilt(&rx2, &ry2);
+
+		short ax = (ry2 - ory2) / 2;
+		short ay = (orx2 - rx2) / 2;
+
+		orx2 = rx2;
+		ory2 = ry2;
+
+		reorient(ax, ay);
+		break;
+	    }
 	}
 
 	draw_everything();
@@ -711,18 +770,14 @@ draw_jello()
 }
 
 
-reorient()
+void reorient(short ax, short ay)
 {
-	nmx = getvaluator(MOUSEX);
-	nmy = getvaluator(MOUSEY);
-
 	pushmatrix();
 
 	loadmatrix(ident_matrix);
 
-	rotate((Angle) (nmx-omx)*2, 'y');
-	rotate((Angle) (omy-nmy)*2, 'x');
-
+	rotate((Angle) ax, 'y');
+	rotate((Angle) ay, 'x');
 
 	multmatrix(view);
 
@@ -737,8 +792,6 @@ reorient()
 	grav_vec[Z] = light_vector[Z] * grav;
 
 	popmatrix();
-
-	omx=nmx; omy=nmy;
 }
 
 
