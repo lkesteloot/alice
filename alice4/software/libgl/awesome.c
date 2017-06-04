@@ -7,6 +7,17 @@
 #include <time.h>
 #include "awesome.h"
 
+typedef struct {
+    // These are all private. Do not access.
+    volatile uint32_t *gpo;
+    volatile uint32_t *gpi;
+    volatile uint64_t *command_buffer;
+    int home_button;
+    int rasterizer_buffer_number;
+} Awesome;
+
+static Awesome awesome;
+
 #undef DEBUG_PRINT
 
 // Number of visible pixels.
@@ -57,13 +68,16 @@
 #define CMD_END 7
 #define CMD_CZCLEAR 8
 
-static int get_rasterizer_buffer_number(Awesome *awesome)
+static int get_rasterizer_buffer_number()
 {
-    return (*awesome->gpi & F2H_RASTERIZER_FRONTBUFFER) != 0;
+    return (*awesome.gpi & F2H_RASTERIZER_FRONTBUFFER) != 0;
 }
 
-void awesome_init(Awesome *awesome)
+void awesome_init()
 {
+    if(awesome.gpo != NULL)
+        return;
+
     int dev_mem = open("/dev/mem", O_RDWR);
     if (dev_mem == -1) {
         perror("open");
@@ -77,8 +91,8 @@ void awesome_init(Awesome *awesome)
         perror("mmap for fpga manager base");
         exit(EXIT_FAILURE);
     }
-    awesome->gpo = (uint32_t*)(fpga_manager_base + FPGA_GPO_OFFSET);
-    awesome->gpi = (uint32_t*)(fpga_manager_base + FPGA_GPI_OFFSET);
+    awesome.gpo = (uint32_t*)(fpga_manager_base + FPGA_GPO_OFFSET);
+    awesome.gpi = (uint32_t*)(fpga_manager_base + FPGA_GPI_OFFSET);
 
     // Get access to the various RAM buffers.
     uint8_t *buffers_base = (uint8_t *) mmap(0, RAM_SIZE - BASE,
@@ -87,32 +101,32 @@ void awesome_init(Awesome *awesome)
         perror("mmap for buffers");
         exit(EXIT_FAILURE);
     }
-    awesome->command_buffer =
+    awesome.command_buffer =
 	(uint64_t *) (buffers_base + PROTOCOL_BUFFER_OFFSET);
 
-    awesome->home_button = 0;
-    awesome->rasterizer_buffer_number = 0;
+    awesome.home_button = 0;
+    awesome.rasterizer_buffer_number = 0;
 }
 
-volatile uint64_t *awesome_get_command_buffer(Awesome *awesome)
+volatile uint64_t *awesome_get_command_buffer()
 {
-    return awesome->command_buffer;
+    return awesome.command_buffer;
 }
 
-int awesome_get_home_button(Awesome *awesome)
+int awesome_get_home_button()
 {
-    int f2h_home_button = (*awesome->gpi & F2H_HOME_BUTTON) != 0;
+    int f2h_home_button = (*awesome.gpi & F2H_HOME_BUTTON) != 0;
 
-    if (f2h_home_button != awesome->home_button) {
-	awesome->home_button = f2h_home_button;
-	if (awesome->home_button) {
-	    *awesome->gpo |= H2F_HOME_BUTTON;
+    if (f2h_home_button != awesome.home_button) {
+	awesome.home_button = f2h_home_button;
+	if (awesome.home_button) {
+	    *awesome.gpo |= H2F_HOME_BUTTON;
 	} else {
-	    *awesome->gpo &= ~H2F_HOME_BUTTON;
+	    *awesome.gpo &= ~H2F_HOME_BUTTON;
 	}
     }
 
-    return awesome->home_button;
+    return awesome.home_button;
 }
 
 void awesome_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue)
@@ -182,69 +196,69 @@ void awesome_end(volatile uint64_t **p)
     *(*p)++ = CMD_END;
 }
 
-void awesome_set_brightness(Awesome *awesome, int brightness)
+void awesome_set_brightness(int brightness)
 {
-    *awesome->gpo = (*awesome->gpo & ~H2F_BRIGHTNESS_MASK)
+    *awesome.gpo = (*awesome.gpo & ~H2F_BRIGHTNESS_MASK)
 	| (brightness << H2F_BRIGHTNESS_SHIFT)
 	| H2F_BRIGHTNESS_ENABLED;
 }
 
-void awesome_disable_brightness(Awesome *awesome)
+void awesome_disable_brightness()
 {
-    *awesome->gpo &= ~H2F_BRIGHTNESS_ENABLED;
+    *awesome.gpo &= ~H2F_BRIGHTNESS_ENABLED;
 }
 
-void awesome_init_frame(Awesome *awesome)
+void awesome_init_frame()
 {
     // Start of frame.
-    if ((*awesome->gpi & F2H_BUSY) != 0) {
+    if ((*awesome.gpi & F2H_BUSY) != 0) {
 	printf("Warning: FPGA is busy at top of loop.\n");
     }
 }
 
-void awesome_start_rasterizing(Awesome *awesome)
+void awesome_start_rasterizing()
 {
     // Tell FPGA that our data is ready.
 #ifdef DEBUG_PRINT
     printf("Telling FPGA that the data is ready.\n");
 #endif
-    *awesome->gpo |= H2F_DATA_READY;
+    *awesome.gpo |= H2F_DATA_READY;
 
     // Wait until we find out that it has heard us.
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to get busy.\n");
 #endif
-    while ((*awesome->gpi & F2H_BUSY) == 0) {
+    while ((*awesome.gpi & F2H_BUSY) == 0) {
 	// Busy loop.
     }
 
     // Record which buffer the rasterizer is drawing into.
-    awesome->rasterizer_buffer_number = get_rasterizer_buffer_number(awesome);
+    awesome.rasterizer_buffer_number = get_rasterizer_buffer_number();
 
     // Let FPGA know that we know that it's busy.
 #ifdef DEBUG_PRINT
     printf("Telling FPGA that we know it's busy.\n");
 #endif
-    *awesome->gpo &= ~H2F_DATA_READY;
+    *awesome.gpo &= ~H2F_DATA_READY;
 }
 
-void awesome_wait_for_end_of_rasterization(Awesome *awesome)
+void awesome_wait_for_end_of_rasterization()
 {
     // Wait until it's done rasterizing.
-    while (get_rasterizer_buffer_number(awesome) ==
-	awesome->rasterizer_buffer_number) {
+    while (get_rasterizer_buffer_number() ==
+	awesome.rasterizer_buffer_number) {
 
         // Busy loop.
     }
 }
 
-void awesome_wait_for_end_of_processing(Awesome *awesome)
+void awesome_wait_for_end_of_processing()
 {
     // Wait until all commands have been processed.
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to finish rasterizing.\n");
 #endif
-    while ((*awesome->gpi & F2H_BUSY) != 0) {
+    while ((*awesome.gpi & F2H_BUSY) != 0) {
 	// Busy loop.
     }
 }

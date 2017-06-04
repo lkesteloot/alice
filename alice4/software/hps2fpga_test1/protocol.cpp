@@ -22,14 +22,13 @@
 int main()
 {
     float speed = 0.01;
-    Awesome awesome;
 
-    awesome_init(&awesome);
+    awesome_init();
 
     int counter = 0;
     while (1) {
-	awesome_init_frame(&awesome);
-	volatile uint64_t *p = awesome_get_command_buffer(&awesome);
+	awesome_init_frame();
+	volatile uint64_t *p = awesome_get_command_buffer();
 
 	if (0) {
 	    awesome_clear(&p,
@@ -130,8 +129,8 @@ int main()
 #endif
 	awesome_swap(&p);
 	awesome_end(&p);
-	awesome_start_rasterizing(&awesome);
-	awesome_wait_for_end_of_processing(&awesome);
+	awesome_start_rasterizing();
+	awesome_wait_for_end_of_processing();
 	counter++;
     }
 

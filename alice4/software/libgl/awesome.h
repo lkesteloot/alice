@@ -15,14 +15,9 @@
 #define AWESOME_DRAW_TRIANGLE_STRIP 5
 #define AWESOME_DRAW_TRIANGLE_FAN 6
 
-typedef struct {
-    // These are all private. Do not access.
-    volatile uint32_t *gpo;
-    volatile uint32_t *gpi;
-    volatile uint64_t *command_buffer;
-    int home_button;
-    int rasterizer_buffer_number;
-} Awesome;
+// Get the global Awesome struct, for convenience between multiple
+// modules that want to share single instance of Awesome.
+Awesome *awesome_init(Awesome *awesome);
 
 // Initializes the library, opening the connection to the FPGA.
 // Exits the program with a message if something goes wrong.
