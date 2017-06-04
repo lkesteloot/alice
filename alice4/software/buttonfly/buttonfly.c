@@ -44,7 +44,7 @@ float tv[4][4] = {
     {0.0, 0.0, 0.0, 0.0},
 };
 
-void bf_redraw(), bf_exit(), bf_selecting();
+void bf_redraw(), bf_exit(), bf_selecting(), bf_deselect();
 void bf_quick(), bf_fly(), do_popup(), toggle_window();
 void flyindraw(), flyoutdraw(), selectdraw();
 void parse_args(), doclear();
@@ -94,7 +94,8 @@ char	*argv[];
 	add_event(ANY, REDRAW, ANY, bf_redraw, 0);
 
     qdevice(ESCKEY);
-	add_event(ANY, ESCKEY, UP, bf_exit, 0);
+	add_event(ANY, ESCKEY, UP, bf_deselect, 0);
+
 	qdevice(WINQUIT);
 	add_event(ANY, WINQUIT, ANY, bf_exit, 0);
 
@@ -223,6 +224,20 @@ void bf_quick()
 	bf_redraw();
 }
 
+void bf_deselect()
+{
+    if (path) {
+	path_struct *step;
+	flyoutflag = TRUE;
+	selected = path->button;
+	current_buttons = path->current_buttons;
+	step = path;
+	path = path->back;
+	free(step);
+	if (path) curbackcolor=path->button->backcolor;
+	else curbackcolor=rootbutton->backcolor;
+    }
+}
 
 void bf_fly()
 {
