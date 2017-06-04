@@ -127,12 +127,13 @@ module Main(
     assign led[0] = counter[23];
 
     // Reset.
-    wire reset_n = key[0];
+    wire reset_n = 1'b1; // key[0];
     assign led[1] = !reset_n;
 
     // Exchange data with HPS.
     wire [31:0] f2h_value = {
-        29'b0,
+        28'b0,
+        f2h_home_button,
         rast_front_buffer,
         fb_front_buffer,
         rasterizer_busy
@@ -463,5 +464,28 @@ module Main(
         .debug_value0(test_debug_value0),
         .debug_value1(test_debug_value1),
         .debug_value2(test_debug_value2));
+
+    // Home button circuit.
+    wire raw_home_button = !key[1]; // Physical button is active low.
+    wire home_button;
+    reg f2h_home_button;
+    wire h2f_home_button = h2f_value[PWM_BITS + 2];
+    Debouncer debouncer(
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .button(raw_home_button),
+        .debounced_button(home_button));
+    always @(posedge clock_50 or negedge reset_n) begin
+        if (!reset_n) begin
+            f2h_home_button <= home_button;
+        end else begin
+            if (f2h_home_button != h2f_home_button) begin
+                // Do nothing, wait until HPS acknowledges button state.
+            end else begin
+                // Latch debounced home button.
+                f2h_home_button <= home_button;
+            end
+        end
+    end
 
 endmodule

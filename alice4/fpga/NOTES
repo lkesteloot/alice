@@ -339,3 +339,8 @@ Next:
   {name: 'color wait',    wave: '0............10...10.....1....', phase: 0.5},
 ]}
 
+
+Reset:
+    * Initially use built-in button.
+    * Write debouncing circuit.
+    - Expose a LW bit, acknowledged.
