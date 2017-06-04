@@ -20,7 +20,7 @@ Bounce
 	.highcolor. 1.0 .7 1.0
 
 Arena
-	../arena/arena
+	../arena/arena -n
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
