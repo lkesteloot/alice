@@ -250,8 +250,7 @@ draw_everything() {
 
 
 	RGBcolor(0, 0, 0);
-	clear();
-	zclear();
+	czclear(0, 0xFFFFFFFF);
 
 	mmode(MPROJECTION);
 	perspective(350, (float)XMAXSCREEN/YMAXSCREEN, 34, 72);

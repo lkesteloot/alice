@@ -276,6 +276,12 @@ void rasterizer_zclear(uint32_t z)
             pixel_depths[j][i] = z;
 }
 
+void rasterizer_czclear(uint8_t r, uint8_t g, uint8_t b, uint32_t z)
+{
+    rasterizer_zclear(z);
+    rasterizer_clear(r, g, b);
+}
+
 void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 {
     v->x = clamp(v->x + dx * SCREEN_VERTEX_V2_SCALE, 0, (DISPLAY_WIDTH - 1) * SCREEN_VERTEX_V2_SCALE);

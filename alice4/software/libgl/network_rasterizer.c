@@ -127,6 +127,12 @@ void rasterizer_zclear(uint32_t z)
     }
 }
 
+void rasterizer_czclear(uint8_t r, uint8_t g, uint8_t b, uint32_t z)
+{
+    rasterizer_zclear(z);
+    rasterizer_clear(r, g, b);
+}
+
 static void send_screen_vertex(screen_vertex *sv)
 {
     send_and_capture_uint16(sv->x / SCREEN_VERTEX_V2_SCALE);

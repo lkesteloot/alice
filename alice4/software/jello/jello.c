@@ -731,8 +731,7 @@ draw_everything()
 
     swapbuffers();
     RGBcolor(0, 0, 0);
-    clear();
-    zclear();
+    czclear(0, 0xFFFFFFFF);
 
     pushmatrix();
     multmatrix(view);

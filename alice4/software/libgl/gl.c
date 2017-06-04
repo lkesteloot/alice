@@ -3085,8 +3085,7 @@ void zfunction(int func) {
 void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
-    rasterizer_zclear(depth);
-    rasterizer_clear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff);
+    rasterizer_czclear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff, depth);
 }
 
 int gversion(char *version)
