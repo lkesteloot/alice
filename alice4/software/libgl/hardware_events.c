@@ -2,6 +2,7 @@
 #include <math.h>
 #include "event_service.h"
 #include "touchscreen.h"
+#include "awesome.h"
 #include "device.h"
 
 typedef struct event {
@@ -23,6 +24,8 @@ static int input_queue_length = 0;
 static int mousex = -1; // valuator for touchscreen X
 static int mousey = -1; // valuator for touchscreen X
 
+static int home_button_previous = 0;
+
 static void enqueue_event(event *e)
 {
     if (input_queue_length == INPUT_QUEUE_SIZE) {
@@ -31,6 +34,32 @@ static void enqueue_event(event *e)
         int tail = (input_queue_head + input_queue_length) % INPUT_QUEUE_SIZE;
         input_queue[tail] = *e;
         input_queue_length++;
+    }
+}
+
+static void drain_buttons()
+{
+    // Only Home button for now, which is mapped to ESC.
+    int home_button;
+    event ev;
+    
+    // libawesome will queue up two transitions per frame, so read the button
+    // twice to get those.
+    home_button = awesome_get_home_button();
+    if(home_button != home_button_previous) {
+	if(device_queued[ESCKEY]) {
+	    ev.device = ESCKEY;
+	    ev.val = home_button;
+	    enqueue_event(&ev);
+	}
+    }
+    home_button = awesome_get_home_button();
+    if(home_button != home_button_previous) {
+	if(device_queued[ESCKEY]) {
+	    ev.device = ESCKEY;
+	    ev.val = home_button;
+	    enqueue_event(&ev);
+	}
     }
 }
 
@@ -131,6 +160,7 @@ void events_qdevice(int32_t device)
 uint32_t event_qread_start(int blocking)
 {
     drain_touchscreen();
+    drain_buttons();
     return input_queue_length;
 }
 
@@ -145,10 +175,12 @@ int32_t events_qread_continue(int16_t *value)
 
 int32_t events_winopen(char *title)
 {
+    awesome_init();
     touchscreen_init();
     accelerometer_init();
     accelerometer_read(&theta_y_smoothed, &theta_x_smoothed);
     drain_touchscreen();
+    drain_buttons();
     return 0;
 }
 
