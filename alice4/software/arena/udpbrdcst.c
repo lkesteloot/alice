@@ -84,6 +84,7 @@ getbroadcast(service, addr)
             fprintf(stderr, "couldn't parse HOST \"%s\"\n", getenv("HOST"));
             abort();
         }
+	printf("Connecting using address %d.%d.%d.%d\n", parts[0], parts[1], parts[2], parts[3]);
         int address, broadcast;
         address = (parts[3] << 24) | (parts[2] << 16) | (parts[1] << 8) | parts[0];
         broadcast = 0xff000000 | (parts[2] << 16) | (parts[1] << 8) | parts[0];
