@@ -19,8 +19,6 @@
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 
-static Awesome awesome;
-
 static volatile uint64_t *gpu_protocol_buffer; // The fixed buffer from which the GPU reads commands
 
 // N.B.  This is a const variable meant to be compile-time-only.
@@ -45,14 +43,14 @@ void gpu_finish_rasterizing()
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to switch rasterization to the other buffer.\n");
 #endif
-    awesome_wait_for_end_of_rasterization(&awesome);
+    awesome_wait_for_end_of_rasterization();
 #endif /* SKIP_FPGA_WORK */
 }
 
 void gpu_start()
 {
 #ifndef SKIP_FPGA_WORK
-    awesome_start_rasterizing(&awesome);
+    awesome_start_rasterizing();
 #endif /* SKIP_FPGA_WORK */
 }
 
@@ -63,7 +61,7 @@ void gpu_wait()
 #ifdef DEBUG_PRINT
     printf("Waiting for FPGA to finish vsync.\n");
 #endif
-    awesome_wait_for_end_of_processing(&awesome);
+    awesome_wait_for_end_of_processing();
 #endif /* SKIP_FPGA_WORK */
 }
 
@@ -243,7 +241,7 @@ void rasterizer_swap()
     }
 
     protocol_next = protocol_buffer;
-    awesome_init_frame(&awesome);
+    awesome_init_frame();
 
     if(framestats_print) {
 	struct timeval now;
@@ -316,8 +314,8 @@ int32_t rasterizer_winopen(char *title)
     }
 
     // Initialize the interface to the FPGA.
-    awesome_init(&awesome);
-    gpu_protocol_buffer = awesome_get_command_buffer(&awesome);
+    awesome_init();
+    gpu_protocol_buffer = awesome_get_command_buffer();
 
     if(double_buffer_commands)
         protocol_buffer = staging_protocol_buffer;
@@ -325,7 +323,7 @@ int32_t rasterizer_winopen(char *title)
         protocol_buffer = gpu_protocol_buffer;
 
     protocol_next = protocol_buffer;
-    awesome_init_frame(&awesome);
+    awesome_init_frame();
 }
 
 void rasterizer_zbuffer(int enable)
