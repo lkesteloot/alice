@@ -15,6 +15,7 @@
 #undef DEBUG_PRINT
 #undef DEBUG_PRINT_VERBOSE
 #undef SKIP_FPGA_WORK
+#define WARN_SKIPPED_FRAME
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
@@ -35,6 +36,7 @@ static volatile uint64_t *protocol_buffer; // The base of the protocol buffer to
 static volatile uint64_t *protocol_next; // The next location to fill in the protocol buffer
 
 static int rasterizer_start_buffer;
+static int skipped_frame_count;
 
 void gpu_finish_rasterizing()
 {
@@ -136,11 +138,10 @@ void rasterizer_swap()
     awesome_swap(&protocol_next);
     awesome_end(&protocol_next);
 
-    if(framestats_print) {
-	struct timeval now;
-	float duration;
+    struct timeval now;
+    gettimeofday(&now, NULL);
 
-	gettimeofday(&now, NULL);
+    if (framestats_print) {
 	framestats_cpu_duration_sum += diff_timevals(&now, &framestats_previous_frame_end);
     }
 
@@ -167,8 +168,7 @@ void rasterizer_swap()
 		gpu_finish_rasterizing();
 
 		gettimeofday(&now, NULL);
-		float duration = diff_timevals(&now, &then);
-		framestats_raster_duration_sum += duration;
+		framestats_raster_duration_sum += diff_timevals(&now, &then);
 	    }
 
 	    // Now wait for VSYNC
@@ -179,8 +179,7 @@ void rasterizer_swap()
 
 	    if(framestats_print) {
 		gettimeofday(&now, NULL);
-		float duration = diff_timevals(&now, &then);
-		framestats_wait_duration_sum += duration;
+		framestats_wait_duration_sum += diff_timevals(&now, &then);
 	    }
 
             must_wait_on_gpu = 0;
@@ -227,8 +226,7 @@ void rasterizer_swap()
 	    gpu_finish_rasterizing();
 
 	    gettimeofday(&now, NULL);
-	    float duration = diff_timevals(&now, &then);
-	    framestats_raster_duration_sum += duration;
+	    framestats_raster_duration_sum += diff_timevals(&now, &then);
 	}
 
         //
@@ -243,16 +241,13 @@ void rasterizer_swap()
     protocol_next = protocol_buffer;
     awesome_init_frame();
 
+    gettimeofday(&now, NULL);
+    float frame_duration = diff_timevals(&now, &framestats_previous_frame_end);
+
     if(framestats_print) {
-	struct timeval now;
-	float duration;
-
-	gettimeofday(&now, NULL);
-
-	framestats_frame_duration_sum += diff_timevals(&now, &framestats_previous_frame_end);
+	framestats_frame_duration_sum += frame_duration;
 
 	framestats_duration_count ++;
-	framestats_previous_frame_end = now;
 
 	if((framestats_print == 2) || (now.tv_sec > framestats_previous_print_time)) {
 
@@ -294,6 +289,19 @@ void rasterizer_swap()
 	    framestats_duration_count = 0;
 	}
     }
+
+#ifdef WARN_SKIPPED_FRAME
+    // (800+24+72+96)*(480+3+10+7)/25e6 = 0.01984
+    // It'll be a multiple of that. Add 10% for margin. Don't warn
+    // if it was too long, that's probably just the app that stopped
+    // drawing (like buttonfly).
+    if (frame_duration >= .01984*1.1 && frame_duration < .01984*10) {
+	printf("WARNING: Skipped a frame (%d ms, %d so far)\n",
+		(int) (frame_duration*1000), ++skipped_frame_count);
+    }
+#endif
+
+    framestats_previous_frame_end = now;
 }
 
 int32_t rasterizer_winopen(char *title)
@@ -308,10 +316,11 @@ int32_t rasterizer_winopen(char *title)
 	    fprintf(stderr, "%d value for \"PRINT_FRAME_STATS\" is not defined\n", framestats_print);
 	    exit(EXIT_FAILURE);
 	}
-	gettimeofday(&framestats_previous_frame_end, NULL);
 
 	framestats_previous_print_time = framestats_previous_frame_end.tv_sec;
     }
+
+    gettimeofday(&framestats_previous_frame_end, NULL);
 
     // Initialize the interface to the FPGA.
     awesome_init();
