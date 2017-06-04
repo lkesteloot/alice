@@ -13,20 +13,14 @@ Insect
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
-Application Demos
-	cat m_clock*
+Bounce
+	cat m_bounce*
 	.menu. -
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
-Tools
-	cat m_tools*
-	.menu. -
-	.color. .9 .5 .9
-	.highcolor. 1.0 .7 1.0
-
-Older Demos
-	cat m_old*
-	.menu. -
+Shutdown
+	../fb_image_test/alice4view goodbye.png 0x38000000 3200 4
+	shutdown -h now
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
