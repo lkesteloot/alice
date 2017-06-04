@@ -681,6 +681,7 @@ set_location_assignment PIN_T19 -to hps_ddr3_dqs_p[2]
 set_location_assignment PIN_U19 -to hps_ddr3_dqs_p[3]
 set_location_assignment PIN_D25 -to hps_ddr3_rzq
 
+set_global_assignment -name VERILOG_FILE Debouncer.v
 set_global_assignment -name VERILOG_FILE Test_FIFO.v
 set_global_assignment -name VERILOG_FILE Read_FIFO.v
 set_global_assignment -name VERILOG_FILE Write_FIFO.v
