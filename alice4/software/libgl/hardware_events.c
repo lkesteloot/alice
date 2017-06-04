@@ -45,20 +45,15 @@ static void drain_buttons()
     
     // libawesome will queue up two transitions per frame, so read the button
     // twice to get those.
-    home_button = awesome_get_home_button();
-    if(home_button != home_button_previous) {
-	if(device_queued[ESCKEY]) {
-	    ev.device = ESCKEY;
-	    ev.val = home_button;
-	    enqueue_event(&ev);
-	}
-    }
-    home_button = awesome_get_home_button();
-    if(home_button != home_button_previous) {
-	if(device_queued[ESCKEY]) {
-	    ev.device = ESCKEY;
-	    ev.val = home_button;
-	    enqueue_event(&ev);
+    for (int i = 0; i < 2; i++) {
+	home_button = awesome_get_home_button();
+	if(home_button != home_button_previous) {
+	    if(device_queued[ESCKEY]) {
+		ev.device = ESCKEY;
+		ev.val = home_button;
+		enqueue_event(&ev);
+	    }
+	    home_button_previous = home_button;
 	}
     }
 }
