@@ -681,10 +681,12 @@ button_struct *button;
 {
 
     RGBcolor(200, 200, 200);
+    RGBcolor(255, 255, 255);
 
     scale(-0.015, 0.015, 0.015);
 
-    linewidth(sizex*3/1000 + 1);
+    // linewidth(sizex*3/1000 + 1);
+    linewidth((sizex*3/1000 + 1) * 800 / 1280);
 
     switch (button->wc) {
 
