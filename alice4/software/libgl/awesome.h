@@ -15,31 +15,30 @@
 #define AWESOME_DRAW_TRIANGLE_STRIP 5
 #define AWESOME_DRAW_TRIANGLE_FAN 6
 
-// Get the global Awesome struct, for convenience between multiple
-// modules that want to share single instance of Awesome.
-Awesome *awesome_init(Awesome *awesome);
+// Connect to the FPGA.
+void awesome_init();
 
 // Initializes the library, opening the connection to the FPGA.
 // Exits the program with a message if something goes wrong.
-void awesome_init(Awesome *awesome);
+void awesome_init();
 
 // Address of start of command buffer.
-volatile uint64_t *awesome_get_command_buffer(Awesome *awesome);
+volatile uint64_t *awesome_get_command_buffer();
 
 // Call this before the drawing routines.
-void awesome_init_frame(Awesome *awesome);
+void awesome_init_frame();
 
 // Call these after the drawing routines.
-void awesome_start_rasterizing(Awesome *awesome);
-void awesome_wait_for_end_of_rasterization(Awesome *awesome); // Optional.
-void awesome_wait_for_end_of_processing(Awesome *awesome);
+void awesome_start_rasterizing();
+void awesome_wait_for_end_of_rasterization(); // Optional.
+void awesome_wait_for_end_of_processing();
 
 // Return whether the home button is currently being pressed.
-int awesome_get_home_button(Awesome *awesome);
+int awesome_get_home_button();
 
 // Set the brightness from 0 to AWESOME_MAX_BRIGHTNESS.
-void awesome_set_brightness(Awesome *awesome, int brightness);
-void awesome_disable_brightness(Awesome *awesome);
+void awesome_set_brightness(int brightness);
+void awesome_disable_brightness();
 
 // Commands for the rasterizer.
 void awesome_clear(volatile uint64_t **p, uint8_t red, uint8_t green, uint8_t blue);
