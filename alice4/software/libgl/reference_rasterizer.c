@@ -368,7 +368,7 @@ void rasterizer_bitmap(uint32_t width, uint32_t rowbytes, uint32_t height, scree
 
 void draw_line(screen_vertex *v0, screen_vertex *v1)
 {
-    if(0) {
+    if(1) {
         float dx = (v1->x - v0->x);
         float dy = (v1->y - v0->y);
         float d = sqrt(dx * dx + dy * dy);
@@ -378,31 +378,23 @@ void draw_line(screen_vertex *v0, screen_vertex *v1)
             return;
         }
 
-        dx = dx / d;
-        dy = dy / d;
-
-        float anglescale;
-        if(fabs(dx) < 0.0001) {
-            anglescale = 1.0 / fabs(dy);
-        } else if(fabs(dy) < 0.0001) {
-            anglescale = 1.0 / fabs(dx);
-        } else {
-            anglescale = min(1.0 / fabs(dx), 1.0 / fabs(dy));
-        }
-
-        dx = dx * anglescale;
-        dy = dy * anglescale;
-
         screen_vertex q[4];
         q[0] = *v0;
         q[1] = *v0;
         q[2] = *v1;
         q[3] = *v1;
 
-        screen_vertex_offset_with_clamp(&q[0],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
-        screen_vertex_offset_with_clamp(&q[1], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
-        screen_vertex_offset_with_clamp(&q[2], -dy * the_linewidth * .5,  dx * the_linewidth * .5);
-        screen_vertex_offset_with_clamp(&q[3],  dy * the_linewidth * .5, -dx * the_linewidth * .5);
+        if(fabs(dx) > fabs(dy)) {
+            screen_vertex_offset_with_clamp(&q[0], 0, -the_linewidth * .5);
+            screen_vertex_offset_with_clamp(&q[1], 0,  the_linewidth * .5);
+            screen_vertex_offset_with_clamp(&q[2], 0,  the_linewidth * .5);
+            screen_vertex_offset_with_clamp(&q[3], 0, -the_linewidth * .5);
+        } else {
+            screen_vertex_offset_with_clamp(&q[0], -the_linewidth * .5, 0);
+            screen_vertex_offset_with_clamp(&q[1],  the_linewidth * .5, 0);
+            screen_vertex_offset_with_clamp(&q[2],  the_linewidth * .5, 0);
+            screen_vertex_offset_with_clamp(&q[3], -the_linewidth * .5, 0);
+        }
 
         draw_screen_triangle(&q[0], &q[1], &q[2]);
         draw_screen_triangle(&q[2], &q[3], &q[0]);
@@ -420,9 +412,12 @@ void draw_line(screen_vertex *v0, screen_vertex *v1)
             int x = v0->x / SCREEN_VERTEX_V2_SCALE;
             int y = v0->y * 256 / SCREEN_VERTEX_V2_SCALE;
             for(int i = 0; i < count; i++) {
-                pixel_colors[480 - 1 - y/256][x][0] = 255;
-                pixel_colors[480 - 1 - y/256][x][1] = 255;
-                pixel_colors[480 - 1 - y/256][x][2] = 255;
+                for(int j = 0; j <= the_linewidth; j++) {
+                    int k = (y - 256 * the_linewidth / 2) / 256 + j;
+                    pixel_colors[480 - 1 - k][x][0] = 255;
+                    pixel_colors[480 - 1 - k][x][1] = 255;
+                    pixel_colors[480 - 1 - k][x][2] = 255;
+                }
                 y += dy/count;
                 x += dp;
             }
@@ -434,16 +429,18 @@ void draw_line(screen_vertex *v0, screen_vertex *v1)
             int x = v0->x * 256 / SCREEN_VERTEX_V2_SCALE;
             int y = v0->y / SCREEN_VERTEX_V2_SCALE;
             for(int i = 0; i < count; i++) {
-                pixel_colors[480 - 1 - y][x/256][0] = 255;
-                pixel_colors[480 - 1 - y][x/256][1] = 255;
-                pixel_colors[480 - 1 - y][x/256][2] = 255;
+                for(int j = 0; j <= the_linewidth; j++) {
+                    int k = (x - 256 * the_linewidth / 2) / 256 + j;
+                    pixel_colors[480 - 1 - y][k][0] = 255;
+                    pixel_colors[480 - 1 - y][k][1] = 255;
+                    pixel_colors[480 - 1 - y][k][2] = 255;
+                }
                 y += dp;
                 x += dx/count;
             }
         }
     }
 }
-
 
 void rasterizer_draw(uint32_t type, uint32_t count, screen_vertex *screenverts)
 {
