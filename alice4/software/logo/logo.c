@@ -12,6 +12,9 @@
 #include <device.h>
 #include "light.h"
 
+// LK: See instructions in Makefile.
+#undef STOP_AFTER_ANIMATION
+
 #define X 0
 #define Y 1
 #define Z 2
@@ -273,6 +276,10 @@ draw_everything() {
 
 	mmode(MSINGLE);
 
+#ifdef STOP_AFTER_ANIMATION
+	int finished = joint == JOINT;
+#endif
+
 	if (joint>JOINT) {
 
 		joint-=9;
@@ -287,6 +294,12 @@ draw_everything() {
 	}
 
 	swapbuffers();
+
+#ifdef STOP_AFTER_ANIMATION
+	if (finished) {
+	    exit(0);
+	}
+#endif
 }
 
 

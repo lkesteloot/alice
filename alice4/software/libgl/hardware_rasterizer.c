@@ -13,7 +13,7 @@
 #include "connection.h"
 
 #undef DEBUG_PRINT
-#undef DEBUG_PRINT_VERBOSE
+#undef DUMP_ALL_COMMANDS
 #undef SKIP_FPGA_WORK
 #define WARN_SKIPPED_FRAME
 
@@ -147,12 +147,12 @@ void rasterizer_swap()
 
 #ifdef DEBUG_PRINT
     printf("    Wrote %d words\n", protocol_next - protocol_buffer);
-#ifdef DEBUG_PRINT_VERBOSE
-    for (volatile uint64_t *t = protocol_buffer; t < protocol_next; t++) {
-        printf("        0x%016llX\n", *t);
-    }
-#endif // DEBUG_PRINT_VERBOSE
 #endif // DEBUG_PRINT
+#ifdef DUMP_ALL_COMMANDS
+    for (volatile uint64_t *t = protocol_buffer; t < protocol_next; t++) {
+        printf("fpga cmd 0x%016llX\n", *t);
+    }
+#endif // DUMP_ALL_COMMANDS
 
     if(double_buffer_commands) {
 	struct timeval then, now;

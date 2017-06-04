@@ -17,3 +17,11 @@ run: $(APP)
 
 clean:
 	rm -f $(APP)
+
+# Make cmd.txt by defining STOP_AFTER_ANIMATION in logo.c and
+# DUMP_ALL_COMMANDS in hardware_rasterizer.c, then piping
+# the output of logo to cmd.txt. Copy the resulting cmd.bin
+# file to the SD card's FAT partition.
+cmd.bin: cmd.txt ../tools/convert_command_dump.py
+	python ../tools/convert_command_dump.py < cmd.txt > cmd.bin
+
