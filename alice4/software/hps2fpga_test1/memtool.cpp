@@ -133,12 +133,12 @@ int main(int argc, char *argv[])
     switch (word_size) {
 	case 8: {
 	    uint8_t *p = (uint8_t *) (mem + offset);
-	    for (int i = 0; i < count; i++) {
+	    for (int i = 0; i < count; i++, p++) {
 		if (writing) {
-		    *p++ = (uint8_t) value;
+		    *p = (uint8_t) value;
 		    value += incr;
 		} else {
-		    printf("%p = %x\n", ((uint8_t *) p) + base_address, *p++);
+		    printf("0x%X = 0x%X\n", address + i, *p);
 		}
 	    }
 	    break;
@@ -146,12 +146,12 @@ int main(int argc, char *argv[])
 
 	case 16: {
 	    uint16_t *p = (uint16_t *) (mem + offset);
-	    for (int i = 0; i < count; i++) {
+	    for (int i = 0; i < count; i++, p++) {
 		if (writing) {
-		    *p++ = (uint16_t) value;
+		    *p = (uint16_t) value;
 		    value += incr;
 		} else {
-		    printf("%p = %x\n", ((uint8_t *) p) + base_address, *p++);
+		    printf("0x%X = 0x%X\n", address + i*2, *p);
 		}
 	    }
 	    break;
@@ -159,12 +159,12 @@ int main(int argc, char *argv[])
 
 	case 32: {
 	    uint32_t *p = (uint32_t *) (mem + offset);
-	    for (int i = 0; i < count; i++) {
+	    for (int i = 0; i < count; i++, p++) {
 		if (writing) {
-		    *p++ = (uint32_t) value;
+		    *p = (uint32_t) value;
 		    value += incr;
 		} else {
-		    printf("%p = %x\n", ((uint8_t *) p) + base_address, *p++);
+		    printf("0x%X = 0x%X\n", address + i*4, *p);
 		}
 	    }
 	    break;
@@ -172,12 +172,12 @@ int main(int argc, char *argv[])
 
 	case 64: {
 	    uint64_t *p = (uint64_t *) (mem + offset);
-	    for (int i = 0; i < count; i++) {
+	    for (int i = 0; i < count; i++, p++) {
 		if (writing) {
-		    *p++ = (uint64_t) value;
+		    *p = (uint64_t) value;
 		    value += incr;
 		} else {
-		    printf("%p = %llx\n", ((uint8_t *) p) + base_address, *p++);
+		    printf("0x%X = 0x%llx\n", address + i*8, *p);
 		}
 	    }
 	    break;

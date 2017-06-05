@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# See page 11-11 of the Cyclone handbook (part 3).
+#
+# MPU and L3 get 3, unused get 0, FPGA gets 6, except for
+# frame buffer scanout, which gets 7. We do not use the
+# mpweight, nor the remappriority.
+
+sudo ./memtool write 0xFFC250AC 03333006667
+
+# Verify write:
+echo "Should be:   0x1B6C0DB7"
+sudo ./memtool read 0xFFC250AC
+
