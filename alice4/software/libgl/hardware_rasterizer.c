@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 #include "awesome.h"
 
 #include <gl.h>
@@ -125,12 +125,12 @@ static float framestats_raster_duration_sum = 0.0;
 static float framestats_wait_duration_sum = 0.0; 
 static int framestats_duration_count = 0; 
 static time_t framestats_previous_print_time;
-static struct timeval framestats_previous_frame_end;
-static struct timeval framestats_rasterizer_start;
+static struct timespec framestats_previous_frame_end;
+static struct timespec framestats_rasterizer_start;
 
-float diff_timevals(struct timeval *t1, struct timeval *t2)
-{
-    return (t1->tv_sec - t2->tv_sec) + (t1->tv_usec / 1000000.0 - t2->tv_usec / 1000000.0);
+double diff_timespecs(struct timespec *t1, struct timespec *t2)		
+{		
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
 }
 
 void rasterizer_swap()
@@ -138,11 +138,11 @@ void rasterizer_swap()
     awesome_swap(&protocol_next);
     awesome_end(&protocol_next);
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
 
     if (framestats_print) {
-	framestats_cpu_duration_sum += diff_timevals(&now, &framestats_previous_frame_end);
+	framestats_cpu_duration_sum += diff_timespecs(&now, &framestats_previous_frame_end);
     }
 
 #ifdef DEBUG_PRINT
@@ -155,7 +155,7 @@ void rasterizer_swap()
 #endif // DUMP_ALL_COMMANDS
 
     if(double_buffer_commands) {
-	struct timeval then, now;
+	struct timespec then, now;
 
 	// Double buffer the command list.  If the GPU might have
 	// been busy, make sure it has finished.
@@ -163,23 +163,23 @@ void rasterizer_swap()
 
 	    // Wait for GPU to finish rasterizing
 	    if(framestats_print) {
-		gettimeofday(&then, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &then);
 
 		gpu_finish_rasterizing();
 
-		gettimeofday(&now, NULL);
-		framestats_raster_duration_sum += diff_timevals(&now, &then);
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		framestats_raster_duration_sum += diff_timespecs(&now, &then);
 	    }
 
 	    // Now wait for VSYNC
 	    if(framestats_print)
-		gettimeofday(&then, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &then);
 
             gpu_wait();
 
 	    if(framestats_print) {
-		gettimeofday(&now, NULL);
-		framestats_wait_duration_sum += diff_timevals(&now, &then);
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		framestats_wait_duration_sum += diff_timespecs(&now, &then);
 	    }
 
             must_wait_on_gpu = 0;
@@ -189,7 +189,7 @@ void rasterizer_swap()
         ptrdiff_t byte_count = (char*)protocol_next - (char*)protocol_buffer;
 
 	if(framestats_print)
-	    gettimeofday(&then, NULL);
+	    clock_gettime(CLOCK_MONOTONIC, &then);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
@@ -197,8 +197,8 @@ void rasterizer_swap()
 #pragma GCC diagnostic pop
 
 	if(framestats_print) {
-	    gettimeofday(&now, NULL);
-	    framestats_copy_duration_sum += diff_timevals(&now, &then);
+	    clock_gettime(CLOCK_MONOTONIC, &now);
+	    framestats_copy_duration_sum += diff_timespecs(&now, &then);
 	}
 
 	// Finally, kick off the GPU, and note that we will need
@@ -212,37 +212,37 @@ void rasterizer_swap()
 
 	// Don't double buffer.  Just send off the commands to the
 	// GPU and then wait to be done.
-	struct timeval then, now;
+	struct timespec then, now;
 
 	if(framestats_print)
-	    gettimeofday(&then, NULL);
+	    clock_gettime(CLOCK_MONOTONIC, &then);
 
         gpu_start();
 
 	// Wait for GPU to finish rasterizing if we want to print timing info
 	if(framestats_print) {
-	    gettimeofday(&then, NULL);
+	    clock_gettime(CLOCK_MONOTONIC, &then);
 
 	    gpu_finish_rasterizing();
 
-	    gettimeofday(&now, NULL);
-	    framestats_raster_duration_sum += diff_timevals(&now, &then);
+	    clock_gettime(CLOCK_MONOTONIC, &now);
+	    framestats_raster_duration_sum += diff_timespecs(&now, &then);
 	}
 
         //
         gpu_wait();
 
 	if(framestats_print) {
-	    gettimeofday(&now, NULL);
-	    framestats_gpu_duration_sum += diff_timevals(&now, &then);
+	    clock_gettime(CLOCK_MONOTONIC, &now);
+	    framestats_gpu_duration_sum += diff_timespecs(&now, &then);
 	}
     }
 
     protocol_next = protocol_buffer;
     awesome_init_frame();
 
-    gettimeofday(&now, NULL);
-    float frame_duration = diff_timevals(&now, &framestats_previous_frame_end);
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    float frame_duration = diff_timespecs(&now, &framestats_previous_frame_end);
 
     if(framestats_print) {
 	framestats_frame_duration_sum += frame_duration;
@@ -320,7 +320,7 @@ int32_t rasterizer_winopen(char *title)
 	framestats_previous_print_time = framestats_previous_frame_end.tv_sec;
     }
 
-    gettimeofday(&framestats_previous_frame_end, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &framestats_previous_frame_end);
 
     // Initialize the interface to the FPGA.
     awesome_init();
