@@ -114,8 +114,31 @@ Next:
   {name: 'color wait',    wave: '0............10...10.....1....', phase: 0.5},
 ]}
 
+Buffer addresses:
+    Base: 0x38000000 (0x7000000 in 64-bit addresses)
+    Command buffer: 0x38465000 (0x708ca00 in 64-bit addresses)
 
-Reset:
-    * Initially use built-in button.
-    * Write debouncing circuit.
-    - Expose a LW bit, acknowledged.
+SDRAM priority:
+    See page 11-11.
+    See mppriority register.
+        0xFFC250AC
+        Defaults to:
+            0x3ffd1088, or 07777210210.
+            MPU and L3 have highest priority, rest are bizarre.
+        Port 0 is bits 2:0, port 1 is bits 5:3, etc.
+        MPU and L3 are ports 29:18.
+        Want:
+            Port 0, scanout: 7
+            Port 1, read z: 6
+            Port 2, write color: 6
+            Port 3, write Z: 6
+            Port 4, unused: 0
+            Port 5, unused: 0
+            Ports 6 through 9, MPU and L3: 3
+            03333006667, or 0x1b6c0db7
+    See mpweight_?_4 registers.
+        I think I can ignore these.
+    See remappriority register.
+        Causes some priority levels to have their requests jump to
+        the front of the queue.
+
