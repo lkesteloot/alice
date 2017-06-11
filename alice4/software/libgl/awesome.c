@@ -213,6 +213,13 @@ void awesome_init_frame()
     // Start of frame.
     if ((*awesome.gpi & F2H_BUSY) != 0) {
 	printf("Warning: FPGA is busy at top of loop.\n");
+
+	// Wait until FPGA is not busy. This might happen when we quit
+	// a demo program part-way through rasterization and return
+	// to buttonfly, which might immediately start drawing.
+	while ((*awesome.gpi & F2H_BUSY) != 0) {
+	    // Busy loop.
+	}
     }
 }
 

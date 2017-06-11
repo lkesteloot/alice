@@ -26,7 +26,7 @@ static volatile uint64_t *gpu_protocol_buffer; // The fixed buffer from which th
 // If this variable is changed to be settable at run-time, a
 // synchronization point must be added to wait on GPU and copy between
 // staging to gpu buffers as necessary.
-static const int double_buffer_commands = 0;
+static const int double_buffer_commands = 1;
 static int must_wait_on_gpu = 0;
 
 #define MAX_PROTOCOL_QUAD_COUNT (10 * 1024 * 1024 / sizeof(uint64_t))
@@ -36,7 +36,6 @@ static volatile uint64_t *protocol_buffer; // The base of the protocol buffer to
 static volatile uint64_t *protocol_next; // The next location to fill in the protocol buffer
 
 static int rasterizer_start_buffer;
-static int skipped_frame_count;
 
 void gpu_finish_rasterizing()
 {
@@ -191,6 +190,7 @@ void rasterizer_swap()
 	if(framestats_print)
 	    clock_gettime(CLOCK_MONOTONIC, &then);
 
+	awesome_init_frame();
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
         memcpy(gpu_protocol_buffer, protocol_buffer, byte_count);
@@ -236,10 +236,11 @@ void rasterizer_swap()
 	    clock_gettime(CLOCK_MONOTONIC, &now);
 	    framestats_gpu_duration_sum += diff_timespecs(&now, &then);
 	}
+
+	awesome_init_frame();
     }
 
     protocol_next = protocol_buffer;
-    awesome_init_frame();
 
     clock_gettime(CLOCK_MONOTONIC, &now);
     float frame_duration = diff_timespecs(&now, &framestats_previous_frame_end);
@@ -296,8 +297,8 @@ void rasterizer_swap()
     // if it was too long, that's probably just the app that stopped
     // drawing (like buttonfly).
     if (frame_duration >= .01984*1.1 && frame_duration < .01984*10) {
-	printf("WARNING: Skipped a frame (%d ms, %d so far)\n",
-		(int) (frame_duration*1000), ++skipped_frame_count);
+	printf("WARNING: Skipped a frame (%d ms)\n",
+		(int) (frame_duration*1000));
     }
 #endif
 
