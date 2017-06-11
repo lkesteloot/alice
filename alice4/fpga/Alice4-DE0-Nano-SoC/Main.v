@@ -383,39 +383,53 @@ module Main(
         end
     end
 
+    // Latch all LCD outputs.
+    reg [7:0] lcd_red_d1;
+    reg [7:0] lcd_green_d1;
+    reg [7:0] lcd_blue_d1;
+    reg lcd_tick_d1;
+    reg lcd_data_enable_delayed_d1;
+    always @(posedge clock_50) begin
+        lcd_red_d1 <= lcd_red;
+        lcd_green_d1 <= lcd_green;
+        lcd_blue_d1 <= lcd_blue;
+        lcd_tick_d1 <= lcd_tick;
+        lcd_data_enable_delayed_d1 <= lcd_data_enable_delayed;
+    end
+
     // GPIO pins.
-    assign gpio_0[0] = lcd_red[0];
-    assign gpio_0[2] = lcd_red[1];
-    assign gpio_0[4] = lcd_red[2];
-    assign gpio_0[6] = lcd_red[3];
-    assign gpio_0[8] = lcd_red[4];
-    assign gpio_0[10] = lcd_red[5];
-    assign gpio_0[12] = lcd_red[6];
-    assign gpio_0[14] = lcd_red[7];
+    assign gpio_0[0] = lcd_red_d1[0];
+    assign gpio_0[2] = lcd_red_d1[1];
+    assign gpio_0[4] = lcd_red_d1[2];
+    assign gpio_0[6] = lcd_red_d1[3];
+    assign gpio_0[8] = lcd_red_d1[4];
+    assign gpio_0[10] = lcd_red_d1[5];
+    assign gpio_0[12] = lcd_red_d1[6];
+    assign gpio_0[14] = lcd_red_d1[7];
 
-    assign gpio_0[16] = lcd_blue[0];
-    assign gpio_0[18] = lcd_blue[1];
-    assign gpio_0[20] = lcd_blue[2];
-    assign gpio_0[22] = lcd_blue[3];
-    assign gpio_0[24] = lcd_blue[4];
-    assign gpio_0[26] = lcd_blue[5];
-    assign gpio_0[28] = lcd_blue[6];
-    assign gpio_0[30] = lcd_blue[7];
+    assign gpio_0[16] = lcd_blue_d1[0];
+    assign gpio_0[18] = lcd_blue_d1[1];
+    assign gpio_0[20] = lcd_blue_d1[2];
+    assign gpio_0[22] = lcd_blue_d1[3];
+    assign gpio_0[24] = lcd_blue_d1[4];
+    assign gpio_0[26] = lcd_blue_d1[5];
+    assign gpio_0[28] = lcd_blue_d1[6];
+    assign gpio_0[30] = lcd_blue_d1[7];
 
-    assign gpio_0[1] = lcd_green[0];
-    assign gpio_0[3] = lcd_green[1];
-    assign gpio_0[5] = lcd_green[2];
-    assign gpio_0[7] = lcd_green[3];
-    assign gpio_0[9] = lcd_green[4];
-    assign gpio_0[11] = lcd_green[5];
-    assign gpio_0[13] = lcd_green[6];
-    assign gpio_0[15] = lcd_green[7];
+    assign gpio_0[1] = lcd_green_d1[0];
+    assign gpio_0[3] = lcd_green_d1[1];
+    assign gpio_0[5] = lcd_green_d1[2];
+    assign gpio_0[7] = lcd_green_d1[3];
+    assign gpio_0[9] = lcd_green_d1[4];
+    assign gpio_0[11] = lcd_green_d1[5];
+    assign gpio_0[13] = lcd_green_d1[6];
+    assign gpio_0[15] = lcd_green_d1[7];
 
-    assign gpio_0[17] = lcd_tick;
+    assign gpio_0[17] = lcd_tick_d1;
     assign gpio_0[19] = lcd_display_on;
     assign gpio_0[21] = sw[1] ? 1'b1 : lcd_hs_n;
     assign gpio_0[23] = sw[2] ? 1'b1 : lcd_vs_n;
-    assign gpio_0[25] = lcd_data_enable_delayed;
+    assign gpio_0[25] = lcd_data_enable_delayed_d1;
     assign gpio_0[27] = lcd_pwm;
 
     // LCD clock.
