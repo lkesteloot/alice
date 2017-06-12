@@ -9,6 +9,9 @@
 #include "buttonfly.h"
 #include "data.h"
 
+// Stop at the slow frame in the animation so we can analyze it.
+#define BLOCK_AT_SLOW_FRAME 0
+
 #define X 0
 #define Y 1
 #define Z 2
@@ -391,7 +394,9 @@ void selectdraw()
 void flyindraw()
 {
 	static float t = 1.0;
-	t -= 0.02;
+	if (t > 0.2 || !BLOCK_AT_SLOW_FRAME) {
+	    t -= 0.02;
+	}
 	if (t<=0.0) {
 	    current_buttons = selected->forward;
 	    selected=NULL;

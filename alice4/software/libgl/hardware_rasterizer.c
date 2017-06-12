@@ -13,9 +13,11 @@
 #include "connection.h"
 
 #undef DEBUG_PRINT
+#define COVERAGE_PRINT
 #undef DUMP_ALL_COMMANDS
 #undef SKIP_FPGA_WORK
-#define WARN_SKIPPED_FRAME
+#undef WARN_SKIPPED_FRAME
+#define BREAK_UP_TRIANGLES
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
@@ -36,6 +38,38 @@ static volatile uint64_t *protocol_buffer; // The base of the protocol buffer to
 static volatile uint64_t *protocol_next; // The next location to fill in the protocol buffer
 
 static int rasterizer_start_buffer;
+
+#ifdef COVERAGE_PRINT
+static int total_bbox_area = 0;
+static int total_triangle_area = 0;
+static int broken_count = 0;
+#endif
+
+#ifdef BREAK_UP_TRIANGLES
+static const int subtriangle_count = 31; // Sweet spot. Must be odd.
+static const int max_coverage = 25; // Sweet spot.
+static const int min_bbox_area = 1600; // Sweet spot.
+#endif
+
+// Compute the point "t" of the way between s0 and s1.
+static void interpolate_screen_vertex(screen_vertex *s0, screen_vertex *s1,
+    screen_vertex *out, double t)
+{
+    out->x = (uint16_t) (s0->x + ((int32_t) s1->x - s0->x)*t);
+    out->y = (uint16_t) (s0->y + ((int32_t) s1->y - s0->y)*t);
+    out->z = (uint32_t) (s0->z + ((int64_t) s1->z - s0->z)*t);
+    out->r = (uint8_t) (s0->r + ((int16_t) s1->r - s0->r)*t);
+    out->g = (uint8_t) (s0->g + ((int16_t) s1->g - s0->g)*t);
+    out->b = (uint8_t) (s0->b + ((int16_t) s1->b - s0->b)*t);
+    out->a = (uint8_t) (s0->a + ((int16_t) s1->a - s0->a)*t);
+
+    // To visualize the broken-up triangles.
+    if (0) {
+	out->r = rand() & 0xFF;
+	out->g = rand() & 0xFF;
+	out->b = rand() & 0xFF;
+    }
+}
 
 void gpu_finish_rasterizing()
 {
@@ -70,9 +104,14 @@ static float the_linewidth;
 static int pattern_enabled = 0;
 static int zbuffer_enabled = 0;
 
-static float min(float a, float b)
+static int min(int a, int b)
 {
     return (a < b) ? a : b;
+}
+
+static int max(int a, int b)
+{
+    return (a > b) ? a : b;
 }
 
 static float clamp(float v, float low, float high)
@@ -115,7 +154,7 @@ void rasterizer_pattern(int enable)
     pattern_enabled = enable;
 }
 
-static int framestats_print = 0;
+static int framestats_print = 1;
 static float framestats_frame_duration_sum = 0.0; 
 static float framestats_cpu_duration_sum = 0.0; 
 static float framestats_copy_duration_sum = 0.0; 
@@ -126,6 +165,7 @@ static int framestats_duration_count = 0;
 static time_t framestats_previous_print_time;
 static struct timespec framestats_previous_frame_end;
 static struct timespec framestats_rasterizer_start;
+static int framestats_skipped_frames = 0;
 
 double diff_timespecs(struct timespec *t1, struct timespec *t2)		
 {		
@@ -136,6 +176,16 @@ void rasterizer_swap()
 {
     awesome_swap(&protocol_next);
     awesome_end(&protocol_next);
+
+#ifdef COVERAGE_PRINT
+    printf("%d bbox / %d triangle = %d%% (%d broken)\n",
+    	total_bbox_area, total_triangle_area,
+	total_triangle_area*100/total_bbox_area, broken_count);
+
+    total_bbox_area = 0;
+    total_triangle_area = 0;
+    broken_count = 0;
+#endif
 
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -259,26 +309,28 @@ void rasterizer_swap()
 	    if(double_buffer_commands) {
 		if(!printed_header)  {
 		    printed_header = 1;
-		    printf("total frame ms, cpu, copy, raster wait, est total raster, F2H_BUSY wait\n");
+		    printf("total frame ms, cpu, copy, raster wait, est total raster, swap wait, skipped\n");
 		}
-		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f\n",
+		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %d\n",
 		    framestats_frame_duration_sum / framestats_duration_count * 1000,
 		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
 		    framestats_copy_duration_sum / framestats_duration_count * 1000,
 		    framestats_raster_duration_sum / framestats_duration_count * 1000,
 		    (framestats_cpu_duration_sum + framestats_copy_duration_sum + framestats_raster_duration_sum) / framestats_duration_count * 1000,
-		    framestats_wait_duration_sum / framestats_duration_count * 1000);
+		    framestats_wait_duration_sum / framestats_duration_count * 1000,
+		    framestats_skipped_frames);
 	    } else {
 		if(!printed_header)  {
 		    printed_header = 1;
-		    printf("total frame ms, cpu , raster wait, est total raster, F2H_BUSY wait\n");
+		    printf("total frame ms, cpu , raster wait, est total raster, swap wait, skipped\n");
 		}
-		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f\n",
+		printf("%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %d\n",
 		    framestats_frame_duration_sum / framestats_duration_count * 1000,
 		    framestats_cpu_duration_sum / framestats_duration_count * 1000,
 		    framestats_raster_duration_sum / framestats_duration_count * 1000,
 		    (framestats_cpu_duration_sum + framestats_copy_duration_sum + framestats_raster_duration_sum) / framestats_duration_count * 1000,
-		    framestats_gpu_duration_sum / framestats_duration_count * 1000);
+		    framestats_gpu_duration_sum / framestats_duration_count * 1000,
+		    framestats_skipped_frames);
 	    }
 
 	    framestats_cpu_duration_sum = 0.0;
@@ -288,19 +340,20 @@ void rasterizer_swap()
 	    framestats_raster_duration_sum = 0.0;
 	    framestats_frame_duration_sum = 0.0;
 	    framestats_duration_count = 0;
+	    framestats_skipped_frames = 0;
 	}
     }
 
-#ifdef WARN_SKIPPED_FRAME
     // (800+24+72+96)*(480+3+10+7)/25e6 = 0.01984
     // It'll be a multiple of that. Add 10% for margin. Don't warn
     // if it was too long, that's probably just the app that stopped
     // drawing (like buttonfly).
     if (frame_duration >= .01984*1.1 && frame_duration < .01984*10) {
-	printf("WARNING: Skipped a frame (%d ms)\n",
-		(int) (frame_duration*1000));
-    }
+	framestats_skipped_frames++;
+#ifdef WARN_SKIPPED_FRAME
+	puts("WARNING: Skipped frame");
 #endif
+    }
 
     framestats_previous_frame_end = now;
 }
@@ -360,19 +413,101 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
-    awesome_draw(&protocol_next, AWESOME_DRAW_TRIANGLES, 1, zbuffer_enabled, pattern_enabled);
-    awesome_vertex(&protocol_next,
-        s0->x / SCREEN_VERTEX_V2_SCALE,
-	DISPLAY_HEIGHT - 1 - s0->y / SCREEN_VERTEX_V2_SCALE, s0->z,
-        s0->r, s0->g, s0->b);
-    awesome_vertex(&protocol_next,
-        s1->x / SCREEN_VERTEX_V2_SCALE,
-	DISPLAY_HEIGHT - 1 - s1->y / SCREEN_VERTEX_V2_SCALE, s1->z,
-        s1->r, s1->g, s1->b);
-    awesome_vertex(&protocol_next,
-        s2->x / SCREEN_VERTEX_V2_SCALE,
-	DISPLAY_HEIGHT - 1 - s2->y / SCREEN_VERTEX_V2_SCALE, s2->z,
-        s2->r, s2->g, s2->b);
+    // Compute the coordinates of the vertices.
+    int x0 = s0->x / SCREEN_VERTEX_V2_SCALE;
+    int y0 = DISPLAY_HEIGHT - 1 - s0->y / SCREEN_VERTEX_V2_SCALE;
+    int x1 = s1->x / SCREEN_VERTEX_V2_SCALE;
+    int y1 = DISPLAY_HEIGHT - 1 - s1->y / SCREEN_VERTEX_V2_SCALE;
+    int x2 = s2->x / SCREEN_VERTEX_V2_SCALE;
+    int y2 = DISPLAY_HEIGHT - 1 - s2->y / SCREEN_VERTEX_V2_SCALE;
+
+    // Compute bbox in pixels.
+    int min_x = min(x0, min(x1, x2));
+    int min_y = min(y0, min(y1, y2));
+    int max_x = max(x0, max(x1, x2));
+    int max_y = max(y0, max(y1, y2));
+    int bbox_area = (max_x - min_x + 1)*(max_y - min_y + 1);
+
+    // Compute triangle size in pixels.
+    int x01 = x1 - x0;
+    int y01 = y1 - y0;
+    int x12 = x2 - x1;
+    int y12 = y2 - y1;
+    int x20 = x0 - x2;
+    int y20 = y0 - y2;
+    int triangle_area = (x01*y20 - y01*x20)/2;
+    if (triangle_area < 0) {
+	triangle_area = -triangle_area;
+    }
+
+#ifdef BREAK_UP_TRIANGLES
+    // Compute coverage (what fraction of the bounding box does
+    // the triangle cover) in percent.
+    int coverage = triangle_area*100/bbox_area;
+
+    // See if we need to break up the triangle. Thin diagonal
+    // triangles have low coverage.
+    if (coverage < max_coverage && bbox_area > min_bbox_area) {
+	// Find shortest edge.
+	int len01 = x01*x01 + y01*y01;
+	int len12 = x12*x12 + y12*y12;
+	int len20 = x20*x20 + y20*y20;
+	if (len01 <= len12 && len01 <= len20) {
+	    // len01 shortest, rotate.
+	    screen_vertex *tmp = s0;
+	    s0 = s2;
+	    s2 = s1;
+	    s1 = tmp;
+	} else if (len12 <= len01 && len12 <= len20) {
+	    // len12 shortest, nothing to do.
+	} else {
+	    // len20 shortest, rotate.
+	    screen_vertex *tmp = s0;
+	    s0 = s1;
+	    s1 = s2;
+	    s2 = tmp;
+	}
+
+	// Tesselate the triangle along its long dimension.
+	double t = 1.0/subtriangle_count;
+
+	screen_vertex s[subtriangle_count + 2];
+	s[0] = *s0;
+	s[subtriangle_count] = *s1;
+	s[subtriangle_count + 1] = *s2;
+	for (int i = 1; i < subtriangle_count; i++) {
+	    interpolate_screen_vertex(s0, i % 2 == 0 ? s2 : s1, &s[i], i*t);
+	}
+
+	for (int i = 0; i < subtriangle_count; i++) {
+	    if (i % 2 == 0) {
+		draw_screen_triangle(&s[i], &s[i + 1], &s[i + 2]);
+	    } else {
+		// Reverse the triangle so it's consistent
+		// with the triangle we were given.
+		draw_screen_triangle(&s[i], &s[i + 2], &s[i + 1]);
+	    }
+	}
+
+#ifdef COVERAGE_PRINT
+	broken_count++;
+#endif
+
+	return;
+    }
+#endif // BREAK_UP_TRIANGLES
+
+#ifdef COVERAGE_PRINT
+    total_bbox_area += bbox_area;
+    total_triangle_area += triangle_area;
+#endif
+
+    // Send the triangle to the FPGA.
+    awesome_draw(&protocol_next, AWESOME_DRAW_TRIANGLES, 1,
+	zbuffer_enabled, pattern_enabled);
+    awesome_vertex(&protocol_next, x0, y0, s0->z, s0->r, s0->g, s0->b);
+    awesome_vertex(&protocol_next, x1, y1, s1->z, s1->r, s1->g, s1->b);
+    awesome_vertex(&protocol_next, x2, y2, s2->z, s2->r, s2->g, s2->b);
 }
 
 
