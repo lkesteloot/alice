@@ -18,13 +18,20 @@ module Rasterizer
     input wire data_ready,
     output reg busy,
 
-    // Memory interface for reading command buffer and Z pixels.
-    output reg [28:0] read_address,
-    output wire [7:0] read_burstcount,
-    input wire read_waitrequest,
-    input wire [63:0] read_readdata,
-    input wire read_readdatavalid,
-    output reg read_read,
+    // FIFO interface for reading command buffer. One cycle of read latency.
+    input wire read_cmd_waitrequest,
+    input wire [63:0] read_cmd_readdata,
+    output reg read_cmd_read,
+    output reg read_cmd_restart,
+    input wire read_cmd_ready, // No latency after restart.
+
+    // Memory interface for reading Z pixels.
+    output reg [28:0] read_z_address,
+    output wire [7:0] read_z_burstcount,
+    input wire read_z_waitrequest,
+    input wire [63:0] read_z_readdata,
+    input wire read_z_readdatavalid,
+    output reg read_z_read,
 
     // Memory interface for writing color pixels.
     output wire [28:0] write_color_address,
@@ -62,11 +69,11 @@ module Rasterizer
         state,
         unhandled_count
     };
-    assign debug_value1 = pc;
+    assign debug_value1 = 1'b0;
     assign debug_value2 = command_word[31:0];
 
     // Constants.
-    assign read_burstcount = 8'h01;
+    assign read_z_burstcount = 8'h01;
 
     localparam WRITE_FIFO_DEPTH = 32;
     localparam WRITE_FIFO_DEPTH_LOG2 = 5;
@@ -79,8 +86,8 @@ module Rasterizer
     localparam STATE_INIT = 6'h00;
     localparam STATE_WAIT_FOR_DATA = 6'h01;
     localparam STATE_WAIT_FOR_NO_DATA = 6'h02;
-    localparam STATE_READ_COMMAND = 6'h03;
-    localparam STATE_WAIT_READ_COMMAND = 6'h04;
+    localparam STATE_FETCH_COMMAND = 6'h03;
+    localparam STATE_READ_COMMAND = 6'h04;
     localparam STATE_DECODE_COMMAND = 6'h05;
     localparam STATE_CMD_CLEAR = 6'h06;
     localparam STATE_CMD_CLEAR_LOOP = 6'h07;
@@ -89,15 +96,10 @@ module Rasterizer
     localparam STATE_CMD_CZCLEAR = 6'h0A;
     localparam STATE_CMD_CZCLEAR_LOOP = 6'h0B;
     localparam STATE_CMD_PATTERN = 6'h0C;
-    localparam STATE_CMD_PATTERN_WAIT_READ_0 = 6'h0D;
-    localparam STATE_CMD_PATTERN_WAIT_READ_1 = 6'h0E;
-    localparam STATE_CMD_PATTERN_WAIT_READ_2 = 6'h0F;
-    localparam STATE_CMD_PATTERN_WAIT_READ_3 = 6'h10;
+    localparam STATE_CMD_PATTERN_LOOP = 6'h0D;
     localparam STATE_CMD_DRAW = 6'h11;
-    localparam STATE_CMD_DRAW_TRIANGLE_READ_0 = 6'h12;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0 = 6'h13;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1 = 6'h14;
-    localparam STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2 = 6'h15;
+    localparam STATE_CMD_DRAW_TRIANGLE = 6'h12;
+    localparam STATE_CMD_DRAW_TRIANGLE_LOOP = 6'h13;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE1 = 6'h16;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE2 = 6'h17;
     localparam STATE_CMD_DRAW_TRIANGLE_PREPARE3 = 6'h18;
@@ -126,11 +128,15 @@ module Rasterizer
     localparam CMD_END = 8'd7;
     localparam CMD_CZCLEAR = 8'd8;
 
+    // TODO fix or remove this:
     reg [10:0] tmp_counter;
 
-    // Program counter into the command buffer.
-    reg [26:0] pc;
+    // Number of commands that we don't recognize.
     reg [15:0] unhandled_count;
+
+    // To help with reading from the command FIFO.
+    reg read_cmd_got_data;
+    reg [2:0] read_cmd_count;
 
     // The most recent command word we've read.
     reg [63:0] command_word;
@@ -311,8 +317,8 @@ module Rasterizer
             .z_active(read_fifo_z_active),
 
             // Memory interface for reading z pixels.
-            .read_readdata(read_readdata),
-            .read_readdatavalid(read_readdatavalid),
+            .read_readdata(read_z_readdata),
+            .read_readdatavalid(read_z_readdatavalid),
 
             // FIFO controls.
             .enqueue(read_fifo_enqueue),
@@ -375,8 +381,9 @@ module Rasterizer
             // State.
             state <= STATE_INIT;
             busy <= 1'b0;
-            pc <= 1'b0;
             unhandled_count <= 1'b0;
+            read_cmd_count <= 1'b0;
+            read_cmd_got_data <= 1'b0;
             triangle_count <= 1'b0;
             tri_x_0 <= 1'b0;
             tri_x_1 <= 1'b0;
@@ -390,9 +397,13 @@ module Rasterizer
             area_reciprocal_enabled <= 1'b0;
 
             // Memory.
-            read_address <= 1'b0;
-            read_read <= 1'b0;
+            read_z_address <= 1'b0;
+            read_z_read <= 1'b0;
+
+            // FIFO.
+            read_cmd_read <= 1'b0;
         end else begin
+            // Display write FIFO errors.
             /// if (write_fifo_error != 0) begin
             ///     unhandled_count <= write_fifo_error;
             /// end
@@ -407,34 +418,40 @@ module Rasterizer
                     if (data_ready) begin
                         state <= STATE_WAIT_FOR_NO_DATA;
                         busy <= 1'b1;
+                        read_cmd_restart <= 1'b1;
                     end
                 end
 
                 STATE_WAIT_FOR_NO_DATA: begin
-                    if (!data_ready) begin
-                        state <= STATE_READ_COMMAND;
-                        pc <= CMD_ADDRESS/8;
+                    read_cmd_restart <= 1'b0;
+
+                    // Wait for both CPU to acknowledge our business
+                    // and for the FIFO to be ready to read.
+                    if (!data_ready && read_cmd_ready) begin
+                        state <= STATE_FETCH_COMMAND;
+                    end
+                end
+
+                STATE_FETCH_COMMAND: begin
+                    // See if we're already reading.
+                    if (read_cmd_read) begin
+                        if (read_cmd_waitrequest) begin
+                            // Do nothing, FIFO is empty.
+                        end else begin
+                            // Next clock will have our data.
+                            read_cmd_read <= 1'b0;
+                            state <= STATE_READ_COMMAND;
+                        end
+                    end else begin
+                        // Start reading.
+                        read_cmd_read <= 1'b1;
                     end
                 end
 
                 STATE_READ_COMMAND: begin
-                    read_address <= pc;
-                    read_read <= 1'b1;
-                    pc <= pc + 1'b1;
-                    state <= STATE_WAIT_READ_COMMAND;
-                end
-
-                STATE_WAIT_READ_COMMAND: begin
-                    // When no longer told to wait, deassert the request lines.
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
-                    end
-
-                    // If we have data, grab it.
-                    if (read_readdatavalid) begin
-                        command_word <= read_readdata;
-                        state <= STATE_DECODE_COMMAND;
-                    end
+                    // Grab command.
+                    command_word <= read_cmd_readdata;
+                    state <= STATE_DECODE_COMMAND;
                 end
 
                 STATE_DECODE_COMMAND: begin
@@ -504,7 +521,8 @@ module Rasterizer
                 STATE_CMD_CLEAR_LOOP: begin
                     if (read_fifo_color_address == fb_address + FB_LENGTH/8 - 1) begin
                         read_fifo_enqueue <= 1'b0;
-                        state <= STATE_READ_COMMAND;
+                        read_cmd_read <= 1'b1;
+                        state <= STATE_FETCH_COMMAND;
                     end else begin
                         if (both_fifo_size < BOTH_FIFO_MAX) begin
                             read_fifo_color_address <= read_fifo_color_address + 1'b1;
@@ -531,7 +549,8 @@ module Rasterizer
                 STATE_CMD_ZCLEAR_LOOP: begin
                     if (read_fifo_z_address == Z_ADDRESS/8 + FB_LENGTH/8 - 1) begin
                         read_fifo_enqueue <= 1'b0;
-                        state <= STATE_READ_COMMAND;
+                        read_cmd_read <= 1'b1;
+                        state <= STATE_FETCH_COMMAND;
                     end else begin
                         if (both_fifo_size < BOTH_FIFO_MAX) begin
                             read_fifo_z_address <= read_fifo_z_address + 1'b1;
@@ -567,7 +586,8 @@ module Rasterizer
                 STATE_CMD_CZCLEAR_LOOP: begin
                     if (read_fifo_z_address == Z_ADDRESS/8 + FB_LENGTH/8 - 1) begin
                         read_fifo_enqueue <= 1'b0;
-                        state <= STATE_READ_COMMAND;
+                        read_cmd_read <= 1'b1;
+                        state <= STATE_FETCH_COMMAND;
                     end else begin
                         if (both_fifo_size < BOTH_FIFO_MAX) begin
                             read_fifo_color_address <= read_fifo_color_address + 1'b1;
@@ -580,71 +600,53 @@ module Rasterizer
                 end
 
                 STATE_CMD_PATTERN: begin
-                    // Read first pattern word.
-                    read_address <= pc;
-                    read_read <= 1'b1;
-                    pc <= pc + 1'b1;
-                    state <= STATE_CMD_PATTERN_WAIT_READ_0;
+                    // Initiate read of four pattern words.
+                    read_cmd_read <= 1'b1;
+                    read_cmd_count <= 3'd4;
+                    state <= STATE_CMD_PATTERN_LOOP;
                 end
 
-                STATE_CMD_PATTERN_WAIT_READ_0: begin
-                    // When no longer told to wait, deassert the request lines.
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
+                STATE_CMD_PATTERN_LOOP: begin
+                    // See if the previous read succeeded.
+                    if (read_cmd_read && !read_cmd_waitrequest) begin
+                        // It did, see if we're done reading.
+                        if (read_cmd_count - 1'b1 == 0) begin
+                            // No more words, stop reading.
+                            read_cmd_read <= 1'b0;
+                        end
+                        read_cmd_count <= read_cmd_count - 1'b1;
+                        read_cmd_got_data <= 1'b1;
+                    end else begin
+                        read_cmd_got_data <= 1'b0;
                     end
 
-                    // If we have data, grab it.
-                    if (read_readdatavalid) begin
-                        pattern[63:0] <= read_readdata;
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_PATTERN_WAIT_READ_1;
-                    end
-                end
+                    // See if we recorded a successful read last clock.
+                    if (read_cmd_got_data) begin
+                        // Put data in the right place.
+                        case (read_cmd_count)
+                            3: begin
+                                pattern[63:0] <= read_cmd_readdata;
+                            end
 
-                STATE_CMD_PATTERN_WAIT_READ_1: begin
-                    // When no longer told to wait, deassert the request lines.
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
-                    end
+                            2: begin
+                                pattern[127:64] <= read_cmd_readdata;
+                            end
 
-                    // If we have data, grab it.
-                    if (read_readdatavalid) begin
-                        pattern[127:64] <= read_readdata;
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_PATTERN_WAIT_READ_2;
-                    end
-                end
+                            1: begin
+                                pattern[191:128] <= read_cmd_readdata;
+                            end
 
-                STATE_CMD_PATTERN_WAIT_READ_2: begin
-                    // When no longer told to wait, deassert the request lines.
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
-                    end
+                            0: begin
+                                pattern[255:192] <= read_cmd_readdata;
+                                state <= STATE_FETCH_COMMAND;
+                            end
 
-                    // If we have data, grab it.
-                    if (read_readdatavalid) begin
-                        pattern[191:128] <= read_readdata;
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_PATTERN_WAIT_READ_3;
-                    end
-                end
-
-                STATE_CMD_PATTERN_WAIT_READ_3: begin
-                    // When no longer told to wait, deassert the request lines.
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
-                    end
-
-                    // If we have data, grab it.
-                    if (read_readdatavalid) begin
-                        pattern[255:192] <= read_readdata;
-                        state <= STATE_READ_COMMAND;
+                            default: begin
+                                // Bug.
+                                unhandled_count <= unhandled_count + 1'b1;
+                                state <= STATE_FETCH_COMMAND;
+                            end
+                        endcase
                     end
                 end
 
@@ -653,60 +655,61 @@ module Rasterizer
                     // the type.
                     triangle_count <= command_word[31:16];
                     read_fifo_z_active <= use_z_buffer;
-                    state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
+                    state <= STATE_CMD_DRAW_TRIANGLE;
                 end
 
-                STATE_CMD_DRAW_TRIANGLE_READ_0: begin
+                STATE_CMD_DRAW_TRIANGLE: begin
                     if (triangle_count == 1'b0) begin
                         // Done with all the triangles we had to draw.
-                        state <= STATE_READ_COMMAND;
+                        read_cmd_read <= 1'b1;
+                        state <= STATE_FETCH_COMMAND;
                     end else begin
                         triangle_count <= triangle_count - 1'b1;
 
-                        // Read first vertex.
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0;
+                        // Initiate read of three vertices.
+                        read_cmd_read <= 1'b1;
+                        read_cmd_count <= 3'd3;
+                        state <= STATE_CMD_DRAW_TRIANGLE_LOOP;
                     end
                 end
 
-                STATE_CMD_DRAW_TRIANGLE_WAIT_READ_0: begin
-                    if (!read_waitrequest && !read_readdatavalid) begin
-                        read_read <= 1'b0;
+                STATE_CMD_DRAW_TRIANGLE_LOOP: begin
+                    // See if the previous read succeeded.
+                    if (read_cmd_read && !read_cmd_waitrequest) begin
+                        // It did, see if we're done reading.
+                        if (read_cmd_count - 1'b1 == 0) begin
+                            // No more words, stop reading.
+                            read_cmd_read <= 1'b0;
+                        end
+                        read_cmd_count <= read_cmd_count - 1'b1;
+                        read_cmd_got_data <= 1'b1;
+                    end else begin
+                        read_cmd_got_data <= 1'b0;
                     end
 
-                    if (read_readdatavalid) begin
-                        vertex_0 <= read_readdata;
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1;
-                    end
-                end
+                    // See if we recorded a successful read last clock.
+                    if (read_cmd_got_data) begin
+                        // Put data in the right place.
+                        case (read_cmd_count)
+                            2: begin
+                                vertex_0 <= read_cmd_readdata;
+                            end
 
-                STATE_CMD_DRAW_TRIANGLE_WAIT_READ_1: begin
-                    if (!read_waitrequest && !read_readdatavalid) begin
-                        read_read <= 1'b0;
-                    end
+                            1: begin
+                                vertex_1 <= read_cmd_readdata;
+                            end
 
-                    if (read_readdatavalid) begin
-                        vertex_1 <= read_readdata;
-                        read_address <= pc;
-                        read_read <= 1'b1;
-                        pc <= pc + 1'b1;
-                        state <= STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2;
-                    end
-                end
+                            0: begin
+                                vertex_2 <= read_cmd_readdata;
+                                state <= STATE_CMD_DRAW_TRIANGLE_PREPARE1;
+                            end
 
-                STATE_CMD_DRAW_TRIANGLE_WAIT_READ_2: begin
-                    if (!read_waitrequest) begin
-                        read_read <= 1'b0;
-                    end
-
-                    if (read_readdatavalid) begin
-                        vertex_2 <= read_readdata;
-                        state <= STATE_CMD_DRAW_TRIANGLE_PREPARE1;
+                            default: begin
+                                // Bug.
+                                unhandled_count <= unhandled_count + 1'b1;
+                                state <= STATE_FETCH_COMMAND;
+                            end
+                        endcase
                     end
                 end
 
@@ -760,7 +763,7 @@ module Rasterizer
                     if (tri_area == 0) begin
                         // Empty triangle.
                         area_reciprocal_enabled <= 1'b0;
-                        state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
+                        state <= STATE_CMD_DRAW_TRIANGLE;
                     end else begin
                         tri_w0_row <= initial_w0_row;
                         tri_w1_row <= initial_w1_row;
@@ -895,14 +898,14 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP: begin
-                    if (use_z_buffer && read_read && read_waitrequest) begin
+                    if (use_z_buffer && read_z_read && read_z_waitrequest) begin
                         // We asked to read from the Z pixel, but the memory
                         // controller is asking us to wait. Do nothing.
 
                         read_fifo_enqueue <= 1'b0;
                     end else begin
                         // Turn off Z pixel reading.
-                        read_read <= 1'b0;
+                        read_z_read <= 1'b0;
 
                         // Don't enqueue more than either FIFO can handle.
                         if (both_fifo_size < BOTH_FIFO_MAX) begin
@@ -934,8 +937,8 @@ module Rasterizer
 `endif
 
                             // Initiate a read for the Z pixel.
-                            read_read <= use_z_buffer && (inside_triangle_0 || inside_triangle_1);
-                            read_address <= tri_z_address;
+                            read_z_read <= use_z_buffer && (inside_triangle_0 || inside_triangle_1);
+                            read_z_address <= tri_z_address;
 
                             // Advance to the next pixel.
                             if (tri_x_0 == tri_max_x) begin
@@ -1012,12 +1015,12 @@ module Rasterizer
 
                     // We jumped here after the last pixel, so we must make
                     // sure that we respect the wait request first.
-                    if (read_read && read_waitrequest) begin
+                    if (read_z_read && read_z_waitrequest) begin
                         // We asked to read from the Z pixel, but the memory
                         // controller is asking us to wait. Do nothing.
                     end else begin
                         // Turn off Z pixel reading.
-                        read_read <= 1'b0;
+                        read_z_read <= 1'b0;
 
                         // We must wait for the read and write FIFOs to flush
                         // completely, for two reasons:
@@ -1036,7 +1039,7 @@ module Rasterizer
                         // sizes is 0 when the data is between the two FIFOs.
                         if ((both_fifo_size == 0 && !read_fifo_enqueue) || tmp_counter == 11'd1000) begin
                             /// unhandled_count <= tmp_counter;
-                            state <= STATE_CMD_DRAW_TRIANGLE_READ_0;
+                            state <= STATE_CMD_DRAW_TRIANGLE;
                         end
                         tmp_counter <= tmp_counter + 1'b1;
                     end
@@ -1051,7 +1054,8 @@ module Rasterizer
                 STATE_CMD_SWAP_WAIT: begin
                     // Block until the frame buffer has swapped.
                     if (rast_front_buffer == fb_front_buffer) begin
-                        state <= STATE_READ_COMMAND;
+                        read_cmd_read <= 1'b1;
+                        state <= STATE_FETCH_COMMAND;
                     end
                 end
 

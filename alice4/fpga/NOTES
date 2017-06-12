@@ -142,3 +142,65 @@ SDRAM priority:
         Causes some priority levels to have their requests jump to
         the front of the queue.
 
+
+total frame ms, cpu, copy, raster wait, est total raster, F2H_BUSY wait
+full: 39.68, 1.71, 0.23, 21.52, 23.46, 16.22
+no text: 39.68, 1.09, 0.06, 21.20, 22.35, 17.33
+no edge: 19.84, 1.18, 0.18, 8.86, 10.21, 9.62
+
+Convert command buffer read to fifo:
+    - Convert u-boot.txt to scr and install.
+    - New command buffer reading module.
+        - Parameters:
+            - Avalon-MM read from SDRAM.
+            - scfifo read from FIFO.
+            - synchronous reset.
+                - waits for pending reads to flush.
+                - clears fifo.
+                - resets PC.
+        - scfifo.
+        - Wait for signal, then reset PC and read in loop.
+        - Stop reading on CMD_END?
+    - Convert Z reads to FIFO reads.
+    - Remove CMD_ADDRESS from Rasterizer.
+    - Check latency on sync clear of FIFO.
+
+
+        FETCH:
+            read <= 1;
+            state <= WAIT;
+
+        WAIT:
+            if (wait)
+                // Nothing.
+            else:
+                read <= 0;
+                state <= READ;
+
+        READ:
+            data <= fifo_data;
+            state <= ...;
+
+---
+
+        STATE_INIT:
+            count <= 4;
+            read <= 1;
+            state <= LOOP;
+
+        STATE_LOOP:
+            if (read && !wait)
+                if count - 1 == 0
+                    read <= 0
+                count <= count - 1
+                got_data <= 1
+            else:
+                got_data <= 0
+
+            if (got_data)
+                case (count)
+                    0: xxx <= data
+                        state <= ...;
+
+                endcase
+

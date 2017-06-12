@@ -160,15 +160,21 @@ module Main(
     wire [28:0] sdram2_address;
     wire [7:0] sdram2_burstcount;
     wire sdram2_waitrequest;
-    wire [63:0] sdram2_writedata;
-    wire [7:0] sdram2_byteenable;
-    wire sdram2_write;
+    wire [63:0] sdram2_readdata;
+    wire sdram2_readdatavalid;
+    wire sdram2_read;
     wire [28:0] sdram3_address;
     wire [7:0] sdram3_burstcount;
     wire sdram3_waitrequest;
     wire [63:0] sdram3_writedata;
     wire [7:0] sdram3_byteenable;
     wire sdram3_write;
+    wire [28:0] sdram4_address;
+    wire [7:0] sdram4_burstcount;
+    wire sdram4_waitrequest;
+    wire [63:0] sdram4_writedata;
+    wire [7:0] sdram4_byteenable;
+    wire sdram4_write;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         // Physical memory interface.
@@ -195,27 +201,34 @@ module Main(
         .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
         .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
         .hps_0_f2h_sdram0_data_read(sdram0_read),
-        // sdram1: SDRAM interface for command buffer reading and Z pixel reading.
+        // sdram1: SDRAM interface for command buffer reading.
         .hps_0_f2h_sdram1_data_address(sdram1_address),
         .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
         .hps_0_f2h_sdram1_data_waitrequest(sdram1_waitrequest),
         .hps_0_f2h_sdram1_data_readdata(sdram1_readdata),
         .hps_0_f2h_sdram1_data_readdatavalid(sdram1_readdatavalid),
         .hps_0_f2h_sdram1_data_read(sdram1_read),
-        // sdram2: SDRAM interface for color pixel writing.
+        // sdram2: SDRAM interface for Z pixel reading.
         .hps_0_f2h_sdram2_data_address(sdram2_address),
         .hps_0_f2h_sdram2_data_burstcount(sdram2_burstcount),
         .hps_0_f2h_sdram2_data_waitrequest(sdram2_waitrequest),
-        .hps_0_f2h_sdram2_data_writedata(sdram2_writedata),
-        .hps_0_f2h_sdram2_data_byteenable(sdram2_byteenable),
-        .hps_0_f2h_sdram2_data_write(sdram2_write),
-        // sdram3: SDRAM interface for Z pixel writing.
+        .hps_0_f2h_sdram2_data_readdata(sdram2_readdata),
+        .hps_0_f2h_sdram2_data_readdatavalid(sdram2_readdatavalid),
+        .hps_0_f2h_sdram2_data_read(sdram2_read),
+        // sdram3: SDRAM interface for color pixel writing.
         .hps_0_f2h_sdram3_data_address(sdram3_address),
         .hps_0_f2h_sdram3_data_burstcount(sdram3_burstcount),
         .hps_0_f2h_sdram3_data_waitrequest(sdram3_waitrequest),
         .hps_0_f2h_sdram3_data_writedata(sdram3_writedata),
         .hps_0_f2h_sdram3_data_byteenable(sdram3_byteenable),
-        .hps_0_f2h_sdram3_data_write(sdram3_write)
+        .hps_0_f2h_sdram3_data_write(sdram3_write),
+        // sdram4: SDRAM interface for Z pixel writing.
+        .hps_0_f2h_sdram4_data_address(sdram4_address),
+        .hps_0_f2h_sdram4_data_burstcount(sdram4_burstcount),
+        .hps_0_f2h_sdram4_data_waitrequest(sdram4_waitrequest),
+        .hps_0_f2h_sdram4_data_writedata(sdram4_writedata),
+        .hps_0_f2h_sdram4_data_byteenable(sdram4_byteenable),
+        .hps_0_f2h_sdram4_data_write(sdram4_write)
     );
 
     // Generate signals for the LCD.
@@ -320,6 +333,33 @@ module Main(
         .bw(character_bw)
     );
 
+    // Reads the command buffer into a FIFO.
+    wire cmd_restart;
+    wire cmd_ready;
+    wire cmd_fifo_empty;
+    wire [63:0] cmd_fifo_q;
+    wire cmd_fifo_rdreq;
+    Command_reader #(.CMD_ADDRESS(CMD_ADDRESS)) command_reader(
+        // Control.
+        .clock(clock_50),
+        .reset_n(reset_n),
+        .restart(cmd_restart),
+        .ready(cmd_ready),
+
+        // Memory interface for reading command buffer.
+        .read_address(sdram1_address),
+        .read_burstcount(sdram1_burstcount),
+        .read_waitrequest(sdram1_waitrequest),
+        .read_readdata(sdram1_readdata),
+        .read_readdatavalid(sdram1_readdatavalid),
+        .read_read(sdram1_read),
+
+        // FIFO interface.
+        .fifo_empty(cmd_fifo_empty),
+        .fifo_q(cmd_fifo_q),
+        .fifo_rdreq(cmd_fifo_rdreq)
+    );
+
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
     wire rasterizer_busy;
@@ -334,29 +374,36 @@ module Main(
         .data_ready(rasterizer_data_ready),
         .busy(rasterizer_busy),
 
-        // Memory interface for reading command buffer and Z pixels.
-        .read_address(sdram1_address),
-        .read_burstcount(sdram1_burstcount),
-        .read_waitrequest(sdram1_waitrequest),
-        .read_readdata(sdram1_readdata),
-        .read_readdatavalid(sdram1_readdatavalid),
-        .read_read(sdram1_read),
+        // FIFO interface for reading command buffer.
+        .read_cmd_waitrequest(cmd_fifo_empty),
+        .read_cmd_readdata(cmd_fifo_q),
+        .read_cmd_read(cmd_fifo_rdreq),
+        .read_cmd_restart(cmd_restart),
+        .read_cmd_ready(cmd_ready),
+
+        // Memory interface for reading Z pixels.
+        .read_z_address(sdram2_address),
+        .read_z_burstcount(sdram2_burstcount),
+        .read_z_waitrequest(sdram2_waitrequest),
+        .read_z_readdata(sdram2_readdata),
+        .read_z_readdatavalid(sdram2_readdatavalid),
+        .read_z_read(sdram2_read),
 
         // Memory interface for writing color pixels.
-        .write_color_address(sdram2_address),
-        .write_color_burstcount(sdram2_burstcount),
-        .write_color_waitrequest(sdram2_waitrequest),
-        .write_color_writedata(sdram2_writedata),
-        .write_color_byteenable(sdram2_byteenable),
-        .write_color_write(sdram2_write),
+        .write_color_address(sdram3_address),
+        .write_color_burstcount(sdram3_burstcount),
+        .write_color_waitrequest(sdram3_waitrequest),
+        .write_color_writedata(sdram3_writedata),
+        .write_color_byteenable(sdram3_byteenable),
+        .write_color_write(sdram3_write),
 
         // Memory interface for writing Z pixels.
-        .write_z_address(sdram3_address),
-        .write_z_burstcount(sdram3_burstcount),
-        .write_z_waitrequest(sdram3_waitrequest),
-        .write_z_writedata(sdram3_writedata),
-        .write_z_byteenable(sdram3_byteenable),
-        .write_z_write(sdram3_write),
+        .write_z_address(sdram4_address),
+        .write_z_burstcount(sdram4_burstcount),
+        .write_z_waitrequest(sdram4_waitrequest),
+        .write_z_writedata(sdram4_writedata),
+        .write_z_byteenable(sdram4_byteenable),
+        .write_z_write(sdram4_write),
 
         // Front buffer handling.
         .rast_front_buffer(rast_front_buffer),
