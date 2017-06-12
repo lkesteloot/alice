@@ -61,10 +61,10 @@
     <config name='F2H_AXI_SLAVE' used='false' />
     <config name='H2F_AXI_MASTER' used='false' />
     <config name='LWH2F_AXI_MASTER' used='false' />
-    <config name='F2SDRAM_COMMAND_PORT_USED' value='0xF' />
-    <config name='F2SDRAM_READ_PORT_USED' value='0x3' />
+    <config name='F2SDRAM_COMMAND_PORT_USED' value='0x1F' />
+    <config name='F2SDRAM_READ_PORT_USED' value='0x7' />
     <config name='F2SDRAM_WRITE_PORT_USED' value='0x3' />
-    <config name='F2SDRAM_RESET_PORT_USED' value='0xF33' />
+    <config name='F2SDRAM_RESET_PORT_USED' value='0x1F37' />
   </fpga_interfaces>
   <peripherals>
     <peripheral name='rgmii0' used='false' />
