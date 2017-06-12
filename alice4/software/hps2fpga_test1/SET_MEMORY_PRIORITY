@@ -6,9 +6,9 @@
 # frame buffer scanout, which gets 7. We do not use the
 # mpweight, nor the remappriority.
 
-sudo ./memtool write 0xFFC250AC 03333006667
+sudo ./memtool write 0xFFC250AC 03333066667
 
 # Verify write:
-echo "Should be:   0x1B6C0DB7"
+echo "Should be:   0x1B6C6DB7"
 sudo ./memtool read 0xFFC250AC
 
