@@ -18,7 +18,7 @@ typedef struct {
 
 static Awesome awesome;
 
-#undef DEBUG_PRINT
+#define DEBUG_PRINT
 
 // Number of visible pixels.
 #define WIDTH 800

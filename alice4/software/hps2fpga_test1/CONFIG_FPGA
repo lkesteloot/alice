@@ -5,4 +5,6 @@ sudo ./memtool write -32 0xFFC25080 0
 echo "Configure FPGA now. Press ENTER when done."
 read
 echo "Enabling bridge..."
-sudo ./memtool write -32 0xFFC25080 0xFFF
+# Get this value from the F2SDRAM_RESET_PORT_USED value
+# in hps_isw_handoff/soc_system_hps_0/hps.xml.
+sudo ./memtool write -32 0xFFC25080 0x1F37
