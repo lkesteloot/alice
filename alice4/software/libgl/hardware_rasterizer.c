@@ -178,9 +178,11 @@ void rasterizer_swap()
     awesome_end(&protocol_next);
 
 #ifdef COVERAGE_PRINT
-    printf("%d bbox / %d triangle = %d%% (%d broken)\n",
-    	total_bbox_area, total_triangle_area,
-	total_triangle_area*100/total_bbox_area, broken_count);
+    if (total_bbox_area != 0) {
+	printf("%d bbox / %d triangle = %d%% (%d broken)\n",
+	    total_bbox_area, total_triangle_area,
+	    total_triangle_area*100/total_bbox_area, broken_count);
+    }
 
     total_bbox_area = 0;
     total_triangle_area = 0;
