@@ -6,9 +6,13 @@
 # frame buffer scanout, which gets 7. We do not use the
 # mpweight, nor the remappriority.
 
-sudo ./memtool write 0xFFC250AC 03333066667
+ADDRESS=0xFFC250AC
+OCT_VALUE=03333033337
+HEX_VALUE=$(python -c "print hex($OCT_VALUE).upper()")
+
+sudo ./memtool write $ADDRESS $OCT_VALUE
 
 # Verify write:
-echo "Should be:   0x1B6C6DB7"
-sudo ./memtool read 0xFFC250AC
+echo "Should be:   $HEX_VALUE"
+sudo ./memtool read $ADDRESS
 

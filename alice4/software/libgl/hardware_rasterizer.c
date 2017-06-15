@@ -26,7 +26,7 @@ static volatile uint64_t *gpu_protocol_buffer; // The fixed buffer from which th
 // If this variable is changed to be settable at run-time, a
 // synchronization point must be added to wait on GPU and copy between
 // staging to gpu buffers as necessary.
-static const int double_buffer_commands = 0;
+static const int double_buffer_commands = 1;
 static int must_wait_on_gpu = 0;
 
 #define MAX_PROTOCOL_QUAD_COUNT (10 * 1024 * 1024 / sizeof(uint64_t))
@@ -116,7 +116,7 @@ void rasterizer_pattern(int enable)
     pattern_enabled = enable;
 }
 
-static int framestats_print = 0;
+static int framestats_print = 1;
 static float framestats_frame_duration_sum = 0.0; 
 static float framestats_cpu_duration_sum = 0.0; 
 static float framestats_copy_duration_sum = 0.0; 
