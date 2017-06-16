@@ -29,11 +29,12 @@ module Command_reader
     assign read_burstcount = 8'h01;
 
     // State machine.
-    localparam STATE_INIT = 2'h0;
-    localparam STATE_FLUSHING_READS = 2'h1;
-    localparam STATE_CLEAR_FIFO_WAIT = 2'h2;
-    localparam STATE_COPY_COMMANDS = 2'h3;
-    reg [1:0] state;
+    localparam STATE_INIT = 3'h0;
+    localparam STATE_RESTART = 3'h1;
+    localparam STATE_FLUSHING_READS = 3'h2;
+    localparam STATE_CLEAR_FIFO_WAIT = 3'h3;
+    localparam STATE_COPY_COMMANDS = 3'h4;
+    reg [2:0] state;
 
     // Internal state.
     reg [26:0] pc;
@@ -82,11 +83,17 @@ module Command_reader
             end 
 
             if (restart) begin
-                state <= STATE_INIT;
+                state <= STATE_RESTART;
                 read_read <= 1'b0;
             end else case (state)
-                // Restart the module.
                 STATE_INIT: begin
+                    // Nothing, just wait until we're restarted. We don't
+                    // want to do any memory reads until the memory
+                    // controller has been fully configured.
+                end
+
+                // Restart the module.
+                STATE_RESTART: begin
                     pc <= CMD_ADDRESS/8;
                     state <= STATE_FLUSHING_READS;
                 end
