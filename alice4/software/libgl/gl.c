@@ -2152,7 +2152,7 @@ void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float
     static screen_vertex triangle[3];
     triangle[0] = q[0];
 
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 2; i++) {
         triangle[1] = q[i + 1];
         triangle[2] = q[i + 2];
         if(!backface_cull(triangle))
