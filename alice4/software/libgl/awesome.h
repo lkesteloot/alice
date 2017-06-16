@@ -11,9 +11,6 @@
 #define AWESOME_DRAW_TRIANGLES 0
 #define AWESOME_DRAW_LINES 1
 #define AWESOME_DRAW_POINTS 2
-#define AWESOME_DRAW_LINE_STRIP 3
-#define AWESOME_DRAW_TRIANGLE_STRIP 5
-#define AWESOME_DRAW_TRIANGLE_FAN 6
 
 // Connect to the FPGA.
 void awesome_init();

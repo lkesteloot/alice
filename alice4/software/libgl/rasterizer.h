@@ -6,10 +6,6 @@
 #define DRAW_TRIANGLES 0
 #define DRAW_LINES 1
 #define DRAW_POINTS 2
-#define DRAW_LINE_STRIP 3
-#define DRAW_LINE_LOOP 4
-#define DRAW_TRIANGLE_STRIP 5
-#define DRAW_TRIANGLE_FAN 6
 
 int32_t rasterizer_winopen(char *title);
 

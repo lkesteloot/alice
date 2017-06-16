@@ -280,37 +280,9 @@ void rasterizer_draw(uint32_t type, uint32_t count, screen_vertex *screenverts)
             }
             break;
 
-        case DRAW_LINE_STRIP:
-            for(int i = 0; i < count - 1; i++) { 
-                draw_line_as_triangles(&screenverts[i + 0], &screenverts[i + 1]);
-            }
-            break;
-
-        case DRAW_LINE_LOOP:
-            for(int i = 0; i < count - 1; i++) { 
-                draw_line_as_triangles(&screenverts[i + 0], &screenverts[i + 1]);
-            }
-            draw_line_as_triangles(&screenverts[count - 1], &screenverts[0]);
-            break;
-
-        case DRAW_TRIANGLE_STRIP:
-            for(int i = 0; i < count - 2; i++) {
-                if(i % 2 == 0)
-                    send_screen_triangle(&screenverts[i], &screenverts[i + 1], &screenverts[i + 2]);
-                else
-                    send_screen_triangle(&screenverts[i + 1], &screenverts[i], &screenverts[i + 2]);
-            }
-            break;
-
         case DRAW_TRIANGLES:
             for(int i = 0; i < count / 3; i++)
                 send_screen_triangle(&screenverts[i * 3], &screenverts[i * 3 + 1], &screenverts[i * 3 + 2]);
-            break;
-
-        case DRAW_TRIANGLE_FAN:
-            for(int i = 0; i < count - 2; i++) {
-                send_screen_triangle(&screenverts[0], &screenverts[i + 1], &screenverts[i + 2]);
-            }
             break;
     }
 

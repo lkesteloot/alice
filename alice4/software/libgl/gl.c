@@ -69,6 +69,7 @@ static vec4f current_character_position = {0.0f, 0.0f, 0.0f, 1.0f};
 static int current_font = 0;
 static int current_pattern = 0;
 static int zbuffer_enabled = 0;
+static int backface_enabled = 0;
 
 #define INPUT_QUEUE_SIZE 128
 static uint32_t input_queue_device[INPUT_QUEUE_SIZE];
@@ -623,6 +624,18 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
     rasterizer_draw(DRAW_LINES, 2, screenverts);
 }
 
+static int backface_cull(const screen_vertex* s)
+{
+    if(!backface_enabled) return 0;
+
+    float area =
+        /* .5 * */ // Don't bother multiplying by .5, only checking the sign.
+        s[0].x * s[1].y - s[1].x * s[0].y + 
+        s[1].x * s[2].y - s[2].x * s[1].y + 
+        s[2].x * s[0].y - s[0].x * s[2].y;
+    return (area < 0);
+}
+
 void process_tmesh(int32_t n, world_vertex *worldverts)
 {
     static lit_vertex litverts[POLY_MAX];
@@ -649,7 +662,16 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r; i++)
             project_vertex(&vp[i], &screenverts[i]);
 
-        rasterizer_draw(DRAW_TRIANGLE_FAN, r, screenverts);
+        // XXX break into a single draw of TRIANGLES instead of a single function call per triangle:
+        static screen_vertex triangle[3];
+        triangle[0] = screenverts[0];
+
+        for(int i = 0; i < r - 2; i++) {
+            triangle[1] = screenverts[i + 1];
+            triangle[2] = screenverts[i + 2];
+            if(!backface_cull(triangle))
+                rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
+        }
     }
 }
 
@@ -676,8 +698,17 @@ void process_polygon(int32_t n, world_vertex *worldverts)
 
     for(int i = 0; i < n; i++)
         project_vertex(&vp[i], &screenverts[i]);
+ 
+    // XXX break into a single draw of TRIANGLES instead of a single function call per triangle:
+    static screen_vertex triangle[3];
+    triangle[0] = screenverts[0];
 
-    rasterizer_draw(DRAW_TRIANGLE_FAN, n, screenverts);
+    for(int i = 0; i < n - 2; i++) {
+        triangle[1] = screenverts[i + 1];
+        triangle[2] = screenverts[i + 2];
+        if(!backface_cull(triangle))
+            rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -1218,8 +1249,8 @@ void callobj(Object obj) {
     indent -= 4;
 }
 
-void backface() {
-    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+void backface(int enable) {
+    backface_enabled = enable;
 }
 
 void clear() { 
@@ -2116,7 +2147,17 @@ void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float
     screen_vertex_set_position(&q[1], right, bottom);
     screen_vertex_set_position(&q[2], right, top);
     screen_vertex_set_position(&q[3], left, top);
-    rasterizer_draw(DRAW_TRIANGLE_FAN, 4, q);
+
+    // XXX break into a single draw of TRIANGLES instead of a single function call per triangle:
+    static screen_vertex triangle[3];
+    triangle[0] = q[0];
+
+    for(int i = 0; i < 4; i++) {
+        triangle[1] = q[i + 1];
+        triangle[2] = q[i + 2];
+        if(!backface_cull(triangle))
+            rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
+    }
 }
 
 // XXX rasterizer_draw() enqueue triangles
