@@ -80,7 +80,8 @@ void test_fill_rate(int use_z)
     awesome_wait_for_end_of_processing();
     clock_gettime(CLOCK_MONOTONIC, &after_time);
     double elapsed = diff_timespecs(&after_time, &before_time);
-    printf("Fill: %.0f considered mpixels/s, %.0f drawn mpixels/s\n",
+    printf("Fill (%s): %.0f considered mpixels/s, %.0f drawn mpixels/s\n",
+    	use_z ? "with Z" : "no Z",
 	pixels*count/elapsed/1000000, drawn_pixels*count/elapsed/1000000);
 }
 
@@ -88,11 +89,11 @@ void test_triangle_overhead()
 {
     volatile uint64_t *p = awesome_get_command_buffer();
 
-    int count = 1000;
+    int count = 10000;
     int x1 = 5;
     int y1 = 5;
-    int x2 = 15;
-    int y2 = 15;
+    int x2 = 6;
+    int y2 = 6;
     awesome_init_frame();
     awesome_draw(&p, AWESOME_DRAW_TRIANGLES, count, false, false);
     for (int i = 0; i < count; i++) {
