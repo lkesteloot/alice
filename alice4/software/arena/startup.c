@@ -2,6 +2,8 @@
 #include <device.h>
 #include "arena.h"
 
+#undef SHOW_STARTUP_SCREEN
+
 char *intro[] = {
 "",
 "					ARENA",
@@ -32,16 +34,17 @@ char *intro[] = {
 "				Hit any key to continue",
 (char *) 0 };
 
-int winw, winh;
+// int winw, winh;
 
 startup()
 {
     int i;
 
+#ifdef SHOW_STARTUP_SCREEN
     color(BLUE);
     clear();
 
-    getsize(&winw, &winh);
+    // getsize(&winw, &winh);
     // ortho2(0, winw, 0, winh);
     ortho2(0, XMAXSCREEN, 0, YMAXSCREEN);
 
@@ -51,6 +54,7 @@ startup()
 	cmov2i(30, (YMAXSCREEN-30) - i*16);
 	charstr(intro[i]);
     }
+#endif
 
     qdevice(KEYBD);
 
@@ -77,14 +81,17 @@ startup()
 #endif
 
     // BG: swap and wait for mouse
-    swapbuffers();
     qdevice(LEFTMOUSE);
-    while(qread(&i) != LEFTMOUSE);
+#ifdef SHOW_STARTUP_SCREEN
+    swapbuffers();
+    while(qread(&i) != LEFTMOUSE) {
 #if NETWORKING
 	if (network)
 	    send_death();
 #else
         ;
+#endif
+    }
 #endif
 
     unqdevice(KEYBD);
