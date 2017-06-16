@@ -13,7 +13,7 @@
 #include "connection.h"
 
 #undef DEBUG_PRINT
-#define COVERAGE_PRINT
+#undef COVERAGE_PRINT
 #undef DUMP_ALL_COMMANDS
 #undef SKIP_FPGA_WORK
 #define WARN_SKIPPED_FRAME
