@@ -20,6 +20,9 @@ if fatload mmc 0:1 $fpgadata fpga.rbf; then
     fpga load 0 $fpgadata $filesize;
 fi;
 
+# Enable the FPGA 2 HPS and HPS 2 FPGA bridges.
+run bridge_enable_handoff;
+
 # Load logo commands to command buffer.
 if fatload mmc 0:1 0x38465000 logo.bin; then
     echo ---Running logo ($filesize bytes)---
@@ -33,9 +36,6 @@ setenv fdtimage zImage-socfpga_cyclone5_de0_sockit.dtb;
 
 # Set the kernel image to be used.
 setenv bootimage zImage;
-
-# Enable the FPGA 2 HPS and HPS 2 FPGA bridges.
-run bridge_enable_handoff;
 
 # echo ---Generating MAC Address---
 # setenv chipid_addr 0xff207000;
