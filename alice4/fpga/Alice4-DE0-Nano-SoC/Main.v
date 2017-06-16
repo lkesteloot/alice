@@ -366,6 +366,7 @@ module Main(
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
+                 .FB_HEIGHT(FRAME_BUFFER_HEIGHT),
                  .CMD_ADDRESS(CMD_ADDRESS)) rasterizer(
 
         .clock(clock_50),

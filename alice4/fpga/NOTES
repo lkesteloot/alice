@@ -115,8 +115,11 @@ Next:
 ]}
 
 Buffer addresses:
-    Base: 0x38000000 (0x7000000 in 64-bit addresses)
-    Command buffer: 0x38465000 (0x708ca00 in 64-bit addresses)
+    Size of color/Z buffer = 1536000
+    Buf 1: 0x38000000 (0x7000000 in 64-bit addresses)
+    Buf 2: 0x38177000 (0x702ee00 in 64-bit addresses)
+    Buf Z: 0x382ee000 (0x705dc00 in 64-bit addresses)
+    Cmd:   0x38465000 (0x708ca00 in 64-bit addresses)
 
 SDRAM priority:
     See page 11-11.
@@ -164,43 +167,4 @@ Convert command buffer read to fifo:
     - Convert Z reads to FIFO reads.
     - Remove CMD_ADDRESS from Rasterizer.
     - Check latency on sync clear of FIFO.
-
-
-        FETCH:
-            read <= 1;
-            state <= WAIT;
-
-        WAIT:
-            if (wait)
-                // Nothing.
-            else:
-                read <= 0;
-                state <= READ;
-
-        READ:
-            data <= fifo_data;
-            state <= ...;
-
----
-
-        STATE_INIT:
-            count <= 4;
-            read <= 1;
-            state <= LOOP;
-
-        STATE_LOOP:
-            if (read && !wait)
-                if count - 1 == 0
-                    read <= 0
-                count <= count - 1
-                got_data <= 1
-            else:
-                got_data <= 0
-
-            if (got_data)
-                case (count)
-                    0: xxx <= data
-                        state <= ...;
-
-                endcase
 

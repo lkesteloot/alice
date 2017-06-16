@@ -7,11 +7,11 @@ echo ---Booting ATLAS SOC GHRD---
 # in the preloader and we can't get that to recompile and work
 # properly. Get this value from the F2SDRAM_RESET_PORT_USED value
 # in hps_isw_handoff/soc_system_hps_0/hps.xml.
-setenv fpga2sdram_handoff 0x1F37
+setenv fpga2sdram_handoff 0x3FFF
 
 # Configure the memory controller priority. See issue #51 and
 # the SET_MEMORY_PRIORITY shell script.
-mw 0xFFC250AC 0x1B6C6DB7;
+mw 0xFFC250AC 0x1B6C36DF;
 
 # Load rbf from FAT partition into memory.
 if fatload mmc 0:1 $fpgadata fpga.rbf; then
@@ -19,6 +19,9 @@ if fatload mmc 0:1 $fpgadata fpga.rbf; then
     # Program FPGA
     fpga load 0 $fpgadata $filesize;
 fi;
+
+# Enable the FPGA 2 HPS and HPS 2 FPGA bridges.
+run bridge_enable_handoff;
 
 # Load logo commands to command buffer.
 if fatload mmc 0:1 0x38465000 logo.bin; then
@@ -33,9 +36,6 @@ setenv fdtimage zImage-socfpga_cyclone5_de0_sockit.dtb;
 
 # Set the kernel image to be used.
 setenv bootimage zImage;
-
-# Enable the FPGA 2 HPS and HPS 2 FPGA bridges.
-run bridge_enable_handoff;
 
 # echo ---Generating MAC Address---
 # setenv chipid_addr 0xff207000;
