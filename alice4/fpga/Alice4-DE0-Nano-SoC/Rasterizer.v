@@ -6,8 +6,9 @@
 /// `define DISABLE_DRAWING
 
 module Rasterizer
-    // In bytes.
-    #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0, CMD_ADDRESS=0)
+    // Addresses and lengths are in bytes. Widths and heights are in pixels.
+    #(parameter FB_ADDRESS=0, FB_LENGTH=0, FB_WIDTH=0,
+                FB_HEIGHT=0, CMD_ADDRESS=0)
 (
     // Clock and reset.
     input wire clock,
@@ -69,8 +70,25 @@ module Rasterizer
         state,
         unhandled_count
     };
-    assign debug_value1 = 1'b0;
-    assign debug_value2 = command_word[31:0];
+    // assign debug_value1 = tri_color_address;
+    assign debug_value1 = {
+        3'b0, use_z_buffer,
+        3'b0, read_z_read,
+        3'b0, read_z_waitrequest,
+        3'b0, read_fifo_enqueue,
+
+        1'b0,
+        read_fifo_size,
+        write_fifo_size,
+        both_fifo_size
+    };
+    // assign debug_value2 = command_word[31:0];
+    assign debug_value2 = {
+        6'b0,
+        tri_x_0,
+        7'b0,
+        tri_y
+    };
 
     // Constants.
     assign read_z_burstcount = 8'h01;
@@ -242,6 +260,35 @@ module Rasterizer
     reg signed [63:0] tri_z_row;
     reg signed [63:0] tri_z_incr;
     reg signed [63:0] tri_z_row_incr;
+    // Generate these with https://github.com/lkesteloot/verilog_minmax
+    wire [9:0] min_vertex_x = vertex_0_x < vertex_1_x
+                                ? vertex_0_x < vertex_2_x
+                                    ? vertex_0_x
+                                    : vertex_2_x
+                                : vertex_1_x < vertex_2_x
+                                    ? vertex_1_x
+                                    : vertex_2_x;
+    wire [8:0] min_vertex_y = vertex_0_y < vertex_1_y
+                                ? vertex_0_y < vertex_2_y
+                                    ? vertex_0_y
+                                    : vertex_2_y
+                                : vertex_1_y < vertex_2_y
+                                    ? vertex_1_y
+                                    : vertex_2_y;
+    wire [9:0] max_vertex_x = vertex_0_x > vertex_1_x
+                                ? vertex_0_x > vertex_2_x
+                                    ? vertex_0_x
+                                    : vertex_2_x
+                                : vertex_1_x > vertex_2_x
+                                    ? vertex_1_x
+                                    : vertex_2_x;
+    wire [8:0] max_vertex_y = vertex_0_y > vertex_1_y
+                                ? vertex_0_y > vertex_2_y
+                                    ? vertex_0_y
+                                    : vertex_2_y
+                                : vertex_1_y > vertex_2_y
+                                    ? vertex_1_y
+                                    : vertex_2_y;
     wire inside_triangle_0 = (((tri_w0_0 <= 0 && tri_w1_0 <= 0 && tri_w2_0 <= 0)
             || (tri_w0_0 >= 0 && tri_w1_0 >= 0 && tri_w2_0 >= 0))
         && (!draw_with_pattern || pattern[{tri_y[3:0], tri_x_0[3:0]}]))
@@ -714,41 +761,25 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE1: begin
-                    // Compute bounding box, rounding to even pixels.
-                    tri_min_x <= ((vertex_0_x < vertex_1_x)
-                                    ? (vertex_0_x < vertex_2_x)
-                                        ? vertex_0_x 
-                                        : vertex_2_x
-                                    : (vertex_1_x < vertex_2_x)
-                                        ? vertex_1_x
-                                        : vertex_2_x) & ~10'b1;
-                    tri_min_y <= (vertex_0_y < vertex_1_y)
-                                    ? (vertex_0_y < vertex_2_y)
-                                        ? vertex_0_y 
-                                        : vertex_2_y
-                                    : (vertex_1_y < vertex_2_y)
-                                        ? vertex_1_y
-                                        : vertex_2_y;
-                    tri_max_x <= ((vertex_0_x > vertex_1_x)
-                                    ? (vertex_0_x > vertex_2_x)
-                                        ? vertex_0_x 
-                                        : vertex_2_x
-                                    : (vertex_1_x > vertex_2_x)
-                                        ? vertex_1_x
-                                        : vertex_2_x) & ~10'b1;
-                    tri_max_y <= (vertex_0_y > vertex_1_y)
-                                    ? (vertex_0_y > vertex_2_y)
-                                        ? vertex_0_y 
-                                        : vertex_2_y
-                                    : (vertex_1_y > vertex_2_y)
-                                        ? vertex_1_y
-                                        : vertex_2_y;
+                    // Compute bounding box, truncating to even pixels for
+                    // X values. No need to clamp to zero since these are
+                    // unsigned values, but we must clamp to the size of the
+                    // frame buffer to protect against bogus data.
+                    tri_min_x <= (min_vertex_x > FB_WIDTH - 1
+                        ? FB_WIDTH - 1 : min_vertex_x) & ~10'b1;
+                    tri_min_y <= min_vertex_y > FB_HEIGHT - 1
+                        ? FB_HEIGHT - 1 : min_vertex_y;
+                    tri_max_x <= (max_vertex_x > FB_WIDTH - 1
+                        ? FB_WIDTH - 1 : max_vertex_x) & ~10'b1;
+                    tri_max_y <= max_vertex_y > FB_HEIGHT - 1
+                        ? FB_HEIGHT - 1 : max_vertex_y;
                     tri_w0_incr <= vertex_1_sy - vertex_2_sy;
                     tri_w0_row_incr <= vertex_2_sx - vertex_1_sx;
                     tri_w1_incr <= vertex_2_sy - vertex_0_sy;
                     tri_w1_row_incr <= vertex_0_sx - vertex_2_sx;
                     tri_w2_incr <= vertex_0_sy - vertex_1_sy;
                     tri_w2_row_incr <= vertex_1_sx - vertex_0_sx;
+                    // Actually twice area.
                     tri_area <= 
                         (vertex_1_sx - vertex_0_sx)*
                         (vertex_2_sy - vertex_0_sy) -

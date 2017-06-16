@@ -7,11 +7,11 @@ echo ---Booting ATLAS SOC GHRD---
 # in the preloader and we can't get that to recompile and work
 # properly. Get this value from the F2SDRAM_RESET_PORT_USED value
 # in hps_isw_handoff/soc_system_hps_0/hps.xml.
-setenv fpga2sdram_handoff 0x1F37
+setenv fpga2sdram_handoff 0x3FFF
 
 # Configure the memory controller priority. See issue #51 and
 # the SET_MEMORY_PRIORITY shell script.
-mw 0xFFC250AC 0x1B6C6DB7;
+mw 0xFFC250AC 0x1B6C36DF;
 
 # Load rbf from FAT partition into memory.
 if fatload mmc 0:1 $fpgadata fpga.rbf; then
