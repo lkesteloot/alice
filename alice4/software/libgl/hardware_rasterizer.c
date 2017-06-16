@@ -17,7 +17,16 @@
 #undef DUMP_ALL_COMMANDS
 #undef SKIP_FPGA_WORK
 #define WARN_SKIPPED_FRAME
-#define BREAK_UP_TRIANGLES
+
+// This doesn't work well because the way I break up triangles
+// causes discontinuities at shared edges. It's mostly useful
+// for lines anyway, so we break up lines in a different way
+// farther up the pipeline. See BREAK_UP_LINES.
+#undef BREAK_UP_TRIANGLES
+
+// Break up long lines so as to avoid bad bbox. Turns out this
+// makes it worse.
+#undef BREAK_UP_LINES
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
@@ -581,6 +590,16 @@ void draw_line_as_triangles(screen_vertex *v0, screen_vertex *v1)
         // XXX should draw point if the line is too short
         return;
     }
+
+#ifdef BREAK_UP_LINES
+    if (d > 200) {
+	screen_vertex mid;
+	interpolate_screen_vertex(v0, v1, &mid, 0.5);
+	draw_line_as_triangles(v0, &mid);
+	draw_line_as_triangles(&mid, v1);
+	return;
+    }
+#endif
 
     screen_vertex q[4];
     q[0] = *v0;
