@@ -1,8 +1,0 @@
-(fp_lib_table
-  (lib (name microusb)(type Legacy)(uri $KIPRJMOD/snapeda/10118192-0001LF.mod)(options "")(descr ""))
-  (lib (name TSOP44-II)(type Legacy)(uri $KIPRJMOD/snapeda/TSOP44-II.mod)(options "")(descr ""))
-  (lib (name microsd)(type KiCad)(uri $KIPRJMOD/w_conn_misc.pretty/)(options "")(descr ""))
-  (lib (name cui-md-xxs)(type KiCad)(uri $KIPRJMOD/cui-md-xxs.pretty/)(options "")(descr ""))
-  (lib (name Molex)(type KiCad)(uri $KIPRJMOD/molex.pretty/)(options "")(descr ""))
-  (lib (name Jac)(type Legacy)(uri $KIPRJMOD/jac.mod)(options "")(descr ""))
-)
