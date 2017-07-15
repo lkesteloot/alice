@@ -1,7 +1,0 @@
-#!/bin/csh
-
-set filename=$1
-
-echo "Scaling $filename by half"
-
-djpeg $filename | pnmscale 0.5 | cjpeg >${filename:r}-half.jpg
