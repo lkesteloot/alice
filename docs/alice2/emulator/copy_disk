@@ -1,0 +1,11 @@
+mkdir -p /tmp/cpmdisk/
+seq 0 15 | while read user
+do
+    mkdir -p /tmp/cpmdisk/$user
+    for file in `cpmls -f myz80 "$1" "$user"':*.*' | tail +2`
+    do
+        echo "$user:$file"
+        cpmcp -f myz80 "$1" "$user:$file" "/tmp/cpmdisk/$user/"
+        cpmcp -f brads8mb "$2" "/tmp/cpmdisk/$user/" "$user:$file"
+    done
+done

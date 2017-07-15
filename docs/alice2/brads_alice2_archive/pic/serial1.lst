@@ -1,0 +1,218 @@
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 1
+
+     1					;
+     2					; Brad and Lawrence's PIC Alice II serial test program.
+     3					; Accepts a byte on B1, serially clocked in on rising edges of
+     4					; B0 (1 start bit, two stop bits), writes that byte on PORTD,
+     5					; then interrupts the CPU by setting A0 low.
+     6					; On PSP RD interrupt, clears the interrupt by setting A0 high.
+     7					; Enables serial receive and transmits incoming serial on PORTD,
+     8					; then interrupts the CPU by setting A0 low.
+     9					;
+    10					; May 10th, 1997
+    11					;
+    12						maclib 'p65.inc'
+    13					
+    14					        device  pic16c65,xt_osc,wdt_off,pwrt_off,protect_off
+    15					
+    16	=0020				w_temp  equ     020h
+    17	=0021				status_temp equ 021h
+    18					
+    19	=0002				initstopcnt        equ     2    ; # of stop bits per byte (+ 1)
+    20	=0022				stopcnt            equ     022h ; storage for stop bits left
+    21	=000A				initdatabits       equ     10   ; start bits + data bits (+ 1)
+    22	=0023				databits           equ     023h ; storage for kbd data shifts left
+    23					                                ; (1st bit shifted in gets pushed off end)
+    24	=0024				kbdbyte            equ     024h ; storage for keyboard byte
+    25	=0081				baudrate           equ     081h ; 2400 baud at 20 MHz, BRGH=0, 129 decimal
+    26					
+    27	0000-				reset
+    28					        org     0               ; on reset
+    29	0000- 2805			        goto    start
+    30					
+    31	0001-				intsvc
+    32					        org     4               ; on interrupt
+    33	0004- 2831			        goto    interrupt
+    34					
+    35	0005-				start
+    36	0005- 1283			        bcf     rp0             ; bank 0
+    37					
+    38						    ; Alice II bus interface
+    39	0006- 1405			        bsf     porta,0         ; don't interrupt CPU on IRQ 0
+    40	0007- 138C			        bcf     pspif           ; clear PSP interrupt flag
+    41					
+    42						    ; Debugging
+    43	0008- 1085			        bcf     porta,1         ; clear debugging output pin
+    44					
+    45						    ; Serial interface
+    46	0009- 1307			        bcf     portc,6         ; clear USART transmit pin
+    47	000A- 1387			        bcf     portc,7         ; clear USART receive pin
+    48	000B- 128C				bcf	rcif		; clear USART receive interrupt flag
+    49					
+    50						    ; keyboard interface 
+    51	000C- 3002			        movlw   initstopcnt
+    52	000D- 00A2			        movwf   stopcnt         ; set up # of stop bits in kbd data
+    53	000E- 300A			        movlw   initdatabits
+    54	000F- 00A3			        movwf   databits        ; set up # of actual shifts to make
+    55					
+    56	0010- 1683			        bsf     rp0             ; bank 1
+    57						
+    58						    ; Alice II bus interface
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 2
+
+    59	0011- 1005			        bcf     trisa,0         ; bit 0 port A is output
+    60					
+    61						    ; Debugging
+    62	0012- 1085			        bcf     trisa,1         ; bit 1 port A is output
+    63					
+    64						    ; Alice II bus interface
+    65	0013- 1409			        bsf     trise0          ; /RD is input
+    66	0014- 1489			        bsf     trise1          ; /WR is input
+    67	0015- 1509			        bsf     trise2          ; /CS is input
+    68					
+    69						    ; Serial interface
+    70					        ; don't need to set trisc, default is 0xff (input)
+    71						; Brad's not so sure
+    72	0016- 1307			        bcf     trisc, 6        ; transmit is output
+    73	0017- 1787			        bsf     trisc, 7        ; receive is input
+    74					
+    75						    ; Keyboard interface
+    76					        ; don't need to set trisb, default is 0xff (input)
+    77	0018- 1701			        bsf     intedg          ; RB0/INT triggers on low-to-high
+    78					
+    79						    ; Alice II bus interface
+    80	0019- 178C			        bsf     pspie           ; enable PSP interrupts
+    81	001A- 1609			        bsf     pspmode         ; enable PSP mode
+    82					
+    83	001B- 1683				bsf	rp0		; bank 1
+    84					
+    85						    ; Serial interface
+    86	001C- 3081				movlw	baudrate	; default baud rate
+    87	001D- 0099				movwf	spbrg		; set baud rate generator 
+    88	001E- 1218				bcf	sync		; asynchronous serial
+    89	001F- 1283				bcf	rp0		; bank 0
+    90	0020- 1798				bsf	spen		; enable USART receiver
+    91	0021- 1683				bsf	rp0		; bank 1
+    92	0022- 168C				bsf	rcie		; enable USART receive interrupt
+    93	0023- 1283				bcf	rp0		; bank 0
+    94	0024- 1618				bsf	cren		; enable USART receive next byte
+    95					
+    96						    ; Serial and Alice II bus interface
+    97	0025- 1683				bsf	rp0		; bank 1
+    98	0026- 170B			        bsf     peie            ; enable peripheral interrupts
+    99					
+   100						    ; Keyboard interface
+   101	0027- 108B			        bcf     intf            ; clear RB0/INT interrupt flag
+   102	0028- 160B			        bsf     inte            ; enable RB0/INT interrupt
+   103					
+   104	0029- 178B			        bsf     gie             ; enable all interrupts
+   105					
+   106	002A- 1283			        bcf     rp0             ; bank 0
+   107					                                                            
+   108	002B-				loop
+   109	002B- 1E8C			        btfss   rcif            ; test RCIF
+   110	002C- 282F			        goto    notrcif         ; RCIF not set
+   111	002D- 1485				bsf	porta, 1	; transfer value to A1
+   112	002E- 282B			        goto loop               ; infinite loop
+   113					
+   114	002F-				notrcif
+   115	002F- 1085				bcf	porta, 1	; transfer value to A1
+   116	0030- 282B			        goto loop               ; infinite loop
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 3
+
+   117					                                  
+   118	0031-				interrupt
+   119					        ; save W and STATUS
+   120	0031- 00A0			        movwf   w_temp          ; save W
+   121	0032- 0E03			        swapf   status, w       ; save status in W
+   122	0033- 1283			        bcf     rp0             ; bank 0
+   123	0034- 00A1			        movwf   status_temp     ; save status
+   124					
+   125	0035- 3002				movlw	002h
+   126	0036- 0685				xorwf	porta		; toggle port a, bit 1, for debugging.
+   127					
+   128	0037- 1F8C			        btfss   pspif           ; test PSP interrupt flag
+   129	0038- 2841			        goto    notpsp          ; not PSP
+   130	0039- 1683			        bsf     rp0             ; bank 1
+   131	003A- 1F89			        btfss   ibf             ; did we get a write?
+   132	003B- 283D			        goto    gotread         ; nope, jump to read
+   133					        ; we got a write
+   134					        ; don't do anything here.  Someday write to keyboard.
+   135					        ; panic if you see bit 3 go up!
+   136	003C- 285B			        goto    endpspinterrupt ; return
+   137					
+   138	003D-				gotread
+   139	003D- 1283			        bcf     rp0             ; bank 0
+   140	003E- 1405			        bsf     porta,0         ; don't assert interrupt on IRQ 0
+   141	003F- 1485			        bsf     porta,1         ; don't assert interrupt on IRQ 1
+   142	0040- 285B			        goto    endpspinterrupt
+   143					
+   144	0041-				notpsp                          ; either RB0/INT or RC/USART
+   145	0041- 1C8B				btfss	intf		; skip next if is definitely INT interrupt
+   146	0042- 285E				goto	serialin	; it's a byte from the parallel port
+   147					
+   148	0043- 0BA3			        decfsz  databits, 1     ; skip next if done with data bits
+   149	0044- 2854			        goto    gotbit          ; have a good bit on port B
+   150	0045- 0BA2			        decfsz  stopcnt, 1      ; skip next if done with keyboard cycle
+   151	0046- 2851			        goto    morestops       ; not done yet, have stop bits
+   152					
+   153	0047-				gotkbdbyte
+   154	0047- 0824			        movf    kbdbyte, w      ; get kbd byte
+   155	0048- 0088			        movwf   portd           ; write data to CPU
+   156	0049- 1005			        bcf     porta, 0        ; turn on interrupt to CPU
+   157					
+   158	004A- 3042				movlw	'B'
+   159	004B- 0099				movwf	txreg		; Inform us
+   160					
+   161	004C- 3002			        movlw   initstopcnt
+   162	004D- 00A2			        movwf   stopcnt         ; set up # of stop bits in
+   163	004E- 300A			        movlw   initdatabits
+   164	004F- 00A3			        movwf   databits        ; set up # of actual shifts
+   165					
+   166	0050- 2858			        goto    endintinterrupt ; done with sending byte
+   167					
+   168	0051-				morestops                       ; only stop bits left
+   169	0051- 01A3			        clrf    databits
+   170	0052- 0AA3			        incf    databits        ; set remaining databits to 1
+   171									; next loop through dec's databits, it's 0
+   172									; skips to decfsz stopcnt
+   173	0053- 2858			        goto    endintinterrupt ; finish with rb0/int interrupt
+   174					
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 4
+
+   175	0054-				gotbit                          ; shift in a bit from keyboard
+   176	0054- 1403			        bsf     c               ; set carry
+   177	0055- 1C86			        btfss   portb, 1        ; if kbd data bit is set, skip next
+   178	0056- 1003			        bcf     c               ; clear carry
+   179	0057- 0CA4			        rrf     kbdbyte, 1      ; rotate data bit into MSB of kbdbyte
+   180					        ; fall through to endintinterrupt
+   181					
+   182	0058-				endintinterrupt
+   183	0058- 1283			        bcf     rp0             ; bank 0
+   184	0059- 108B			        bcf     intf            ; clear RB0/INT interrupt flag
+   185	005A- 2863			        goto    finishinterrupt ; pop processor context
+   186					
+   187	005B-				endpspinterrupt
+   188	005B- 1283			        bcf     rp0             ; bank 0
+   189	005C- 138C			        bcf     pspif           ; clear PSP interrupt flag
+   190	005D- 2863			        goto    finishinterrupt
+   191					
+   192	005E-				serialin
+   193	005E- 1283			        bcf     rp0             ; bank 0
+   194	005F- 081A				movf	rcreg, w	; get USART in
+   195	0060- 0088				movwf	portd		; send it to CPU
+   196	0061- 1005				bcf	porta, 0	; turn on interrupt to CPU
+   197						; fall through into endserinterrupt
+   198					
+   199	0062-				endserinterrupt
+   200	0062- 128C			        bcf     rcif            ; clear USART receive interrupt
+   201					        ; fall through to finishinterrupt
+   202					
+   203	0063-				finishinterrupt
+   204					        ; restore W and STATUS
+   205	0063- 0E21			        swapf   status_temp, w  ; put old status in W
+   206	0064- 0083			        movwf   status          ; put into status
+   207	0065- 0EA0			        swapf   w_temp, 1       ; swap w_temp in place
+   208	0066- 0E20			        swapf   w_temp, w       ; put old W into W
+   209					
+   210	0067- 0009			        retfie

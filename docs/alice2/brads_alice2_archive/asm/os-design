@@ -1,0 +1,34 @@
+
+
+OS Design
+---------
+
+Need:
+  - Process library
+      - Create process
+      - Kill process
+      - Save process state
+      - Restore process state
+      - Run queue
+      - Sleep queue
+  - Memory allocation (management)
+      - Allocate n bytes
+      - Free those bytes
+  - Trap module to receive requests from applications
+      - File system requests
+      - Process requests (fork, exec, exit, kill, etc.)
+      - Memory requests
+  - File system
+      - Open,close,write,read file
+      - File system on disk
+          - Superblock
+	  - Directory of inodes
+	  - Inode list of blocks
+  - Device drivers
+      - LCD display
+      - Keyboard
+      - Serial
+      - IDE
+      - NSTC display
+      - Light pen
+      - Clock interrupt

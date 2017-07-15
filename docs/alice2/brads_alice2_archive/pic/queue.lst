@@ -1,0 +1,400 @@
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 1
+
+     1					;
+     2					; Brad and Lawrence's PIC Alice II interface chip.  The PIC
+     3					; is responsible for keyboard, serial, and clock interfaces.
+     4					;
+     5					; An internal queue keeps command-data sequences for the CPU.
+     6					; The command bytes are the constants pic_???_cmd.
+     7					; The timer command has no data byte, and the serial and keyboard
+     8					; bytes are followed by one byte of data.
+     9					;
+    10					; June 21st, 1997
+    11					;
+    12						maclib 'p65.inc'
+    13					
+    14					        device  pic16c65,xt_osc,wdt_off,pwrt_off,protect_off
+    15					
+    16	=0020				w_temp		equ	020h
+    17	=0021				status_temp	equ	021h
+    18					
+    19					;
+    20					; Keyboard I/O constants
+    21					;
+    22	=0002				init_stop_count	equ     2	; # of stop bits per byte (+ 1)
+    23	=0022				stop_count	equ     022h	; storage for stop bits left
+    24	=000A				init_data_bits	equ     10	; start bits + data bits (+ 1)
+    25	=0023				data_bits	equ     023h 	; storage for kbd data shifts left
+    26					                                ; (1st bit shifted in gets pushed off end)
+    27	=0024				kbd_byte	equ     024h	; storage for keyboard byte
+    28					
+    29					;
+    30					; Serial I/O constants
+    31					;
+    32	=0081				baud_rate_code	equ     081h	; 2400 baud at 20 MHz, BRGH=0, 129 decimal
+    33					
+    34					;
+    35					; Alice I/O queue constants
+    36					;
+    37	=0025				outq_tail	equ	025h	; output queue tail pointer
+    38	=0026				outq_head	equ	026h	; output queue head pointer (actually
+    39									; head+1)
+    40	=0027				outq_length	equ	027h	; length in bytes of current output queue
+    41									; (head - tail)
+    42	=0028				outq_byte_pop	equ	028h	; byte popped off output queue
+    43	=0029				outq_byte_push	equ	029h	; byte to push on output queue
+    44	=0040				outq_storage	equ	040h	; first byte of output queue storage
+    45	=0040				outq_size	equ	040h	; number of bytes in output queue
+    46	=003F				outq_wrap_mask	equ	03fh	; mask for wrapping queue pointers
+    47					
+    48					;
+    49					; Queue command constants
+    50					;
+    51	=0000				pic_non_cmd	equ	000h	; no command yet (not used on the pic)
+    52	=0001				pic_ser_cmd	equ	001h	; serial byte
+    53	=0002				pic_kbd_cmd	equ	002h	; keyboard byte
+    54	=0003				pic_tim_cmd	equ	003h	; timer (no byte)
+    55					
+    56					;
+    57					; Timer1 constants
+    58					;
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 2
+
+    59	=00DC				ten_hz_low	equ	0dch	; low byte of 10 hz counter start
+    60	=000B				ten_hz_high	equ	00bh	; high byte of 10 hz counter start
+    61									; together these make 0xbdc, which means
+    62									; upward-counting tmr1 does 62500 ticks,
+    63									; and at 5 Hz (clk/4) with 1:8 scaling,
+    64									; that's 10 overflows per second.
+    65	=0030				timer_counter	equ	030h	; counts timer ticks before sending test s
+    66	=0064				timer_ticks	equ	100	; 100 ticks before sending test string
+    67					
+    68	0000-				reset
+    69					        org     0               ; on reset
+    70	0000- 2805			        goto    start
+    71					
+    72	0001-				intsvc
+    73					        org     4               ; on interrupt
+    74	0004- 283A			        goto    interrupt
+    75					
+    76	0005-				start
+    77	0005- 1283			        bcf     rp0             ; bank 0
+    78					
+    79	0006- 138C			        bcf     pspif           ; clear PSP interrupt flag
+    80					
+    81						    ; Serial interface
+    82	0007- 1307			        bcf     portc,6         ; clear USART transmit pin
+    83	0008- 1387			        bcf     portc,7         ; clear USART receive pin
+    84	0009- 128C				bcf	rcif		; clear USART receive interrupt flag
+    85					
+    86						    ; keyboard interface 
+    87	000A- 3002			        movlw   init_stop_count
+    88	000B- 00A2			        movwf   stop_count      ; set up # of stop bits in kbd data
+    89	000C- 300A			        movlw   init_data_bits
+    90	000D- 00A3			        movwf   data_bits       ; set up # of actual shifts to make
+    91					
+    92	000E- 1683			        bsf     rp0             ; bank 1
+    93						
+    94						    ; Alice II bus interface
+    95	000F- 1005			        bcf     trisa,0         ; bit 0 port A is output
+    96	0010- 1085			        bcf     trisa,1         ; bit 1 port A is output
+    97					
+    98						    ; Alice II bus interface
+    99	0011- 1409			        bsf     trise0          ; /RD is input
+   100	0012- 1489			        bsf     trise1          ; /WR is input
+   101	0013- 1509			        bsf     trise2          ; /CS is input
+   102					
+   103						    ; Serial interface
+   104					        ; don't need to set trisc, default is 0xff (input)
+   105						; Brad's not so sure
+   106	0014- 1707			        bsf     trisc, 6        ; transmit is output
+   107	0015- 1787			        bsf     trisc, 7        ; receive is input
+   108					
+   109						    ; Keyboard interface
+   110					        ; don't need to set trisb, default is 0xff (input)
+   111	0016- 1701			        bsf     intedg          ; RB0/INT triggers on low-to-high
+   112					
+   113						    ; Alice II bus interface
+   114	0017- 178C			        bsf     pspie           ; enable PSP interrupts
+   115	0018- 1609			        bsf     pspmode         ; enable PSP mode
+   116					
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 3
+
+   117						    ; Serial interface
+   118	0019- 3081				movlw	baud_rate_code	; default baud rate
+   119	001A- 0099				movwf	spbrg		; set baud rate generator 
+   120	001B- 1218				bcf	sync		; asynchronous serial
+   121	001C- 1698				bsf	txen		; enable USART transmitter
+   122	001D- 1283				bcf	rp0		; bank 0
+   123	001E- 1798				bsf	spen		; enable USART receiver
+   124	001F- 1683				bsf	rp0		; bank 1
+   125	0020- 168C				bsf	rcie		; enable USART receive interrupt
+   126	0021- 1283				bcf	rp0		; bank 0
+   127	0022- 1618				bsf	cren		; enable USART receive next byte
+   128					
+   129						    ; Alice II bus interface
+   130	0023- 1405			        bsf     porta,0         ; don't interrupt CPU on IRQ 0
+   131	0024- 1085			        bcf     porta,1         ; clear debug pin
+   132					
+   133						    ; init Alice output queue
+   134	0025- 3040				movlw	outq_storage
+   135	0026- 00A6				movwf	outq_head
+   136	0027- 00A5				movwf	outq_tail
+   137	0028- 01A7				clrf	outq_length
+   138					
+   139						    ; init timer 1
+   140	0029- 1690				bsf	t1ckps1
+   141	002A- 1610				bsf	t1ckps0		; set tmr1 prescaler to 8
+   142	002B- 30DC				movlw	ten_hz_low
+   143	002C- 008E				movwf	tmr1l
+   144	002D- 300B				movlw	ten_hz_high
+   145	002E- 008F				movwf	tmr1h
+   146	002F- 1410				bsf	tmr1on
+   147	0030- 3064				movlw	timer_ticks
+   148	0031- 00B0				movwf	timer_counter
+   149					
+   150						    ; Serial and Alice II bus interface
+   151	0032- 1683				bsf	rp0		; bank 1
+   152	0033- 170B			        bsf     peie            ; enable peripheral interrupts
+   153					
+   154						    ; Timer interrupt
+   155	0034- 140C				bsf	tmr1ie		; enable tmr1 interrupt
+   156					
+   157						    ; Keyboard interface
+   158	0035- 108B			        bcf     intf            ; clear RB0/INT interrupt flag
+   159	0036- 160B			        bsf     inte            ; enable RB0/INT interrupt
+   160					
+   161	0037- 178B			        bsf     gie             ; enable all interrupts
+   162					
+   163	0038- 1283			        bcf     rp0             ; bank 0
+   164					                                                            
+   165	0039-				loop
+   166	0039- 2839			        goto    loop
+   167					
+   168	003A-				interrupt
+   169					        ; save W and STATUS
+   170	003A- 00A0			        movwf   w_temp          ; save W
+   171	003B- 0E03			        swapf   status, w       ; save status in W
+   172	003C- 1283			        bcf     rp0             ; bank 0
+   173	003D- 00A1			        movwf   status_temp     ; save status
+   174					
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 4
+
+   175	003E- 180C				btfsc	tmr1if		; test timer 1 flag
+   176	003F- 2849				goto	timerint	; if timer int, then go handle timer
+   177					
+   178	0040- 1F8C			        btfss   pspif           ; test PSP interrupt flag
+   179	0041- 2877			        goto    notpsp          ; not PSP
+   180					
+   181	0042- 1683			        bsf     rp0             ; bank 1
+   182	0043- 1F89			        btfss   ibf             ; did we get a write?
+   183	0044- 2873			        goto    gotread         ; nope, jump to read
+   184					
+   185					        ; we got a write
+   186					        ; send on to serial 
+   187	0045- 1283			        bcf     rp0             ; bank 0
+   188	0046- 0808			        movf    portd, w	; get byte
+   189	0047- 0099				movwf	txreg
+   190					
+   191	0048- 2890			        goto    endpspinterrupt ; return
+   192					
+   193	0049-				timerint
+   194	0049- 1485				bsf	porta, 1	; debug
+   195	004A- 1010				bcf	tmr1on		; turn off temporarily
+   196	004B- 30DC				movlw	ten_hz_low
+   197	004C- 008E				movwf	tmr1l
+   198	004D- 300B				movlw	ten_hz_high
+   199	004E- 008F				movwf	tmr1h
+   200	004F- 1410				bsf	tmr1on		; reset and turn on
+   201					
+   202						; movlw	pic_tim_cmd
+   203						; call	send_byte	; alert Alice of timer interrupt
+   204						    ; fall through to endtimerinterrupt
+   205					
+   206						; Timer test - delete
+   207	0050- 0BB0				decfsz	timer_counter
+   208	0051- 2870				goto 	endtimerinterrupt
+   209	0052- 3064				movlw	timer_ticks
+   210	0053- 00B0				movwf	timer_counter
+   211					
+   212	0054- 3001				movlw	pic_ser_cmd
+   213	0055- 209F				call	send_byte
+   214	0056- 3074				movlw	't'
+   215	0057- 209F				call	send_byte
+   216	0058- 3001				movlw	pic_ser_cmd
+   217	0059- 209F				call	send_byte
+   218	005A- 3069				movlw	'i'
+   219	005B- 209F				call	send_byte
+   220	005C- 3001				movlw	pic_ser_cmd
+   221	005D- 209F				call	send_byte
+   222	005E- 306D				movlw	'm'
+   223	005F- 209F				call	send_byte
+   224	0060- 3001				movlw	pic_ser_cmd
+   225	0061- 209F				call	send_byte
+   226	0062- 3065				movlw	'e'
+   227	0063- 209F				call	send_byte
+   228	0064- 3001				movlw	pic_ser_cmd
+   229	0065- 209F				call	send_byte
+   230	0066- 3072				movlw	'r'
+   231	0067- 209F				call	send_byte
+   232	0068- 3001				movlw	pic_ser_cmd
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 5
+
+   233	0069- 209F				call	send_byte
+   234	006A- 3000				movlw	''
+   235	006B- 209F				call	send_byte
+   236	006C- 3001				movlw	pic_ser_cmd
+   237	006D- 209F				call	send_byte
+   238	006E- 300A				movlw	10
+   239	006F- 209F				call	send_byte
+   240					
+   241	0070-				endtimerinterrupt
+   242	0070- 1085				bcf	porta, 1	; clear debug pin
+   243	0071- 100C			        bcf     tmr1if		; clear TMR1 interrupt flag
+   244					        ;bsf     tmr1ie		; reenable interrupts
+   245	0072- 289A			        goto    finishinterrupt
+   246					
+   247	0073-				gotread
+   248	0073- 1283			        bcf     rp0             ; bank 0
+   249	0074- 1405			        bsf     porta,0         ; don't assert interrupt on IRQ 0
+   250					
+   251	0075- 20B4				call	processqueue	; send next byte if there is one
+   252	0076- 2890			        goto    endpspinterrupt
+   253					
+   254	0077-				notpsp                          ; either RB0/INT or RC/USART
+   255	0077- 1C8B				btfss	intf		; skip next if is definitely INT interrupt
+   256	0078- 2893				goto	serialin	; it's a byte from the serial port
+   257					
+   258	0079- 0BA3			        decfsz  data_bits, 1	; skip next if done with data bits
+   259	007A- 2889			        goto    gotbit		; have a good bit on port B
+   260	007B- 0BA2			        decfsz  stop_count, 1	; skip next if done with keyboard cycle
+   261	007C- 2886			        goto    morestops	; not done yet, have stop bits
+   262					
+   263	007D-				gotkbd_byte
+   264	007D- 3002				movlw	pic_kbd_cmd	; put the kbd cmd into the queue
+   265	007E- 209F				call	send_byte	; send data to CPU
+   266	007F- 0824			        movf    kbd_byte, w	; get kbd byte
+   267	0080- 209F				call	send_byte	; send data to CPU
+   268					
+   269	0081- 3002			        movlw   init_stop_count
+   270	0082- 00A2			        movwf   stop_count      ; set up # of stop bits in
+   271	0083- 300A			        movlw   init_data_bits
+   272	0084- 00A3			        movwf   data_bits       ; set up # of actual shifts
+   273					
+   274	0085- 288D			        goto    endintinterrupt ; done with sending byte
+   275					
+   276	0086-				morestops                       ; only stop bits left
+   277	0086- 01A3			        clrf    data_bits
+   278	0087- 0AA3			        incf    data_bits       ; set remaining data_bits to 1
+   279									; next loop through dec's data_bits, it's 
+   280									; skips to decfsz stop_count
+   281	0088- 288D			        goto    endintinterrupt ; finish with rb0/int interrupt
+   282					
+   283	0089-				gotbit                          ; shift in a bit from keyboard
+   284	0089- 1403			        bsf     c               ; set carry
+   285	008A- 1C86			        btfss   portb, 1        ; if kbd data bit is set, skip next
+   286	008B- 1003			        bcf     c               ; clear carry
+   287	008C- 0CA4			        rrf     kbd_byte, 1     ; rotate data bit into MSB of kbd_byte
+   288					        ; fall through to endintinterrupt
+   289					
+   290	008D-				endintinterrupt
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 6
+
+   291	008D- 1283			        bcf     rp0             ; bank 0
+   292	008E- 108B			        bcf     intf            ; clear RB0/INT interrupt flag
+   293	008F- 289A			        goto    finishinterrupt ; pop processor context
+   294					
+   295	0090-				endpspinterrupt
+   296	0090- 1283			        bcf     rp0             ; bank 0
+   297	0091- 138C			        bcf     pspif           ; clear PSP interrupt flag
+   298	0092- 289A			        goto    finishinterrupt
+   299					
+   300	0093-				serialin
+   301	0093- 1283			        bcf     rp0             ; bank 0
+   302	0094- 3001				movlw	pic_ser_cmd	; put the serial cmd into the queue
+   303	0095- 209F				call	send_byte	; send to CPU
+   304	0096- 081A				movf	rcreg, w	; get USART in
+   305	0097- 209F				call	send_byte	; send to CPU
+   306						; fall through into endserinterrupt
+   307					
+   308	0098-				endserinterrupt
+   309	0098- 1283			        bcf     rp0             ; bank 0
+   310	0099- 128C			        bcf     rcif            ; clear USART receive interrupt
+   311					        ; fall through to finishinterrupt
+   312					
+   313	009A-				finishinterrupt
+   314					        ; restore W and STATUS
+   315	009A- 0E21			        swapf   status_temp, w  ; put old status in W
+   316	009B- 0083			        movwf   status          ; put into status
+   317	009C- 0EA0			        swapf   w_temp, 1       ; swap w_temp in place
+   318	009D- 0E20			        swapf   w_temp, w       ; put old W into W
+   319					
+   320	009E- 0009			        retfie
+   321					
+   322	009F-				send_byte
+   323						; put byte that's in w into the out queue
+   324						; assumes interrupts are disabled (called from int routine)
+   325					
+   326							; push on queue
+   327	009F- 1283				bcf	rp0		; bank 0
+   328					
+   329	00A0- 00A9				movwf	outq_byte_push
+   330					
+   331	00A1- 3040				movlw	outq_size
+   332	00A2- 0227				subwf	outq_length, w
+   333	00A3- 1803				btfsc	c
+   334	00A4- 0008				return			; if q length >= size (overflow), then
+   335									; return
+   336	00A5- 0826				movf	outq_head, w
+   337	00A6- 0084				movwf	fsr
+   338	00A7- 0829				movf	outq_byte_push, w
+   339	00A8- 0080				movwf	indf		; *head = outq_byte_push
+   340					
+   341	00A9- 0AA6				incf	outq_head
+   342	00AA- 0826				movf	outq_head, w
+   343	00AB- 393F				andlw	outq_wrap_mask
+   344	00AC- 3E40				addlw	outq_storage
+   345	00AD- 00A6				movwf	outq_head	; head = storage + (head - storage + 1) % 
+   346									; i.e. head++
+   347					
+   348	00AE- 0AA7				incf	outq_length	; length ++
+PIC Macro Assembler Version 2.52    Copyright 1995, microEngineering Labs				Page 7
+
+   349					
+   350	00AF- 1683			        bsf	rp0		; bank 1
+   351	00B0- 1F09				btfss	obf		; skip if byte already on portd
+   352	00B1- 20B4				call	processqueue	
+   353					
+   354	00B2- 1283				bcf	rp0		; bank 0
+   355	00B3- 0008				return
+   356						
+   357					
+   358	00B4-				processqueue
+   359						; if there is a byte in the queue, get it and send it on to the
+   360						; Alice II through port D
+   361						; assumes interrupts are disabled (called from int routine)
+   362	00B4- 1283				bcf	rp0		; bank 0
+   363					
+   364	00B5- 08A7				movf	outq_length	; move to itself
+   365	00B6- 1903				btfsc	z		; skip if not zero
+   366	00B7- 0008				return			; if length == 0 return
+   367					
+   368	00B8- 0825				movf	outq_tail, w
+   369	00B9- 0084				movwf	fsr
+   370	00BA- 0800				movf	indf, w	
+   371	00BB- 00A8				movwf	outq_byte_pop	; outq_byte_pop = *tail
+   372					
+   373	00BC- 0AA5				incf	outq_tail
+   374	00BD- 0825				movf	outq_tail, w
+   375	00BE- 393F				andlw	outq_wrap_mask
+   376	00BF- 3E40				addlw	outq_storage
+   377	00C0- 00A5				movwf	outq_tail	; tail = storage + (tail - storage + 1) % 
+   378									; i.e. tail++
+   379					
+   380	00C1- 03A7				decf	outq_length	; length --
+   381					
+   382	00C2- 0828				movf	outq_byte_pop, w
+   383	00C3- 0088				movwf	portd		; send on to Alice
+   384	00C4- 1005			        bcf     porta, 0        ; turn on interrupt to CPU
+   385					
+   386	00C5- 0008				return

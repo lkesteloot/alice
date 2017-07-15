@@ -1,0 +1,40 @@
+<html>
+<head>
+<title>C:\Documents and Settings\kestelootl\My Documents\Alice\alice.noimages.tar\alice\alice2\Software\string.asm.html</title>
+<meta name="Generator" content="Vim/6.0">
+</head>
+<body bgcolor="#ffdab9" text="#000000">
+<pre>
+
+<font color="#406090">;</font>
+<font color="#406090">; STRCPY - Copies HL into IX.</font>
+<font color="#406090">;</font>
+<font color="#406090">; Leaves IX at terminating 0.  No other</font>
+<font color="#406090">; registers are modified.</font>
+<font color="#406090">;</font>
+<font color="#406090">; </font>
+<font color="#406090">;</font>
+
+STRCPY
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">HL</font>
+        <font color="#804040"><b>PUSH</b></font>    <font color="#008080">AF</font>
+
+STRCPY_LOOP
+        <font color="#804040"><b>LD</b></font>      <font color="#008080">A</font>, (<font color="#008080">HL</font>)
+        <font color="#804040"><b>LD</b></font>      (<font color="#008080">IX</font>), <font color="#008080">A</font>
+        <font color="#804040"><b>INC</b></font>     <font color="#008080">HL</font>
+        <font color="#804040"><b>INC</b></font>     <font color="#008080">IX</font>
+
+        <font color="#804040"><b>CP</b></font>      <font color="#c00058">0</font>
+        <font color="#804040"><b>JP</b></font>      <font color="#008080">NZ</font>, STRCPY_LOOP
+
+        <font color="#804040"><b>DEC</b></font>     <font color="#008080">IX</font>
+
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">AF</font>
+        <font color="#804040"><b>POP</b></font>     <font color="#008080">HL</font>
+        <font color="#804040"><b>RET</b></font>
+
+<font color="#406090">;----------------------------------------</font>
+</pre>
+</body>
+</html>

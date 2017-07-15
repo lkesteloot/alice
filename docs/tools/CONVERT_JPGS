@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Rigged for dual-cpu operation, e.g. on plunk.org
+
+toolsdir=`dirname $0`
+
+if [ a$1 == a-h ]
+then
+    echo
+    echo "    $0 - a script for cropping and scaling JPGs into medium-sized"
+    echo "        and thumbnail-sized representations."
+    echo
+    echo "    usage: $0 [particularname] < listofdata"
+    echo
+    echo "    listofdata contains one line per image, with the format:"
+    echo
+    echo "        originals/name.jpg [medium image subrect] rot scale [thumbnail rect]"
+    echo
+    echo "    The subrects must be provided as 'left top width height' in pixels."
+    echo "    Rot must be in degrees, and scale is currently ignored so it"
+    echo "    can be any numeric value."
+    echo
+    echo "    If a particular name is provided, $0 will only operate on that"
+    echo "    image".
+    echo
+    echo "    The directory structure necessary is kind of inflexible - $0"
+    echo "    must be run in the directory in which the medium-sized images"
+    echo "    will be stored.  The original full size images should be stored"
+    echo "    in the subdirectory originals/, and the thumbnails will be stored"
+    echo "    in thumbs/."
+    echo
+    echo "    $0 attempts to utilize two processors by running odd-numbered "
+    echo "    processing in the background.  No option is provided for "
+    echo "    disabling this behavior."
+    echo
+    exit 1
+fi
+
+if [ a$1 != a ]
+then
+    particular=$1
+fi
+
+while read name left top width height angle scale tleft ttop twidth theight
+do
+
+    echo $name
+    job=none
+    if [ a$particular == a -o $particular == $name ]
+    then
+	(
+	    sh $toolsdir/CONVERT_JPG $tleft $ttop $twidth $theight $angle 192 192 < $name > thumbs/`basename $name`
+	    sh $toolsdir/CONVERT_JPG $left $top $width $height $angle 800 800 < $name > `basename $name`
+	) &
+
+	job=$!
+    fi
+
+    if read name left top width height angle scale tleft ttop twidth theight
+    then
+	if [ a$particular == a -o $particular == $name ]
+	then
+	    echo $name
+	    sh $toolsdir/CONVERT_JPG $tleft $ttop $twidth $theight $angle 192 192 < $name > thumbs/`basename $name`
+	    sh $toolsdir/CONVERT_JPG $left $top $width $height $angle 800 800 < $name > `basename $name`
+	fi
+    fi
+
+    if [ a$job != anone ]
+    then
+	wait $job	# wait for backgrounded pipeline to finish
+    fi
+
+    # So it's likely we'll hit less than 100% dual cpu usage this way
+    # but it's easier than building a multithreaded work queue...
+
+done

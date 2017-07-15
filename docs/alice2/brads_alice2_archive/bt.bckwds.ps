@@ -1,0 +1,5932 @@
+%!
+%%BoundingBox: 17 42 578 720
+%%Title: bt.bckwds
+%%CreationDate: Mon Sep  4 17:12:39 1995
+%%Creator: Tgif-2.15-p6 by William Chia-Wei Cheng (william@cs.UCLA.edu)
+%%Orientation: Landscape
+%%Pages: 1
+%%DocumentFonts: (atend)
+%%EndComments
+%%BeginProlog
+%
+%	Due to bugs in Transcript, the 'PS-Adobe-' stuff is omitted from line 1
+%
+
+/tgifdict 132 dict def
+tgifdict begin
+
+%
+%	Using a zero value radius for an ellipse or an arc would result
+%		in a non-invertible CTM matrix which causes problem when this
+%		when this PostScript is wrapped inside other routines, such as
+%		the multi.ps package from
+%		ftp.ucc.su.oz.au:/pub/ps_printing/multi.  You can overcome such
+%		error by uncommenting the sole line of the procedure below:
+%
+/tgif_min_radius
+ {
+%    dup 0.01 lt { pop 0.01 } if
+ } bind def
+
+/tgifellipsedict 6 dict def
+tgifellipsedict /mtrx matrix put
+
+/tgifellipse
+ { tgifellipsedict begin
+      /yrad exch def
+      /xrad exch def
+      /y exch def
+      /x exch def
+      /savematrix mtrx currentmatrix def
+      x y translate
+      xrad yrad scale
+      0 0 1 0 360 arc
+      savematrix setmatrix
+   end
+ } def
+
+/tgifarrowtipdict 8 dict def
+tgifarrowtipdict /mtrx matrix put
+
+/tgifarrowtip
+ { tgifarrowtipdict begin
+      /dy exch def
+      /dx exch def
+      /h exch def
+      /w exch def
+      /y exch def
+      /x exch def
+      /savematrix mtrx currentmatrix def
+      x y translate
+      dy dx atan rotate
+      0 0 moveto
+      w neg h lineto
+      w neg h neg lineto
+      savematrix setmatrix
+   end
+ } def
+
+/tgifarcdict 8 dict def
+tgifarcdict /mtrx matrix put
+
+/tgifarcn
+ { tgifarcdict begin
+      /endangle exch def
+      /startangle exch def
+      /yrad exch def
+      /xrad exch def
+      /y exch def
+      /x exch def
+      /savematrix mtrx currentmatrix def
+      x y translate
+      xrad yrad scale
+      0 0 1 startangle endangle arc
+      savematrix setmatrix
+   end
+ } def
+
+/tgifarc
+ { tgifarcdict begin
+      /endangle exch def
+      /startangle exch def
+      /yrad exch def
+      /xrad exch def
+      /y exch def
+      /x exch def
+      /savematrix mtrx currentmatrix def
+      x y translate
+      xrad yrad scale
+      0 0 1 startangle endangle arcn
+      savematrix setmatrix
+   end
+ } def
+
+/tgifsetuserscreendict 22 dict def
+tgifsetuserscreendict begin
+   /tempctm matrix def
+   /temprot matrix def
+   /tempscale matrix def
+
+   /concatprocs
+    { /proc2 exch cvlit def
+      /proc1 exch cvlit def
+      /newproc proc1 length proc2 length add array def
+      newproc 0 proc1 putinterval
+      newproc proc1 length proc2 putinterval
+      newproc cvx
+    } def
+   /resmatrix matrix def
+   /findresolution
+    { 72 0 resmatrix defaultmatrix dtransform
+      /yres exch def /xres exch def
+      xres dup mul yres dup mul add sqrt
+    } def
+end
+
+/tgifsetuserscreen
+ { tgifsetuserscreendict begin
+      /spotfunction exch def
+      /screenangle exch def
+      /cellsize exch def
+
+      /m tempctm currentmatrix def
+      /rm screenangle temprot rotate def
+      /sm cellsize dup tempscale scale def
+
+      sm rm m m concatmatrix m concatmatrix pop
+
+      1 0 m dtransform /y1 exch def /x1 exch def
+
+      /veclength x1 dup mul y1 dup mul add sqrt def
+      /frequency findresolution veclength div def
+
+      /newscreenangle y1 x1 atan def
+
+      m 2 get m 1 get mul m 0 get m 3 get mul sub 0 gt
+
+      {{neg} /spotfunction load concatprocs
+         /spotfunction exch def
+      } if
+
+      frequency newscreenangle /spotfunction load setscreen
+   end
+ } def
+
+/tgifsetpatterndict 18 dict def
+tgifsetpatterndict begin
+   /bitison
+    { /ybit exch def /xbit exch def
+      /bytevalue bstring ybit bwidth mul xbit 8 idiv add get def
+
+      /mask 1 7 xbit 8 mod sub bitshift def
+      bytevalue mask and 0 ne
+    } def
+end
+
+/tgifbitpatternspotfunction
+ { tgifsetpatterndict begin
+      /y exch def /x exch def
+
+      /xindex x 1 add 2 div bpside mul cvi def
+      /yindex y 1 add 2 div bpside mul cvi def
+
+      xindex yindex bitison
+       { /onbits onbits 1 add def 1 }
+       { /offbits offbits 1 add def 0 }
+       ifelse
+   end
+ } def
+
+/tgifsetpattern
+ { tgifsetpatterndict begin
+      /cellsz exch def
+      /angle exch def
+      /bwidth exch def
+      /bpside exch def
+      /bstring exch def
+
+      /onbits 0 def /offbits 0 def
+      cellsz angle /tgifbitpatternspotfunction load tgifsetuserscreen
+      {} settransfer
+      offbits offbits onbits add div setgray
+   end
+ } def
+
+/tgifxpmdict 4 dict def
+/tgifbwpicstr 1 string def
+/tgifcolorpicstr 3 string def
+
+/tgifsetpixels { tgifxpmdict begin /pixels exch def end } def
+
+/tgifsetpix { tgifxpmdict begin pixels 3 1 roll putinterval end } def
+
+/tgifbwspot
+ { tgifxpmdict begin
+      /index exch def
+      tgifbwpicstr 0
+      pixels index 3 mul 3 getinterval aload pop
+      255 mul .114 mul exch 255 mul .587 mul add exch 255 mul .299 mul add
+      cvi put
+      tgifbwpicstr
+   end
+ } def
+
+/tgifcolorspot
+ { tgifxpmdict begin
+      /index exch def
+      pixels index 3 mul 3 getinterval aload pop
+      255 mul cvi tgifcolorpicstr 2 3 -1 roll put
+      255 mul cvi tgifcolorpicstr 1 3 -1 roll put
+      255 mul cvi tgifcolorpicstr 0 3 -1 roll put
+      tgifcolorpicstr
+   end
+ } def
+
+/tgifnewcolorspot
+ { tgifxpmdict begin
+      /index exch def
+      pixels index 3 mul 3 getinterval aload pop setrgbcolor
+   end
+ } def
+
+/tgifcolordict 4 dict def
+
+/colorimage where
+ { pop }
+ { /colorimage
+   { tgifcolordict begin
+        pop pop pop pop pop
+        /ih exch def
+        /iw exch def
+        /x 0 def
+        /y 0 def
+        1 1 ih
+         { pop 1 1 iw
+            { pop currentfile
+              tgifbwpicstr readhexstring pop 0 get tgifnewcolorspot
+              x y moveto 1 0 rlineto 0 1 rlineto -1 0 rlineto
+              closepath fill
+              /x x 1 add def
+            } for
+           /y y 1 add def
+           /x 0 def
+         } for
+     end
+   } def
+ } ifelse
+
+/tgifpatdict 10 dict def
+
+/tgifpatbyte
+ { currentdict /retstr get exch
+   pat i cellsz mod get put
+ } def
+
+/tgifpatproc
+ { 0 1 widthlim {tgifpatbyte} for retstr
+   /i i 1 add def
+ } def
+
+/tgifpatfill
+ { tgifpatdict begin
+      /h exch def
+      /w exch def
+      /lty exch def
+      /ltx exch def
+      /cellsz exch def
+      /pat exch def
+
+      /widthlim w cellsz div cvi 1 sub def
+      /retstr widthlim 1 add string def
+      /i 0 def
+
+      ltx lty translate
+      w h true [1 0 0 1 0 0] {tgifpatproc} imagemask
+      ltx neg lty neg translate
+   end
+ } def
+
+/pat1 <ffffffffffffffff> def
+/pat2 <0000000000000000> def
+/pat3 <8000000008000000> def
+/pat4 <8800000022000000> def
+/pat5 <8800220088002200> def
+/pat6 <8822882288228822> def
+/pat7 <aa55aa55aa55aa55> def
+/pat8 <77dd77dd77dd77dd> def
+/pat9 <77ffddff77ffddff> def
+/pat10 <77ffffff77ffffff> def
+/pat11 <7fffffff7fffffff> def
+/pat12 <8040200002040800> def
+/pat13 <40a00000040a0000> def
+/pat14 <ff888888ff888888> def
+/pat15 <ff808080ff080808> def
+/pat16 <f87422478f172271> def
+/pat17 <038448300c020101> def
+/pat18 <081c22c180010204> def
+/pat19 <8080413e080814e3> def
+/pat20 <8040201008040201> def
+/pat21 <8844221188442211> def
+/pat22 <77bbddee77bbddee> def
+/pat23 <c1e070381c0e0783> def
+/pat24 <7fbfdfeff7fbfdfe> def
+/pat25 <3e1f8fc7e3f1f87c> def
+/pat26 <0102040810204080> def
+/pat27 <1122448811224488> def
+/pat28 <eeddbb77eeddbb77> def
+/pat29 <83070e1c3870e0c1> def
+/pat30 <fefdfbf7efdfbf7f> def
+/pat31 <7cf8f1e3c78f1f3e> def
+
+/tgifcentertext { dup stringwidth pop 2 div neg 0 rmoveto } def
+
+/tgifrighttext { dup stringwidth pop neg 0 rmoveto } def
+
+/tgifreencsmalldict 12 dict def
+/tgifReEncodeSmall
+ { tgifreencsmalldict begin
+      /newcodesandnames exch def
+      /newfontname exch def
+      /basefontname exch def
+
+      /basefontdict basefontname findfont def
+      /newfont basefontdict maxlength dict def
+
+      basefontdict
+      { exch dup /FID ne
+         { dup /Encoding eq
+            { exch dup length array copy newfont 3 1 roll put }
+            { exch newfont 3 1 roll put }
+            ifelse
+         }
+         { pop pop }
+         ifelse
+      }
+      forall
+
+      newfont /FontName newfontname put
+      newcodesandnames aload pop
+
+      newcodesandnames length 2 idiv
+      { newfont /Encoding get 3 1 roll put}
+      repeat
+
+      newfontname newfont definefont pop
+   end
+ } def
+
+/tgifgray { 8 1 0 72 300 32 div div tgifsetpattern } bind def
+
+/tgifboxdict 6 dict def
+/tgifboxstroke
+ { tgifboxdict begin
+      /pat def /w def /y2 exch def /x2 exch def /y1 exch def /x1 exch def
+      1.415 setmiterlimit
+      w 1 eq { w setlinewidth } if
+      pat pat1 ne pat pat2 ne and { gsave pat tgifgray } if
+      newpath x1 y1 moveto x2 y1 lineto x2 y2 lineto x1 y2 lineto closepath
+      pat pat2 eq { 1 setgray stroke 0 setgray } { stroke } ifelse
+      pat pat1 ne pat pat2 ne and { grestore } if
+      w 1 eq { 1 setlinewidth } if
+      1 setmiterlimit
+   end
+ } def
+/tgifboxfill
+ { tgifboxdict begin
+      /pat def /y2 exch def /x2 exch def /y1 exch def /x1 exch def
+      pat pat1 ne pat pat2 ne and { gsave pat tgifgray } if
+      newpath x1 y1 moveto x2 y1 lineto x2 y2 lineto x1 y2 lineto closepath
+      pat pat2 eq { 1 setgray fill 0 setgray } { fill } ifelse
+      pat pat1 ne pat pat2 ne and { grestore } if
+   end
+ } def
+
+end
+
+%%EndProlog
+%%Page: 1 1
+
+%%PageBoundingBox: 17 42 578 720
+tgifdict begin
+/tgifsavedpage save def
+
+1 setmiterlimit
+1 setlinewidth
+
+90 rotate
+72 0 mul 72 0 mul translate
+72 128 div 32 mul 100 div dup neg scale
+
+gsave
+
+% BOX
+gsave
+   1.415 setmiterlimit
+   newpath
+      667 384 moveto 3855 384 lineto 3855 2907 lineto 667 2907 lineto
+   closepath stroke
+   1 setmiterlimit
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2907 moveto
+      3995 2507 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2907 moveto
+      3945 2907 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2867 moveto
+      3972 2867 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2827 moveto
+      3972 2827 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2787 moveto
+      3972 2787 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2747 moveto
+      3972 2747 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2707 moveto
+      3972 2707 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2667 moveto
+      3972 2667 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2627 moveto
+      3972 2627 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2587 moveto
+      3972 2587 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2547 moveto
+      3972 2547 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2887 moveto
+      3985 2887 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2847 moveto
+      3985 2847 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2807 moveto
+      3985 2807 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2767 moveto
+      3985 2767 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2727 moveto
+      3985 2727 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2687 moveto
+      3985 2687 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2647 moveto
+      3985 2647 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2607 moveto
+      3985 2607 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2567 moveto
+      3985 2567 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2527 moveto
+      3985 2527 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2507 moveto
+      3995 2107 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2507 moveto
+      3945 2507 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2467 moveto
+      3972 2467 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2427 moveto
+      3972 2427 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2387 moveto
+      3972 2387 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2347 moveto
+      3972 2347 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2307 moveto
+      3972 2307 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2267 moveto
+      3972 2267 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2227 moveto
+      3972 2227 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2187 moveto
+      3972 2187 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2147 moveto
+      3972 2147 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2487 moveto
+      3985 2487 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2447 moveto
+      3985 2447 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2407 moveto
+      3985 2407 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2367 moveto
+      3985 2367 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2327 moveto
+      3985 2327 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2287 moveto
+      3985 2287 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2247 moveto
+      3985 2247 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2207 moveto
+      3985 2207 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2167 moveto
+      3985 2167 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2127 moveto
+      3985 2127 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2107 moveto
+      3995 1707 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2107 moveto
+      3945 2107 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2067 moveto
+      3972 2067 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2027 moveto
+      3972 2027 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1987 moveto
+      3972 1987 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1947 moveto
+      3972 1947 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1907 moveto
+      3972 1907 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1867 moveto
+      3972 1867 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1827 moveto
+      3972 1827 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1787 moveto
+      3972 1787 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1747 moveto
+      3972 1747 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2087 moveto
+      3985 2087 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2047 moveto
+      3985 2047 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 2007 moveto
+      3985 2007 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1967 moveto
+      3985 1967 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1927 moveto
+      3985 1927 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1887 moveto
+      3985 1887 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1847 moveto
+      3985 1847 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1807 moveto
+      3985 1807 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1767 moveto
+      3985 1767 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1727 moveto
+      3985 1727 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1707 moveto
+      3995 1307 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1707 moveto
+      3945 1707 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1667 moveto
+      3972 1667 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1627 moveto
+      3972 1627 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1587 moveto
+      3972 1587 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1547 moveto
+      3972 1547 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1507 moveto
+      3972 1507 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1467 moveto
+      3972 1467 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1427 moveto
+      3972 1427 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1387 moveto
+      3972 1387 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1347 moveto
+      3972 1347 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1687 moveto
+      3985 1687 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1647 moveto
+      3985 1647 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1607 moveto
+      3985 1607 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1567 moveto
+      3985 1567 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1527 moveto
+      3985 1527 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1487 moveto
+      3985 1487 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1447 moveto
+      3985 1447 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1407 moveto
+      3985 1407 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1367 moveto
+      3985 1367 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1327 moveto
+      3985 1327 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1307 moveto
+      3995 907 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1307 moveto
+      3945 1307 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1267 moveto
+      3972 1267 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1227 moveto
+      3972 1227 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1187 moveto
+      3972 1187 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1147 moveto
+      3972 1147 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1107 moveto
+      3972 1107 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1067 moveto
+      3972 1067 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1027 moveto
+      3972 1027 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 987 moveto
+      3972 987 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 947 moveto
+      3972 947 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1287 moveto
+      3985 1287 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1247 moveto
+      3985 1247 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1207 moveto
+      3985 1207 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1167 moveto
+      3985 1167 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1127 moveto
+      3985 1127 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1087 moveto
+      3985 1087 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1047 moveto
+      3985 1047 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 1007 moveto
+      3985 1007 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 967 moveto
+      3985 967 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 927 moveto
+      3985 927 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 907 moveto
+      3995 507 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 907 moveto
+      3945 907 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 867 moveto
+      3972 867 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 827 moveto
+      3972 827 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 787 moveto
+      3972 787 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 747 moveto
+      3972 747 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 707 moveto
+      3972 707 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 667 moveto
+      3972 667 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 627 moveto
+      3972 627 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 587 moveto
+      3972 587 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 547 moveto
+      3972 547 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 887 moveto
+      3985 887 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 847 moveto
+      3985 847 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 807 moveto
+      3985 807 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 767 moveto
+      3985 767 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 727 moveto
+      3985 727 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 687 moveto
+      3985 687 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 647 moveto
+      3985 647 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 607 moveto
+      3985 607 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 567 moveto
+      3985 567 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 527 moveto
+      3985 527 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 507 moveto
+      3995 107 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 507 moveto
+      3945 507 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 467 moveto
+      3972 467 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 427 moveto
+      3972 427 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 387 moveto
+      3972 387 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 347 moveto
+      3972 347 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 307 moveto
+      3972 307 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 267 moveto
+      3972 267 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 227 moveto
+      3972 227 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 187 moveto
+      3972 187 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 147 moveto
+      3972 147 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 487 moveto
+      3985 487 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 447 moveto
+      3985 447 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 407 moveto
+      3985 407 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 367 moveto
+      3985 367 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 327 moveto
+      3985 327 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 287 moveto
+      3985 287 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 247 moveto
+      3985 247 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 207 moveto
+      3985 207 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 167 moveto
+      3985 167 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3995 127 moveto
+      3985 127 lineto
+   stroke
+grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3918 2913 moveto 270 rotate (0) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3918 2516 moveto 270 rotate (1) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3921 2114 moveto 270 rotate (2) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3915 1716 moveto 270 rotate (3) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3919 1312 moveto 270 rotate (4) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3917 915 moveto 270 rotate (5) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3917 517 moveto 270 rotate (6) show
+      -270 rotate 
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3913 125 moveto 270 rotate (7) show
+      -270 rotate 
+   grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3855 205 moveto
+      3455 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3855 205 moveto
+      3855 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3815 205 moveto
+      3815 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3775 205 moveto
+      3775 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3735 205 moveto
+      3735 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3695 205 moveto
+      3695 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3655 205 moveto
+      3655 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3615 205 moveto
+      3615 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3575 205 moveto
+      3575 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3535 205 moveto
+      3535 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3495 205 moveto
+      3495 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3835 205 moveto
+      3835 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3795 205 moveto
+      3795 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3755 205 moveto
+      3755 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3715 205 moveto
+      3715 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3675 205 moveto
+      3675 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3635 205 moveto
+      3635 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3595 205 moveto
+      3595 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3555 205 moveto
+      3555 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3515 205 moveto
+      3515 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3475 205 moveto
+      3475 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3455 205 moveto
+      3055 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3455 205 moveto
+      3455 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3415 205 moveto
+      3415 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3375 205 moveto
+      3375 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3335 205 moveto
+      3335 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3295 205 moveto
+      3295 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3255 205 moveto
+      3255 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3215 205 moveto
+      3215 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3175 205 moveto
+      3175 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3135 205 moveto
+      3135 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3095 205 moveto
+      3095 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3435 205 moveto
+      3435 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3395 205 moveto
+      3395 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3355 205 moveto
+      3355 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3315 205 moveto
+      3315 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3275 205 moveto
+      3275 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3235 205 moveto
+      3235 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3195 205 moveto
+      3195 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3155 205 moveto
+      3155 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3115 205 moveto
+      3115 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3075 205 moveto
+      3075 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3055 205 moveto
+      2655 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3055 205 moveto
+      3055 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3015 205 moveto
+      3015 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2975 205 moveto
+      2975 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2935 205 moveto
+      2935 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2895 205 moveto
+      2895 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2855 205 moveto
+      2855 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2815 205 moveto
+      2815 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2775 205 moveto
+      2775 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2735 205 moveto
+      2735 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2695 205 moveto
+      2695 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      3035 205 moveto
+      3035 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2995 205 moveto
+      2995 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2955 205 moveto
+      2955 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2915 205 moveto
+      2915 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2875 205 moveto
+      2875 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2835 205 moveto
+      2835 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2795 205 moveto
+      2795 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2755 205 moveto
+      2755 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2715 205 moveto
+      2715 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2675 205 moveto
+      2675 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2655 205 moveto
+      2255 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2655 205 moveto
+      2655 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2615 205 moveto
+      2615 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2575 205 moveto
+      2575 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2535 205 moveto
+      2535 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2495 205 moveto
+      2495 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2455 205 moveto
+      2455 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2415 205 moveto
+      2415 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2375 205 moveto
+      2375 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2335 205 moveto
+      2335 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2295 205 moveto
+      2295 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2635 205 moveto
+      2635 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2595 205 moveto
+      2595 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2555 205 moveto
+      2555 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2515 205 moveto
+      2515 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2475 205 moveto
+      2475 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2435 205 moveto
+      2435 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2395 205 moveto
+      2395 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2355 205 moveto
+      2355 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2315 205 moveto
+      2315 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2275 205 moveto
+      2275 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2255 205 moveto
+      1855 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2255 205 moveto
+      2255 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2215 205 moveto
+      2215 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2175 205 moveto
+      2175 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2135 205 moveto
+      2135 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2095 205 moveto
+      2095 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2055 205 moveto
+      2055 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2015 205 moveto
+      2015 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1975 205 moveto
+      1975 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1935 205 moveto
+      1935 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1895 205 moveto
+      1895 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2235 205 moveto
+      2235 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2195 205 moveto
+      2195 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2155 205 moveto
+      2155 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2115 205 moveto
+      2115 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2075 205 moveto
+      2075 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      2035 205 moveto
+      2035 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1995 205 moveto
+      1995 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1955 205 moveto
+      1955 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1915 205 moveto
+      1915 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1875 205 moveto
+      1875 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1855 205 moveto
+      1455 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1855 205 moveto
+      1855 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1815 205 moveto
+      1815 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1775 205 moveto
+      1775 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1735 205 moveto
+      1735 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1695 205 moveto
+      1695 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1655 205 moveto
+      1655 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1615 205 moveto
+      1615 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1575 205 moveto
+      1575 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1535 205 moveto
+      1535 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1495 205 moveto
+      1495 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1835 205 moveto
+      1835 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1795 205 moveto
+      1795 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1755 205 moveto
+      1755 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1715 205 moveto
+      1715 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1675 205 moveto
+      1675 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1635 205 moveto
+      1635 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1595 205 moveto
+      1595 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1555 205 moveto
+      1555 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1515 205 moveto
+      1515 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1475 205 moveto
+      1475 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1455 205 moveto
+      1055 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1455 205 moveto
+      1455 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1415 205 moveto
+      1415 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1375 205 moveto
+      1375 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1335 205 moveto
+      1335 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1295 205 moveto
+      1295 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1255 205 moveto
+      1255 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1215 205 moveto
+      1215 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1175 205 moveto
+      1175 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1135 205 moveto
+      1135 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1095 205 moveto
+      1095 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1435 205 moveto
+      1435 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1395 205 moveto
+      1395 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1355 205 moveto
+      1355 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1315 205 moveto
+      1315 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1275 205 moveto
+      1275 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1235 205 moveto
+      1235 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1195 205 moveto
+      1195 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1155 205 moveto
+      1155 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1115 205 moveto
+      1115 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1075 205 moveto
+      1075 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1055 205 moveto
+      655 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1055 205 moveto
+      1055 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1015 205 moveto
+      1015 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      975 205 moveto
+      975 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      935 205 moveto
+      935 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      895 205 moveto
+      895 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      855 205 moveto
+      855 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      815 205 moveto
+      815 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      775 205 moveto
+      775 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      735 205 moveto
+      735 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      695 205 moveto
+      695 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1035 205 moveto
+      1035 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      995 205 moveto
+      995 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      955 205 moveto
+      955 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      915 205 moveto
+      915 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      875 205 moveto
+      875 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      835 205 moveto
+      835 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      795 205 moveto
+      795 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      755 205 moveto
+      755 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      715 205 moveto
+      715 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      675 205 moveto
+      675 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      655 205 moveto
+      255 205 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      655 205 moveto
+      655 255 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      615 205 moveto
+      615 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      575 205 moveto
+      575 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      535 205 moveto
+      535 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      495 205 moveto
+      495 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      455 205 moveto
+      455 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      415 205 moveto
+      415 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      375 205 moveto
+      375 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      335 205 moveto
+      335 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      295 205 moveto
+      295 228 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      635 205 moveto
+      635 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      595 205 moveto
+      595 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      555 205 moveto
+      555 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      515 205 moveto
+      515 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      475 205 moveto
+      475 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      435 205 moveto
+      435 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      395 205 moveto
+      395 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      355 205 moveto
+      355 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      315 205 moveto
+      315 215 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      275 205 moveto
+      275 215 lineto
+   stroke
+grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3861 306 moveto (0) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3464 306 moveto (1) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      3062 303 moveto (2) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      2664 309 moveto (3) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      2260 305 moveto (4) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1863 307 moveto (5) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1465 307 moveto (6) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      662 310 moveto (8) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      262 309 moveto (9) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1073 311 moveto (7) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/NewCenturySchlbk-Roman findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      2951 3200 moveto (Template Board Layout, including bus connectors \(parts side\)) tgifrighttext show
+   grestore
+
+% RCBOX
+newpath
+   1871 629 moveto
+   1875 629 1875 649 4 arcto 4 {pop} repeat
+   1875 645 lineto
+   1875 649 1843 649 4 arcto 4 {pop} repeat
+   1847 649 lineto
+   1843 649 1843 629 4 arcto 4 {pop} repeat
+   1843 633 lineto
+   1843 629 1875 629 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1871 629 moveto
+      1875 629 1875 649 4 arcto 4 {pop} repeat
+      1875 645 lineto
+      1875 649 1843 649 4 arcto 4 {pop} repeat
+      1847 649 lineto
+      1843 649 1843 629 4 arcto 4 {pop} repeat
+      1843 633 lineto
+      1843 629 1875 629 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% TEXT
+0 setgray
+newpath
+   1761 580 moveto 1954 580 lineto 1954 621 lineto 1761 621 lineto
+closepath 1 setgray fill
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1953 613 moveto (chip pin pads) tgifrighttext show
+   grestore
+
+% OVAL
+newpath 1858 708 10 10 tgifellipse fill
+gsave
+   newpath 1858 708 10 10 tgifellipse stroke
+grestore
+
+% BOX
+newpath
+   1844 663 moveto 1874 663 lineto 1874 683 lineto 1844 683 lineto
+closepath fill
+gsave
+   1.415 setmiterlimit
+   newpath
+      1844 663 moveto 1874 663 lineto 1874 683 lineto 1844 683 lineto
+   closepath stroke
+   1 setmiterlimit
+grestore
+
+% RCBOX
+newpath
+   2455 1774 moveto
+   2459 1774 2459 1794 4 arcto 4 {pop} repeat
+   2459 1790 lineto
+   2459 1794 2427 1794 4 arcto 4 {pop} repeat
+   2431 1794 lineto
+   2427 1794 2427 1774 4 arcto 4 {pop} repeat
+   2427 1778 lineto
+   2427 1774 2459 1774 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1774 moveto
+      2459 1774 2459 1794 4 arcto 4 {pop} repeat
+      2459 1790 lineto
+      2459 1794 2427 1794 4 arcto 4 {pop} repeat
+      2431 1794 lineto
+      2427 1794 2427 1774 4 arcto 4 {pop} repeat
+      2427 1778 lineto
+      2427 1774 2459 1774 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 1814 moveto
+   2459 1814 2459 1834 4 arcto 4 {pop} repeat
+   2459 1830 lineto
+   2459 1834 2427 1834 4 arcto 4 {pop} repeat
+   2431 1834 lineto
+   2427 1834 2427 1814 4 arcto 4 {pop} repeat
+   2427 1818 lineto
+   2427 1814 2459 1814 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1814 moveto
+      2459 1814 2459 1834 4 arcto 4 {pop} repeat
+      2459 1830 lineto
+      2459 1834 2427 1834 4 arcto 4 {pop} repeat
+      2431 1834 lineto
+      2427 1834 2427 1814 4 arcto 4 {pop} repeat
+      2427 1818 lineto
+      2427 1814 2459 1814 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 1854 moveto
+   2459 1854 2459 1874 4 arcto 4 {pop} repeat
+   2459 1870 lineto
+   2459 1874 2427 1874 4 arcto 4 {pop} repeat
+   2431 1874 lineto
+   2427 1874 2427 1854 4 arcto 4 {pop} repeat
+   2427 1858 lineto
+   2427 1854 2459 1854 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1854 moveto
+      2459 1854 2459 1874 4 arcto 4 {pop} repeat
+      2459 1870 lineto
+      2459 1874 2427 1874 4 arcto 4 {pop} repeat
+      2431 1874 lineto
+      2427 1874 2427 1854 4 arcto 4 {pop} repeat
+      2427 1858 lineto
+      2427 1854 2459 1854 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 1894 moveto
+   2459 1894 2459 1914 4 arcto 4 {pop} repeat
+   2459 1910 lineto
+   2459 1914 2427 1914 4 arcto 4 {pop} repeat
+   2431 1914 lineto
+   2427 1914 2427 1894 4 arcto 4 {pop} repeat
+   2427 1898 lineto
+   2427 1894 2459 1894 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1894 moveto
+      2459 1894 2459 1914 4 arcto 4 {pop} repeat
+      2459 1910 lineto
+      2459 1914 2427 1914 4 arcto 4 {pop} repeat
+      2431 1914 lineto
+      2427 1914 2427 1894 4 arcto 4 {pop} repeat
+      2427 1898 lineto
+      2427 1894 2459 1894 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 1934 moveto
+   2459 1934 2459 1954 4 arcto 4 {pop} repeat
+   2459 1950 lineto
+   2459 1954 2427 1954 4 arcto 4 {pop} repeat
+   2431 1954 lineto
+   2427 1954 2427 1934 4 arcto 4 {pop} repeat
+   2427 1938 lineto
+   2427 1934 2459 1934 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1934 moveto
+      2459 1934 2459 1954 4 arcto 4 {pop} repeat
+      2459 1950 lineto
+      2459 1954 2427 1954 4 arcto 4 {pop} repeat
+      2431 1954 lineto
+      2427 1954 2427 1934 4 arcto 4 {pop} repeat
+      2427 1938 lineto
+      2427 1934 2459 1934 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 1974 moveto
+   2459 1974 2459 1994 4 arcto 4 {pop} repeat
+   2459 1990 lineto
+   2459 1994 2427 1994 4 arcto 4 {pop} repeat
+   2431 1994 lineto
+   2427 1994 2427 1974 4 arcto 4 {pop} repeat
+   2427 1978 lineto
+   2427 1974 2459 1974 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 1974 moveto
+      2459 1974 2459 1994 4 arcto 4 {pop} repeat
+      2459 1990 lineto
+      2459 1994 2427 1994 4 arcto 4 {pop} repeat
+      2431 1994 lineto
+      2427 1994 2427 1974 4 arcto 4 {pop} repeat
+      2427 1978 lineto
+      2427 1974 2459 1974 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2014 moveto
+   2459 2014 2459 2034 4 arcto 4 {pop} repeat
+   2459 2030 lineto
+   2459 2034 2427 2034 4 arcto 4 {pop} repeat
+   2431 2034 lineto
+   2427 2034 2427 2014 4 arcto 4 {pop} repeat
+   2427 2018 lineto
+   2427 2014 2459 2014 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2014 moveto
+      2459 2014 2459 2034 4 arcto 4 {pop} repeat
+      2459 2030 lineto
+      2459 2034 2427 2034 4 arcto 4 {pop} repeat
+      2431 2034 lineto
+      2427 2034 2427 2014 4 arcto 4 {pop} repeat
+      2427 2018 lineto
+      2427 2014 2459 2014 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2054 moveto
+   2459 2054 2459 2074 4 arcto 4 {pop} repeat
+   2459 2070 lineto
+   2459 2074 2427 2074 4 arcto 4 {pop} repeat
+   2431 2074 lineto
+   2427 2074 2427 2054 4 arcto 4 {pop} repeat
+   2427 2058 lineto
+   2427 2054 2459 2054 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2054 moveto
+      2459 2054 2459 2074 4 arcto 4 {pop} repeat
+      2459 2070 lineto
+      2459 2074 2427 2074 4 arcto 4 {pop} repeat
+      2431 2074 lineto
+      2427 2074 2427 2054 4 arcto 4 {pop} repeat
+      2427 2058 lineto
+      2427 2054 2459 2054 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2094 moveto
+   2459 2094 2459 2114 4 arcto 4 {pop} repeat
+   2459 2110 lineto
+   2459 2114 2427 2114 4 arcto 4 {pop} repeat
+   2431 2114 lineto
+   2427 2114 2427 2094 4 arcto 4 {pop} repeat
+   2427 2098 lineto
+   2427 2094 2459 2094 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2094 moveto
+      2459 2094 2459 2114 4 arcto 4 {pop} repeat
+      2459 2110 lineto
+      2459 2114 2427 2114 4 arcto 4 {pop} repeat
+      2431 2114 lineto
+      2427 2114 2427 2094 4 arcto 4 {pop} repeat
+      2427 2098 lineto
+      2427 2094 2459 2094 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2134 moveto
+   2459 2134 2459 2154 4 arcto 4 {pop} repeat
+   2459 2150 lineto
+   2459 2154 2427 2154 4 arcto 4 {pop} repeat
+   2431 2154 lineto
+   2427 2154 2427 2134 4 arcto 4 {pop} repeat
+   2427 2138 lineto
+   2427 2134 2459 2134 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2134 moveto
+      2459 2134 2459 2154 4 arcto 4 {pop} repeat
+      2459 2150 lineto
+      2459 2154 2427 2154 4 arcto 4 {pop} repeat
+      2431 2154 lineto
+      2427 2154 2427 2134 4 arcto 4 {pop} repeat
+      2427 2138 lineto
+      2427 2134 2459 2134 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2174 moveto
+   2459 2174 2459 2194 4 arcto 4 {pop} repeat
+   2459 2190 lineto
+   2459 2194 2427 2194 4 arcto 4 {pop} repeat
+   2431 2194 lineto
+   2427 2194 2427 2174 4 arcto 4 {pop} repeat
+   2427 2178 lineto
+   2427 2174 2459 2174 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2174 moveto
+      2459 2174 2459 2194 4 arcto 4 {pop} repeat
+      2459 2190 lineto
+      2459 2194 2427 2194 4 arcto 4 {pop} repeat
+      2431 2194 lineto
+      2427 2194 2427 2174 4 arcto 4 {pop} repeat
+      2427 2178 lineto
+      2427 2174 2459 2174 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2214 moveto
+   2459 2214 2459 2234 4 arcto 4 {pop} repeat
+   2459 2230 lineto
+   2459 2234 2427 2234 4 arcto 4 {pop} repeat
+   2431 2234 lineto
+   2427 2234 2427 2214 4 arcto 4 {pop} repeat
+   2427 2218 lineto
+   2427 2214 2459 2214 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2214 moveto
+      2459 2214 2459 2234 4 arcto 4 {pop} repeat
+      2459 2230 lineto
+      2459 2234 2427 2234 4 arcto 4 {pop} repeat
+      2431 2234 lineto
+      2427 2234 2427 2214 4 arcto 4 {pop} repeat
+      2427 2218 lineto
+      2427 2214 2459 2214 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2254 moveto
+   2459 2254 2459 2274 4 arcto 4 {pop} repeat
+   2459 2270 lineto
+   2459 2274 2427 2274 4 arcto 4 {pop} repeat
+   2431 2274 lineto
+   2427 2274 2427 2254 4 arcto 4 {pop} repeat
+   2427 2258 lineto
+   2427 2254 2459 2254 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2254 moveto
+      2459 2254 2459 2274 4 arcto 4 {pop} repeat
+      2459 2270 lineto
+      2459 2274 2427 2274 4 arcto 4 {pop} repeat
+      2431 2274 lineto
+      2427 2274 2427 2254 4 arcto 4 {pop} repeat
+      2427 2258 lineto
+      2427 2254 2459 2254 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2294 moveto
+   2459 2294 2459 2314 4 arcto 4 {pop} repeat
+   2459 2310 lineto
+   2459 2314 2427 2314 4 arcto 4 {pop} repeat
+   2431 2314 lineto
+   2427 2314 2427 2294 4 arcto 4 {pop} repeat
+   2427 2298 lineto
+   2427 2294 2459 2294 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2294 moveto
+      2459 2294 2459 2314 4 arcto 4 {pop} repeat
+      2459 2310 lineto
+      2459 2314 2427 2314 4 arcto 4 {pop} repeat
+      2431 2314 lineto
+      2427 2314 2427 2294 4 arcto 4 {pop} repeat
+      2427 2298 lineto
+      2427 2294 2459 2294 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2334 moveto
+   2459 2334 2459 2354 4 arcto 4 {pop} repeat
+   2459 2350 lineto
+   2459 2354 2427 2354 4 arcto 4 {pop} repeat
+   2431 2354 lineto
+   2427 2354 2427 2334 4 arcto 4 {pop} repeat
+   2427 2338 lineto
+   2427 2334 2459 2334 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2334 moveto
+      2459 2334 2459 2354 4 arcto 4 {pop} repeat
+      2459 2350 lineto
+      2459 2354 2427 2354 4 arcto 4 {pop} repeat
+      2431 2354 lineto
+      2427 2354 2427 2334 4 arcto 4 {pop} repeat
+      2427 2338 lineto
+      2427 2334 2459 2334 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2374 moveto
+   2459 2374 2459 2394 4 arcto 4 {pop} repeat
+   2459 2390 lineto
+   2459 2394 2427 2394 4 arcto 4 {pop} repeat
+   2431 2394 lineto
+   2427 2394 2427 2374 4 arcto 4 {pop} repeat
+   2427 2378 lineto
+   2427 2374 2459 2374 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2374 moveto
+      2459 2374 2459 2394 4 arcto 4 {pop} repeat
+      2459 2390 lineto
+      2459 2394 2427 2394 4 arcto 4 {pop} repeat
+      2431 2394 lineto
+      2427 2394 2427 2374 4 arcto 4 {pop} repeat
+      2427 2378 lineto
+      2427 2374 2459 2374 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2414 moveto
+   2459 2414 2459 2434 4 arcto 4 {pop} repeat
+   2459 2430 lineto
+   2459 2434 2427 2434 4 arcto 4 {pop} repeat
+   2431 2434 lineto
+   2427 2434 2427 2414 4 arcto 4 {pop} repeat
+   2427 2418 lineto
+   2427 2414 2459 2414 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2414 moveto
+      2459 2414 2459 2434 4 arcto 4 {pop} repeat
+      2459 2430 lineto
+      2459 2434 2427 2434 4 arcto 4 {pop} repeat
+      2431 2434 lineto
+      2427 2434 2427 2414 4 arcto 4 {pop} repeat
+      2427 2418 lineto
+      2427 2414 2459 2414 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2454 moveto
+   2459 2454 2459 2474 4 arcto 4 {pop} repeat
+   2459 2470 lineto
+   2459 2474 2427 2474 4 arcto 4 {pop} repeat
+   2431 2474 lineto
+   2427 2474 2427 2454 4 arcto 4 {pop} repeat
+   2427 2458 lineto
+   2427 2454 2459 2454 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2454 moveto
+      2459 2454 2459 2474 4 arcto 4 {pop} repeat
+      2459 2470 lineto
+      2459 2474 2427 2474 4 arcto 4 {pop} repeat
+      2431 2474 lineto
+      2427 2474 2427 2454 4 arcto 4 {pop} repeat
+      2427 2458 lineto
+      2427 2454 2459 2454 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2494 moveto
+   2459 2494 2459 2514 4 arcto 4 {pop} repeat
+   2459 2510 lineto
+   2459 2514 2427 2514 4 arcto 4 {pop} repeat
+   2431 2514 lineto
+   2427 2514 2427 2494 4 arcto 4 {pop} repeat
+   2427 2498 lineto
+   2427 2494 2459 2494 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2494 moveto
+      2459 2494 2459 2514 4 arcto 4 {pop} repeat
+      2459 2510 lineto
+      2459 2514 2427 2514 4 arcto 4 {pop} repeat
+      2431 2514 lineto
+      2427 2514 2427 2494 4 arcto 4 {pop} repeat
+      2427 2498 lineto
+      2427 2494 2459 2494 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2534 moveto
+   2459 2534 2459 2554 4 arcto 4 {pop} repeat
+   2459 2550 lineto
+   2459 2554 2427 2554 4 arcto 4 {pop} repeat
+   2431 2554 lineto
+   2427 2554 2427 2534 4 arcto 4 {pop} repeat
+   2427 2538 lineto
+   2427 2534 2459 2534 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2534 moveto
+      2459 2534 2459 2554 4 arcto 4 {pop} repeat
+      2459 2550 lineto
+      2459 2554 2427 2554 4 arcto 4 {pop} repeat
+      2431 2554 lineto
+      2427 2554 2427 2534 4 arcto 4 {pop} repeat
+      2427 2538 lineto
+      2427 2534 2459 2534 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2455 2574 moveto
+   2459 2574 2459 2594 4 arcto 4 {pop} repeat
+   2459 2590 lineto
+   2459 2594 2427 2594 4 arcto 4 {pop} repeat
+   2431 2594 lineto
+   2427 2594 2427 2574 4 arcto 4 {pop} repeat
+   2427 2578 lineto
+   2427 2574 2459 2574 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2455 2574 moveto
+      2459 2574 2459 2594 4 arcto 4 {pop} repeat
+      2459 2590 lineto
+      2459 2594 2427 2594 4 arcto 4 {pop} repeat
+      2431 2594 lineto
+      2427 2594 2427 2574 4 arcto 4 {pop} repeat
+      2427 2578 lineto
+      2427 2574 2459 2574 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1734 moveto
+   2219 1734 2219 1754 4 arcto 4 {pop} repeat
+   2219 1750 lineto
+   2219 1754 2187 1754 4 arcto 4 {pop} repeat
+   2191 1754 lineto
+   2187 1754 2187 1734 4 arcto 4 {pop} repeat
+   2187 1738 lineto
+   2187 1734 2219 1734 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1734 moveto
+      2219 1734 2219 1754 4 arcto 4 {pop} repeat
+      2219 1750 lineto
+      2219 1754 2187 1754 4 arcto 4 {pop} repeat
+      2191 1754 lineto
+      2187 1754 2187 1734 4 arcto 4 {pop} repeat
+      2187 1738 lineto
+      2187 1734 2219 1734 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1774 moveto
+   2219 1774 2219 1794 4 arcto 4 {pop} repeat
+   2219 1790 lineto
+   2219 1794 2187 1794 4 arcto 4 {pop} repeat
+   2191 1794 lineto
+   2187 1794 2187 1774 4 arcto 4 {pop} repeat
+   2187 1778 lineto
+   2187 1774 2219 1774 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1774 moveto
+      2219 1774 2219 1794 4 arcto 4 {pop} repeat
+      2219 1790 lineto
+      2219 1794 2187 1794 4 arcto 4 {pop} repeat
+      2191 1794 lineto
+      2187 1794 2187 1774 4 arcto 4 {pop} repeat
+      2187 1778 lineto
+      2187 1774 2219 1774 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1814 moveto
+   2219 1814 2219 1834 4 arcto 4 {pop} repeat
+   2219 1830 lineto
+   2219 1834 2187 1834 4 arcto 4 {pop} repeat
+   2191 1834 lineto
+   2187 1834 2187 1814 4 arcto 4 {pop} repeat
+   2187 1818 lineto
+   2187 1814 2219 1814 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1814 moveto
+      2219 1814 2219 1834 4 arcto 4 {pop} repeat
+      2219 1830 lineto
+      2219 1834 2187 1834 4 arcto 4 {pop} repeat
+      2191 1834 lineto
+      2187 1834 2187 1814 4 arcto 4 {pop} repeat
+      2187 1818 lineto
+      2187 1814 2219 1814 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1854 moveto
+   2219 1854 2219 1874 4 arcto 4 {pop} repeat
+   2219 1870 lineto
+   2219 1874 2187 1874 4 arcto 4 {pop} repeat
+   2191 1874 lineto
+   2187 1874 2187 1854 4 arcto 4 {pop} repeat
+   2187 1858 lineto
+   2187 1854 2219 1854 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1854 moveto
+      2219 1854 2219 1874 4 arcto 4 {pop} repeat
+      2219 1870 lineto
+      2219 1874 2187 1874 4 arcto 4 {pop} repeat
+      2191 1874 lineto
+      2187 1874 2187 1854 4 arcto 4 {pop} repeat
+      2187 1858 lineto
+      2187 1854 2219 1854 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1894 moveto
+   2219 1894 2219 1914 4 arcto 4 {pop} repeat
+   2219 1910 lineto
+   2219 1914 2187 1914 4 arcto 4 {pop} repeat
+   2191 1914 lineto
+   2187 1914 2187 1894 4 arcto 4 {pop} repeat
+   2187 1898 lineto
+   2187 1894 2219 1894 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1894 moveto
+      2219 1894 2219 1914 4 arcto 4 {pop} repeat
+      2219 1910 lineto
+      2219 1914 2187 1914 4 arcto 4 {pop} repeat
+      2191 1914 lineto
+      2187 1914 2187 1894 4 arcto 4 {pop} repeat
+      2187 1898 lineto
+      2187 1894 2219 1894 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1934 moveto
+   2219 1934 2219 1954 4 arcto 4 {pop} repeat
+   2219 1950 lineto
+   2219 1954 2187 1954 4 arcto 4 {pop} repeat
+   2191 1954 lineto
+   2187 1954 2187 1934 4 arcto 4 {pop} repeat
+   2187 1938 lineto
+   2187 1934 2219 1934 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1934 moveto
+      2219 1934 2219 1954 4 arcto 4 {pop} repeat
+      2219 1950 lineto
+      2219 1954 2187 1954 4 arcto 4 {pop} repeat
+      2191 1954 lineto
+      2187 1954 2187 1934 4 arcto 4 {pop} repeat
+      2187 1938 lineto
+      2187 1934 2219 1934 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 1974 moveto
+   2219 1974 2219 1994 4 arcto 4 {pop} repeat
+   2219 1990 lineto
+   2219 1994 2187 1994 4 arcto 4 {pop} repeat
+   2191 1994 lineto
+   2187 1994 2187 1974 4 arcto 4 {pop} repeat
+   2187 1978 lineto
+   2187 1974 2219 1974 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 1974 moveto
+      2219 1974 2219 1994 4 arcto 4 {pop} repeat
+      2219 1990 lineto
+      2219 1994 2187 1994 4 arcto 4 {pop} repeat
+      2191 1994 lineto
+      2187 1994 2187 1974 4 arcto 4 {pop} repeat
+      2187 1978 lineto
+      2187 1974 2219 1974 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2014 moveto
+   2219 2014 2219 2034 4 arcto 4 {pop} repeat
+   2219 2030 lineto
+   2219 2034 2187 2034 4 arcto 4 {pop} repeat
+   2191 2034 lineto
+   2187 2034 2187 2014 4 arcto 4 {pop} repeat
+   2187 2018 lineto
+   2187 2014 2219 2014 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2014 moveto
+      2219 2014 2219 2034 4 arcto 4 {pop} repeat
+      2219 2030 lineto
+      2219 2034 2187 2034 4 arcto 4 {pop} repeat
+      2191 2034 lineto
+      2187 2034 2187 2014 4 arcto 4 {pop} repeat
+      2187 2018 lineto
+      2187 2014 2219 2014 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2054 moveto
+   2219 2054 2219 2074 4 arcto 4 {pop} repeat
+   2219 2070 lineto
+   2219 2074 2187 2074 4 arcto 4 {pop} repeat
+   2191 2074 lineto
+   2187 2074 2187 2054 4 arcto 4 {pop} repeat
+   2187 2058 lineto
+   2187 2054 2219 2054 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2054 moveto
+      2219 2054 2219 2074 4 arcto 4 {pop} repeat
+      2219 2070 lineto
+      2219 2074 2187 2074 4 arcto 4 {pop} repeat
+      2191 2074 lineto
+      2187 2074 2187 2054 4 arcto 4 {pop} repeat
+      2187 2058 lineto
+      2187 2054 2219 2054 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2094 moveto
+   2219 2094 2219 2114 4 arcto 4 {pop} repeat
+   2219 2110 lineto
+   2219 2114 2187 2114 4 arcto 4 {pop} repeat
+   2191 2114 lineto
+   2187 2114 2187 2094 4 arcto 4 {pop} repeat
+   2187 2098 lineto
+   2187 2094 2219 2094 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2094 moveto
+      2219 2094 2219 2114 4 arcto 4 {pop} repeat
+      2219 2110 lineto
+      2219 2114 2187 2114 4 arcto 4 {pop} repeat
+      2191 2114 lineto
+      2187 2114 2187 2094 4 arcto 4 {pop} repeat
+      2187 2098 lineto
+      2187 2094 2219 2094 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2134 moveto
+   2219 2134 2219 2154 4 arcto 4 {pop} repeat
+   2219 2150 lineto
+   2219 2154 2187 2154 4 arcto 4 {pop} repeat
+   2191 2154 lineto
+   2187 2154 2187 2134 4 arcto 4 {pop} repeat
+   2187 2138 lineto
+   2187 2134 2219 2134 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2134 moveto
+      2219 2134 2219 2154 4 arcto 4 {pop} repeat
+      2219 2150 lineto
+      2219 2154 2187 2154 4 arcto 4 {pop} repeat
+      2191 2154 lineto
+      2187 2154 2187 2134 4 arcto 4 {pop} repeat
+      2187 2138 lineto
+      2187 2134 2219 2134 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2174 moveto
+   2219 2174 2219 2194 4 arcto 4 {pop} repeat
+   2219 2190 lineto
+   2219 2194 2187 2194 4 arcto 4 {pop} repeat
+   2191 2194 lineto
+   2187 2194 2187 2174 4 arcto 4 {pop} repeat
+   2187 2178 lineto
+   2187 2174 2219 2174 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2174 moveto
+      2219 2174 2219 2194 4 arcto 4 {pop} repeat
+      2219 2190 lineto
+      2219 2194 2187 2194 4 arcto 4 {pop} repeat
+      2191 2194 lineto
+      2187 2194 2187 2174 4 arcto 4 {pop} repeat
+      2187 2178 lineto
+      2187 2174 2219 2174 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2214 moveto
+   2219 2214 2219 2234 4 arcto 4 {pop} repeat
+   2219 2230 lineto
+   2219 2234 2187 2234 4 arcto 4 {pop} repeat
+   2191 2234 lineto
+   2187 2234 2187 2214 4 arcto 4 {pop} repeat
+   2187 2218 lineto
+   2187 2214 2219 2214 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2214 moveto
+      2219 2214 2219 2234 4 arcto 4 {pop} repeat
+      2219 2230 lineto
+      2219 2234 2187 2234 4 arcto 4 {pop} repeat
+      2191 2234 lineto
+      2187 2234 2187 2214 4 arcto 4 {pop} repeat
+      2187 2218 lineto
+      2187 2214 2219 2214 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2254 moveto
+   2219 2254 2219 2274 4 arcto 4 {pop} repeat
+   2219 2270 lineto
+   2219 2274 2187 2274 4 arcto 4 {pop} repeat
+   2191 2274 lineto
+   2187 2274 2187 2254 4 arcto 4 {pop} repeat
+   2187 2258 lineto
+   2187 2254 2219 2254 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2254 moveto
+      2219 2254 2219 2274 4 arcto 4 {pop} repeat
+      2219 2270 lineto
+      2219 2274 2187 2274 4 arcto 4 {pop} repeat
+      2191 2274 lineto
+      2187 2274 2187 2254 4 arcto 4 {pop} repeat
+      2187 2258 lineto
+      2187 2254 2219 2254 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2294 moveto
+   2219 2294 2219 2314 4 arcto 4 {pop} repeat
+   2219 2310 lineto
+   2219 2314 2187 2314 4 arcto 4 {pop} repeat
+   2191 2314 lineto
+   2187 2314 2187 2294 4 arcto 4 {pop} repeat
+   2187 2298 lineto
+   2187 2294 2219 2294 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2294 moveto
+      2219 2294 2219 2314 4 arcto 4 {pop} repeat
+      2219 2310 lineto
+      2219 2314 2187 2314 4 arcto 4 {pop} repeat
+      2191 2314 lineto
+      2187 2314 2187 2294 4 arcto 4 {pop} repeat
+      2187 2298 lineto
+      2187 2294 2219 2294 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2334 moveto
+   2219 2334 2219 2354 4 arcto 4 {pop} repeat
+   2219 2350 lineto
+   2219 2354 2187 2354 4 arcto 4 {pop} repeat
+   2191 2354 lineto
+   2187 2354 2187 2334 4 arcto 4 {pop} repeat
+   2187 2338 lineto
+   2187 2334 2219 2334 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2334 moveto
+      2219 2334 2219 2354 4 arcto 4 {pop} repeat
+      2219 2350 lineto
+      2219 2354 2187 2354 4 arcto 4 {pop} repeat
+      2191 2354 lineto
+      2187 2354 2187 2334 4 arcto 4 {pop} repeat
+      2187 2338 lineto
+      2187 2334 2219 2334 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2374 moveto
+   2219 2374 2219 2394 4 arcto 4 {pop} repeat
+   2219 2390 lineto
+   2219 2394 2187 2394 4 arcto 4 {pop} repeat
+   2191 2394 lineto
+   2187 2394 2187 2374 4 arcto 4 {pop} repeat
+   2187 2378 lineto
+   2187 2374 2219 2374 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2374 moveto
+      2219 2374 2219 2394 4 arcto 4 {pop} repeat
+      2219 2390 lineto
+      2219 2394 2187 2394 4 arcto 4 {pop} repeat
+      2191 2394 lineto
+      2187 2394 2187 2374 4 arcto 4 {pop} repeat
+      2187 2378 lineto
+      2187 2374 2219 2374 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2414 moveto
+   2219 2414 2219 2434 4 arcto 4 {pop} repeat
+   2219 2430 lineto
+   2219 2434 2187 2434 4 arcto 4 {pop} repeat
+   2191 2434 lineto
+   2187 2434 2187 2414 4 arcto 4 {pop} repeat
+   2187 2418 lineto
+   2187 2414 2219 2414 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2414 moveto
+      2219 2414 2219 2434 4 arcto 4 {pop} repeat
+      2219 2430 lineto
+      2219 2434 2187 2434 4 arcto 4 {pop} repeat
+      2191 2434 lineto
+      2187 2434 2187 2414 4 arcto 4 {pop} repeat
+      2187 2418 lineto
+      2187 2414 2219 2414 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2454 moveto
+   2219 2454 2219 2474 4 arcto 4 {pop} repeat
+   2219 2470 lineto
+   2219 2474 2187 2474 4 arcto 4 {pop} repeat
+   2191 2474 lineto
+   2187 2474 2187 2454 4 arcto 4 {pop} repeat
+   2187 2458 lineto
+   2187 2454 2219 2454 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2454 moveto
+      2219 2454 2219 2474 4 arcto 4 {pop} repeat
+      2219 2470 lineto
+      2219 2474 2187 2474 4 arcto 4 {pop} repeat
+      2191 2474 lineto
+      2187 2474 2187 2454 4 arcto 4 {pop} repeat
+      2187 2458 lineto
+      2187 2454 2219 2454 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2494 moveto
+   2219 2494 2219 2514 4 arcto 4 {pop} repeat
+   2219 2510 lineto
+   2219 2514 2187 2514 4 arcto 4 {pop} repeat
+   2191 2514 lineto
+   2187 2514 2187 2494 4 arcto 4 {pop} repeat
+   2187 2498 lineto
+   2187 2494 2219 2494 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2494 moveto
+      2219 2494 2219 2514 4 arcto 4 {pop} repeat
+      2219 2510 lineto
+      2219 2514 2187 2514 4 arcto 4 {pop} repeat
+      2191 2514 lineto
+      2187 2514 2187 2494 4 arcto 4 {pop} repeat
+      2187 2498 lineto
+      2187 2494 2219 2494 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2534 moveto
+   2219 2534 2219 2554 4 arcto 4 {pop} repeat
+   2219 2550 lineto
+   2219 2554 2187 2554 4 arcto 4 {pop} repeat
+   2191 2554 lineto
+   2187 2554 2187 2534 4 arcto 4 {pop} repeat
+   2187 2538 lineto
+   2187 2534 2219 2534 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2534 moveto
+      2219 2534 2219 2554 4 arcto 4 {pop} repeat
+      2219 2550 lineto
+      2219 2554 2187 2554 4 arcto 4 {pop} repeat
+      2191 2554 lineto
+      2187 2554 2187 2534 4 arcto 4 {pop} repeat
+      2187 2538 lineto
+      2187 2534 2219 2534 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   2215 2574 moveto
+   2219 2574 2219 2594 4 arcto 4 {pop} repeat
+   2219 2590 lineto
+   2219 2594 2187 2594 4 arcto 4 {pop} repeat
+   2191 2594 lineto
+   2187 2594 2187 2574 4 arcto 4 {pop} repeat
+   2187 2578 lineto
+   2187 2574 2219 2574 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      2215 2574 moveto
+      2219 2574 2219 2594 4 arcto 4 {pop} repeat
+      2219 2590 lineto
+      2219 2594 2187 2594 4 arcto 4 {pop} repeat
+      2191 2594 lineto
+      2187 2594 2187 2574 4 arcto 4 {pop} repeat
+      2187 2578 lineto
+      2187 2574 2219 2574 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% BOX
+newpath
+   2428 1734 moveto 2458 1734 lineto 2458 1754 lineto 2428 1754 lineto
+closepath fill
+gsave
+   1.415 setmiterlimit
+   newpath
+      2428 1734 moveto 2458 1734 lineto 2458 1754 lineto 2428 1754 lineto
+   closepath stroke
+   1 setmiterlimit
+grestore
+
+% OVAL
+newpath 1025 1872 10 10 tgifellipse fill
+gsave
+   newpath 1025 1872 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 1916 10 10 tgifellipse fill
+gsave
+   newpath 1025 1916 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 1894 10 10 tgifellipse fill
+gsave
+   newpath 1062 1894 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 1960 10 10 tgifellipse fill
+gsave
+   newpath 1025 1960 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 1938 10 10 tgifellipse fill
+gsave
+   newpath 1062 1938 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2004 10 10 tgifellipse fill
+gsave
+   newpath 1025 2004 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 1982 10 10 tgifellipse fill
+gsave
+   newpath 1062 1982 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2048 10 10 tgifellipse fill
+gsave
+   newpath 1025 2048 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2026 10 10 tgifellipse fill
+gsave
+   newpath 1062 2026 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2092 10 10 tgifellipse fill
+gsave
+   newpath 1025 2092 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2070 10 10 tgifellipse fill
+gsave
+   newpath 1062 2070 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2136 10 10 tgifellipse fill
+gsave
+   newpath 1025 2136 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2114 10 10 tgifellipse fill
+gsave
+   newpath 1062 2114 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2180 10 10 tgifellipse fill
+gsave
+   newpath 1025 2180 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2158 10 10 tgifellipse fill
+gsave
+   newpath 1062 2158 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2224 10 10 tgifellipse fill
+gsave
+   newpath 1025 2224 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2202 10 10 tgifellipse fill
+gsave
+   newpath 1062 2202 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2268 10 10 tgifellipse fill
+gsave
+   newpath 1025 2268 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2246 10 10 tgifellipse fill
+gsave
+   newpath 1062 2246 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2312 10 10 tgifellipse fill
+gsave
+   newpath 1025 2312 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2290 10 10 tgifellipse fill
+gsave
+   newpath 1062 2290 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2356 10 10 tgifellipse fill
+gsave
+   newpath 1025 2356 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2334 10 10 tgifellipse fill
+gsave
+   newpath 1062 2334 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1025 2400 10 10 tgifellipse fill
+gsave
+   newpath 1025 2400 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 1062 2378 10 10 tgifellipse fill
+gsave
+   newpath 1062 2378 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 1170 1760 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 1170 2512 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% OVAL
+newpath 3816 2883 10 10 tgifellipse fill
+gsave
+   newpath 3816 2883 10 10 tgifellipse stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1274 673 moveto
+      983 673 lineto
+   stroke
+grestore
+
+% POLY/OPEN-SPLINE
+gsave
+   newpath
+      1128 741 moveto
+      1128 610 lineto
+   stroke
+grestore
+
+% OVAL
+newpath 3582 1779 10 10 tgifellipse fill
+gsave
+   newpath 3582 1779 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1823 10 10 tgifellipse fill
+gsave
+   newpath 3582 1823 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1801 10 10 tgifellipse fill
+gsave
+   newpath 3619 1801 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1867 10 10 tgifellipse fill
+gsave
+   newpath 3582 1867 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1845 10 10 tgifellipse fill
+gsave
+   newpath 3619 1845 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1911 10 10 tgifellipse fill
+gsave
+   newpath 3582 1911 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1889 10 10 tgifellipse fill
+gsave
+   newpath 3619 1889 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1955 10 10 tgifellipse fill
+gsave
+   newpath 3582 1955 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1933 10 10 tgifellipse fill
+gsave
+   newpath 3619 1933 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1999 10 10 tgifellipse fill
+gsave
+   newpath 3582 1999 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1977 10 10 tgifellipse fill
+gsave
+   newpath 3619 1977 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2043 10 10 tgifellipse fill
+gsave
+   newpath 3582 2043 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2021 10 10 tgifellipse fill
+gsave
+   newpath 3619 2021 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2087 10 10 tgifellipse fill
+gsave
+   newpath 3582 2087 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2065 10 10 tgifellipse fill
+gsave
+   newpath 3619 2065 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2131 10 10 tgifellipse fill
+gsave
+   newpath 3582 2131 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2109 10 10 tgifellipse fill
+gsave
+   newpath 3619 2109 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2175 10 10 tgifellipse fill
+gsave
+   newpath 3582 2175 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2153 10 10 tgifellipse fill
+gsave
+   newpath 3619 2153 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2219 10 10 tgifellipse fill
+gsave
+   newpath 3582 2219 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2197 10 10 tgifellipse fill
+gsave
+   newpath 3619 2197 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2263 10 10 tgifellipse fill
+gsave
+   newpath 3582 2263 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2241 10 10 tgifellipse fill
+gsave
+   newpath 3619 2241 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 2307 10 10 tgifellipse fill
+gsave
+   newpath 3582 2307 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 2285 10 10 tgifellipse fill
+gsave
+   newpath 3619 2285 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 3727 1667 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 3727 2419 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% OVAL
+newpath 3582 779 10 10 tgifellipse fill
+gsave
+   newpath 3582 779 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 823 10 10 tgifellipse fill
+gsave
+   newpath 3582 823 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 801 10 10 tgifellipse fill
+gsave
+   newpath 3619 801 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 867 10 10 tgifellipse fill
+gsave
+   newpath 3582 867 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 845 10 10 tgifellipse fill
+gsave
+   newpath 3619 845 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 911 10 10 tgifellipse fill
+gsave
+   newpath 3582 911 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 889 10 10 tgifellipse fill
+gsave
+   newpath 3619 889 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 955 10 10 tgifellipse fill
+gsave
+   newpath 3582 955 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 933 10 10 tgifellipse fill
+gsave
+   newpath 3619 933 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 999 10 10 tgifellipse fill
+gsave
+   newpath 3582 999 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 977 10 10 tgifellipse fill
+gsave
+   newpath 3619 977 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1043 10 10 tgifellipse fill
+gsave
+   newpath 3582 1043 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1021 10 10 tgifellipse fill
+gsave
+   newpath 3619 1021 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1087 10 10 tgifellipse fill
+gsave
+   newpath 3582 1087 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1065 10 10 tgifellipse fill
+gsave
+   newpath 3619 1065 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1131 10 10 tgifellipse fill
+gsave
+   newpath 3582 1131 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1109 10 10 tgifellipse fill
+gsave
+   newpath 3619 1109 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1175 10 10 tgifellipse fill
+gsave
+   newpath 3582 1175 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1153 10 10 tgifellipse fill
+gsave
+   newpath 3619 1153 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1219 10 10 tgifellipse fill
+gsave
+   newpath 3582 1219 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1197 10 10 tgifellipse fill
+gsave
+   newpath 3619 1197 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1263 10 10 tgifellipse fill
+gsave
+   newpath 3582 1263 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1241 10 10 tgifellipse fill
+gsave
+   newpath 3619 1241 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3582 1307 10 10 tgifellipse fill
+gsave
+   newpath 3582 1307 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+newpath 3619 1285 10 10 tgifellipse fill
+gsave
+   newpath 3619 1285 10 10 tgifellipse stroke
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 3727 667 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% OVAL
+gsave
+   7 setlinewidth
+   newpath 3727 1419 36 36 tgifellipse stroke
+   1 setlinewidth
+grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      2510 1676 moveto (.6 " spaced DIP template) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1890 1688 moveto (.3 " spaced DIP template) tgifrighttext show
+   grestore
+
+% RCBOX
+newpath
+   1803 1782 moveto
+   1807 1782 1807 1802 4 arcto 4 {pop} repeat
+   1807 1798 lineto
+   1807 1802 1775 1802 4 arcto 4 {pop} repeat
+   1779 1802 lineto
+   1775 1802 1775 1782 4 arcto 4 {pop} repeat
+   1775 1786 lineto
+   1775 1782 1807 1782 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1782 moveto
+      1807 1782 1807 1802 4 arcto 4 {pop} repeat
+      1807 1798 lineto
+      1807 1802 1775 1802 4 arcto 4 {pop} repeat
+      1779 1802 lineto
+      1775 1802 1775 1782 4 arcto 4 {pop} repeat
+      1775 1786 lineto
+      1775 1782 1807 1782 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 1822 moveto
+   1807 1822 1807 1842 4 arcto 4 {pop} repeat
+   1807 1838 lineto
+   1807 1842 1775 1842 4 arcto 4 {pop} repeat
+   1779 1842 lineto
+   1775 1842 1775 1822 4 arcto 4 {pop} repeat
+   1775 1826 lineto
+   1775 1822 1807 1822 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1822 moveto
+      1807 1822 1807 1842 4 arcto 4 {pop} repeat
+      1807 1838 lineto
+      1807 1842 1775 1842 4 arcto 4 {pop} repeat
+      1779 1842 lineto
+      1775 1842 1775 1822 4 arcto 4 {pop} repeat
+      1775 1826 lineto
+      1775 1822 1807 1822 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 1862 moveto
+   1807 1862 1807 1882 4 arcto 4 {pop} repeat
+   1807 1878 lineto
+   1807 1882 1775 1882 4 arcto 4 {pop} repeat
+   1779 1882 lineto
+   1775 1882 1775 1862 4 arcto 4 {pop} repeat
+   1775 1866 lineto
+   1775 1862 1807 1862 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1862 moveto
+      1807 1862 1807 1882 4 arcto 4 {pop} repeat
+      1807 1878 lineto
+      1807 1882 1775 1882 4 arcto 4 {pop} repeat
+      1779 1882 lineto
+      1775 1882 1775 1862 4 arcto 4 {pop} repeat
+      1775 1866 lineto
+      1775 1862 1807 1862 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 1902 moveto
+   1807 1902 1807 1922 4 arcto 4 {pop} repeat
+   1807 1918 lineto
+   1807 1922 1775 1922 4 arcto 4 {pop} repeat
+   1779 1922 lineto
+   1775 1922 1775 1902 4 arcto 4 {pop} repeat
+   1775 1906 lineto
+   1775 1902 1807 1902 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1902 moveto
+      1807 1902 1807 1922 4 arcto 4 {pop} repeat
+      1807 1918 lineto
+      1807 1922 1775 1922 4 arcto 4 {pop} repeat
+      1779 1922 lineto
+      1775 1922 1775 1902 4 arcto 4 {pop} repeat
+      1775 1906 lineto
+      1775 1902 1807 1902 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 1942 moveto
+   1807 1942 1807 1962 4 arcto 4 {pop} repeat
+   1807 1958 lineto
+   1807 1962 1775 1962 4 arcto 4 {pop} repeat
+   1779 1962 lineto
+   1775 1962 1775 1942 4 arcto 4 {pop} repeat
+   1775 1946 lineto
+   1775 1942 1807 1942 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1942 moveto
+      1807 1942 1807 1962 4 arcto 4 {pop} repeat
+      1807 1958 lineto
+      1807 1962 1775 1962 4 arcto 4 {pop} repeat
+      1779 1962 lineto
+      1775 1962 1775 1942 4 arcto 4 {pop} repeat
+      1775 1946 lineto
+      1775 1942 1807 1942 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 1982 moveto
+   1807 1982 1807 2002 4 arcto 4 {pop} repeat
+   1807 1998 lineto
+   1807 2002 1775 2002 4 arcto 4 {pop} repeat
+   1779 2002 lineto
+   1775 2002 1775 1982 4 arcto 4 {pop} repeat
+   1775 1986 lineto
+   1775 1982 1807 1982 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 1982 moveto
+      1807 1982 1807 2002 4 arcto 4 {pop} repeat
+      1807 1998 lineto
+      1807 2002 1775 2002 4 arcto 4 {pop} repeat
+      1779 2002 lineto
+      1775 2002 1775 1982 4 arcto 4 {pop} repeat
+      1775 1986 lineto
+      1775 1982 1807 1982 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2022 moveto
+   1807 2022 1807 2042 4 arcto 4 {pop} repeat
+   1807 2038 lineto
+   1807 2042 1775 2042 4 arcto 4 {pop} repeat
+   1779 2042 lineto
+   1775 2042 1775 2022 4 arcto 4 {pop} repeat
+   1775 2026 lineto
+   1775 2022 1807 2022 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2022 moveto
+      1807 2022 1807 2042 4 arcto 4 {pop} repeat
+      1807 2038 lineto
+      1807 2042 1775 2042 4 arcto 4 {pop} repeat
+      1779 2042 lineto
+      1775 2042 1775 2022 4 arcto 4 {pop} repeat
+      1775 2026 lineto
+      1775 2022 1807 2022 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2062 moveto
+   1807 2062 1807 2082 4 arcto 4 {pop} repeat
+   1807 2078 lineto
+   1807 2082 1775 2082 4 arcto 4 {pop} repeat
+   1779 2082 lineto
+   1775 2082 1775 2062 4 arcto 4 {pop} repeat
+   1775 2066 lineto
+   1775 2062 1807 2062 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2062 moveto
+      1807 2062 1807 2082 4 arcto 4 {pop} repeat
+      1807 2078 lineto
+      1807 2082 1775 2082 4 arcto 4 {pop} repeat
+      1779 2082 lineto
+      1775 2082 1775 2062 4 arcto 4 {pop} repeat
+      1775 2066 lineto
+      1775 2062 1807 2062 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2102 moveto
+   1807 2102 1807 2122 4 arcto 4 {pop} repeat
+   1807 2118 lineto
+   1807 2122 1775 2122 4 arcto 4 {pop} repeat
+   1779 2122 lineto
+   1775 2122 1775 2102 4 arcto 4 {pop} repeat
+   1775 2106 lineto
+   1775 2102 1807 2102 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2102 moveto
+      1807 2102 1807 2122 4 arcto 4 {pop} repeat
+      1807 2118 lineto
+      1807 2122 1775 2122 4 arcto 4 {pop} repeat
+      1779 2122 lineto
+      1775 2122 1775 2102 4 arcto 4 {pop} repeat
+      1775 2106 lineto
+      1775 2102 1807 2102 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2142 moveto
+   1807 2142 1807 2162 4 arcto 4 {pop} repeat
+   1807 2158 lineto
+   1807 2162 1775 2162 4 arcto 4 {pop} repeat
+   1779 2162 lineto
+   1775 2162 1775 2142 4 arcto 4 {pop} repeat
+   1775 2146 lineto
+   1775 2142 1807 2142 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2142 moveto
+      1807 2142 1807 2162 4 arcto 4 {pop} repeat
+      1807 2158 lineto
+      1807 2162 1775 2162 4 arcto 4 {pop} repeat
+      1779 2162 lineto
+      1775 2162 1775 2142 4 arcto 4 {pop} repeat
+      1775 2146 lineto
+      1775 2142 1807 2142 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2182 moveto
+   1807 2182 1807 2202 4 arcto 4 {pop} repeat
+   1807 2198 lineto
+   1807 2202 1775 2202 4 arcto 4 {pop} repeat
+   1779 2202 lineto
+   1775 2202 1775 2182 4 arcto 4 {pop} repeat
+   1775 2186 lineto
+   1775 2182 1807 2182 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2182 moveto
+      1807 2182 1807 2202 4 arcto 4 {pop} repeat
+      1807 2198 lineto
+      1807 2202 1775 2202 4 arcto 4 {pop} repeat
+      1779 2202 lineto
+      1775 2202 1775 2182 4 arcto 4 {pop} repeat
+      1775 2186 lineto
+      1775 2182 1807 2182 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2222 moveto
+   1807 2222 1807 2242 4 arcto 4 {pop} repeat
+   1807 2238 lineto
+   1807 2242 1775 2242 4 arcto 4 {pop} repeat
+   1779 2242 lineto
+   1775 2242 1775 2222 4 arcto 4 {pop} repeat
+   1775 2226 lineto
+   1775 2222 1807 2222 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2222 moveto
+      1807 2222 1807 2242 4 arcto 4 {pop} repeat
+      1807 2238 lineto
+      1807 2242 1775 2242 4 arcto 4 {pop} repeat
+      1779 2242 lineto
+      1775 2242 1775 2222 4 arcto 4 {pop} repeat
+      1775 2226 lineto
+      1775 2222 1807 2222 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2262 moveto
+   1807 2262 1807 2282 4 arcto 4 {pop} repeat
+   1807 2278 lineto
+   1807 2282 1775 2282 4 arcto 4 {pop} repeat
+   1779 2282 lineto
+   1775 2282 1775 2262 4 arcto 4 {pop} repeat
+   1775 2266 lineto
+   1775 2262 1807 2262 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2262 moveto
+      1807 2262 1807 2282 4 arcto 4 {pop} repeat
+      1807 2278 lineto
+      1807 2282 1775 2282 4 arcto 4 {pop} repeat
+      1779 2282 lineto
+      1775 2282 1775 2262 4 arcto 4 {pop} repeat
+      1775 2266 lineto
+      1775 2262 1807 2262 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2302 moveto
+   1807 2302 1807 2322 4 arcto 4 {pop} repeat
+   1807 2318 lineto
+   1807 2322 1775 2322 4 arcto 4 {pop} repeat
+   1779 2322 lineto
+   1775 2322 1775 2302 4 arcto 4 {pop} repeat
+   1775 2306 lineto
+   1775 2302 1807 2302 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2302 moveto
+      1807 2302 1807 2322 4 arcto 4 {pop} repeat
+      1807 2318 lineto
+      1807 2322 1775 2322 4 arcto 4 {pop} repeat
+      1779 2322 lineto
+      1775 2322 1775 2302 4 arcto 4 {pop} repeat
+      1775 2306 lineto
+      1775 2302 1807 2302 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2342 moveto
+   1807 2342 1807 2362 4 arcto 4 {pop} repeat
+   1807 2358 lineto
+   1807 2362 1775 2362 4 arcto 4 {pop} repeat
+   1779 2362 lineto
+   1775 2362 1775 2342 4 arcto 4 {pop} repeat
+   1775 2346 lineto
+   1775 2342 1807 2342 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2342 moveto
+      1807 2342 1807 2362 4 arcto 4 {pop} repeat
+      1807 2358 lineto
+      1807 2362 1775 2362 4 arcto 4 {pop} repeat
+      1779 2362 lineto
+      1775 2362 1775 2342 4 arcto 4 {pop} repeat
+      1775 2346 lineto
+      1775 2342 1807 2342 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2382 moveto
+   1807 2382 1807 2402 4 arcto 4 {pop} repeat
+   1807 2398 lineto
+   1807 2402 1775 2402 4 arcto 4 {pop} repeat
+   1779 2402 lineto
+   1775 2402 1775 2382 4 arcto 4 {pop} repeat
+   1775 2386 lineto
+   1775 2382 1807 2382 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2382 moveto
+      1807 2382 1807 2402 4 arcto 4 {pop} repeat
+      1807 2398 lineto
+      1807 2402 1775 2402 4 arcto 4 {pop} repeat
+      1779 2402 lineto
+      1775 2402 1775 2382 4 arcto 4 {pop} repeat
+      1775 2386 lineto
+      1775 2382 1807 2382 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2422 moveto
+   1807 2422 1807 2442 4 arcto 4 {pop} repeat
+   1807 2438 lineto
+   1807 2442 1775 2442 4 arcto 4 {pop} repeat
+   1779 2442 lineto
+   1775 2442 1775 2422 4 arcto 4 {pop} repeat
+   1775 2426 lineto
+   1775 2422 1807 2422 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2422 moveto
+      1807 2422 1807 2442 4 arcto 4 {pop} repeat
+      1807 2438 lineto
+      1807 2442 1775 2442 4 arcto 4 {pop} repeat
+      1779 2442 lineto
+      1775 2442 1775 2422 4 arcto 4 {pop} repeat
+      1775 2426 lineto
+      1775 2422 1807 2422 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2462 moveto
+   1807 2462 1807 2482 4 arcto 4 {pop} repeat
+   1807 2478 lineto
+   1807 2482 1775 2482 4 arcto 4 {pop} repeat
+   1779 2482 lineto
+   1775 2482 1775 2462 4 arcto 4 {pop} repeat
+   1775 2466 lineto
+   1775 2462 1807 2462 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2462 moveto
+      1807 2462 1807 2482 4 arcto 4 {pop} repeat
+      1807 2478 lineto
+      1807 2482 1775 2482 4 arcto 4 {pop} repeat
+      1779 2482 lineto
+      1775 2482 1775 2462 4 arcto 4 {pop} repeat
+      1775 2466 lineto
+      1775 2462 1807 2462 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2502 moveto
+   1807 2502 1807 2522 4 arcto 4 {pop} repeat
+   1807 2518 lineto
+   1807 2522 1775 2522 4 arcto 4 {pop} repeat
+   1779 2522 lineto
+   1775 2522 1775 2502 4 arcto 4 {pop} repeat
+   1775 2506 lineto
+   1775 2502 1807 2502 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2502 moveto
+      1807 2502 1807 2522 4 arcto 4 {pop} repeat
+      1807 2518 lineto
+      1807 2522 1775 2522 4 arcto 4 {pop} repeat
+      1779 2522 lineto
+      1775 2522 1775 2502 4 arcto 4 {pop} repeat
+      1775 2506 lineto
+      1775 2502 1807 2502 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2542 moveto
+   1807 2542 1807 2562 4 arcto 4 {pop} repeat
+   1807 2558 lineto
+   1807 2562 1775 2562 4 arcto 4 {pop} repeat
+   1779 2562 lineto
+   1775 2562 1775 2542 4 arcto 4 {pop} repeat
+   1775 2546 lineto
+   1775 2542 1807 2542 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2542 moveto
+      1807 2542 1807 2562 4 arcto 4 {pop} repeat
+      1807 2558 lineto
+      1807 2562 1775 2562 4 arcto 4 {pop} repeat
+      1779 2562 lineto
+      1775 2562 1775 2542 4 arcto 4 {pop} repeat
+      1775 2546 lineto
+      1775 2542 1807 2542 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1803 2582 moveto
+   1807 2582 1807 2602 4 arcto 4 {pop} repeat
+   1807 2598 lineto
+   1807 2602 1775 2602 4 arcto 4 {pop} repeat
+   1779 2602 lineto
+   1775 2602 1775 2582 4 arcto 4 {pop} repeat
+   1775 2586 lineto
+   1775 2582 1807 2582 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1803 2582 moveto
+      1807 2582 1807 2602 4 arcto 4 {pop} repeat
+      1807 2598 lineto
+      1807 2602 1775 2602 4 arcto 4 {pop} repeat
+      1779 2602 lineto
+      1775 2602 1775 2582 4 arcto 4 {pop} repeat
+      1775 2586 lineto
+      1775 2582 1807 2582 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% BOX
+newpath
+   1776 1742 moveto 1806 1742 lineto 1806 1762 lineto 1776 1762 lineto
+closepath fill
+gsave
+   1.415 setmiterlimit
+   newpath
+      1776 1742 moveto 1806 1742 lineto 1806 1762 lineto 1776 1762 lineto
+   closepath stroke
+   1 setmiterlimit
+grestore
+
+% RCBOX
+newpath
+   1683 1742 moveto
+   1687 1742 1687 1762 4 arcto 4 {pop} repeat
+   1687 1758 lineto
+   1687 1762 1655 1762 4 arcto 4 {pop} repeat
+   1659 1762 lineto
+   1655 1762 1655 1742 4 arcto 4 {pop} repeat
+   1655 1746 lineto
+   1655 1742 1687 1742 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1742 moveto
+      1687 1742 1687 1762 4 arcto 4 {pop} repeat
+      1687 1758 lineto
+      1687 1762 1655 1762 4 arcto 4 {pop} repeat
+      1659 1762 lineto
+      1655 1762 1655 1742 4 arcto 4 {pop} repeat
+      1655 1746 lineto
+      1655 1742 1687 1742 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1782 moveto
+   1687 1782 1687 1802 4 arcto 4 {pop} repeat
+   1687 1798 lineto
+   1687 1802 1655 1802 4 arcto 4 {pop} repeat
+   1659 1802 lineto
+   1655 1802 1655 1782 4 arcto 4 {pop} repeat
+   1655 1786 lineto
+   1655 1782 1687 1782 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1782 moveto
+      1687 1782 1687 1802 4 arcto 4 {pop} repeat
+      1687 1798 lineto
+      1687 1802 1655 1802 4 arcto 4 {pop} repeat
+      1659 1802 lineto
+      1655 1802 1655 1782 4 arcto 4 {pop} repeat
+      1655 1786 lineto
+      1655 1782 1687 1782 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1822 moveto
+   1687 1822 1687 1842 4 arcto 4 {pop} repeat
+   1687 1838 lineto
+   1687 1842 1655 1842 4 arcto 4 {pop} repeat
+   1659 1842 lineto
+   1655 1842 1655 1822 4 arcto 4 {pop} repeat
+   1655 1826 lineto
+   1655 1822 1687 1822 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1822 moveto
+      1687 1822 1687 1842 4 arcto 4 {pop} repeat
+      1687 1838 lineto
+      1687 1842 1655 1842 4 arcto 4 {pop} repeat
+      1659 1842 lineto
+      1655 1842 1655 1822 4 arcto 4 {pop} repeat
+      1655 1826 lineto
+      1655 1822 1687 1822 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1862 moveto
+   1687 1862 1687 1882 4 arcto 4 {pop} repeat
+   1687 1878 lineto
+   1687 1882 1655 1882 4 arcto 4 {pop} repeat
+   1659 1882 lineto
+   1655 1882 1655 1862 4 arcto 4 {pop} repeat
+   1655 1866 lineto
+   1655 1862 1687 1862 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1862 moveto
+      1687 1862 1687 1882 4 arcto 4 {pop} repeat
+      1687 1878 lineto
+      1687 1882 1655 1882 4 arcto 4 {pop} repeat
+      1659 1882 lineto
+      1655 1882 1655 1862 4 arcto 4 {pop} repeat
+      1655 1866 lineto
+      1655 1862 1687 1862 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1902 moveto
+   1687 1902 1687 1922 4 arcto 4 {pop} repeat
+   1687 1918 lineto
+   1687 1922 1655 1922 4 arcto 4 {pop} repeat
+   1659 1922 lineto
+   1655 1922 1655 1902 4 arcto 4 {pop} repeat
+   1655 1906 lineto
+   1655 1902 1687 1902 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1902 moveto
+      1687 1902 1687 1922 4 arcto 4 {pop} repeat
+      1687 1918 lineto
+      1687 1922 1655 1922 4 arcto 4 {pop} repeat
+      1659 1922 lineto
+      1655 1922 1655 1902 4 arcto 4 {pop} repeat
+      1655 1906 lineto
+      1655 1902 1687 1902 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1942 moveto
+   1687 1942 1687 1962 4 arcto 4 {pop} repeat
+   1687 1958 lineto
+   1687 1962 1655 1962 4 arcto 4 {pop} repeat
+   1659 1962 lineto
+   1655 1962 1655 1942 4 arcto 4 {pop} repeat
+   1655 1946 lineto
+   1655 1942 1687 1942 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1942 moveto
+      1687 1942 1687 1962 4 arcto 4 {pop} repeat
+      1687 1958 lineto
+      1687 1962 1655 1962 4 arcto 4 {pop} repeat
+      1659 1962 lineto
+      1655 1962 1655 1942 4 arcto 4 {pop} repeat
+      1655 1946 lineto
+      1655 1942 1687 1942 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 1982 moveto
+   1687 1982 1687 2002 4 arcto 4 {pop} repeat
+   1687 1998 lineto
+   1687 2002 1655 2002 4 arcto 4 {pop} repeat
+   1659 2002 lineto
+   1655 2002 1655 1982 4 arcto 4 {pop} repeat
+   1655 1986 lineto
+   1655 1982 1687 1982 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 1982 moveto
+      1687 1982 1687 2002 4 arcto 4 {pop} repeat
+      1687 1998 lineto
+      1687 2002 1655 2002 4 arcto 4 {pop} repeat
+      1659 2002 lineto
+      1655 2002 1655 1982 4 arcto 4 {pop} repeat
+      1655 1986 lineto
+      1655 1982 1687 1982 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2022 moveto
+   1687 2022 1687 2042 4 arcto 4 {pop} repeat
+   1687 2038 lineto
+   1687 2042 1655 2042 4 arcto 4 {pop} repeat
+   1659 2042 lineto
+   1655 2042 1655 2022 4 arcto 4 {pop} repeat
+   1655 2026 lineto
+   1655 2022 1687 2022 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2022 moveto
+      1687 2022 1687 2042 4 arcto 4 {pop} repeat
+      1687 2038 lineto
+      1687 2042 1655 2042 4 arcto 4 {pop} repeat
+      1659 2042 lineto
+      1655 2042 1655 2022 4 arcto 4 {pop} repeat
+      1655 2026 lineto
+      1655 2022 1687 2022 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2062 moveto
+   1687 2062 1687 2082 4 arcto 4 {pop} repeat
+   1687 2078 lineto
+   1687 2082 1655 2082 4 arcto 4 {pop} repeat
+   1659 2082 lineto
+   1655 2082 1655 2062 4 arcto 4 {pop} repeat
+   1655 2066 lineto
+   1655 2062 1687 2062 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2062 moveto
+      1687 2062 1687 2082 4 arcto 4 {pop} repeat
+      1687 2078 lineto
+      1687 2082 1655 2082 4 arcto 4 {pop} repeat
+      1659 2082 lineto
+      1655 2082 1655 2062 4 arcto 4 {pop} repeat
+      1655 2066 lineto
+      1655 2062 1687 2062 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2102 moveto
+   1687 2102 1687 2122 4 arcto 4 {pop} repeat
+   1687 2118 lineto
+   1687 2122 1655 2122 4 arcto 4 {pop} repeat
+   1659 2122 lineto
+   1655 2122 1655 2102 4 arcto 4 {pop} repeat
+   1655 2106 lineto
+   1655 2102 1687 2102 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2102 moveto
+      1687 2102 1687 2122 4 arcto 4 {pop} repeat
+      1687 2118 lineto
+      1687 2122 1655 2122 4 arcto 4 {pop} repeat
+      1659 2122 lineto
+      1655 2122 1655 2102 4 arcto 4 {pop} repeat
+      1655 2106 lineto
+      1655 2102 1687 2102 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2142 moveto
+   1687 2142 1687 2162 4 arcto 4 {pop} repeat
+   1687 2158 lineto
+   1687 2162 1655 2162 4 arcto 4 {pop} repeat
+   1659 2162 lineto
+   1655 2162 1655 2142 4 arcto 4 {pop} repeat
+   1655 2146 lineto
+   1655 2142 1687 2142 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2142 moveto
+      1687 2142 1687 2162 4 arcto 4 {pop} repeat
+      1687 2158 lineto
+      1687 2162 1655 2162 4 arcto 4 {pop} repeat
+      1659 2162 lineto
+      1655 2162 1655 2142 4 arcto 4 {pop} repeat
+      1655 2146 lineto
+      1655 2142 1687 2142 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2182 moveto
+   1687 2182 1687 2202 4 arcto 4 {pop} repeat
+   1687 2198 lineto
+   1687 2202 1655 2202 4 arcto 4 {pop} repeat
+   1659 2202 lineto
+   1655 2202 1655 2182 4 arcto 4 {pop} repeat
+   1655 2186 lineto
+   1655 2182 1687 2182 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2182 moveto
+      1687 2182 1687 2202 4 arcto 4 {pop} repeat
+      1687 2198 lineto
+      1687 2202 1655 2202 4 arcto 4 {pop} repeat
+      1659 2202 lineto
+      1655 2202 1655 2182 4 arcto 4 {pop} repeat
+      1655 2186 lineto
+      1655 2182 1687 2182 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2222 moveto
+   1687 2222 1687 2242 4 arcto 4 {pop} repeat
+   1687 2238 lineto
+   1687 2242 1655 2242 4 arcto 4 {pop} repeat
+   1659 2242 lineto
+   1655 2242 1655 2222 4 arcto 4 {pop} repeat
+   1655 2226 lineto
+   1655 2222 1687 2222 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2222 moveto
+      1687 2222 1687 2242 4 arcto 4 {pop} repeat
+      1687 2238 lineto
+      1687 2242 1655 2242 4 arcto 4 {pop} repeat
+      1659 2242 lineto
+      1655 2242 1655 2222 4 arcto 4 {pop} repeat
+      1655 2226 lineto
+      1655 2222 1687 2222 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2262 moveto
+   1687 2262 1687 2282 4 arcto 4 {pop} repeat
+   1687 2278 lineto
+   1687 2282 1655 2282 4 arcto 4 {pop} repeat
+   1659 2282 lineto
+   1655 2282 1655 2262 4 arcto 4 {pop} repeat
+   1655 2266 lineto
+   1655 2262 1687 2262 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2262 moveto
+      1687 2262 1687 2282 4 arcto 4 {pop} repeat
+      1687 2278 lineto
+      1687 2282 1655 2282 4 arcto 4 {pop} repeat
+      1659 2282 lineto
+      1655 2282 1655 2262 4 arcto 4 {pop} repeat
+      1655 2266 lineto
+      1655 2262 1687 2262 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2302 moveto
+   1687 2302 1687 2322 4 arcto 4 {pop} repeat
+   1687 2318 lineto
+   1687 2322 1655 2322 4 arcto 4 {pop} repeat
+   1659 2322 lineto
+   1655 2322 1655 2302 4 arcto 4 {pop} repeat
+   1655 2306 lineto
+   1655 2302 1687 2302 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2302 moveto
+      1687 2302 1687 2322 4 arcto 4 {pop} repeat
+      1687 2318 lineto
+      1687 2322 1655 2322 4 arcto 4 {pop} repeat
+      1659 2322 lineto
+      1655 2322 1655 2302 4 arcto 4 {pop} repeat
+      1655 2306 lineto
+      1655 2302 1687 2302 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2342 moveto
+   1687 2342 1687 2362 4 arcto 4 {pop} repeat
+   1687 2358 lineto
+   1687 2362 1655 2362 4 arcto 4 {pop} repeat
+   1659 2362 lineto
+   1655 2362 1655 2342 4 arcto 4 {pop} repeat
+   1655 2346 lineto
+   1655 2342 1687 2342 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2342 moveto
+      1687 2342 1687 2362 4 arcto 4 {pop} repeat
+      1687 2358 lineto
+      1687 2362 1655 2362 4 arcto 4 {pop} repeat
+      1659 2362 lineto
+      1655 2362 1655 2342 4 arcto 4 {pop} repeat
+      1655 2346 lineto
+      1655 2342 1687 2342 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2382 moveto
+   1687 2382 1687 2402 4 arcto 4 {pop} repeat
+   1687 2398 lineto
+   1687 2402 1655 2402 4 arcto 4 {pop} repeat
+   1659 2402 lineto
+   1655 2402 1655 2382 4 arcto 4 {pop} repeat
+   1655 2386 lineto
+   1655 2382 1687 2382 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2382 moveto
+      1687 2382 1687 2402 4 arcto 4 {pop} repeat
+      1687 2398 lineto
+      1687 2402 1655 2402 4 arcto 4 {pop} repeat
+      1659 2402 lineto
+      1655 2402 1655 2382 4 arcto 4 {pop} repeat
+      1655 2386 lineto
+      1655 2382 1687 2382 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2422 moveto
+   1687 2422 1687 2442 4 arcto 4 {pop} repeat
+   1687 2438 lineto
+   1687 2442 1655 2442 4 arcto 4 {pop} repeat
+   1659 2442 lineto
+   1655 2442 1655 2422 4 arcto 4 {pop} repeat
+   1655 2426 lineto
+   1655 2422 1687 2422 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2422 moveto
+      1687 2422 1687 2442 4 arcto 4 {pop} repeat
+      1687 2438 lineto
+      1687 2442 1655 2442 4 arcto 4 {pop} repeat
+      1659 2442 lineto
+      1655 2442 1655 2422 4 arcto 4 {pop} repeat
+      1655 2426 lineto
+      1655 2422 1687 2422 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2462 moveto
+   1687 2462 1687 2482 4 arcto 4 {pop} repeat
+   1687 2478 lineto
+   1687 2482 1655 2482 4 arcto 4 {pop} repeat
+   1659 2482 lineto
+   1655 2482 1655 2462 4 arcto 4 {pop} repeat
+   1655 2466 lineto
+   1655 2462 1687 2462 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2462 moveto
+      1687 2462 1687 2482 4 arcto 4 {pop} repeat
+      1687 2478 lineto
+      1687 2482 1655 2482 4 arcto 4 {pop} repeat
+      1659 2482 lineto
+      1655 2482 1655 2462 4 arcto 4 {pop} repeat
+      1655 2466 lineto
+      1655 2462 1687 2462 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2502 moveto
+   1687 2502 1687 2522 4 arcto 4 {pop} repeat
+   1687 2518 lineto
+   1687 2522 1655 2522 4 arcto 4 {pop} repeat
+   1659 2522 lineto
+   1655 2522 1655 2502 4 arcto 4 {pop} repeat
+   1655 2506 lineto
+   1655 2502 1687 2502 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2502 moveto
+      1687 2502 1687 2522 4 arcto 4 {pop} repeat
+      1687 2518 lineto
+      1687 2522 1655 2522 4 arcto 4 {pop} repeat
+      1659 2522 lineto
+      1655 2522 1655 2502 4 arcto 4 {pop} repeat
+      1655 2506 lineto
+      1655 2502 1687 2502 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2542 moveto
+   1687 2542 1687 2562 4 arcto 4 {pop} repeat
+   1687 2558 lineto
+   1687 2562 1655 2562 4 arcto 4 {pop} repeat
+   1659 2562 lineto
+   1655 2562 1655 2542 4 arcto 4 {pop} repeat
+   1655 2546 lineto
+   1655 2542 1687 2542 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2542 moveto
+      1687 2542 1687 2562 4 arcto 4 {pop} repeat
+      1687 2558 lineto
+      1687 2562 1655 2562 4 arcto 4 {pop} repeat
+      1659 2562 lineto
+      1655 2562 1655 2542 4 arcto 4 {pop} repeat
+      1655 2546 lineto
+      1655 2542 1687 2542 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% RCBOX
+newpath
+   1683 2582 moveto
+   1687 2582 1687 2602 4 arcto 4 {pop} repeat
+   1687 2598 lineto
+   1687 2602 1655 2602 4 arcto 4 {pop} repeat
+   1659 2602 lineto
+   1655 2602 1655 2582 4 arcto 4 {pop} repeat
+   1655 2586 lineto
+   1655 2582 1687 2582 4 arcto 4 {pop} repeat
+closepath fill
+gsave
+   newpath
+      1683 2582 moveto
+      1687 2582 1687 2602 4 arcto 4 {pop} repeat
+      1687 2598 lineto
+      1687 2602 1655 2602 4 arcto 4 {pop} repeat
+      1659 2602 lineto
+      1655 2602 1655 2582 4 arcto 4 {pop} repeat
+      1655 2586 lineto
+      1655 2582 1687 2582 4 arcto 4 {pop} repeat
+   closepath stroke
+grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1311 1677 moveto (DB25 rt angle mount template) tgifrighttext show
+   grestore
+
+% TEXT
+0 setgray
+/Helvetica findfont [34 0 0 -34 0 0] makefont setfont
+   gsave
+      1151 563 moveto (precision alignment crosshairs) tgifcentertext show
+   grestore
+
+grestore
+tgifsavedpage restore
+end
+showpage
+
+%%Trailer
+%MatchingCreationDate: Mon Sep  4 17:12:39 1995
+%%DocumentFonts: NewCenturySchlbk-Roman
+%%+ Helvetica
+%%EOF

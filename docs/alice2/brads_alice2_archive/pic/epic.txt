@@ -1,0 +1,88 @@
+EPICtm Pocket PIC Programmer
+
+
+The EPIC Programmer is an inexpensive PIC microcontroller programmer
+that will program 18 pin PICs with the new core.  These currently include the
+PIC16C61, PIC16C62x, PIC16C71 and the PIC16C84.  It can be powered with two
+9 volt batteries or an optional AC adapter.
+
+The EPIC Programmer connects to any PC compatible parallel port and
+includes an assembler and programming software.  It is available either
+assembled or as a bare board.  If you purchased a bare board, please see the
+parts list and assembly instructions on the included disk.
+
+An optional adapter is available to program the 40 pin PIC16C64, PIC16C65, 
+PIC16C74, and the 28 pin PIC16C62, PIC16C63 and PIC16C73.
+
+
+Hook-up
+
+Make sure that the EPIC programming socket is empty until the
+programming software is executed.  Also be sure that the EPIC Programmer
+is placed on an insulated surface to prevent the shorting out of traces on the
+bottom of it.
+
+Connect the EPIC Programmer to a PC compatible parallel printer port using
+a 25 pin male to 25 pin female printer extension cable.  The EPIC
+Programmer uses pins 2-6, 10, and 19-25.  A serial cable may not have all of
+the necessary connections so be sure to use a printer extension cable.  A
+suitable cable is available from us.
+
+Make sure to connect the programmer to a parallel printer port. 
+Connection to a serial port, which has a similar connector, may result in
+damage to the port or to the programmer.
+
+If you are powering the EPIC Programmer with the optional AC adapter,
+plug it into the power connector on the programmer and then into a wall
+outlet.  The AC adapter should output 12 volts AC at about 250ma.
+
+If you are powering the EPIC Programmer with two 9 volt batteries, plug
+each battery onto the battery snaps.  Connect the 2 pin shorting jumper to
+the 2 pin "Batt ON" jumper.  It is a good idea to check the battery voltage
+from time to time or if there seems to be difficulty in programming parts.
+
+WARNING: Do not connect a battery across the center snaps.  Doing so
+shorts out the battery and may cause it to explode.
+
+The programmer should now be powered up and ready to program PICs.
+
+
+     Note: one or both of the LEDs may be lit at this point.  It is no
+     cause for alarm.  They both should go out when the EPIC
+     programming software is run.  Do not insert or remove a PIC
+     when either light is on.
+
+
+Software Installation
+
+Create a subdirectory on your hard drive called EPIC or a name of your
+choosing by typing
+
+     md epic
+
+at the DOS prompt.  Copy all of the files from the included floppy disk into
+the newly created subdirectory by typing
+
+     xcopy a:*.* epic /s
+
+
+Operation
+
+The next task is simply to write your program and assemble it using the
+PIC macro assembler, PM, on the included disk.  Instructions for the use of
+PM are also on the disk.
+
+Once your program assembles properly, it may be programmed into a PIC
+using the EPIC Programmer software.  Start the EPIC Programmer software
+by typing 'epic' in the directory you created and enter alt-o to open your
+assembled object file.  Make sure the proper device type and device
+characteristics are selected.
+
+Insert a PIC into the EPIC Programmer programming socket and press alt-p 
+to program it.  The end of the PIC with the notch, pin 1, should be away
+from the battery connectors.  If the PIC is a 16C84 or another EEPROM part
+and is not code protected, it is not necessary to erase it before programming.
+
+
+NOTE: Be sure the Code Protect box is set to OFF before programming a
+windowed JW part.

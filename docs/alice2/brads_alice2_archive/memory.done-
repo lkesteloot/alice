@@ -1,0 +1,191 @@
+types
+eprom16k	cerdip 28
+	1	vpp
+	2	a12
+	3-10	a7-0
+	11-13	d0-d2
+	14	gnd
+	15-19	d3-d7
+	20	_ce
+	21	a10
+	22	_oe
+	23	a11
+	24	a9
+	25	a8
+	26	a13
+	27	_pgm
+	28	vdd
+sram128k	cerdip 32
+	1	nc
+	2	a16
+	3	a14
+	4	a12
+	5-12	a7-a0
+	13-15	d0-d2
+	16	gnd
+	17-21	d3-d8
+	22	_cs1
+	23	a10
+	24	_oe
+	25	a11
+	26	a9
+	27	a8
+	28	a13
+	29	_wr
+	30	cs2
+	31	a15
+	32	vdd
+4508		cerdip 24
+	1	a.reset
+	2	a.store
+	3	a.disable
+	4	a.d0
+	5	a.q0
+	6	a.d1
+	7	a.q1
+	8	a.d2
+	9	a.q2
+	10	a.d3
+	11	a.q3
+	12	a.gnd
+	13	b.reset
+	14	b.store
+	15	b.disable
+	16	b.d0
+	17	b.q0
+	18	b.d1
+	19	b.q1
+	20	b.d2
+	21	b.q2
+	22	b.d3
+	23	b.q3
+	24	b.gnd
+4011		dip 14
+	[pin names:::]
+4068		dip 14
+	[pin names:::]
+4071		dip 14
+	[pin names:::]
+4049		dip 16
+	[pin names:::]
+bus		bus 50
+	[pin names:::]
+
+names
+ram1		sram128k
+ram2		sram128k
+rom		eprom16k
+iodecode	4068
+bankreg		4508
+or		4071
+nand1		4011
+nand2		4011
+inv		4049
+
+connections
+bus:vdd		ram1:vdd
+bus:vdd		ram2:vdd
+bus:vdd		rom:vdd
+bus:vdd		iodecode:vdd
+bus:vdd		bankreg:vdd
+bus:vdd		or:vdd
+bus:vdd		nand1:vdd
+bus:vdd		nand2:vdd
+bus:vdd		inv:vdd
+
+bus:gnd		ram1:gnd
+bus:gnd		ram2:gnd
+bus:gnd		rom:gnd
+bus:gnd		iodecode:gnd
+bus:gnd		bankreg:gnd
+bus:gnd		or:gnd
+bus:gnd		nand1:gnd
+bus:gnd		nand2:gnd
+bus:gnd		inv:gnd
+
+* bus:a0-13	ram1:a0-13	
+* bus:a0-13	ram2:a0-13	
+* bus:a0-13	rom:a0-13
+
+* bus:d0-8	ram1:d0-8
+* bus:d0-8	ram2:d0-8
+* bus:d0-8	rom:d0-8
+
+bus:_mw		ram1:_mw
+bus:_mw		ram2:_mw
+
+bus:_mr		ram1:_oe
+bus:_mr		ram2:_oe
+bus:_mr		rom:_oe
+
+bus:a14		nand1.a:in1
+bus:a15		nand1.a:in2
+nand1.a:out	inv.c:in
+
+bus:a14		inv.a:in
+
+bus:a15		inv.b:in
+
+inv.a:out	nand1.b:in1
+bus:a15		nand1.b:in2
+nand1.b:out	nand1.d:in1
+nand1.b:out	inv.d:in
+
+inv.a:out	nand1.c:in1
+inv.b:out	nand1.c:in2
+nand1.c.out	eprom:_ce
+
+inv.c:out	nand2.a:in2
+
+inv.c:out	ram1:cs2
+
+inv.d:out	or.a:in1
+inv.d:out	or.b:in1
+inv.d:out	or.c:in1
+
+bus:d0-3	bankreg.a:d0-3
+bus:d0-3	bankreg.b:d0-3
+bankreg.b:q0-3	bus:d0-3
+
+bus:a0-7	iodecode:in0-7
+iodecode:out	nand2.c:in1
+iodecode:out	nand2.c:in2
+iodecode:out	or.d:in2
+bus:_ior	or.d:in1
+or.d:out	inv.e:in
+
+bus:_iow	nand2.d:in1
+bus:_iow	nand2.d:in2
+nand2.c.out	nand2.b:in1
+nand2.d:out	nand2.b:in2
+nand2.b:out	bankreg.a:disable
+
+bus:gnd		bankreg.b:disable
+
+inv.e:out	bankreg.a:store
+inv.e:out	bankreg.b:store
+
+bus:_reset	inv.f:in
+inv.f:out	bankreg.a:reset
+inv.f:out	bankreg.b:reset
+
+bankreg.a:q0	or.a:in2
+bankreg.a:q1	or.b:in2
+bankreg.a:q2	or.c:in2
+bankreg.a:q3	ram1:_cs1
+bankreg.a:q3	nand2.a:in1
+
+nand2.a:out	nand1.d:in2
+nand1.d:out	ram2:cs2
+
+bus:gnd		ram2:cs2
+
+or.a:out	ram1:a14
+or.a:out	ram2:a14
+or.b:out	ram1:a15
+or.b:out	ram2:a15
+or.c:out	ram1:a16
+or.c:out	ram2:a16
+
+rom:_pgm	bus:gnd
+rom:vdd		rom:vpp

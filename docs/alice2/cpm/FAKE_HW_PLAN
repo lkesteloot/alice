@@ -1,0 +1,56 @@
+Emulator debugger
+    -debugger {"command;command;command;"|filename}
+    breaks on first boot
+        puthex file.hex
+        putbin addr file.bin
+        break addr
+        list
+        disable
+        enable
+        step
+        dump addr count
+        dis addr count
+        jump addr
+        in port
+        out byte port
+        help; ?
+    Board::pause(), Board::resume()
+        e.g. pause stops IOboard TIM
+        e.g. resume resets timer IOboard TIM as if no time passed
+    Debugger()
+        void process_line(Z80? Boards? char*str);
+        void process_command(Z80? Boards? char*str);
+        void (*command_handler)(Z80? Boards? char *tok);
+        {char *command; command_handler handler} command_handlers[]
+        int breakpoints[65536]; // 0 = none, 1 = enabled, 2 = disabled
+FakeCPMHardwareBoard in emulator
+    -fakecpmhw drive0.bin[,drive1.bin[,etc]]
+    I/O addresses
+        CONOUT_OUT = 128; // write console
+        CONIN_IN = 128; // read console, NON-BLOCKING!! - loop in BIOS
+        CONST_IN = 129; // console read ready ? 0xff : 00
+        SELDSK_OUT = 130;
+        DISKSTAT_IN = 130; // okay ? 0xff : 0
+        SELTRK_L_OUT = 131;
+        SELTRK_H_OUT = 132;
+        SELSEC_L_OUT = 133;
+        SELSEC_H_OUT = 134;
+        SETDMA_L_OUT = 135;
+        SETDMA_H_OUT = 136;
+        READ_SECTOR_IN = 137; // READ sector - returns 0 or error code
+        WRITE_SECTOR_IN = 138; // WRITE sector - returns 0 or error
+    sector read and write are immediately performed
+    disks must be 8MB binary files each; show command to fill with 0xe5
+        python -c 'import sys; sys.stdout.write("\xe5"*(8192*1024));'
+    terminal is emulated as telnet client - first writes are batched
+      up, written on first connection
+need BIOS, put at 0xfe00 like Donn Stewart
+    character and disk routines easy
+    disk table = 8MB files
+    careful SECTRAN bug
+Give BIOS/CCP/BDOS a try with putbin
+    and BIOS cold boot
+    put something like SARGON into 0x100
+steal putsys from Donn
+steal boot sector loader from Donn to sector 0
+steal disks from Humongous ISO

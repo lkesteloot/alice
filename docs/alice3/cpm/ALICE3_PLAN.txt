@@ -1,0 +1,49 @@
+new HW board, Alice3HW:
+    copy drive management from FakeHW
+    Propeller
+        accept direct write at port 128 for CONOUT and print to console? telnet?
+    PIC
+        accept reads and writes at port 0
+        READ - next 3 bytes are disk, track, sector
+            if disk != count, respond FAILURE
+            spend 10 cycles responding with 0, then SUCCESS
+            output sector as bytes on read
+        WRITE - next 131 bytes are disk, track, sector, sector bytes
+            spend 10 cycles responding with 0, then SUCCESS
+        CONST
+            spend 10 cycles responding with 0, then READY
+        CONIN
+            keep responding with 0 until actual character typed on console? telnet?
+CBIOS
+    alice3poll:
+        in (0) until not 0
+        return response
+    const
+        out (0), PIC_IO_CONST
+        call alice3poll
+        parse READY / NOTREADY
+    conin
+        out (0), PIC_IO_CONIN
+        call alice3poll
+        parse READY / NOTREADY (it will always block or return READY)
+    conout
+        OUT (128), a
+    seldsk
+        store seldsk number
+    settrk 
+        store track number
+    setsec
+        store sector number
+    setdma
+        store address
+    read
+        write PIC_IO_READ, disk, sector, track
+        call alice3poll
+        if NOTREADY, error
+        if READY, transfer 128 bytes
+    write
+        write PIC_IO_WRITE, disk, sector, track
+        write 128 bytes
+        call alice3poll
+        if NOTREADY, error
+        if READY, transfer 128 bytes

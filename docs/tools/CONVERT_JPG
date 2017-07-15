@@ -1,0 +1,18 @@
+left=$1
+top=$2
+width=$3
+height=$4
+angle=$5
+maxwidth=$6
+maxheight=$7
+
+if [ $angle -gt 90 ]
+then
+
+    djpeg | pnmcut $left $top $width $height | pnmflip -rotate180 | pnmrotate `expr $angle - 180` | pnmscale -xysize $maxwidth $maxheight | cjpeg -quality 95 
+
+else
+
+    djpeg | pnmcut $left $top $width $height | pnmrotate $angle | pnmscale -xysize $maxwidth $maxheight | cjpeg -quality 95
+
+fi

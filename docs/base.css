@@ -1,0 +1,169 @@
+
+body {
+    font-family: "Sorts Mill Goudy", Georgia, sans-serif;
+    font-size: 22px;
+    background-color: white;
+    color: black;
+    line-height: 1.6;
+}
+
+h1 {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+    font-size: 36pt;
+    margin-top: 3em;
+    margin-bottom: 0;
+}
+
+h2 {
+    margin-top: 3em;
+    border-top: 1px solid #ccc;
+    padding-top: 1em;
+}
+
+tt {
+    font-size: 14pt;
+}
+
+pre {
+    font-size: 14pt;
+    line-height: 15pt;
+    margin-left: 4em;
+}
+
+ul.pseudomenu {
+    margin-left: 8em;
+}
+
+dt {
+    font-weight: normal;
+    font-style: italic;
+}
+
+p.author {
+    color: #888;
+    margin-top: 0;
+    text-align: center;
+    font-style: italic;
+}
+
+p.dates {
+    color: #888;
+    margin-top: 0;
+    text-align: center;
+    font-style: italic;
+}
+
+p.explanation {
+    font-size: 80%;
+    font-style: italic;
+    color: #888;
+}
+
+p.article-date {
+    color: #888;
+    margin-top: 0;
+    text-align: center;
+    font-style: italic;
+    font-size: 14pt;
+}
+
+.tabs {
+    margin: 2em 0 8em 0;
+    text-align: center;
+    padding-top: 80px;
+    background-image: url(divider.png);
+    background-repeat: no-repeat;
+    background-position: center 35px;
+}
+
+.tabs .tabs-separator {
+    padding-left: 1em;
+    padding-right: 1em;
+    color: #ccc;
+}
+
+a.home-link {
+    display: block;
+    margin: 3em 0;
+    text-align: center;
+}
+
+.content > img {
+    display: block;
+    margin: 3em auto;
+    box-shadow: 0px 3px 40px rgba(0, 0, 0, 0.5);
+}
+
+.content {
+    font-size: 18pt;
+    width: 700px;
+    margin: 2em auto;
+}
+
+.content-wide {
+    width: 1280px;
+}
+
+.track-title {
+    padding-right: 1em;
+}
+
+.audio-tracks {
+    margin: 2em auto;
+}
+
+.memoir-length {
+    color: #888;
+}
+
+.page-memoirs audio {
+    width: 100%;
+}
+
+.youtube {
+    width: 1280px;
+    height: 720px;
+    margin: 2em auto;
+}
+
+.rss-link img {
+    position: relative;
+    top: 3px;
+}
+
+.transcription {
+    display: none;
+    margin-left: 2em;
+    margin-right: 2em;
+}
+
+@media all and (max-width: 800px) {
+    h1 {
+        margin-top: 1em;
+    }
+
+    ul.pseudomenu {
+        margin-left: 0;
+    }
+
+    .content > img {
+        max-width: 100%;
+    }
+
+    .content {
+        font-size: 18pt;
+        width: 100%;
+        margin: 2em auto;
+    }
+
+    .content-wide {
+        width: 100%;
+    }
+
+    .transcription {
+        margin-left: 0.5em;
+        margin-right: 0.5em;
+    }
+}
