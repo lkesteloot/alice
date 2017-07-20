@@ -6,7 +6,7 @@
 <body bgcolor="#ffdab9" text="#000000">
 <pre>
 <font color="#406090">;</font>
-<font color="#406090">; Brad and Lawrence's PIC Alice II interface chip.  The PIC</font>
+<font color="#406090">; Brad and Lawrence's PIC Alice&nbsp;2 interface chip.  The PIC</font>
 <font color="#406090">; is responsible for keyboard, serial, and clock interfaces.</font>
 <font color="#406090">;</font>
 <font color="#406090">; An internal queue keeps command-data sequences for the CPU.</font>
@@ -96,11 +96,11 @@ start
 
         <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
 
-                <font color="#406090">; Alice II bus interface</font>
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
         <font color="#804040"><b>bcf</b></font>     trisa,<font color="#c00058">0</font>         <font color="#406090">; bit 0 port A is output</font>
         <font color="#804040"><b>bcf</b></font>     trisa,<font color="#c00058">1</font>         <font color="#406090">; bit 1 port A is output</font>
 
-                <font color="#406090">; Alice II bus interface</font>
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
         <font color="#804040"><b>bsf</b></font>     trise0          <font color="#406090">; /RD is input</font>
         <font color="#804040"><b>bsf</b></font>     trise1          <font color="#406090">; /WR is input</font>
         <font color="#804040"><b>bsf</b></font>     trise2          <font color="#406090">; /CS is input</font>
@@ -114,7 +114,7 @@ start
         <font color="#406090">; don't need to set trisb, default is 0xff (input)</font>
         <font color="#804040"><b>bsf</b></font>     intedg          <font color="#406090">; RB0/INT triggers on low-to-high</font>
 
-                <font color="#406090">; Alice II bus interface</font>
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
         <font color="#804040"><b>bsf</b></font>     pspie           <font color="#406090">; enable PSP interrupts</font>
         <font color="#804040"><b>bsf</b></font>     pspmode         <font color="#406090">; enable PSP mode</font>
 
@@ -130,7 +130,7 @@ start
         <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
         <font color="#804040"><b>bsf</b></font>     cren            <font color="#406090">; enable USART receive next byte</font>
 
-                <font color="#406090">; Alice II bus interface</font>
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
         <font color="#804040"><b>bsf</b></font>     porta,<font color="#c00058">0</font>         <font color="#406090">; don't interrupt CPU on IRQ 0</font>
         <font color="#804040"><b>bcf</b></font>     porta,<font color="#c00058">1</font>         <font color="#406090">; clear debug pin</font>
 
@@ -149,7 +149,7 @@ start
         <font color="#804040"><b>movwf</b></font>   tmr1h
         <font color="#804040"><b>bsf</b></font>     tmr1on
 
-                <font color="#406090">; Serial and Alice II bus interface</font>
+                <font color="#406090">; Serial and Alice&nbsp;2 bus interface</font>
         <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
         <font color="#804040"><b>bsf</b></font>     peie            <font color="#406090">; enable peripheral interrupts</font>
 
@@ -320,7 +320,7 @@ send_byte
 
 check_queue
         <font color="#406090">; if there is a byte in the queue, get it and send it on to the</font>
-        <font color="#406090">; Alice II through port D</font>
+        <font color="#406090">; Alice&nbsp;2 through port D</font>
         <font color="#406090">; assumes interrupts are disabled (called from int routine)</font>
 
         <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>

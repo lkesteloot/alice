@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Alice&nbsp;4</title>
+        <link href='https://fonts.googleapis.com/css?family=Sorts+Mill+Goudy:400,400italic' rel='stylesheet' type='text/css'>
+        <link href="../base.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <div class="content">
+            <h1>Alice&nbsp;4</h1>
+
+            <p>One lesson we learned from the 
+            <a href="../alice3/">Alice&nbsp;3</a> project was that having existing
+            software for a platform provided great motivation. For
+            the Alice&nbsp;4 we wanted to use a more advanced CPU than the Z80 
+            that had powered the previous three projects. Brad wanted
+            to do something more ambitious with an ARM (since he worked
+            there) and Lawrence wanted to learn how to program FPGAs. Finally,
+            the project had to have nostalgic value, as always.</p>
+
+            <p>We decided to make a portable tablet that did nothing but
+            run mid-1980's Silicon Graphics (SGI) demos. The demos were
+            famous. They were pre-installed on all SGI machines for a decade,
+            and they induced instant nostalgia in anyone who had spent time
+            with those wonderful workstations. Both of us had worked at SGI and
+            we had used the machines extensively.</p>
+
+            <p>We decided to use the Altera Cyclone V SoC chip on the
+            <a href="http://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=941">DE0-Nano-SoC</a> board (also known as the Atlas-SoC).
+            The chip provided a dual-core ARM Cortex A9 and a fairly capable
+            FPGA. The board added 1 GB of memory, USB, Ethernet, and plenty
+            of GPIO pins.</p>
+
+            <p>We added a <a href="https://www.adafruit.com/product/2354">7" touchscreen LCD</a>
+            from Adafruit and an <a href="https://www.adafruit.com/product/1932">LCD driver</a>.</p>
+
+            <p>The ARM runs Linux and the demos (which we found in a tar file
+            on an ancient FTP site). Brad wrote a replacement IrisGL library,
+            which performs the transformation, clipping, and lighting, and
+            creates an in-memory list of 2D triangles to rasterize. The FPGA
+            rasterizes them, performing color interpolation and Z buffering.
+            The FPGA also scans the frame buffer to the LCD.</p>
+
+            <p>The demos were slightly modified to make use of the touch
+            and tilt interface.</p>
+
+            <p><a href="https://github.com/lkesteloot/alice/tree/master/alice4">All software is available</a>.</p>
+
+            <p><a href="../">&laquo; Back</a></p>
+        </div>
+    </body>
+</html>
+
