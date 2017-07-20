@@ -128,7 +128,8 @@ module Main(
     always @(posedge clock_50) begin
        counter <= counter + 1'b1;
     end
-    assign led[0] = counter[23];
+    // Disable blinking LED, it's annoying (but sometimes useful).
+    /// assign led[0] = counter[23];
 
     // Reset.
     wire reset_n = 1'b1; // key[0];
