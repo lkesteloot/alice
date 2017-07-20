@@ -38,6 +38,10 @@ module Main(
         inout [35:0] gpio_1,
 `endif
 
+        // This is on GPIO 1 (GPIO_1[27], pin 32, PIN_AH22).
+        // It'll pulled up internally.
+        input home_button_pin,
+
         //////////// HPS //////////
         /* 3.3-V LVTTL */
         /// inout hps_conv_usb_n,
@@ -528,7 +532,7 @@ module Main(
         .debug_value2(test_debug_value2));
 
     // Home button circuit.
-    wire raw_home_button = !key[1]; // Physical button is active low.
+    wire raw_home_button = !home_button_pin; // Physical button is active low.
     wire home_button;
     reg f2h_home_button;
     wire h2f_home_button = h2f_value[PWM_BITS + 2];
