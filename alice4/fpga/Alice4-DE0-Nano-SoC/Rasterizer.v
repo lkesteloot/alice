@@ -301,13 +301,13 @@ module Rasterizer
         fb_address + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
     wire [28:0] upper_left_z_address =
         Z_ADDRESS/8 + ((tri_min_y*FB_WIDTH + tri_min_x) >> 1);
-    wire signed [21:0] initial_w0_row =
+    wire signed [21:0] initial_w0 =
         (vertex_2_sx - vertex_1_sx)*(tri_min_sy - vertex_1_sy) -
         (vertex_2_sy - vertex_1_sy)*(tri_min_sx - vertex_1_sx);
-    wire signed [21:0] initial_w1_row =
+    wire signed [21:0] initial_w1 =
         (vertex_0_sx - vertex_2_sx)*(tri_min_sy - vertex_2_sy) -
         (vertex_0_sy - vertex_2_sy)*(tri_min_sx - vertex_2_sx);
-    wire signed [21:0] initial_w2_row =
+    wire signed [21:0] initial_w2 =
         (vertex_1_sx - vertex_0_sx)*(tri_min_sy - vertex_0_sy) -
         (vertex_1_sy - vertex_0_sy)*(tri_min_sx - vertex_0_sx);
     wire [7:0] tri_red_byte_0 = tri_red_0[38:31];
@@ -796,21 +796,21 @@ module Rasterizer
                         area_reciprocal_enabled <= 1'b0;
                         state <= STATE_CMD_DRAW_TRIANGLE;
                     end else begin
-                        tri_w0_row <= initial_w0_row;
-                        tri_w1_row <= initial_w1_row;
-                        tri_w2_row <= initial_w2_row;
-                        tri_w0_0 <= initial_w0_row;
-                        tri_w1_0 <= initial_w1_row;
-                        tri_w2_0 <= initial_w2_row;
-                        tri_w0_1 <= initial_w0_row + tri_w0_incr;
-                        tri_w1_1 <= initial_w1_row + tri_w1_incr;
-                        tri_w2_1 <= initial_w2_row + tri_w2_incr;
+                        tri_w0_row <= initial_w0 + tri_w0_row_incr;
+                        tri_w1_row <= initial_w1 + tri_w1_row_incr;
+                        tri_w2_row <= initial_w2 + tri_w2_row_incr;
+                        tri_w0_0 <= initial_w0;
+                        tri_w1_0 <= initial_w1;
+                        tri_w2_0 <= initial_w2;
+                        tri_w0_1 <= initial_w0 + tri_w0_incr;
+                        tri_w1_1 <= initial_w1 + tri_w1_incr;
+                        tri_w2_1 <= initial_w2 + tri_w2_incr;
                         tri_x_0 <= tri_min_x;
                         tri_x_1 <= tri_min_x + 1'b1;
                         tri_y <= tri_min_y;
-                        tri_color_address_row <= upper_left_color_address;
+                        tri_color_address_row <= upper_left_color_address + FB_WIDTH/2;
                         tri_color_address <= upper_left_color_address;
-                        tri_z_address_row <= upper_left_z_address;
+                        tri_z_address_row <= upper_left_z_address + FB_WIDTH/2;
                         tri_z_address <= upper_left_z_address;
                         state <= STATE_CMD_DRAW_TRIANGLE_PREPARE3;
                     end
@@ -849,10 +849,10 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE9: begin
-                    tri_red_row <=
-                        tri_w0_row*vertex_0_red +
-                        tri_w1_row*vertex_1_red +
-                        tri_w2_row*vertex_2_red;
+                    tri_red_0 <=
+                        tri_w0_0*vertex_0_red +
+                        tri_w1_0*vertex_1_red +
+                        tri_w2_0*vertex_2_red;
                     tri_red_incr <=
                         tri_w0_incr*vertex_0_red +
                         tri_w1_incr*vertex_1_red +
@@ -861,10 +861,10 @@ module Rasterizer
                         tri_w0_row_incr*vertex_0_red +
                         tri_w1_row_incr*vertex_1_red +
                         tri_w2_row_incr*vertex_2_red;
-                    tri_green_row <=
-                        tri_w0_row*vertex_0_green +
-                        tri_w1_row*vertex_1_green +
-                        tri_w2_row*vertex_2_green;
+                    tri_green_0 <=
+                        tri_w0_0*vertex_0_green +
+                        tri_w1_0*vertex_1_green +
+                        tri_w2_0*vertex_2_green;
                     tri_green_incr <=
                         tri_w0_incr*vertex_0_green +
                         tri_w1_incr*vertex_1_green +
@@ -873,10 +873,10 @@ module Rasterizer
                         tri_w0_row_incr*vertex_0_green +
                         tri_w1_row_incr*vertex_1_green +
                         tri_w2_row_incr*vertex_2_green;
-                    tri_blue_row <=
-                        tri_w0_row*vertex_0_blue +
-                        tri_w1_row*vertex_1_blue +
-                        tri_w2_row*vertex_2_blue;
+                    tri_blue_0 <=
+                        tri_w0_0*vertex_0_blue +
+                        tri_w1_0*vertex_1_blue +
+                        tri_w2_0*vertex_2_blue;
                     tri_blue_incr <=
                         tri_w0_incr*vertex_0_blue +
                         tri_w1_incr*vertex_1_blue +
@@ -885,10 +885,10 @@ module Rasterizer
                         tri_w0_row_incr*vertex_0_blue +
                         tri_w1_row_incr*vertex_1_blue +
                         tri_w2_row_incr*vertex_2_blue;
-                    tri_z_row <=
-                        tri_w0_row*vertex_0_z +
-                        tri_w1_row*vertex_1_z +
-                        tri_w2_row*vertex_2_z;
+                    tri_z_0 <=
+                        tri_w0_0*vertex_0_z +
+                        tri_w1_0*vertex_1_z +
+                        tri_w2_0*vertex_2_z;
                     tri_z_incr <=
                         tri_w0_incr*vertex_0_z +
                         tri_w1_incr*vertex_1_z +
@@ -901,30 +901,30 @@ module Rasterizer
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE10: begin
-                    tri_red_row <= tri_red_row*tri_area_recip;
+                    tri_red_0 <= tri_red_0*tri_area_recip;
                     tri_red_incr <= tri_red_incr*tri_area_recip;
                     tri_red_row_incr <= tri_red_row_incr*tri_area_recip;
-                    tri_green_row <= tri_green_row*tri_area_recip;
+                    tri_green_0 <= tri_green_0*tri_area_recip;
                     tri_green_incr <= tri_green_incr*tri_area_recip;
                     tri_green_row_incr <= tri_green_row_incr*tri_area_recip;
-                    tri_blue_row <= tri_blue_row*tri_area_recip;
+                    tri_blue_0 <= tri_blue_0*tri_area_recip;
                     tri_blue_incr <= tri_blue_incr*tri_area_recip;
                     tri_blue_row_incr <= tri_blue_row_incr*tri_area_recip;
-                    tri_z_row <= tri_z_row*tri_area_recip;
+                    tri_z_0 <= tri_z_0*tri_area_recip;
                     tri_z_incr <= tri_z_incr*tri_area_recip;
                     tri_z_row_incr <= tri_z_row_incr*tri_area_recip;
                     state <= STATE_CMD_DRAW_TRIANGLE_PREPARE11;
                 end
 
                 STATE_CMD_DRAW_TRIANGLE_PREPARE11: begin
-                    tri_red_0 <= tri_red_row;
-                    tri_red_1 <= tri_red_row + tri_red_incr;
-                    tri_green_0 <= tri_green_row;
-                    tri_green_1 <= tri_green_row + tri_green_incr;
-                    tri_blue_0 <= tri_blue_row;
-                    tri_blue_1 <= tri_blue_row + tri_blue_incr;
-                    tri_z_0 <= tri_z_row;
-                    tri_z_1 <= tri_z_row + tri_z_incr;
+                    tri_red_row <= tri_red_0 + tri_red_row_incr;
+                    tri_red_1 <= tri_red_0 + tri_red_incr;
+                    tri_green_row <= tri_green_0 + tri_green_row_incr;
+                    tri_green_1 <= tri_green_0 + tri_green_incr;
+                    tri_blue_row <= tri_blue_0 + tri_blue_row_incr;
+                    tri_blue_1 <= tri_blue_0 + tri_blue_incr;
+                    tri_z_row <= tri_z_0 + tri_z_row_incr;
+                    tri_z_1 <= tri_z_0 + tri_z_incr;
                     state <= STATE_CMD_DRAW_TRIANGLE_DRAW_BBOX_LOOP;
                 end
 
