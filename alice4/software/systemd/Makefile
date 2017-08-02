@@ -9,7 +9,11 @@ install:
 
 enable:
 	sudo systemctl enable alice4_start
-	sudo systemctl enable alice4_shutdown
+	# sudo systemctl enable alice4_shutdown
+
+disable:
+	sudo systemctl disable alice4_start
+	sudo systemctl disable alice4_shutdown
 
 start:
 	sudo service alice4_start start
