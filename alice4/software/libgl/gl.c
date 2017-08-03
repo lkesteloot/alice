@@ -48,7 +48,7 @@
 
 static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
-#define POLY_MAX 32
+#define POLY_MAX 512
 
 #if NDEBUG
 static int trace_functions = 0;
