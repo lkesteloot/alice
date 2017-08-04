@@ -22,24 +22,24 @@ typedef struct vertex_ {
     float n[3];
 } vertex;
 
-const int mesh_rows_quads = 100;
-const int mesh_cols_quads = 100;
+#define MESH_ROWS_QUADS 100
+#define MESH_COLS_QUADS 100
 
-vertex vertices[mesh_rows_quads + 1][mesh_cols_quads + 1];
+vertex vertices[MESH_ROWS_QUADS + 1][MESH_COLS_QUADS + 1];
 
 float scale_value = 0.2;
 
 void create_mesh()
 {
     printf("mesh is %d vertices submitted, %d triangles.\n",
-        mesh_rows_quads * (mesh_cols_quads + 1) * 2,
-        mesh_rows_quads * mesh_cols_quads * 2);
+        MESH_ROWS_QUADS * (MESH_COLS_QUADS + 1) * 2,
+        MESH_ROWS_QUADS * MESH_COLS_QUADS * 2);
 
 
-    for(int j = 0; j < mesh_rows_quads + 1; j++)
-        for(int i = 0; i < mesh_cols_quads + 1; i++) {
-            float u = i / (float)mesh_cols_quads;
-            float v = j / (float)mesh_rows_quads;
+    for(int j = 0; j < MESH_ROWS_QUADS + 1; j++)
+        for(int i = 0; i < MESH_COLS_QUADS + 1; i++) {
+            float u = i / (float)MESH_COLS_QUADS;
+            float v = j / (float)MESH_ROWS_QUADS;
             vertices[j][i].v[0] = scale_value * (2.0 * u - 1.0);
             vertices[j][i].v[1] = scale_value * (2.0 * v - 1.0);
             vertices[j][i].v[2] = -1;
@@ -55,9 +55,9 @@ void create_mesh()
 
 void draw_mesh()
 {
-    for(int j = 0; j < mesh_rows_quads; j++) {
+    for(int j = 0; j < MESH_ROWS_QUADS; j++) {
         bgntmesh();
-        for(int i = 0; i < mesh_cols_quads + 1; i++) {
+        for(int i = 0; i < MESH_COLS_QUADS + 1; i++) {
             n3f(vertices[j][i].n);
             v3f(vertices[j][i].v);
             n3f(vertices[j + 1][i].n);
