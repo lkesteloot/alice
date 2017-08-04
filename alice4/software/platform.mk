@@ -14,3 +14,5 @@ endif
 # EVENTS_SRCS = ../libgl/network_events.c ../libgl/network.c
 # EVENTS_SRCS = ../libgl/hardware_events.c ../libgl/touchscreen.c
 
+# For benchmarking:
+## EVENTS_SRCS = ../libgl/dummy_events.c
