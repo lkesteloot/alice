@@ -24,8 +24,7 @@ Arena
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
 
-Shutdown
-	../fb_image_test/alice4view shuttingdown.png 0x38000000 3200 4
-	shutdown -h now
+Ideas
+	../ideas/ideas
 	.color. .9 .5 .9
 	.highcolor. 1.0 .7 1.0
