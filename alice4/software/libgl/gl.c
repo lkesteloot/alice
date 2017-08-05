@@ -2847,6 +2847,14 @@ void v4f(float v[4]) {
     polygon_vert_count++;
 }
 
+void v2f(float v[2]) {
+    float v_[3];
+    v_[0] = v[0];
+    v_[1] = v[1];
+    v_[2] = 0.0;
+    v3f(v_);
+}
+
 void v3f(float v[3]) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(V3F);
