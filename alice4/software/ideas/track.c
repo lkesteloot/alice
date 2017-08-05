@@ -11,6 +11,8 @@
 #define DEG *3.14159265359/180.0
 #define RAD *180.0/3.14159265359
 
+#define ASPECT ((float) (XMAXSCREEN + 1) / (float) (YMAXSCREEN + 1))
+
 float idmat[4][4] = {
     {1.0, 0.0, 0.0, 0.0},
     {0.0, 1.0, 0.0, 0.0},
@@ -318,7 +320,7 @@ printf("time = %d\n", (int)time+1);*/
 
 	mmode(MSINGLE);
 
-	perspective(450, 5.0/4.0, 0.5, 20.0);
+	perspective(450, ASPECT, 0.5, 20.0);
 	lookat(view_from[X], view_from[Y], view_from[Z],
 	       view_to[X], view_to[Y], view_to[Z], 0);
 
@@ -386,7 +388,7 @@ printf("time = %d\n", (int)time+1);*/
 	zbuffer(TRUE);
 
 	mmode(MVIEWING);
-	perspective(450, 5.0/4.0, 0.5, 20.0);
+	perspective(450, ASPECT, 0.5, 20.0);
 	loadmatrix(idmat);
 	lookat(view_from[X], view_from[Y], view_from[Z],
 	       view_to[X], view_to[Y], view_to[Z], 0);
@@ -494,7 +496,7 @@ char *title;
     logo_pos_spline = calc_spline_params(logo_pos_ctl, TIME);
     logo_rot_spline = calc_spline_params(logo_rot_ctl, TIME);
 
-    perspective(450, 5.0/4.0, 0.5, 20.0);
+    perspective(450, ASPECT, 0.5, 20.0);
 
     mmode(MVIEWING);
 }
