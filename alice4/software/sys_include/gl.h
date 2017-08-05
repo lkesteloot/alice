@@ -454,6 +454,7 @@ extern void shademodel(int32_t mode);
 extern void c3f(float c[3]);
 extern void n3f(float n[3]);
 extern void v3f(float v[3]);
+extern void v2f(float v[2]);
 extern void bgnpolygon();
 extern void endpolygon();
 extern void mmode(int32_t mode);
