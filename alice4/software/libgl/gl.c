@@ -38,6 +38,8 @@
 #include "rasterizer.h"
 #include "event_service.h"
 
+#define VIEWPORT_CLEAR
+
 #ifndef M_PI
 #define M_PI 3.141596
 #endif
@@ -1279,6 +1281,16 @@ void backface(int enable) {
     backface_enabled = enable;
 }
 
+void pdr_(Coord x, Coord y, Coord z) {
+    vec3f p;
+
+    p[0] = x;
+    p[1] = y;
+    p[2] = z;
+
+    v3f(p);
+}
+
 void clear() { 
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(CLEAR);
@@ -1286,7 +1298,17 @@ void clear() {
     }
 
     TRACE();
+
+#ifdef VIEWPORT_CLEAR
+    bgnpolygon();
+    pdr_(0, 0, 0);
+    pdr_(0, 1, 0);
+    pdr_(1, 1, 0);
+    pdr_(1, 0, 0);
+    endpolygon();
+#else
     rasterizer_clear(current_color[0] * 255.0, current_color[1] * 255.0, current_color[2] * 255.0);
+#endif
 }
 
 void closeobj() { 
@@ -2565,16 +2587,6 @@ void pclos() {
     if(trace_functions) printf("%*spclos(); /* %d verts */\n", indent, "", polygon_vert_count);
 
     end_polygon();
-}
-
-void pdr_(Coord x, Coord y, Coord z) {
-    vec3f p;
-
-    p[0] = x;
-    p[1] = y;
-    p[2] = z;
-
-    v3f(p);
 }
 
 void pmv_(Coord x, Coord y, Coord z) {

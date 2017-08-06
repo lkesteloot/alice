@@ -475,8 +475,8 @@ int pick_plane ()
 }
 
 /************************************************************
-/*	Trash procedures
-/************************************************************/
+ *	Trash procedures
+ ************************************************************/
 draw_blanking ()
 {
     static Scoord blanking1[][2] = { {90,90}, {70,90}, {90,70} };
@@ -559,7 +559,7 @@ draw_hud (p,tick,vx,vy,vz,vv,mach,gf,wheels,flaps,spoilers,autop,fuel,thrust)
 	color (orange);
 	goto skipit;
     }
-#endif DEBUG
+#endif // DEBUG
 
     editobj (CROSS_HAIRS);
 	objreplace (VV_EDIT);			/* vv marker		*/
