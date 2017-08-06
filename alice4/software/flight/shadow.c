@@ -319,14 +319,13 @@ HEADER_VERSION,
 stopit()
 {
 	int mousex, mousey;
-	extern PSFILE *PostScript;
 
 	/* do most of same stuff as when we exit in ExitComm() */
     replacecolors();
 	mousex = getvaluator(MOUSEX);	/* save mouse position */
 	mousey = getvaluator(MOUSEY);
 
-	flipiconic(winget());
+	// flipiconic(winget());
 
 	/* clear the overlay, underlay, and cursor planes */
 	drawmode(OVERDRAW);

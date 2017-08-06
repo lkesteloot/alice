@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+typedef float viewport_t[6];
 typedef float matrix4x4f[16];
 typedef float vec4f[4];
 typedef float vec3f[3];

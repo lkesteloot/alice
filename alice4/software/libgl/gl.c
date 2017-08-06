@@ -159,7 +159,9 @@ matrix4x4f_stack modelview_stack;
 matrix4x4f_stack projection_stack;
 matrix4x4f_stack *current_stack;
 
-Screencoord the_viewport[6];
+viewport_t the_viewport;
+viewport_stack_t viewport_stack;
+
 
 static float unitclamp(float v)
 {
@@ -745,6 +747,8 @@ typedef struct element
         CIRCI,
         PUSHMATRIX,
         POPMATRIX,
+        PUSHVIEWPORT,
+        POPVIEWPORT,
         ROTATE,
         TRANSLATE,
         SCALE,
@@ -1169,6 +1173,9 @@ void callobj(Object obj) {
             case POPMATRIX:
                 popmatrix();
                 break;
+            case POPVIEWPORT:
+                popviewport();
+                break;
             case CIRCI:
                 circi(p->circi.x, p->circi.y, p->circi.r);
                 break;
@@ -1177,6 +1184,9 @@ void callobj(Object obj) {
                 break;
             case PUSHMATRIX:
                 pushmatrix();
+                break;
+            case PUSHVIEWPORT:
+                pushviewport();
                 break;
             case LOADMATRIX:
                 loadmatrix(p->loadmatrix.m);
@@ -1247,6 +1257,22 @@ void callobj(Object obj) {
         p = p->next;
     }
     indent -= 4;
+}
+
+Boolean	isobj(Object obj) {
+    return object_allocation[obj];
+}
+
+void delobj(Object obj) {
+    if (isobj(obj)) {
+        element_free(objects[obj]);
+        objects[obj] = NULL;
+        object_allocation[obj] = 0;
+    }
+}
+
+void icontitle(char *name) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
 void backface(int enable) {
@@ -1393,7 +1419,15 @@ void setvaluator(Device device, int init, int min, int max) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
+void setlinestyle(int32_t index) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void gflush() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void greset() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -1559,29 +1593,59 @@ void polf(int32_t n, Coord parray[ ][3]) {
     poly_(n, parray);
 }
 
-void polf2i(int32_t n, Icoord parray[ ][2]) {
-    if(cur_ptr_to_nextptr != NULL) {
-        element *e = element_next_in_object(POLF2I);
-        e->polf2i.n = n;
-        e->polf2i.parray = (Icoord*) malloc(sizeof(Icoord) * 2 * n);
-        memcpy(e->polf.parray, parray, sizeof(Icoord) * 2 * n);
-        return;
+void polfi(int n, Icoord p[][3]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = p[i][2];
     }
+    polf(n, np);
+    free(np);
+}
 
-    TRACEF("%d", n);
-
-    static world_vertex worldverts[POLY_MAX];
-    vec4f color;
-    vec4f_copy(color, current_color);
-
-    for(int i = 0 ; i < n; i++) {
-        vec4f_set(worldverts[i].coord,
-            parray[i][0], parray[i][1], 0, 1.0);
-        vec4f_copy(worldverts[i].color, color);
-        vec3f_set(worldverts[i].normal, 1, 0, 0);
+void polfs(int n, Scoord p[][3]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = p[i][2];
     }
+    polf(n, np);
+    free(np);
+}
 
-    process_polygon(n, worldverts);
+void polf2(int n, Coord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    polf(n, np);
+    free(np);
+}
+
+void polf2i(int n, Icoord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    polf(n, np);
+    free(np);
+}
+
+void polf2s(int n, Scoord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    polf(n, np);
+    free(np);
 }
 
 void popmatrix() { 
@@ -1614,6 +1678,29 @@ void pushmatrix() {
     } else {
         matrix4x4f_stack_push(current_stack);
     }
+}
+
+void pushviewport() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(PUSHVIEWPORT);
+        return;
+    }
+
+    TRACE();
+
+    viewport_stack_push(&viewport_stack);
+}
+
+void popviewport() {
+    if(cur_ptr_to_nextptr != NULL) {
+        element *e = element_next_in_object(POPVIEWPORT);
+        return;
+    }
+
+    TRACE();
+
+    viewport_copy(the_viewport, viewport_stack_top(&viewport_stack));
+    viewport_stack_pop(&viewport_stack);
 }
 
 static void enqueue_device(int32_t device, uint16_t val) {
@@ -1891,6 +1978,14 @@ int32_t winopen(char *title) {
     return 1;
 }
 
+void noborder() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void winpop() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void RGBcolor(int32_t r, int32_t g, int32_t b) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(RGBCOLOR);
@@ -1909,6 +2004,10 @@ void RGBcolor(int32_t r, int32_t g, int32_t b) {
 }
 
 void RGBmode() {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void ringbell() {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
 }
 
@@ -2411,6 +2510,10 @@ void draw(Coord x, Coord y, Coord z) {
     draw_(x, y, z);
 }
 
+void drawmode(int32_t drawmode) {
+    static int warned = 0; if(!warned) { printf("%s not unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void drawi(Icoord x, Icoord y, Icoord z) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(DRAWI);
@@ -2423,6 +2526,18 @@ void drawi(Icoord x, Icoord y, Icoord z) {
     TRACEF("%d, %d, %d", x, y, z);
 
     draw_(x, y, z);
+}
+
+void draw2(Coord x, Coord y) {
+    draw(x, y, 0);
+}
+
+void draw2s(Scoord x, Scoord y) {
+    draw2(x, y);
+}
+
+void draws(Scoord x, Scoord y, Scoord z) {
+    draw(x, y, z);
 }
 
 void draw2i(Icoord x, Icoord y) {
@@ -2513,6 +2628,26 @@ void pdri(Icoord x, Icoord y, Icoord z) {
 
 void pnt(Coord x, Coord y, Coord z) {
     static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void pnt2(Coord x, Coord y) {
+    pnt(x, y, 0);
+}
+
+void pnt2i(Icoord x, Icoord y) {
+    pnt2(x, y);
+}
+
+void pnt2s(Scoord x, Scoord y) {
+    pnt2(x, y);
+}
+
+void pnti(Icoord x, Icoord y, Icoord z) {
+    pnt(x, y, z);
+}
+
+void pnts(Scoord x, Scoord y, Scoord z) {
+    pnt(x, y, z);
 }
 
 void keepaspect() {
@@ -2729,6 +2864,18 @@ void move(Coord x, Coord y, Coord z) {
 
     TRACEF("%f, %f, %f", x, y, z);
     vec4f_set(current_position, x, y, z, 1.0);
+}
+
+void moves(Scoord x, Scoord y, Scoord z) {
+    move(x, y, z);
+}
+
+void move2(Coord x, Coord y) {
+    move(x, y, 0);
+}
+
+void move2s(Scoord x, Scoord y) {
+    move2(x, y);
 }
 
 void movei(Icoord x, Icoord y, Icoord z) {
@@ -3016,6 +3163,10 @@ void circi(Icoord x, Icoord y, Icoord r) {
     lighting_enabled = save_lighting;
 }
 
+void circfs(Scoord x, Scoord y, Scoord r) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void cmov2i(Icoord x, Icoord y) {
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(CMOV2I);
@@ -3030,6 +3181,10 @@ void cmov2i(Icoord x, Icoord y) {
     vec4f_set(c, x, y, 0.0, 1.0);
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&modelview_stack), c, p);
     matrix4x4f_mult_vec4f(matrix4x4f_stack_top(&projection_stack), p, current_character_position);
+}
+
+void cmov2s(Scoord x, Scoord y) {
+    cmov2i(x, y);
 }
 
 void cursoff() {
@@ -3060,12 +3215,33 @@ void writemask(Colorindex mask) {
     current_writemask = mask;
 }
 
+void setcursor(int16_t index, Colorindex color, Colorindex writemask) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void defcursor(int32_t index, uint16_t *cursor) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
+void curorigin(int16_t index, int16_t xorigin, int16_t yorigin) {
+    static int warned = 0; if(!warned) { printf("%s unimplemented\n", __FUNCTION__); warned = 1; }
+}
+
 void rectf_(Coord x1, Coord y1, Coord x2, Coord y2) {
     pmv_(x1, y1, 0);
     pdr_(x1, y2, 0);
     pdr_(x2, y2, 0);
     pdr_(x2, y1, 0);
     end_polygon();
+}
+
+void rect_(Coord x1, Coord y1, Coord x2, Coord y2) {
+    bgnline();
+    pdr_(x1, y1, 0);
+    pdr_(x1, y2, 0);
+    pdr_(x2, y2, 0);
+    pdr_(x2, y1, 0);
+    endclosedline();
 }
 
 void rectf(Coord x1, Coord y1, Coord x2, Coord y2) {
@@ -3078,9 +3254,24 @@ void rectfi(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
     rectf_(x1, y1, x2, y2);
 }
 
-void recti(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
+void rectfs(Scoord x1, Scoord y1, Scoord x2, Scoord y2) {
     TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
     rectf_(x1, y1, x2, y2);
+}
+
+void rect(Coord x1, Coord y1, Coord x2, Coord y2) {
+    TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
+    rect_(x1, y1, x2, y2);
+}
+
+void recti(Icoord x1, Icoord y1, Icoord x2, Icoord y2) {
+    TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
+    rect_(x1, y1, x2, y2);
+}
+
+void rects(Scoord x1, Scoord y1, Scoord x2, Scoord y2) {
+    TRACEF("%d, %d, %d, %d", x1, y1, x2, y2);
+    rect_(x1, y1, x2, y2);
 }
 
 void poly(int n, Coord p[][3]) {
@@ -3108,6 +3299,61 @@ void poly(int n, Coord p[][3]) {
     for(int i = 0; i < polygon_vert_count; i++) {
         process_line(&worldverts[i], &worldverts[(i + 1) % polygon_vert_count]);
     }
+}
+
+void polyi(int n, Icoord p[][3]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = p[i][2];
+    }
+    poly(n, np);
+    free(np);
+}
+
+void polys(int n, Scoord p[][3]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = p[i][2];
+    }
+    poly(n, np);
+    free(np);
+}
+
+void poly2(int n, Coord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    poly(n, np);
+    free(np);
+}
+
+void poly2i(int n, Icoord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    poly(n, np);
+    free(np);
+}
+
+void poly2s(int n, Scoord p[][2]) {
+    Coord (*np)[3] = (Coord(*)[]) malloc(sizeof(Coord) * 3 * n);
+    for (int i = 0; i < n; i++) {
+        np[i][0] = p[i][0];
+        np[i][1] = p[i][1];
+        np[i][2] = 0;
+    }
+    poly(n, np);
+    free(np);
 }
 
 // XXX display list

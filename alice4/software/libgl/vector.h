@@ -282,6 +282,12 @@ typedef struct matrix4x4f_stack
     matrix4x4f inverse;
 } matrix4x4f_stack;
 
+typedef struct viewport_stack
+{
+    viewport_t s[STACK_MAX];
+    int top;
+} viewport_stack_t;
+
 inline float *matrix4x4f_stack_top(matrix4x4f_stack *m)
 {
     return m->s[m->top];
@@ -346,6 +352,37 @@ inline void matrix4x4f_stack_mult(matrix4x4f_stack *stack, const matrix4x4f m)
             stack->s[stack->top][i * 4 + 2],
             stack->s[stack->top][i * 4 + 3]);
 #endif
+}
+
+inline void viewport_copy(viewport_t d, const viewport_t s)
+{
+    memcpy(d, s, sizeof(viewport_t));
+}
+
+inline int viewport_stack_push(viewport_stack_t *stack)
+{
+    if (stack->top == STACK_MAX - 1) {
+        return 0;
+    } else {
+        viewport_copy(stack->s[stack->top + 1], stack->s[stack->top]);
+        stack->top++;
+        return 1;
+    }
+}
+
+inline int viewport_stack_pop(viewport_stack_t *stack)
+{
+    if (stack->top == 0) {
+        return 0;
+    } else {
+        stack->top--;
+        return 1;
+    }
+}
+
+inline float *viewport_stack_top(viewport_stack_t *stack)
+{
+    return stack->s[stack->top];
 }
 
 #endif /* __VECTOR_H__ */

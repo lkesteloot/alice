@@ -17,7 +17,7 @@
 #include <sys/param.h>
 #include <stdio.h>
 #include <signal.h>
-#include <psio.h>
+// #include <psio.h>
 
 #ifdef _4D
 int int_tps = 20;
@@ -1566,7 +1566,7 @@ if (!hud) {
 end_of_program:
     ExitComm ();
 
-    exit ();
+    exit (0);
 }
 
 addplane ()
@@ -1830,7 +1830,6 @@ make_planes(chkkey)
 stopit()
 {
 	int mousex, mousey;
-	extern PSFILE *PostScript;
 
 	/* do most of same stuff as when we exit in ExitComm() */
     replacecolors();

@@ -12,8 +12,14 @@
 
 #include "flight.h"
 #include <stdio.h>
+
+/*
 #define PID_ID(p) (*(long *) &((p) -> header.zmsg[12]))
 #define REC_SIZE(p) (sizeof(*p)-sizeof(struct zmsg)+sizeof(PID_ID(p)))
+*/
+
+#define PID_ID(p) ((p)->planeid)
+#define REC_SIZE(p) sizeof(*p)
 
 char *infile,*outfile;
 static FILE *inf, *outf;
@@ -288,7 +294,13 @@ readfile (p)
 send_outdata (p)
     register Plane p;
 {
-    static unsigned short last_status = MSTART;
+    static int last_status_initialized = 0;
+    static unsigned short last_status;
+
+    if (!last_status_initialized) {
+        last_status = MSTART;
+        last_status_initialized = 1;
+    }
 
     if (enet >= 0) {
 	if (last_status > 0) zsend (enet,p,sizeof (*p));

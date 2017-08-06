@@ -16,8 +16,8 @@
  *  because flight was originally written for a screen with resolution
  *  of 1024 in X and 768 in Y we must use an adjust ment factor
  */
-#define X_ADJUST (XMAXSCREEN.0 / 1024.0)
-#define Y_ADJUST (YMAXSCREEN.0 / 768.0)
+#define X_ADJUST (XMAXSCREEN / 1024.0)
+#define Y_ADJUST (YMAXSCREEN / 768.0)
 
 extern short wm_allplanes;
 
