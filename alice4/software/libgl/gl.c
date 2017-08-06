@@ -952,7 +952,7 @@ typedef struct element
     struct element *next;
 } element;
 
-#define OBJ_MAX 1024
+#define OBJ_MAX 2048
 unsigned char object_allocation[OBJ_MAX];
 element *objects[OBJ_MAX];
 unsigned char tag_allocation[OBJ_MAX];
@@ -1437,8 +1437,12 @@ void glcompat(int32_t mode, int32_t value) {
 
 void gl_sincos(Angle angle, float *s, float *c) {
     float a = angle / 1800.0 * M_PI;
-    *s = sin(a);
-    *c = cos(a);
+    if (s != NULL) {
+        *s = sin(a);
+    }
+    if (c != NULL) {
+        *c = cos(a);
+    }
 }
 
 void gexit() { 

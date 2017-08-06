@@ -21,6 +21,11 @@
 #define PID_ID(p) ((p)->planeid)
 #define REC_SIZE(p) sizeof(*p)
 
+// Stub these out:
+int zinit() { return -1; }
+int zrecv() { return 0; }
+void zsend() {}
+
 char *infile,*outfile;
 static FILE *inf, *outf;
 static int numrecs;		/* number of plane records in inf */

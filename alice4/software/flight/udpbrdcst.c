@@ -10,11 +10,7 @@
  *									  *
  **************************************************************************/
 
-#ifdef _4D
 #include <sys/time.h>
-#else
-#include <bsd/sys/time.h>
-#endif
 #include "udpbrdcst.h"
 
 
