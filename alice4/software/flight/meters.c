@@ -467,7 +467,8 @@ int pick_plane ()
     i = display_message (plane_menu);
     if (i > 0) then return (i - '0');
     i = -i;
-    if (i == PAD1 || i == LEFTMOUSE) then return (1);
+    if (i == LEFTMOUSE) then return 2;
+    if (i == PAD1) then return (1);
     else if (i == PAD2) then return (2);
     else if (i == PAD3) then return (3);
     else if (i == PAD4) then return (4);
