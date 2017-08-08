@@ -26,16 +26,21 @@
             famous. They were pre-installed on all SGI machines for a decade,
             and they induced instant nostalgia in anyone who had spent time
             with those wonderful workstations. Both of us had worked at SGI and
-            we had used the machines extensively.</p>
+            had used the machines extensively.</p>
 
-            <p>We decided to use the Altera Cyclone V SoC chip on the
+            <p>We used the Altera Cyclone V SoC chip on the
             <a href="http://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=941">DE0-Nano-SoC</a> board (also known as the Atlas-SoC).
             The chip provided a dual-core ARM Cortex A9 and a fairly capable
-            FPGA. The board added 1 GB of memory, USB, Ethernet, and plenty
-            of GPIO pins.</p>
+            FPGA. The board added 1 GB of memory, USB, Ethernet, an
+            accelerometer, and plenty of GPIO pins.</p>
 
-            <p>We added a <a href="https://www.adafruit.com/product/2354">7" touchscreen LCD</a>
-            from Adafruit and an <a href="https://www.adafruit.com/product/1932">LCD driver</a>.</p>
+            <p>We added a <a href="https://www.adafruit.com/product/2354">seven-inch touchscreen LCD</a>,
+            an <a href="https://www.adafruit.com/product/1932">LCD driver</a>,
+            and a <a href="https://www.adafruit.com/product/1571">touch screen controller</a>,
+            all from Adafruit, plus a simple red “Home” button. Brad designed a PCB
+            to connect these pieces together.</p>
+
+            <p><img src="tablet.jpg"></p>
 
             <p>The ARM runs Linux and the demos (which we found in a tar file
             on an ancient FTP site). Brad wrote a replacement IrisGL library,
@@ -44,10 +49,41 @@
             rasterizes them, performing color interpolation and Z buffering.
             The FPGA also scans the frame buffer to the LCD.</p>
 
-            <p>The demos were slightly modified to make use of the touch
+            <p>The tablet runs “buttonfly” (a 3D menu system), a 3D SGI logo,
+            “insect”, “arena”, “bounce”, “jello”, and “Ideas in Motion”.
+            The demos are slightly modified to make use of the touch
             and tilt interface.</p>
 
-            <p><a href="https://github.com/lkesteloot/alice/tree/master/alice4">All software is available</a>.</p>
+            <p>In August 2017 we showed the Alice 4 at the
+            <a href="http://vcfed.org/wp/festivals/vintage-computer-festival-west/">Vintage Computer Festival West</a>
+            in Mountain View, California, along with the
+            <a href="../alice3/">Alice 3</a> running CP/M and a non-functional
+            <a href="../alice2/">Alice 2</a>.
+            We were thrilled to meet Thant Tessman, the original author of several
+            of our SGI demos. Here's a photo of Brad, Lawrence,
+            and Thant. Behind us is a real SGI Personal Iris from 1989. Lawrence is
+            holding the Alice 4. Both the Iris and the Alice 4 are running
+            “insect”, one of the classic demos that Thant wrote in the
+            mid-1980s.</p>
+
+            <p><img src="thant.jpg"></p>
+
+            <p>(Lawrence was so impressed by “insect” in 1989 that he wrote a
+            Pascal version on his 286 EGA PC. You can run that version in his
+            <a href="https://www.teamten.com/lawrence/projects/turbo_pascal_compiler/demo/" target="_blank">web-based Turbo Pascal emulator</a>. Type “W”, then “spider.pas”, then “R”.)</p>
+
+            <p>Lawrence has been asked which Verilog and FPGA books he found useful.
+            He thought that <a href="http://amzn.to/2vw1iL9"><i>Verilog by Example</i></a>
+            was a good intro to the
+            language. Then <a href="http://amzn.to/2hBfexv"><i>FPGA Programming by Verilog Examples</i></a> was
+            outstanding. It taught a bit of Verilog, but it mostly showed how
+            to structure code to do various things (like state machines).
+            One of the best technical books he'd ever read. He also read
+            <a href="http://amzn.to/2wyXnde"><i>Advanced Chip Design</i></a>
+            because it was repeatedly recommended on
+            Amazon (in other books' reviews), but he didn't get a lot out of it.</p>
+
+            <p><a href="https://github.com/lkesteloot/alice/tree/master/alice4">All software and hardware are available on GitHub</a>.</p>
 
             <p><a href="../">&laquo; Back</a></p>
         </div>
