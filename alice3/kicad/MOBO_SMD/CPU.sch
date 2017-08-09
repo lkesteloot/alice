@@ -444,4 +444,6 @@ Wire Wire Line
 Connection ~ 7650 950 
 Wire Wire Line
 	8100 1500 8100 1450
+Text Notes 5500 3700 0    60   ~ 0
+Bug, should be pulled high.
 $EndSCHEMATC
