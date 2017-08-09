@@ -4,6 +4,7 @@
 #include <gl.h>
 #include <math.h>
 #include <device.h>
+#include <time.h>
 #include "event.h"
 #include "bartfont.h"
 #include "buttonfly.h"
@@ -25,10 +26,13 @@ int flyoutflag = 0;
 int selectflag = 0;
 int exitflag = 0;
 
+static int esc_pressed = 0;
+static struct timespec esc_press_time;
+
 button_struct *load_buttons(), *which_button();
 extern button_struct *new_button(char *);
 
-button_struct *current_buttons=NULL, *selected=NULL;
+button_struct *current_buttons=NULL, *selected=NULL, *secret_buttons=NULL;
 
 path_struct *path=NULL;
 
@@ -49,9 +53,13 @@ float tv[4][4] = {
 
 void bf_redraw(), bf_exit(), bf_selecting(), bf_deselect();
 void bf_quick(), bf_fly(), do_popup(), toggle_window();
+void bf_escdown(), bf_escup();
 void flyindraw(), flyoutdraw(), selectdraw();
 void parse_args(), doclear();
 
+static double diff_timespecs(struct timespec *t1, struct timespec *t2) {
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+}
 
 main (argc, argv)
 int	argc;
@@ -97,7 +105,8 @@ char	*argv[];
 	add_event(ANY, REDRAW, ANY, bf_redraw, 0);
 
     qdevice(ESCKEY);
-	add_event(ANY, ESCKEY, UP, bf_deselect, 0);
+	add_event(ANY, ESCKEY, DOWN, bf_escdown, 0);
+	add_event(ANY, ESCKEY, UP, bf_escup, 0);
 
 	qdevice(WINQUIT);
 	add_event(ANY, WINQUIT, ANY, bf_exit, 0);
@@ -147,35 +156,37 @@ char	*argv[];
 	exit(0);
 }
 
+button_struct *load_buttons_from_file(char *program_name, char *filename)
+{
+    button_struct *buttons;
+    FILE *fp;
+
+    if ((fp = fopen(filename, "r")) == NULL) {
+        fprintf(stderr, "%s: can't open file %s\n",
+                program_name, filename);
+        exit(1);
+    }
+    buttons = load_buttons(fp);
+    fclose(fp);
+
+    return buttons;
+}
 
 void parse_args(argc, argv)
 int argc;
 char **argv;
 {
-    if (argc>2) {
-		fprintf(stderr, "usage: %s [infile]\n", argv[0]);
-		exit(1);
+    if (argc>3) {
+        fprintf(stderr, "usage: %s [infile] [secretfile]\n", argv[0]);
+        exit(1);
+    } else if (argc == 3) {
+        current_buttons = load_buttons_from_file(argv[0], argv[1]);
+        secret_buttons = load_buttons_from_file(argv[0], argv[2]);
     } else if (argc == 2) {
-		FILE *fp;
-		if ((fp = fopen(argv[1], "r")) == NULL)
-		{
-			fprintf(stderr, "%s: can't open file %s\n",
-				argv[0], argv[1]);
-			exit(1);
-		}
-		current_buttons = load_buttons(fp);
-		fclose(fp);
+        current_buttons = load_buttons_from_file(argv[0], argv[1]);
     } else {
-		FILE *fp;
-		if ((fp = fopen(".menu", "r")) == NULL)
-		{
-			fprintf(stderr, "%s: can't find default file .menu\n",
-				argv[0]);
-			exit(1);
-		}
-		current_buttons = load_buttons(fp);
-		fclose(fp);
-	}
+        current_buttons = load_buttons_from_file(argv[0], ".menu");
+    }
 }
 
 
@@ -225,6 +236,33 @@ void bf_quick()
 	    else curbackcolor=rootbutton->backcolor;
 	}
 	bf_redraw();
+}
+
+void bf_escdown()
+{
+    // Keep track of when Esc is pressed so we can see how long it was pressed.
+    if (!esc_pressed) {
+        esc_pressed = 1;
+        clock_gettime(CLOCK_MONOTONIC, &esc_press_time);
+    }
+}
+
+void bf_escup()
+{
+    // See how long Esc was pressed.
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    double elapsed = diff_timespecs(&now, &esc_press_time);
+    if (elapsed > 1 && secret_buttons != NULL) {
+        // Show secret menu.
+	selectflag = flyinflag = flyoutflag = FALSE;
+        add_button_to_path(current_buttons, secret_buttons);
+        current_buttons = secret_buttons;
+	bf_redraw();
+    } else {
+        bf_deselect();
+    }
+    esc_pressed = 0;
 }
 
 void bf_deselect()

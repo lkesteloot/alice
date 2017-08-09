@@ -100,7 +100,12 @@
 		    device = LEFTARROWKEY;
 		    break;
 
+		case 53:
+		    device = ESCKEY;
+		    break;
+
 		default:
+		    NSLog(@"Unknown key code: %d", [event keyCode]);
 		    device = 0;
 		    value = 0;
 		    break;
