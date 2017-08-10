@@ -12,6 +12,9 @@
 
 /*	UFLIGHT.C	*/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "flight.h"
 #define TYPE_BUILDING 0
 #define TYPE_MOUNTAIN 1
@@ -472,17 +475,17 @@ makethreat (cx,cz, col, radius)
 	    for (i=0, f=thcircle+30; i<10; i++,f+=3)
 		draw2(f[0],f[2]);
 	}
-	poly(20,thcircle);
+	poly(20,(Coord (*)[3]) thcircle);
 	/*
 	translate (0.0,0.5,0.0);
 	scale (.866,.866,.866);
 	*/
 	translate (0.0,0.33,0.0);
 	scale (.94,.94,.94);
-	poly(20,thcircle);
+	poly(20,(Coord (*)[3]) thcircle);
 	translate (0.0,0.33/.94,0.0);
 	scale (.794,.794,.794);
-	poly(20,thcircle);
+	poly(20,(Coord (*)[3]) thcircle);
 	popmatrix ();
     closeobj ();
 }
@@ -701,7 +704,7 @@ sink_sort (n, array, array_tag, array_is_plane)
 }
 
 /* generate a random number x, where -maxr <= x <= maxr	*/
-int random (maxr)
+int flight_random (maxr)
     register int maxr;
 {
     static unsigned long randx = 1;

@@ -10,6 +10,9 @@
  *									  *
  **************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include "udpbrdcst.h"
 
@@ -48,10 +51,10 @@ getbroadcast(service, addr)
     	close(fd);
     	return (-1);
     }
-    bzero(addr, sizeof(addr));
+    bzero(addr, sizeof(*addr));
     addr->sin_family = AF_INET;
     addr->sin_port = sp->s_port;
-    if (bind(fd, addr, sizeof(*addr)) < 0) {
+    if (bind(fd, (struct sockaddr *) addr, sizeof(*addr)) < 0) {
 	perror("bind");
     	close(fd);
     	return (-1);
@@ -105,7 +108,8 @@ sendbroadcast (broadcastsocket, message, messagelength, addr)
     int			messagelength;
     struct sockaddr_in *addr;
 {
-    return(sendto(broadcastsocket, message, messagelength, 0, addr, sizeof(*addr)));
+    return(sendto(broadcastsocket, message, messagelength, 0,
+	(struct sockaddr *) addr, sizeof(*addr)));
 }
 
 
@@ -125,7 +129,7 @@ recvbroadcast (broadcastsocket, message, messagelength, ignoreown)
     
     do {
         charcount=recvfrom(broadcastsocket, message, messagelength, 0,
-				&fromaddr, &fromaddrlength);
+				(struct sockaddr *) &fromaddr, &fromaddrlength);
         if (charcount < 0) {
 	    if (errno == EWOULDBLOCK) {
 		return (0);

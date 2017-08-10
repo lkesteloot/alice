@@ -13,12 +13,14 @@
 #define LK_DISABLE 0
 #define LK_HACK 1
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "flight.h"
 // #include "iconize.h" 	/* flipiconic() */
 #include <sys/types.h>
 #include <sys/times.h>
 #include <sys/param.h>
-#include <stdio.h>
 #include <signal.h>
 // #include <psio.h>
 
@@ -74,6 +76,8 @@ short dials = FALSE,		/* TRUE if using dials		*/
 
 #define MINTPS 12	/* See calculate_time().  Olson */
 
+void calculate_time(char *name);
+
 flight (argc,argv)
     int argc;
     char *argv[];
@@ -110,7 +114,7 @@ flight (argc,argv)
 	wmpos = 0,
 #endif
 	view_angle;		/* rotation of pilot's head	*/
-    register int itemp,		/* temp integer variable	*/
+    int itemp,		/* temp integer variable	*/
 	twist, elevation, azimuth;	/* plane orientation	*/
 
     float temp,				/* temp float variable	*/
@@ -139,8 +143,8 @@ flight (argc,argv)
     float ipi_AR,ie_pi_AR,Lmax,Lmin,Fmax,Smax,ELEVF,ROLLF,pilot_y,pilot_z;
 
     long missile_target;		/* plane my missile is after	*/
-    register Matrix ptw, incremental;	/* my ptw matrix, temp matrix	*/
-    register Plane ptemp,pp;		/* my plane data structure	*/
+    Matrix ptw, incremental;	/* my ptw matrix, temp matrix	*/
+    Plane ptemp,pp;		/* my plane data structure	*/
 	int moreplanes;
 
 #ifdef DOGFIGHT
@@ -150,7 +154,7 @@ static char usage[] = "Usage: flight [-dhz]\n";
 #endif
     test_mode = FALSE;			/* swapinterval governor	*/
     while (--argc > 0 && **++argv == '-') {
-	register char *token;
+	char *token;
 
 	for (token = argv[0] + 1; *token; token++) 
 	switch (*token) {
@@ -247,18 +251,18 @@ start1:					/* end of runway start		*/
     vz = 0.0;
     goto mstart;
 start2:					/* airborn start		*/
-    pp -> x = random (20000);
-    pp -> y = 8000 + random(6000);
-    pp -> z = random (20000);
-    azimuth = random(3600);
-    vz = (random(60)-80)/fps_knots;
+    pp -> x = flight_random (20000);
+    pp -> y = 8000 + flight_random(6000);
+    pp -> z = flight_random (20000);
+    azimuth = flight_random(3600);
+    vz = (flight_random(60)-80)/fps_knots;
     goto mstart;
 start3:					/* used for threat runs		*/
-    pp -> x = random (20000);
-    pp -> y = 10000 + random(5000);
+    pp -> x = flight_random (20000);
+    pp -> y = 10000 + flight_random(5000);
     pp -> z = 100000.0;
     azimuth = 0;
-    vz = (random(60)-160)/fps_knots;
+    vz = (flight_random(60)-160)/fps_knots;
 mstart:
     for (itemp = number_planes-1; itemp >= 0; itemp--)
 	planes[itemp] -> alive = -1;
@@ -432,7 +436,7 @@ default:
 #define PLANE_VIEW 1
 #define TOWER_VIEW 2
     view_switch = PLANE_VIEW;			/* view from plane	*/
-    if (LK_HACK && 1) {
+    if (LK_HACK && 0) {
         view_switch = TOWER_VIEW;			/* view from plane	*/
     }
     plane_fov = tower_fov = 360;
@@ -820,7 +824,7 @@ broadcast ("retracted my landing gear while on the ground");
 	    else itemp = itemp>0 ? 1 : -1;
 	if (wing_stall > 0) {
 	    itemp >>= wing_stall;
-	    itemp += random(wing_stall << 3);
+	    itemp += flight_random(wing_stall << 3);
 	}
 	roll_speed += itemp;
 
@@ -832,7 +836,7 @@ broadcast ("retracted my landing gear while on the ground");
 	    else itemp = itemp>0 ? 1 : -1;
 	if (wing_stall > 0) {
 	    itemp >>= wing_stall;
-	    itemp += random(wing_stall << 1);
+	    itemp += flight_random(wing_stall << 1);
 	}
 	elevation_speed += itemp;
 
@@ -1552,7 +1556,7 @@ if (!hud) {
 	     *  calculate the current tps (ticks per second)
 	     */
 	    time_end = times (&tms_end_buf);
-	    calculate_time ("main loop", int_tps);
+	    calculate_time ("main loop");
 	    time_start = times (&tms_start_buf);
 
 	    tick_counter = int_tps;
@@ -1620,12 +1624,13 @@ float fuel_consump (thrust,half_mass)
 #define CLOCKRATE 60
 #endif
 
+void
 calculate_time (name)
     char *name;
 {
-    register int y,s60;
-    register char charbuf[80];
-    register float veldiff;
+    int y,s60;
+    char charbuf[80];
+    float veldiff;
     int current_tps;
 
     s60 = time_end - time_start;
@@ -1885,7 +1890,7 @@ stopit()
 
 	/* re-calculate the current tps (ticks per second) */
 	time_end = times (&tms_end_buf);
-	calculate_time ("main loop", int_tps);
+	calculate_time ("main loop");
 	time_start = times (&tms_start_buf);
 	winpop();	/* make sure at top! */
     redraw_screen ();

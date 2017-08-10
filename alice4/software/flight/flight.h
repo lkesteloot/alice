@@ -24,7 +24,6 @@
 
 #define HEADER_VERSION HEADER(2.4)
 #define then
-#define NULL 0
 #define IN_BOX(p,llx,urx,llz,urz) \
 	(llx <= p -> x && p -> x <= urx && llz <= p -> z && p -> z <= urz)
 

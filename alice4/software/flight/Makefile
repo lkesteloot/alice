@@ -9,7 +9,7 @@ SRC =		main.c uflight.c land1.c land2.c meters.c density.c \
 		udpbrdcst.c xasin.c xatable.c savecolors.c
 LIBGL_SRC=../libgl/gl.c ../libgl/vector.c $(RASTERIZER_SRCS) $(EVENTS_SRCS)
 $(APP): $(SRC) udpbrdcst.h $(LIBGL_SRC)
-	cc -std=c99 -g -I../sys_include -I../demo_include \
+	cc -O2 -g -I../sys_include -I../demo_include \
 		-Wno-implicit-function-declaration -Wno-implicit-int -Wno-unused-value \
 		-Wno-return-type \
 		-DNETWORKING=1 \

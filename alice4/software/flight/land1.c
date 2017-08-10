@@ -22,6 +22,8 @@ static Cursor bcursor = {
 short bitplanes, wm_allplanes;
 short building_shade[4][5];
 
+void map_daynight(int daytime);
+
 /************************************************************
  *	Help procedure
  ************************************************************/
@@ -209,6 +211,7 @@ init_graphics (name)
 	firsttime = 0;
 }
 
+void
 map_daynight (daytime)
     int daytime;
 {
@@ -467,20 +470,20 @@ make_explosion ()
 	makeobj (i+EXPLOSION);
 	    color (red);
 	    for (; n>0; n--) {
-		temp = random(3);
+		temp = flight_random(3);
 		if (temp>2) color (orange);
 	    r1:
-		x = random(radius);
-		y = random(radius);
-		z = random(radius);
+		x = flight_random(radius);
+		y = flight_random(radius);
+		z = flight_random(radius);
 		if (x*x + y*y + z*z > RADIUS*RADIUS) then goto r1;
 		moves (x,y,z);
 		x = radius >> 3;
-		if (n & 7) then draws (random(x),random(x),random(x));
+		if (n & 7) then draws (flight_random(x),flight_random(x),flight_random(x));
 	    r2:
-		x = random(radius);
-		y = random(radius);
-		z = random(radius);
+		x = flight_random(radius);
+		y = flight_random(radius);
+		z = flight_random(radius);
 		if (x*x + y*y + z*z > RADIUS*RADIUS) then goto r2;
 		draws (x,y,z);
 		if (temp>2) color (red);

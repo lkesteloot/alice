@@ -22,6 +22,9 @@
  *									  *
  **************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "flight.h"
 
 Plane planes[MAX_PLANES];
@@ -52,7 +55,7 @@ reset_meters ()
 }
 
 reset_fov (fov)
-    register int fov;
+    int fov;
 {
     float ar,sin,cos;
 
@@ -73,9 +76,9 @@ reset_fov (fov)
 
 display_score ()
 {
-    register char *plane_name, **msg;
-    register int i;
-    register Plane p,*pp;
+    char *plane_name, **msg;
+    int i;
+    Plane p,*pp;
     static char *score_msg[MAX_PLANES+6];
 
     /* init the array first	*/
@@ -124,11 +127,12 @@ display_score ()
 }
 #define DY 14
 
+void
 make_crash (msg)
     char *msg;
 {
-    register int y;
-    register Plane p;
+    int y;
+    Plane p;
 
     p = planes[0];		/* a bold assumption		*/
     if (p -> status <= MEXPLODE) then return;
@@ -177,12 +181,12 @@ clear_report_card ()
 int report_card (descent, roll, vx, vz, wheels, p)
     int descent, vx, vz;
     int roll, wheels;
-    register Plane p;
+    Plane p;
 {
     short on_runway;
-    register int azimuth,rating,y;
+    int azimuth,rating,y;
     float xdist,zdist;
-    register char charbuf[80];
+    char charbuf[80];
 
     azimuth = p -> azimuth;
     on_runway = IN_BOX (p, -100.0, 100.0, -8500.0, 0.0);
@@ -293,11 +297,12 @@ int report_card (descent, roll, vx, vz, wheels, p)
 }
 
 /* check my missile against other planes	*/
+void
 check_missile (p)
-    register Plane p;
+    Plane p;
 {
     char buf[NAME_LENGTH+32];
-    register Plane ptest,*pp;
+    Plane ptest,*pp;
     long last_kill;
 
     last_kill = p -> mkill;
@@ -322,9 +327,9 @@ check_missile (p)
 }
 
 int test_blow_up (m,p)
-    register Plane m,p;
+    Plane m,p;
 {
-    register int dx,dy,dz;
+    int dx,dy,dz;
     static int MDIST[] = {250,350,150};
 
     /* if the plane is not exploding	*/
@@ -345,11 +350,11 @@ int test_blow_up (m,p)
 
 /* find and return the closest plane to me	*/
 Plane find_closest_plane (myp)
-    register Plane myp;
+    Plane myp;
 {
     float myx,myy,myz;
     float dx,dy,dz, d,dbest;
-    register Plane p,*pp,pbest;
+    Plane p,*pp,pbest;
 
     pbest = NULL;
     dbest = 1e30;

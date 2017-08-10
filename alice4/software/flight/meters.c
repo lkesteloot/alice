@@ -10,6 +10,9 @@
  *									  *
  **************************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "flight.h"
 
 /*
@@ -22,9 +25,10 @@
 extern short wm_allplanes;
 
 /* make objects for drawing meters	*/
+void
 make_meters ()
 {
-    register int i;
+    int i;
 
     static Pattern16 crash_pattern = {
 	0x0007,0x000e,0x001c,0x0038,
@@ -57,6 +61,7 @@ make_meters ()
 }
 
 #define OLD_XMIDDLE 512
+void
 redraw_screen ()
 {
     static Scoord triangle [3][2] = {
@@ -240,7 +245,7 @@ make_clear_meters ()
 
 make_slow_meters ()
 {
-    register int i;
+    int i;
     float r,sin,cos;
 
     static Scoord gy_triangle [][2] = {
@@ -311,7 +316,7 @@ make_slow_meters ()
 }
 
 genbar (x,y)
-    register int x,y;
+    int x,y;
 {
     move2s (-x,-y);	draw2s (x,-y);
     move2s (-x,y);	draw2s (x,y);
@@ -463,7 +468,7 @@ int pick_plane ()
 "just over the stall speed.  Then use full flaps and don't forget your landing gear!",
 ""
 };
-    register int i;
+    int i;
     i = display_message (plane_menu);
     if (i > 0) then return (i - '0');
     i = -i;
@@ -493,7 +498,7 @@ draw_blanking ()
 }
 
 draw_meter (llx, val)
-    register int llx,  val;
+    int llx,  val;
 {
     if (val >= 0) {
 	color (blue);
@@ -534,16 +539,17 @@ static char *numbers[] = {
 };
 
 
+void
 draw_hud (p,tick,vx,vy,vz,vv,mach,gf,wheels,flaps,spoilers,autop,fuel,thrust)
-    register Plane p;
+    Plane p;
     int tick;
     float vx,vy,vz;
     int vv;
     float mach,gf;
     int wheels,flaps,spoilers,autop,fuel,thrust;
 {
-    register char buf[32];
-    register int a,i,x,y;
+    char buf[32];
+    int a,i,x,y;
     float k;
 
     extern char alt_text[], mach_text[], g_text[];
