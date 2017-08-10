@@ -1279,6 +1279,22 @@ void backface(int enable) {
     backface_enabled = enable;
 }
 
+void pdr_(Coord x, Coord y, Coord z) {
+    vec3f p;
+
+    p[0] = x;
+    p[1] = y;
+    p[2] = z;
+
+    v3f(p);
+}
+
+// Whether the viewport is the full screen.
+static int is_full_viewport() {
+    return the_viewport[0] == 0 && the_viewport[1] == XMAXSCREEN &&
+           the_viewport[2] == 0 && the_viewport[3] == YMAXSCREEN;
+}
+
 void clear() { 
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(CLEAR);
@@ -1286,7 +1302,23 @@ void clear() {
     }
 
     TRACE();
-    rasterizer_clear(current_color[0] * 255.0, current_color[1] * 255.0, current_color[2] * 255.0);
+
+    // The clear() command must only clear the viewport. Use a slow rectangle when it's
+    // not full-screen.
+    if (is_full_viewport()) {
+        // Full screen, we can use the optimized version.
+        rasterizer_clear(current_color[0] * 255.0,
+                current_color[1] * 255.0,
+                current_color[2] * 255.0);
+    } else {
+        // Partial viewport, draw polygon. This uses the current color.
+        bgnpolygon();
+        pdr_(0, 0, 0);
+        pdr_(0, 1, 0);
+        pdr_(1, 1, 0);
+        pdr_(1, 0, 0);
+        endpolygon();
+    }
 }
 
 void closeobj() { 
@@ -2567,16 +2599,6 @@ void pclos() {
     end_polygon();
 }
 
-void pdr_(Coord x, Coord y, Coord z) {
-    vec3f p;
-
-    p[0] = x;
-    p[1] = y;
-    p[2] = z;
-
-    v3f(p);
-}
-
 void pmv_(Coord x, Coord y, Coord z) {
     reset_vertex_list();
     pdr_(x, y, z);
@@ -3373,6 +3395,10 @@ void zbuffer(int enable) {
 void zclear() {
     TRACE();
 
+    if (!is_full_viewport()) {
+        static int warned = 0; if(!warned) { printf("Partial zclear() unimplemented\n"); warned = 1; }
+    }
+
     rasterizer_zclear(0xffffffff);
 }
 
@@ -3385,6 +3411,10 @@ void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
     rasterizer_czclear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff, depth);
+
+    if (!is_full_viewport()) {
+        static int warned = 0; if(!warned) { printf("Partial czclear() unimplemented\n"); warned = 1; }
+    }
 }
 
 int gversion(char *version)

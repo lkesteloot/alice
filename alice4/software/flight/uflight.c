@@ -312,7 +312,7 @@ if (debug & (1<<2)) {
      {
          if (*is_plane) {
 	    /* its a plane - compute above/below	*/
-	    pp = (Plane) parray_tag;
+	    pp = (Plane) *parray_tag;
 	    if (*parray < (dist_for_lines<<1)){	/* if close enough	*/
 		n = TRUE;	    
 		callobj (PUSH_IDENTITY);	/* build WTP	*/
@@ -371,7 +371,7 @@ if (debug & (1<<2)) {
 
 	    popmatrix ();
 	} else {
-	    Building b = (Building) parray_tag;
+	    Building b = (Building) *parray_tag;
             if (b -> type == TYPE_BUILDING) {	/* its a building	*/
 	    if (*parray < dist_for_lines)	/* if close enough	*/
 	    then n = TRUE;			/* then draw detail	*/
@@ -670,10 +670,10 @@ facet (obj,n,p)
 /* sort an array (and an associated tag array) in increasing order	*/
 sink_sort (n, array, array_tag, array_is_plane)
     register int n;
-    int *array, *array_tag, *array_is_plane;
+    int *array, **array_tag, *array_is_plane;
 {
-    register int tag, is_plane, *end;
-    register int *top, *top_tag, *bot, *bot_tag, *top_is_plane, *bot_is_plane;
+    register int *tag, is_plane, *end;
+    register int *top, **top_tag, *bot, **bot_tag, *top_is_plane, *bot_is_plane;
 
     end = &array[n];
 

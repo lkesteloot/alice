@@ -10,6 +10,9 @@
  *									  *
  **************************************************************************/
 
+#define LK_DISABLE 0
+#define LK_HACK 1
+
 #include "flight.h"
 // #include "iconize.h" 	/* flipiconic() */
 #include <sys/types.h>
@@ -176,7 +179,7 @@ static char usage[] = "Usage: flight [-dhz]\n";
 	}
     }
     if (argc > 0) {
-	fprintf (stderr,usage);
+	fprintf (stderr,"%s", usage);
 	exit (0);
     }
     eye_x = -1950.0;
@@ -412,6 +415,7 @@ default:
     on_ground = pp -> y <= 4.0;
     gefy = .7 * b;
     max_throttle = 100;
+    thrust = max_throttle; // LK_DISABLE
     min_throttle = on_ground?-max_throttle:0;
     vx = 0.0;
     vy = 0.0;
@@ -428,8 +432,16 @@ default:
 #define PLANE_VIEW 1
 #define TOWER_VIEW 2
     view_switch = PLANE_VIEW;			/* view from plane	*/
+    if (LK_HACK && 1) {
+        view_switch = TOWER_VIEW;			/* view from plane	*/
+    }
     plane_fov = tower_fov = 360;
     reset_fov (plane_fov);
+
+    if (LK_HACK) {
+        tower_fov = 30;
+        reset_fov (tower_fov);
+    }
 
     last_py = pp -> y;
     pp -> elevation = elevation = 0;
@@ -475,8 +487,8 @@ default:
     then qenter (KEYBD,'l');	/* put wheels down	*/
 
     /****************************************************************
-    /*	Main loop
-    /****************************************************************/
+     *	Main loop
+     ****************************************************************/
     while (1) {
 	/* read all queue entries	*/
 	if (dials) check_dials(); 
@@ -586,7 +598,8 @@ broadcast ("retracted my landing gear while on the ground");
 		case 't':
 		    /* if I'm alive and no weapon already fired	*/
 		    if (pp -> status > MEXPLODE && !pp -> mstatus) {
-			if (ptemp = find_closest_plane (pp)) {
+			ptemp = find_closest_plane (pp);
+			if (ptemp) {
 			    /* lock on the plane for 1 second	*/
 			    missile_target = PLANE_ID (ptemp);
 			    tick_counter = 2;
@@ -604,7 +617,8 @@ broadcast ("retracted my landing gear while on the ground");
 			    pp -> mtype = TYPE_SIDEWINDER;
 			    pp -> mstatus = MSTART;
 			    if (missile_target == NULL_PLANE_ID) {
-				if (ptemp = find_closest_plane (pp))
+				ptemp = find_closest_plane (pp);
+				if (ptemp)
 				then missile_target = PLANE_ID (ptemp);
 			    }
 			}
@@ -715,8 +729,8 @@ broadcast ("retracted my landing gear while on the ground");
 	}		/* of while qtest	*/
 
 	/****************************************************************
-	/*	handle visible retractable landing gear
-	/****************************************************************/
+	 *	handle visible retractable landing gear
+	 ****************************************************************/
 	if (pp->type == F16W) {
 	    if (wheels_retracting > 0) { 	/* going up	*/
 		pp->wheels++;
@@ -735,8 +749,8 @@ broadcast ("retracted my landing gear while on the ground");
 	    }
          }
 	/****************************************************************
-	/*	process incoming data packets
-	/****************************************************************/
+	 *	process incoming data packets
+	 ****************************************************************/
 	pp->alive = int_tps << 2;	/* always make me alive		*/
 	if (pp -> status > MEXPLODE)
 	then if (pp -> status > 65000)	/* increment my timestamp	*/
@@ -753,8 +767,8 @@ broadcast ("retracted my landing gear while on the ground");
 #endif
 
     /****************************************************************
-    /*	AUTOPILOT code
-    /****************************************************************/
+     *	AUTOPILOT code
+     ****************************************************************/
     if (pp -> status > MEXPLODE) {
 	if (autopilot) {
 	    int diff;
@@ -862,11 +876,11 @@ broadcast ("retracted my landing gear while on the ground");
 	}
 
 	/****************************************************************
-	/*	concat incremental rotations and get new angles back
-	/****************************************************************/
+	 *	concat incremental rotations and get new angles back
+	 ****************************************************************/
 	popmatrix ();			/* pop back to identity		*/
 	pushmatrix ();			/* push it			*/
-/*	if ((tick_counter&1) == 0) {	/* every once in a while	*/
+//	if ((tick_counter&1) == 0) {	/* every once in a while	*/
 	if (TRUE) {
 	    translate (pp->x,pp->y,pp->z);/* rebuild old ptw		*/
 	    rotate (azimuth,'y');	/* to keep it normalized	*/
@@ -913,8 +927,8 @@ broadcast ("retracted my landing gear while on the ground");
 #endif
 
 	/****************************************************************
-	/*	perform incremental rotations on velocities
-	/****************************************************************/
+	 *	perform incremental rotations on velocities
+	 ****************************************************************/
 	popmatrix ();				/* pop and push I	*/
 	pushmatrix ();
 	if (roll_speed) rotate (-roll_speed,'z');
@@ -927,8 +941,8 @@ broadcast ("retracted my landing gear while on the ground");
 	vz = incremental[3][2];
 
 	/****************************************************************
-	/*	check altitude for too high, and landing/takeoff
-	/****************************************************************/
+	 *	check altitude for too high, and landing/takeoff
+	 ****************************************************************/
 	if (pp -> y > 50000.0) then thrust = 0;	/* flame out		*/
 	else if (pp -> y > 4.0) {		/* not on ground	*/
 	    if (on_ground) {			/* if was on ground	*/
@@ -989,8 +1003,8 @@ broadcast ("retracted my landing gear while on the ground");
     }	/* end not crashing	*/
 
 	/****************************************************************
-	/*	update MISSILES
-	/****************************************************************/
+	 *	update MISSILES
+	 ****************************************************************/
 	if (pp -> mstatus) {		/* if missile launched	*/
 	    if (pp -> mstatus > MEXPLODE) {	/* if not exploding 	*/
 		pp -> last_mx = pp -> mx;	/* save last position	*/
@@ -1104,8 +1118,8 @@ if (debug & (1<<4)) {
 	}
 
 	/****************************************************************
-	/* set up windshield, push the ortho, and load perspective
-	/****************************************************************/
+	 * set up windshield, push the ortho, and load perspective
+	 ****************************************************************/
 	pp -> azimuth = azimuth;
 	pp -> elevation = elevation;
 	pp -> twist = twist;
@@ -1167,8 +1181,10 @@ if (debug & (1<<4)) {
 #endif
 
 	    draw_missiles ();
+            if (LK_DISABLE) {
 	    draw_hud (pp,tick_counter,vx,vy,vz,climbspeed,mach,lift/GRAVITY,
 			wheels,flaps,spoilers,autopilot,fuel>>7,thrust);
+            }
 	    if (view_angle == 0) {
 		charstr ("Front view");
 		if (!hud) {
@@ -1184,9 +1200,11 @@ if (debug & (1<<4)) {
 	draw_messages ();		/* display any network messages	*/
 
 	/****************************************************************
-	/*	compute new velocities, accelerations
-	/****************************************************************/
-	callobj (CLEAR_METERS);		/* sets up viewport, ortho, wm	*/
+	 *	compute new velocities, accelerations
+	 ****************************************************************/
+        if (LK_DISABLE) {
+            callobj (CLEAR_METERS);		/* sets up viewport, ortho, wm	*/
+        }
 
 	/* check my missile against my plane		*/
 	if (pp -> mstatus && pp->mstatus < MEXPLODE && test_blow_up(pp,pp)) {
@@ -1370,14 +1388,14 @@ if (debug & (1<<3)) {
 #endif
 
 	/****************************************************************
-	/*	display METERS
-	/****************************************************************/
+	 *	display METERS
+	 ****************************************************************/
 	tick_counter--;			/* 7,6,5,4,3,2,1,0	*/	
 	if (tick_counter == 2 && !pp -> mstatus) /* zero target if one	*/
 	then missile_target = NULL_PLANE_ID;
 
 	if (tick_counter <= 1 && wing_stall) then ringbell();
-	if (tick_counter & 1) {		/* only do this on odd ticks	*/
+	if ((tick_counter & 1) && LK_DISABLE) {		/* only do this on odd ticks	*/
 	    last_airspeed = airspeed;	/* needed for autopilot		*/
 	    last_climbspeed = climbspeed;
 	    airspeed = -(int)(fps_knots * vz);
@@ -1411,7 +1429,7 @@ if (debug & (1<<3)) {
 		inverse_mass = compute_mass();
 	    }
 
-if (!hud) {
+if (!hud && LK_DISABLE) {
 	editobj (SLOW_METERS);
 	if (tick_counter & 1) {		/* only do this on odd ticks	*/
 	    objreplace (TEXT_EDIT);
@@ -1452,9 +1470,9 @@ if (!hud) {
 }	/* end of !hud	*/
 
 	/****************************************************************
-	/*	display TEXT readouts
-	/****************************************************************/
-	if (tick_counter == 0) {	/* only update them every second */
+	 *	display TEXT readouts
+	 ****************************************************************/
+	if (tick_counter == 0 && LK_DISABLE) {	/* only update them every second */
 	    tick_counter = TPS;		/* reset tick counter		*/
 if (!hud) {
 	    cursoff ();
