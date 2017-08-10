@@ -138,8 +138,8 @@ extern int tps;
 #define METER_VURY 190
 
 #else
-#define XMIDDLE XMAXSCREEN/2
-#define YMIDDLE YMAXSCREEN/2
+#define XMIDDLE (XMAXSCREEN/2)
+#define YMIDDLE (YMAXSCREEN/2)
 #define METER_VLLX 50
 #define METER_VURX 930
 #define METER_VLLY 100

@@ -12,6 +12,7 @@
 
 #define LK_DISABLE 0
 #define LK_HACK 1
+#define LK_DISABLE_SWAMPS 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +33,11 @@ int tps = 20;
 #endif
 
 int errno;
+
+static short tilt_left = -200;
+static short tilt_right = 200;
+static short tilt_forward = 650;
+static short tilt_back = 150;
 
 static char *plane_type;		/* plane type ("F-15")		*/
 static char charbuf[80], status_text[60];	/* char buffers		*/
@@ -236,6 +242,11 @@ static char usage[] = "Usage: flight [-dhz]\n";
 
     time_start = times (&tms_start_buf);
 
+    if (LK_HACK) {
+	// Easy runway start.
+	goto start1;
+    }
+
 start:					/* come here for default start	*/
     pp -> x = START_X;
     pp -> y = START_Y;
@@ -245,7 +256,7 @@ start:					/* come here for default start	*/
     goto mstart;
 start1:					/* end of runway start		*/
     pp -> x = 0.0;
-    pp -> y = START_Y;
+    pp -> y = START_Y + 1000; // LK
     pp -> z = -500.0;
     azimuth = 0;
     vz = 0.0;
@@ -436,8 +447,8 @@ default:
 #define PLANE_VIEW 1
 #define TOWER_VIEW 2
     view_switch = PLANE_VIEW;			/* view from plane	*/
-    if (LK_HACK && 0) {
-        view_switch = TOWER_VIEW;			/* view from plane	*/
+    if (LK_HACK && 1) {
+        view_switch = TOWER_VIEW;
     }
     plane_fov = tower_fov = 360;
     reset_fov (plane_fov);
@@ -714,12 +725,9 @@ broadcast ("retracted my landing gear while on the ground");
 		else if(type == WINQUIT)	/* should only happen if iconisized */
 		    goto end_of_program;
 	    else if (val) {	/* only read button down presses	*/
-		if (type == MOUSE3) {		/* left rudder		*/
-		    if (rudder > -.75) then change_rudder (rudder -= .1);
-		}
-		else if (type == MOUSE2) change_rudder (rudder = 0.0);
-		else if (type == MOUSE1) {	/* right rudder	*/
-		    if (rudder < .75) then change_rudder (rudder += .1);
+		if (type == LEFTMOUSE) {
+		    // rudder = (getvaluator (MOUSEX) - XMIDDLE)/10.0/XMAXSCREEN;
+		    // change_rudder(rudder);
 		}
 		else if (type == LEFTARROWKEY && view_switch == PLANE_VIEW) {
 		    view_angle += 900;
@@ -816,7 +824,9 @@ broadcast ("retracted my landing gear while on the ground");
 	}
 #define DELAY (TPS/4)
 	/* tenths of degrees per tick	*/
-	rollers = ROLLF * ((getvaluator (MOUSEX) - XMIDDLE+8) >> 4);
+	int tilt_x = XMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+	tilt_x = XMIDDLE;
+	rollers = ROLLF * ((tilt_x - XMIDDLE+8) >> 4);
 	itemp = rollers * vz - roll_speed;	/* delta	*/
 	if (itemp!=0)
 	    if (itemp >= DELAY || itemp <= -DELAY)
@@ -828,8 +838,13 @@ broadcast ("retracted my landing gear while on the ground");
 	}
 	roll_speed += itemp;
 
-	elevator = ELEVF * ((getvaluator (MOUSEY) - YMIDDLE+8) >> 4);
+	int tilt_y = YMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+	tilt_y = YMIDDLE;
+	elevator = ELEVF * ((tilt_y - YMIDDLE+8) >> 4);
 	itemp = elevator * vz + vy - elevation_speed;
+	// printf("tilt x: %10d, rollers: %10g, tilt y: %10d, elevation: %10g, tps: %3d, itemp: %d\n", tilt_x, rollers, tilt_y, elevator, tps, itemp);
+	printf("tilt y: %5d, elevation: %5g, tps: %3d, itemp: %d\n", tilt_y, elevator, tps, itemp);
+	printf("%g * %g + %g - %d = %d\n", elevator, vz, vy, elevation_speed, itemp);
 	if (itemp!=0)
 	    if (itemp >= DELAY || itemp <= -DELAY)
 	    then itemp /= DELAY;
@@ -939,10 +954,17 @@ broadcast ("retracted my landing gear while on the ground");
 	if (elevation_speed) rotate (-elevation_speed,'x');
 	if (azimuth_speed) rotate (-azimuth_speed,'y');
 	translate (vx,vy,vz);
+	printf("r=%d,e=%d,a=%d,vx=%g,vy=%g,vz=%g\n",
+		roll_speed, elevation_speed, azimuth_speed,
+		vx, vy, vz);
 	getmatrix (incremental);	/* to get new rotated velocities */
+	float before_vy = vy;
 	vx = incremental[3][0];
 	vy = incremental[3][1];
 	vz = incremental[3][2];
+	printf("vy = %10g, elevation_speed = %10d, vy = %10g\n",
+		before_vy, elevation_speed, vy);
+		
 
 	/****************************************************************
 	 *	check altitude for too high, and landing/takeoff
@@ -959,7 +981,7 @@ broadcast ("retracted my landing gear while on the ground");
 	else if (pp -> y < .5) {		/* check for on the ground */
 	    if (IN_BOX (pp,-800.0,100.0, -9500.0,1000.0) || 
 		IN_BOX (pp,100.0,1300.0, -2500.0,-1500.0) || 
-		IN_BOX (pp,-2300.0,-800.0, -4900.0,-2000.0))
+		IN_BOX (pp,-2300.0,-800.0, -4900.0,-2000.0) || LK_DISABLE_SWAMPS)
 	    if (!on_ground) {			/* and not on ground before */
 		int rating,nm;
 
