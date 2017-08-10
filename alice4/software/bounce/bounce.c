@@ -43,6 +43,7 @@ float wallnorm[3] = {
 
 int rx, ry;
 int orx, ory;
+short   ory2, orx2;
 
 float ballscale;
 float ballsize;
@@ -74,6 +75,20 @@ float ident[3][3] = {
 	{1.0, 0.0, 0.0},
 	{0.0, 1.0, 0.0},
 	{0.0, 0.0, 1.0}
+};
+
+float ident_matrix[4][4] = {
+	{1.0, 0.0, 0.0, 0.0},
+	{0.0, 1.0, 0.0, 0.0},
+	{0.0, 0.0, 1.0, 0.0},
+	{0.0, 0.0, 0.0, 1.0},
+};
+
+float view[4][4] = {
+	{1.0, 0.0, 0.0, 0.0},
+	{0.0, 1.0, 0.0, 0.0},
+	{0.0, 0.0, 1.0, 0.0},
+	{0.0, 0.0, 0.0, 1.0},
 };
 
 
@@ -171,6 +186,38 @@ fastobj *readfastobj();
 
 fastobj	*obj = NULL;
 
+void reorient(short ax, short ay)
+{
+	pushmatrix();
+
+	loadmatrix(ident_matrix);
+
+	// rotate(-450, 'y');
+
+	rotate((Angle) ax, 'y');
+	rotate((Angle) ay, 'x');
+
+	// rotate(450, 'y');
+
+	multmatrix(view);
+
+	getmatrix(view);
+
+	popmatrix();
+}
+
+short tilt_left = -200;
+short tilt_right = 200;
+short tilt_forward = 650;
+short tilt_back = 150;
+
+void get_tilt(short *tiltx, short *tilty)
+{
+    *tiltx = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+    *tilty = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+}
+
+
 main(argc, argv)
 int argc;
 char **argv;
@@ -194,6 +241,8 @@ char **argv;
 	ballscale = 1.0 - ballsize;
 
 	initialize(argv);
+
+	get_tilt(&orx2, &ory2);
 
 	make_menu();
 
@@ -254,8 +303,8 @@ drawimage()
 	lmbind(LMODEL, 1);
 
 	pushmatrix();
-	rotate(ry, 'y' );
-	rotate(rx, 'x' );
+
+	multmatrix(view);
 
 	for (i=0; i < TOTALBALLS; i++) {
 		newpos[1] = balls[i].p[0];
@@ -339,8 +388,12 @@ char **argv;
 	lmdef(DEFLIGHT, 2, 14, light2);
 	lmdef(DEFLIGHT, 3, 14, light3);
 
+	qdevice(LEFTMOUSE);
+	tie(LEFTMOUSE, MOUSEX, MOUSEY);
 	qdevice(RIGHTMOUSE);
 	qdevice(ESCKEY);
+
+        loadmatrix(ident_matrix);
 }
 
 
@@ -512,6 +565,10 @@ float frand()
 	return 2.0*((rand() % 32768)/32768.0 - .5);
 }
 
+int function = 0;
+#define REORIENT 1
+short   omx, omy;
+
 
 check_q()
 {
@@ -521,6 +578,15 @@ check_q()
 	{
 		switch(qread(&val))
 		{
+                case LEFTMOUSE:
+			if (val) {
+			    qread(&omx); qread(&omy);
+			    function = REORIENT;
+			} else {
+			    function = 0;
+			    get_tilt(&orx2, &ory2);
+			}
+                        break;
 		case REDRAW:
 			reshapeviewport();
 			break;
@@ -573,6 +639,37 @@ check_q()
 		default:
 			break;
 		}
+	}
+
+	switch(function) {
+
+	    case REORIENT: {
+		short nmx = getvaluator(MOUSEX);
+		short nmy = getvaluator(MOUSEY);
+
+		short ax = (nmx-omx)*2;
+		short ay = (omy-nmy)*2;
+
+		omx=nmx; omy=nmy;
+
+		reorient(ax, ay);
+		break;
+	    }
+
+	    default : {
+		short rx2, ry2;
+
+		get_tilt(&rx2, &ry2);
+
+		short ax = (ry2 - ory2) / 2;
+		short ay = (orx2 - rx2) / 2;
+
+		orx2 = rx2;
+		ory2 = ry2;
+
+		reorient(ax, ay);
+		break;
+	    }
 	}
 }
 
