@@ -375,6 +375,8 @@ char **argv;
 	RGBmode();
 	gconfig();
 
+	backface(TRUE);
+
 	lsetdepth(0, 0x7fffff);
 
 	initobjects();
@@ -505,7 +507,7 @@ drawbox()
 {
 	pushmatrix();
 
-	/*  drawface();		*/
+	drawface();
 	rotate(900, 'y');
 	drawface();
 	if (normson) drawnorms();
@@ -513,12 +515,12 @@ drawbox()
 	drawface();
 	if (normson) drawnorms();
 	rotate(900, 'y');
-	/*  drawface();		*/
+	drawface();
 	rotate(-900, 'x');
 	drawface();
 	if (normson) drawnorms();
 	rotate(1800, 'x');
-	/*  drawface();		*/
+	drawface();
 	popmatrix();
 }
 
