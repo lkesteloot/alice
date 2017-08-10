@@ -640,6 +640,8 @@ static int backface_cull(const screen_vertex* s)
 
 void process_tmesh(int32_t n, world_vertex *worldverts)
 {
+    int ccw = 1;
+
     static lit_vertex litverts[POLY_MAX];
 
     for(int i = 0; i < n; i++)
@@ -671,9 +673,10 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r - 2; i++) {
             triangle[1] = screenverts[i + 1];
             triangle[2] = screenverts[i + 2];
-            if(!backface_cull(triangle))
+            if(ccw ^ !backface_cull(triangle))
                 rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
         }
+	ccw = !ccw;
     }
 }
 
