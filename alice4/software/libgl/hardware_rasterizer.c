@@ -163,7 +163,7 @@ void rasterizer_pattern(int enable)
     pattern_enabled = enable;
 }
 
-static int framestats_print = 1;
+static int framestats_print = 0;
 static float framestats_frame_duration_sum = 0.0; 
 static float framestats_cpu_duration_sum = 0.0; 
 static float framestats_copy_duration_sum = 0.0; 

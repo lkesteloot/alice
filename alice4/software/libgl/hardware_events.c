@@ -22,7 +22,7 @@ static int input_queue_head = 0;
 static int input_queue_length = 0;
 
 static int mousex = -1; // valuator for touchscreen X
-static int mousey = -1; // valuator for touchscreen X
+static int mousey = -1; // valuator for touchscreen Y
 
 static int home_button_previous = 0;
 
@@ -114,7 +114,7 @@ static void drain_touchscreen()
 }
 
 static float theta_x_smoothed, theta_y_smoothed;
-static const float decay = .5;
+static const float decay = .95;
 
 int32_t events_get_valuator(int32_t device)
 {
