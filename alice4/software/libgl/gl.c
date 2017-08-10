@@ -38,8 +38,6 @@
 #include "rasterizer.h"
 #include "event_service.h"
 
-#define VIEWPORT_CLEAR
-
 #ifndef M_PI
 #define M_PI 3.141596
 #endif
@@ -1291,6 +1289,12 @@ void pdr_(Coord x, Coord y, Coord z) {
     v3f(p);
 }
 
+// Whether the viewport is the full screen.
+static int is_full_viewport() {
+    return the_viewport[0] == 0 && the_viewport[1] == XMAXSCREEN &&
+           the_viewport[2] == 0 && the_viewport[3] == YMAXSCREEN;
+}
+
 void clear() { 
     if(cur_ptr_to_nextptr != NULL) {
         element *e = element_next_in_object(CLEAR);
@@ -1299,16 +1303,22 @@ void clear() {
 
     TRACE();
 
-#ifdef VIEWPORT_CLEAR
-    bgnpolygon();
-    pdr_(0, 0, 0);
-    pdr_(0, 1, 0);
-    pdr_(1, 1, 0);
-    pdr_(1, 0, 0);
-    endpolygon();
-#else
-    rasterizer_clear(current_color[0] * 255.0, current_color[1] * 255.0, current_color[2] * 255.0);
-#endif
+    // The clear() command must only clear the viewport. Use a slow rectangle when it's
+    // not full-screen.
+    if (is_full_viewport()) {
+        // Full screen, we can use the optimized version.
+        rasterizer_clear(current_color[0] * 255.0,
+                current_color[1] * 255.0,
+                current_color[2] * 255.0);
+    } else {
+        // Partial viewport, draw polygon. This uses the current color.
+        bgnpolygon();
+        pdr_(0, 0, 0);
+        pdr_(0, 1, 0);
+        pdr_(1, 1, 0);
+        pdr_(1, 0, 0);
+        endpolygon();
+    }
 }
 
 void closeobj() { 
@@ -3385,6 +3395,10 @@ void zbuffer(int enable) {
 void zclear() {
     TRACE();
 
+    if (!is_full_viewport()) {
+        static int warned = 0; if(!warned) { printf("Partial zclear() unimplemented\n"); warned = 1; }
+    }
+
     rasterizer_zclear(0xffffffff);
 }
 
@@ -3397,6 +3411,10 @@ void czclear(int color, int depth) {
     static int warned = 0; if(!warned) { printf("%s partially unimplemented\n", __FUNCTION__); warned = 1; }
     TRACE();
     rasterizer_czclear((color >> 16) & 0xff, (color >>  8) & 0xff, (color >>  0) & 0xff, depth);
+
+    if (!is_full_viewport()) {
+        static int warned = 0; if(!warned) { printf("Partial czclear() unimplemented\n"); warned = 1; }
+    }
 }
 
 int gversion(char *version)
