@@ -15,9 +15,12 @@ CON
     ' stored in _clkfreq and RAM (address zero), not used by the hardware.
     _xinfreq = 5_000_000
 
+    ' we allocate one extra row than necessary because it makes scrolling easier
+    ' since we can just copy row n+1 to row n, and use the extra row of spaces to
+    ' clear the bottom row 
     cols = vgatext#cols
     rows = vgatext#rows
-    chrs = cols * rows
+    chrs = cols * (rows+1)
     queue_capacity = 512
   
     audio_left = 6
@@ -32,23 +35,23 @@ OBJ
     terminal      : "Terminal"
     ay            : "AYcog"
     pst           : "Parallax Serial Terminal"
+    'jdcs          : "JDCogSerial"
 
 DAT
 
     BootMsg byte "Alice 3 A/V firmware", 13, 10, 0
-    SerialBootMsg byte "Alice 3 propeller serial terminal", pst#NL
+    SerialBootMsg byte "Alice 3 propeller serial terminal", 13, 0  ', pst#NL
     ' E2, B2, G#3, all 3 channels tone/no noise, all 3 channels on envelope, ~1.3s envelope, rampdown
     BootSnd byte $7B, $01, $FD, $00, $96, $00,  $00,  $38,  $10,$10,$10,  $A1,$13,  $09,  $00,$00
 
 VAR
-
-    'sync long - written to -1 by VGA driver after each screen refresh
+    ' sync long - written to -1 by VGA driver after each screen refresh
     long  sync
-    'screen buffer - could be bytes, but longs allow more efficient scrolling
-    long  screen[cols*rows/4]
-    'row colors
+    ' screen buffer - aligned to long to make scroll/clearing easier
+    long screen[chrs/4]
+    ' row colors
     word  colors[rows]
-    'cursor control bytes
+    ' cursor control bytes
     byte  cx0, cy0, cm0, cx1, cy1, cm1
   
     byte  queue[queue_capacity]
@@ -56,6 +59,11 @@ VAR
     long  queue_tail
 
     long  AYregisters
+
+    long  serial_rx
+    long  serial_tx
+
+    byte  char
 
 PUB start | i, j, addr, data
     ' Sound the sound system
@@ -66,6 +74,17 @@ PUB start | i, j, addr, data
     ' Start the Prop debugging terminal, uses the prop plug
     pst.Start(115_200)
     pst.Str(@SerialBootMsg)
+
+    ' Start serial terminal on the PropPlug pins
+    'serial_rx := jdcs.start(|<31, |<30, 115_200)
+    'serial_tx := serial_rx + 4
+    'long[serial_tx] := ">"
+    'repeat i from 0 to strsize(@SerialBootMsg)
+    '    repeat while long[serial_tx] => 0
+    ''    'char := byte[SerialBootMsg++]
+    '    long[serial_tx] := byte[SerialBootMsg + i + 4]
+    'long[serial_tx] := "<"
+    
 
     ' Configure cursor shapes and blinking.
     cm0 := %011
@@ -89,7 +108,7 @@ PUB start | i, j, addr, data
     terminal.start(@queue, @queue_head, @queue_tail, queue_capacity, @screen, @cx0, @cy0)
 
     ' Start bus interface and Z-80 clock
-    bus_interface.start(@queue, @queue_tail, queue_capacity, AYRegisters, @screen, @colors, cols)
+    bus_interface.start(@queue, @queue_tail, queue_capacity, AYRegisters, @screen, @colors, cols, serial_tx)
 
     ' Write welcome message.
     print(@BootMsg)

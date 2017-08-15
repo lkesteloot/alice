@@ -439,14 +439,14 @@ z                       res     1
 row                     res     1
 fours                   res     1
 
-{
+
 ' 8 x 12 font - characters 0..127
 '
 ' Each long holds four scan lines of a single character. The longs are arranged into
 ' groups of 128 which represent all characters (0..127). There are three groups which
 ' each contain a vertical third of all characters. They are ordered top, middle, and
 ' bottom.
-
+{
 font  long
 
 long  $0C080000,$30100000,$7E3C1800,$18181800,$81423C00,$99423C00,$8181FF00,$E7C3FF00  'top

@@ -1,39 +1,58 @@
 {{
 
-Interfaces with the Z80 bus:
+This code has two roles, it runs the Z80 clock via CTRA and
+interfaces with the Z80 I/O bus to provide some peripherals. 
 
-* Runs the Z80 clock via CTRA
-* I/O 128 - Enqueues bytes to the VGA/VT100 drivers
-* Sets registers in the AY-3-8910 emulator
-* Sets/reads custom timer
-* (not yet) New video modes?
+It does the latter by watching for IORQ==0 && A7==1, and then using
+A0/A1/A2 to determine which I/O port ("OUT 128..135, n") is being
+accessed.  In some cases where the message is only a single byte
+long it processes it immediately; in other cases handlers are broken
+up into state machines so that they can handle a command followed
+by parameters.
 
-It does this by watching for IORQ==0 && A7==1, and then using A0/A1/A2
-to determine which I/O port ("OUT 128..135, n") is being accessed.  In
-some cases where the message is only a single byte long it processes it
-immediately; in other cases handlers are broken up into state machines
-so that they can handle a command followed by parameters.
+* OUT 128 - Enqueues bytes to the VGA/VT100 drivers
+* OUT 129 - Sets registers in the AY-3-8910 emulator ; two modes:
+    * OUT 129, reg_number (0..15) ; OUT 129, reg_value
+    * OUT 129, 16 ; OUT 129, reg0_value ; OUT 129, reg1_value ; ... ; OUT 129, reg15_value
+* IN  130 - Reads custom timer
+* OUT 130 - Sets custom timer ; two modes, direct (0) and "per second":
+    * OUT 130, 0 ; OUT 130, byte_0 ; OUT 130, byte_1 ; OUT 130, byte_2 ; OUT 130, byte_3
+    * OUT 130, 1 ; OUT 130, ticks_per_sec  (!not yet implemented!)
+* OUT 131 - Write directly to the character buffer
+    * Set X, set Y, set count, then write count bytes
+* OUT 132 - Write directly to the color buffer
+    * Set Y, write color byte
+    * color byte is arranged %F0RRGGBB, two bits per color, bit 6 ignored, bit 7 is fg/bg (0/1)
 
 TODO:
 * ct_persecond handler (stubbed, but "per second" math not implemented)
-  * Send 1 to start, then a byte of how many ticks per second:  OUT 130, 1;  OUT 130, 60;
-* ay_all handler/state machine
-  * Send 16 to start the process, then all 16 registers:  OUT 129, 16;  for i in 0..15 {OUT 129, ayreg[i]}
+    * Send 1 to start, then a byte of how many ticks per second:  OUT 130, 1;  OUT 130, 60;
 * charset setting handlers
 * serial terminal output (mirroring, per-char, etc.)
+    * this is commented-out in the code below, it should probably be moved over to Terminal.spin
 * CP/M programs that test each capability of this bus interface
-  * cpuspeed.com
-  * settimer.com
-  * ztunes.com
-  * Something that uses INIR/OTIR to hit these state machines as fast as possible
+    * cpuspeed.com
+    * settimer.com
+    * ztunes.com
+    * setcolor.com
+    * Something that uses INIR/OTIR to hit these state machines as fast as possible
 * Code cleanup
-  * I don't think those longs need to be initialized to 1
-  * "when the assembler encounters a RES, it reserves space in cog memory, but not in hub memory where the program is stored" (tricks and traps pg7)
-  * Do we actually need to know where the head is for the terminal queue?
-  * Do we need to retrieve the tailidx, or can we just work from our local copy and update the tailidxptr as needed?
-    * No other queue reader will be updating it.  Specifically "rdlong  TailIndex, TailIndexPtr" can probably go
-  * Lots of double-shifting and and'ing, probably not necessary
-  * Use test against INA directly where it makes sense: "test  bus_pattern, ina  wz  ' ina MUST be source, not dest"
+    * "QueuePtr := QueuePtrParam" => "queue_ptr := QueuePtr"
+    * In almost all handlers the first instruction is "shr Data, #Z_D0" usually followed by "and Data, #$FF", this can probably be moved to the main loop
+    * I don't think those longs need to be initialized to 1
+    * "when the assembler encounters a RES, it reserves space in cog memory, but not in hub memory where the program is stored" (tricks and traps pg7)
+    * Do we actually need to know where the head is for the terminal queue?
+    * Do we need to retrieve the tailidx, or can we just work from our local copy and update the tailidxptr as needed?
+        * No other queue reader will be updating it.  Specifically "rdlong  TailIndex, TailIndexPtr" can probably go
+    * Lots of double-shifting and and'ing, probably not necessary
+    * Use test against INA directly where it makes sense: "test  bus_pattern, ina  wz  ' ina MUST be source, not dest"
+    * That dumpdebug function sucks
+    * Lots of camelcase... ew
+
+Future ideas:
+
+* New video modes:  a>SETVIDEO 320x240.DRV
+* Firmware emulation drivers:  a>EMULATE PACMAN.EMU  or a>EMULATE COLECO.EMU SMURFS.ROM
 
 }}
 
@@ -60,7 +79,7 @@ CON
     Z80_SPEED = 2_000_000  ' 2_250_000 is about as fast as ARMasRAM can go
 
 
-PUB start(QueuePtrParam, {HeadIndexPtrParam,} TailIndexPtrParam, CapacityParam, AY, screen, colors, cols)
+PUB start(QueuePtrParam, {HeadIndexPtrParam,} TailIndexPtrParam, CapacityParam, AY, screen, colors, cols, serial_tx)
 
     QueuePtr := QueuePtrParam
     'HeadIndexPtr := HeadIndexPtrParam
@@ -71,6 +90,8 @@ PUB start(QueuePtrParam, {HeadIndexPtrParam,} TailIndexPtrParam, CapacityParam, 
     dfb_screen_ptr := screen
     dfc_screen_ptr := colors
     dfb_cols := cols << 8  ' preparing for the bitwise multiply below
+
+    tx := serial_tx
 
     ' What we really want to express is this:
     ' z80FRQ := $FFFF_FFFF / (PROP_SPEED / Z80_SPEED)
@@ -132,11 +153,13 @@ loop       ' Wait for A7 and !IORQ to be asserted, we eval write/read next
             test    Data, #(|<Z_WR)      wz
     if_z    add     IOAddr, #out_handlers  ' WR line was low, which is *active*, this is a write ("OUT port, n")
     if_nz   add     IOAddr, #in_handlers   ' WR line was high, which is *inactive*, this is a read ("IN port")
+            shr     Data, #Z_D0            ' The shr and and ended up as the first two instructions on every
+            and     Data, #$FF             ' handler so they've been moved to the main loop
             jmp     IOAddr
 
 out_handlers
-            jmp     #terminal_in   '0
-            jmp     ay_state       '1 - jump to the address IN ay_state, not the address OF ay_state
+            jmp     #terminal_in   '0 - enquque byte for the terminal
+            jmp     ay_state       '1 - jump to the address *ay_state
             jmp     ct_state       '2 - ditto
             jmp     dfb_state      '3 - ditto
             jmp     dfc_state      '4
@@ -158,7 +181,8 @@ in_handlers
 
 terminal_in
             ' Shift data into low byte, wrbyte below will handle masking
-            shr     Data, #Z_D0
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #$FF
 
             ' Write to queue.
             rdlong  TailIndex, TailIndexPtr
@@ -170,22 +194,32 @@ terminal_in
             add     TailIndex, #1
             and     TailIndex, CapacityMask
             wrlong  TailIndex, TailIndexPtr
+
+            ' Send the byte to the terminal
+'tx_wait     rdlong  TMP,tx
+'            shl     TMP,#1  WC
+'     if_nc  jmp     #tx_wait
+'            wrlong  Data,tx
+
+            cmp     Data, #$07  wz  ' ASCII BEL
+    if_z    call    #ay_BEL
+
             jmp #complete
 ' - - - -
 
 ' - - - - Direct framebuffer state machine
 dfb_start
 dfb_recv_x
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             mov     dfb_write_ptr, dfb_screen_ptr
             add     dfb_write_ptr, Data
             movs    dfb_state, #dfb_recv_y
             jmp #complete
 
 dfb_recv_y
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             ' Data *= dfb_cols
             ' 8-bit multiply adapted from Prop manual, Appendix B
             ' would be 1/3rd faster if unrolled
@@ -201,8 +235,8 @@ dfb_recv_y
             jmp #complete
 
 dfb_recv_count
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             mov     dfb_count, Data
             movs    dfb_state, #dfb_recv_chars
             jmp #complete
@@ -210,7 +244,7 @@ dfb_recv_count
 dfb_recv_chars
             ' Could be faster if it did the writes one long at a time,
             ' but that would probably mean splitting this into four...
-            shr     Data, #Z_D0
+'clean            shr     Data, #Z_D0
             wrbyte  Data, dfb_write_ptr  ' only copies lowest byte
             add     dfb_write_ptr, #1
             sub     dfb_count, #1       wz
@@ -220,7 +254,7 @@ dfb_recv_chars
 ' Color update state machine handlers
 
 dfc_start
-            shr     Data, #Z_D0
+'clean            shr     Data, #Z_D0
             and     Data, #$3F  ' only rows 0..63
             shl     Data, #1  ' 16-bit words for each color
             mov     dfc_write_ptr, dfc_screen_ptr
@@ -229,7 +263,7 @@ dfc_start
             jmp #complete
 
 dfc_set_color
-            shr     Data, #Z_D0
+'clean            shr     Data, #Z_D0
             test    Data, #$80      wz
     if_nz   add     dfc_write_ptr, #1  ' Foreground or background?
             and     Data, #$3F  ' only 6 bits of color...
@@ -244,20 +278,45 @@ dfc_set_color
 ' - - - - AY-3-8910 register update state machine
 
 ay_start
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             cmp     Data, #16       wc
-    if_nc   jmp #complete    ' in the future: ay_allatonce
+            ' All 16 registers at once
+    if_nc   mov     AYRegPtr, #0
+    if_nc   movs    ay_state, #ay_allatonce
+    if_nc   jmp #complete
+            ' One register at a time
             mov     AYRegPtr, Data
             movs    ay_state, #ay_oneatatime
             jmp #complete
 
 ay_oneatatime
-            shr     Data, #Z_D0
+'clean            shr     Data, #Z_D0
             add     AYRegPtr, AYRegisters
             wrbyte  Data, AYRegPtr
             movs    ay_state, #ay_start
             jmp #complete
+
+ay_allatonce
+'clean            shr     Data, #Z_D0
+            mov     TMP, AYRegPtr
+            add     TMP, AYRegisters
+            wrbyte  Data, TMP
+            add     AYRegPtr, #1
+            cmp     AYRegPtr, #16  wz
+   if_z     movs    ay_state, #ay_start
+            jmp #complete
+
+ay_BEL
+            mov    AYRegPtr, AYRegisters
+            wrlong ay_BEL0, AYRegPtr
+            add    AYRegPtr, #4
+            wrlong ay_BEL1, AYRegPtr
+            add    AYRegPtr, #4
+            wrlong ay_BEL2, AYRegPtr
+            add    AYRegPtr, #4
+            wrlong ay_BEL3, AYRegPtr
+ay_BEL_ret  ret
 
 ' - - - - - - - - - - - - - - - -
 
@@ -279,47 +338,47 @@ ct_read
             jmp #complete
 
 ct_start
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             cmp     Data, #1       wc
     if_nc   movs    ct_state, #ct_persecond  ' OUT 130, 1
     if_c    movs    ct_state, #ct_direct_1   ' OUT 130, 0
             jmp #complete
 
 ct_persecond
-            shr     Data, #Z_D0
-            and     Data, #255
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #255
             ' calculate CTFRQ based on {Data}/s ... table lookup, even from hub, might be fastest
             ' mov     frqb, CTFRQ
             movs    ct_state, #ct_start
             jmp #complete
 
 ct_direct_1
-            shr     Data, #Z_D0
-            and     Data, #$FF
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #$FF
             mov     CTFRQ, Data
             movs    ct_state, #ct_direct_2
             jmp #complete
 
 ct_direct_2
-            shr     Data, #Z_D0
-            and     Data, #$FF
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #$FF
             shl     Data, #8
             or      CTFRQ, Data
             movs    ct_state, #ct_direct_3
             jmp #complete
 
 ct_direct_3
-            shr     Data, #Z_D0
-            and     Data, #$FF
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #$FF
             shl     Data, #16
             or      CTFRQ, Data
             movs    ct_state, #ct_direct_4
             jmp #complete
 
 ct_direct_4
-            shr     Data, #Z_D0
-            and     Data, #$FF
+'clean            shr     Data, #Z_D0
+'clean            and     Data, #$FF
             shl     Data, #24
             or      CTFRQ, Data
             mov     frqb, CTFRQ
@@ -333,7 +392,7 @@ ct_direct_4
 ' - - - - Complete: reenable the Z80 clock and wait until the Z80 stops asserting A7 and !IORQ
 complete
             mov     ctra, z80CTR           ' reenable Z80 clock
-            waitpne bus_pattern, bus_mask  ' Wait until end of pins.
+            waitpne bus_pattern, bus_mask  ' wait until z80 is ready
             jmp     #loop
 
 ' - - - - Jumping off point for catching unexpected IO requests, just dump Data for now
@@ -503,6 +562,11 @@ TMP             long     1
 
 ay_state        long     1
 AYRegPtr        long     1
+'AY BEL: $FD,$00, $BA,$00, $8E,$00,  $00,  $38,  $10,$10,$10,  $A1,$07,  $09,  $00,$00
+ay_BEL0         long     $FD, $00, $BA, $00
+ay_BEL1         long     $8E, $00, $00, $38
+ay_BEL2         long     $10, $10, $10, $A1
+ay_BEL3         long     $07, $09, $00, $00
 
 ct_state        long     1
 
@@ -517,3 +581,5 @@ dfb_count       long     1
 dfc_state       long     1
 dfc_screen_ptr  long     1
 dfc_write_ptr   long     1
+
+tx              long     1
