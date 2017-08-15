@@ -75,7 +75,7 @@ PUB start | i, j, addr, data
     pst.Start(115_200)
     pst.Str(@SerialBootMsg)
 
-    ' Start serial terminal on the PropPlug pins
+    ' Start JDCogSerial on the prop plug
     'serial_rx := jdcs.start(|<31, |<30, 115_200)
     'serial_tx := serial_rx + 4
     'long[serial_tx] := ">"
@@ -84,7 +84,6 @@ PUB start | i, j, addr, data
     ''    'char := byte[SerialBootMsg++]
     '    long[serial_tx] := byte[SerialBootMsg + i + 4]
     'long[serial_tx] := "<"
-    
 
     ' Configure cursor shapes and blinking.
     cm0 := %011
