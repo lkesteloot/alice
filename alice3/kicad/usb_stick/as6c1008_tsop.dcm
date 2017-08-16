@@ -1,0 +1,8 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP AS6C1008_TSOP
+D SRAM 128K x 8 bits, TSOP32
+K RAM SRAM
+$ENDCMP
+#
+#End Doc Library

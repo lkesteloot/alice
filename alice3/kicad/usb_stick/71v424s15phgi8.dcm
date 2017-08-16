@@ -1,0 +1,8 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP 71V424S15PHGI8
+D SRAM 512K x 8 bits
+K RAM SRAM
+$ENDCMP
+#
+#End Doc Library
