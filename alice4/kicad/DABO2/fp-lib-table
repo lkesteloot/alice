@@ -1,5 +1,8 @@
 (fp_lib_table
   (lib (name "STMPE610")(type KiCad)(uri $KIPRJMOD/../touchscreen_controller.pretty)(options "")(descr ""))
+  (lib (name "PowerBoost1000c")(type KiCad)(uri $KIPRJMOD/../powerboost1000c.pretty)(options "")(descr ""))
+  (lib (name "L3GD20H")(type KiCad)(uri $KIPRJMOD/../l3gd20h.pretty)(options "")(descr ""))
+  (lib (name "Bluefruit LE SPI")(type KiCad)(uri $KIPRJMOD/../bluefruit_le_spi.pretty)(options "")(descr ""))
   (lib (name "DIH_2x7x2mm")(type KiCad)(uri $KIPRJMOD/../DIH_2x7x2mm.pretty)(options "")(descr ""))
   (lib (name "DIP40")(type KiCad)(uri $KIPRJMOD/../DIP40.pretty)(options "")(descr ""))
 )
