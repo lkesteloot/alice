@@ -1,0 +1,272 @@
+
+- To do:
+    - Switch LCD over to VGA FIFO code.
+    - Remove VGA code.
+- Display:
+    - Displays:
+        - https://www.adafruit.com/products/2353 (no touch, $40).
+        - https://www.adafruit.com/products/2354 (touch, $50).
+    - Breakout board to run TFT display:
+        - https://www.adafruit.com/product/1932
+        - Does backlighting and cable connector.
+    - Proposal:
+        - Use this display: https://www.adafruit.com/products/2353 (no touch, $40).
+        - Use this adapter: https://www.adafruit.com/product/1932
+        - Run it at 60 FPS.
+        - Use a TFT controller instead of the VGA controller.
+    - Display note:
+        - Model YX700WV03
+        - Backlight will pull 9.9V at 120mA (page 10 of datasheet).
+            - Six strings, so 20mA each, with 3 LEDs per string.
+            - Adapter uses this:
+                - http://www.mouser.com/ds/2/149/FAN5333B-1006807.pdf
+                - Defaults to 25mA.
+                - Add all jumpers to get 125mA (datasheet says 120mA, max 180mA).
+            - Backlight will pull 9.9V x 120mA = 1.2W.
+            - Input to driver should be 1.2W/5V = 240mA.
+        - Terms in the datasheet:
+            - DE = DEN = data enable. High when pixels are being fed. Goes low between
+                lines and low for a while between frames.
+            - DCLK = CLKIN = pixel clock (40 MHz, page 7 of datasheet).
+                - Keith runs it at 30-33 MHz.
+            - VDD = signal power (3.3V).
+            - VGH = Voltage of the high gate (positive voltage).
+            - VEE = Voltage of the emitter (negative voltage).
+                - The above two are in a timing diagram (7.1), but are not pins on the display,
+                    so I don't think I have to worry about that timing diagram.
+            - HSD = horizontal sync.
+            - VSD = vertical sync.
+            - I think these are internal to the LCD:
+                - STV = input vertical scan start signal.
+                - CLKV
+                - OEV
+        - Two modes:
+            - HV mode:
+                - Bring VSD down between frames for ? clocks.
+                - Bring HSD down between rows for 1? clocks.
+                    - Bring down at start of VSD, then a few times more before first row.
+                        See page 9.
+            - DE mode:
+                - Raise DE at start of row, probably half a cycle before posedge of clock.
+                - Data is captured on posedge of clock.
+                - Bring down at least 2 clocks between rows.
+                - Bring down at least 2048 clocks between frames.
+        - Voltage levels:
+            - Display is 3.3V for VDD and data.
+            - Display is 9.9V (9.3V to 10.5V, 120mA) for backlight.
+            - FPGA is 3.3V.
+        - Resources:
+            - 5" version of same LCD, I think:
+                - https://cdn-shop.adafruit.com/datasheets/KD50G21-40NT-A1.pdf
+                - 30 MHz clock.
+                - Timing on page 14.
+                - Horizontal timing (in clocks):
+                    - 928 clocks in row.
+                    - Front porch: 40
+                    - Pulse (included in back porch): 48
+                    - Back porch (blanking): 88.
+                    - That's 40 + 88 = 128 + 800 = 928 clocks per line.
+                    - DE mode horizontal blanking: 128 clocks.
+                - Vertical timing (in lines):
+                    - 525 lines in a frame.
+                    - Front porch: 13
+                    - Pulse (included in back porch): 3
+                    - Back porch (blanking): 32.
+                    - That's 13 + 32 = 45 + 480 = 525 lines per frame.
+                    - DE mode vertical blanking: 45 lines.
+                - In CVT terms:
+                    hdisplay = 800
+                    hsync_start = 800 + 40 = 840
+                    hsync_end = 800 + 40 + 48 = 888
+                    htotal = 928
+                    vdisplay = 480
+                    vsync_start = 480 + 13 = 493
+                    vsync_end = 480 + 13 + 3 = 496
+                    vtotal = 525
+                - Note that 928*525*60 = 29.232 MHz
+                - They recommend 40 MHz (page 15).
+            - Different LCD, but similar and has more info:
+                - http://www.promelec.ru/pdf/MI0700LT.pdf
+                - See pages 8 and 9.
+            - Some kind of code with parameters for this display:
+                - https://patchwork.kernel.org/patch/8666941/
+                - Parameters:
+                    .clock = 29500      // 29.5 MHz
+                    .hdisplay = 800     // 800 visible pixels across
+                    .hsync_start = 824  // HSync starts at pixel 824
+                    .hsync_end = 896    // HSync ends at pixel 992
+                    .htotal = 992       // Total horizontal clocks
+                    .vdisplay = 480     // 480 visible pixels down
+                    .vsync_start = 483  // VSync starts at row 483
+                    .vsync_end = 493    // VSync ends at row 493
+                    .vtotal = 500       // Total vertical rows
+                    .vrefresh = 60      // 60 FPS
+                - Note that 992*500*60 = 29.76 MHz
+                    - If the 29.5 MHz clock and width/height are to be believed,
+                    then the frame rate is actually 59.4758 FPS.
+                - https://en.wikipedia.org/wiki/Coordinated_Video_Timings (CVT)
+            - Forum post:
+                - http://saanlima.com/forum/viewtopic.php?f=9&t=1257
+                - 40 MHz
+                - Horizontal: front porch=40, sync width=48, back porch=40, display=800
+                - Vertical: front porch=13, sync width=3, back porch=29, display=480
+    - Pins:
+        - 8 red
+        - 8 green
+        - 8 blue
+        - HSync
+        - VSync
+        - DE
+        - Clock
+        - Display on/off
+        - Total: 3*8 + 5 = 29 pins
+- Cobbler:
+    - DE0-Nano-SoC connector:
+        -              D0    1 |  2   D1   XXX(5V)
+        -              D2    3 |  4   D3   XXX(5V)
+        - Clock        D4    5 |  6   D5   XXX(GND)
+        - HS           D6    7 |  8   D7   VS
+        - XXX(GND)     D8    9 | 10   D9   Data enable
+        -              5V   11 | 12   GND
+        - Display on   D10  13 | 14   D11   XXX(GND)
+        - R2           D12  15 | 16   D13   R3
+        - R4           D14  17 | 18   D15   R5
+        -              D16  19 | 20   D17   XXX(GND)
+        -              D18  21 | 22   D19   R6
+        - R7           D20  23 | 24   D21   G2
+        - XXX(GND)     D22  25 | 26   D23   G3
+        - G4           D24  27 | 28   D25   G5
+        -              3.3V 29 | 30   GND   XXX(GND)
+        - G6           D26  31 | 32   D27   G7
+        - B2           D28  33 | 34   D29   XXX(GND)
+        - B3           D30  35 | 36   D31   B4
+        - B5           D32  37 | 38   D33   B6
+        - XXX(GND)     D34  39 | 40   D35   B7
+- DABO, proposed:
+    - DE0-Nano-SoC connector:
+        - R0           D0    1 |  2   D1    G0
+        - R1           D2    3 |  4   D3    G1
+        - R2           D4    5 |  6   D5    G2
+        - R3           D6    7 |  8   D7    G3
+        - R4           D8    9 | 10   D9    G4
+        - 5V           5V   11 | 12   GND   GND
+        - R5           D10  13 | 14   D11   G5
+        - R6           D12  15 | 16   D13   G6
+        - R7           D14  17 | 18   D15   G7
+        - B0           D16  19 | 20   D17   LCD_CLOCK
+        - B1           D18  21 | 22   D19   DISPLAY_ON
+        - B2           D20  23 | 24   D21   HSYNC
+        - B3           D22  25 | 26   D23   VSYNC
+        - B4           D24  27 | 28   D25   DISPLAY_ENABLE
+        - N.C.         3.3V 29 | 30   GND   GND
+        - B5           D26  31 | 32   D27   BACKLIGHT_PWM
+        - B6           D28  33 | 34   D29   N.C.
+        - B7           D30  35 | 36   D31   N.C.
+        - INT          D32  37 | 38   D33   N.C.
+        - SCL          D34  39 | 40   D35   SDA
+- GPIO headers:
+    - See figure 3-18 (page 26) in User Manual.
+    - Both are 40 pins.
+        - J4 (GPIO 0) is inner one.
+        - J5 (GPIO 1) is outer one.
+    - Both provide:
+        - 36 GPIO pins.
+            - 4 PLL clock input and output.
+        - +5.0 V (measured at 4.6 V)
+        - +3.3 V (measured at 3.3 V)
+        - 2 x GND
+    - They seem symmetric. Let's pick the outer one (GPIO 1).
+
+
+Buffers:
+    Frame buffer 1: 0x3800_0000, length 0x0017_7000 (800x480x4)
+    Frame buffer 2: 0x3817_7000, length 0x0017_7000 (800x480x4)
+    Z buffer:       0x382e_e000, length 0x0017_7000 (800x480x4)
+    Triangles:      0x3846_5000, length 0x07b9_b000 (123 MB)
+    Top of RAM:     0x4000_0000
+
+Communication bits:
+    "Data ready", written by ARM
+    "Busy", written by FPGA.
+
+Command buffer sequence
+    FPGA                            ARM
+    ----                            ---
+    Wait for "Data ready" = 1
+                                    Write triangle buffer.
+                                    Data ready = 1
+                                    Wait for "Busy" = 1
+    Busy = 1
+    Wait for "Data ready" = 0
+                                    Data ready = 0
+                                    Wait for "Busy" = 0
+    Rasterize scene.
+    Busy = 0
+
+Swap buffers:
+    Each module has its own concept of front buffer (0 or 1).
+    Rasterizer.
+        reg rast_front_buffer
+        Writes to back buffer.
+        CMD_SWAP must:
+            Toggle rast_front_buffer.
+            Block until fb_front_buffer == rast_front_buffer
+    Frame_buffer.
+        reg fb_front_buffer
+        In M2F_STATE_START_FRAME.
+            Copy rast_front_buffer to fb_front_buffer.
+            Starts reading from front buffer.
+
+Rasterizing triangle:
+    Find min and max of vertices.
+    Clamp min and max to screen (optional).
+    Make triangle counter-clockwise (optional).
+    Compute edge equations.
+        STATE_CMD_DRAW_TRIANGLE_PREPARE: begin
+            // Edge equations.
+            tri_x01 <= vertex_0_y - vertex_1_y
+            tri_y01 <= vertex_1_x - vertex_0_x
+            tri_x12 <= vertex_1_y - vertex_2_y
+            tri_y12 <= vertex_2_x - vertex_1_x
+            tri_x20 <= vertex_2_y - vertex_0_y
+            tri_y20 <= vertex_0_x - vertex_2_x
+            tri_w0_row <= (vertex_2_x - vertex_1_x)*(tri_min_y - vertex_1_y) -
+                          (vertex_2_y - vertex_1_y)*(tri_min_x - vertex_1_x)
+            tri_w1_row <= (vertex_0_x - vertex_2_x)*(tri_min_y - vertex_2_y) -
+                          (vertex_0_y - vertex_2_y)*(tri_min_x - vertex_2_x)
+            tri_w2_row <= (vertex_1_x - vertex_0_x)*(tri_min_y - vertex_0_y) -
+                          (vertex_1_y - vertex_0_y)*(tri_min_x - vertex_0_x)
+    Compute biases (optional).
+    Walk bbox.
+        address = upper-left corner
+        tri_left_address = upper-left corner
+        tri_x = tri_min_x
+        tri_y = tri_min_y
+        tri_w0 = tri_w0_row
+        tri_w1 = tri_w1_row
+        tri_w2 = tri_w2_row
+
+        loop:
+            write = tri_w0 >= bias0 && tri_w1 >= bias1 && tri_w2 >= bias2
+
+            if tri_x = tri_max_x
+                if tri_y = tri_max_y
+                    break loop
+                else:
+                    tri_x = tri_min_x
+                    tri_y++
+                    tri_w0_row += tri_y12
+                    tri_w1_row += tri_y20
+                    tri_w2_row += tri_y01
+                    tri_w0 = tri_w0_row
+                    tri_w1 = tri_w1_row
+                    tri_w2 = tri_w2_row
+                    tri_left_address += STRIDE
+                    address = tri_left_address
+            else:
+                tri_x++
+                tri_w0 += tri_x12
+                tri_w1 += tri_x20
+                tri_w2 += tri_x01
+                p += BYTES_PER_PIXEL
+

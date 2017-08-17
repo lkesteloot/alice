@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# See page 11-11 of the Cyclone handbook (part 3).
+#
+# MPU and L3 get 3, unused get 0, FPGA gets 6, except for
+# frame buffer scanout, which gets 7. We do not use the
+# mpweight, nor the remappriority.
+
+ADDRESS=0xFFC250AC
+OCT_VALUE=03333033337
+HEX_VALUE=$(python -c "print hex($OCT_VALUE).upper()")
+
+sudo ./memtool write $ADDRESS $OCT_VALUE
+
+# Verify write:
+echo "Should be:   $HEX_VALUE"
+sudo ./memtool read $ADDRESS
+

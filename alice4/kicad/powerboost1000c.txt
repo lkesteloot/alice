@@ -1,0 +1,8 @@
+USB,W,,
+Bat,W,,
+Vs,W,,
+EN,I,,
+GND,W,,
+LBO,O,,
+GND,W,,
+5Vo,W,,

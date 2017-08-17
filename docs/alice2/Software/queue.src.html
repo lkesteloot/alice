@@ -1,0 +1,361 @@
+<html>
+<head>
+<title>C:\Documents and Settings\kestelootl\My Documents\Alice\alice.noimages.tar\alice\alice2\Software\queue.src.html</title>
+<meta name="Generator" content="Vim/6.0">
+</head>
+<body bgcolor="#ffdab9" text="#000000">
+<pre>
+<font color="#406090">;</font>
+<font color="#406090">; Brad and Lawrence's PIC Alice&nbsp;2 interface chip.  The PIC</font>
+<font color="#406090">; is responsible for keyboard, serial, and clock interfaces.</font>
+<font color="#406090">;</font>
+<font color="#406090">; An internal queue keeps command-data sequences for the CPU.</font>
+<font color="#406090">; The command bytes are the constants pic_???_cmd.</font>
+<font color="#406090">; The timer command has no data byte, and the serial and keyboard</font>
+<font color="#406090">; bytes are followed by one byte of data.</font>
+<font color="#406090">;</font>
+<font color="#406090">; June 21st, 1997</font>
+<font color="#406090">;</font>
+        <font color="#cd00cd">maclib</font> <font color="#c00058">'p65.inc'</font>
+
+        <font color="#cd00cd">device</font>  pic16c65,xt_osc,wdt_off,pwrt_off,protect_off
+
+w_temp          <font color="#cd00cd">equ</font>     <font color="#c00058">020h</font>
+status_temp     <font color="#cd00cd">equ</font>     <font color="#c00058">021h</font>
+
+<font color="#406090">;</font>
+<font color="#406090">; Keyboard I/O constants</font>
+<font color="#406090">;</font>
+init_stop_count <font color="#cd00cd">equ</font>     <font color="#c00058">2</font>       <font color="#406090">; # of stop bits per byte (+ 1)</font>
+stop_count      <font color="#cd00cd">equ</font>     <font color="#c00058">022h</font>    <font color="#406090">; storage for stop bits left</font>
+init_data_bits  <font color="#cd00cd">equ</font>     <font color="#c00058">10</font>      <font color="#406090">; start bits + data bits (+ 1)</font>
+data_bits       <font color="#cd00cd">equ</font>     <font color="#c00058">023h</font>    <font color="#406090">; storage for kbd data shifts left</font>
+                                <font color="#406090">; (1st bit shifted in gets pushed off end)</font>
+kbd_byte        <font color="#cd00cd">equ</font>     <font color="#c00058">024h</font>    <font color="#406090">; storage for keyboard byte</font>
+
+<font color="#406090">;</font>
+<font color="#406090">; Serial I/O constants</font>
+<font color="#406090">;</font>
+baud_rate_code  <font color="#cd00cd">equ</font>     <font color="#c00058">00fh</font>    <font color="#406090">; 19200 baud at 20 MHz, BRGH=0, 15 decimal</font>
+
+<font color="#406090">;</font>
+<font color="#406090">; Alice I/O queue constants</font>
+<font color="#406090">;</font>
+outq_tail       <font color="#cd00cd">equ</font>     <font color="#c00058">025h</font>    <font color="#406090">; output queue tail pointer</font>
+outq_head       <font color="#cd00cd">equ</font>     <font color="#c00058">026h</font>    <font color="#406090">; output queue head pointer (actually</font>
+                                <font color="#406090">; head+1)</font>
+outq_length     <font color="#cd00cd">equ</font>     <font color="#c00058">027h</font>    <font color="#406090">; length in bytes of current output queue</font>
+                                <font color="#406090">; (head - tail)</font>
+outq_byte_pop   <font color="#cd00cd">equ</font>     <font color="#c00058">028h</font>    <font color="#406090">; byte popped off output queue</font>
+outq_byte_push  <font color="#cd00cd">equ</font>     <font color="#c00058">029h</font>    <font color="#406090">; byte to push on output queue</font>
+outq_storage    <font color="#cd00cd">equ</font>     <font color="#c00058">040h</font>    <font color="#406090">; first byte of output queue storage</font>
+outq_size       <font color="#cd00cd">equ</font>     <font color="#c00058">040h</font>    <font color="#406090">; number of bytes in output queue</font>
+outq_wrap_mask  <font color="#cd00cd">equ</font>     <font color="#c00058">03fh</font>    <font color="#406090">; mask for wrapping queue pointers</font>
+
+<font color="#406090">;</font>
+<font color="#406090">; Queue command constants</font>
+<font color="#406090">;</font>
+pic_non_cmd     <font color="#cd00cd">equ</font>     <font color="#c00058">000h</font>    <font color="#406090">; no command yet (not used on the pic)</font>
+pic_ser_cmd     <font color="#cd00cd">equ</font>     <font color="#c00058">001h</font>    <font color="#406090">; serial byte</font>
+pic_kbd_cmd     <font color="#cd00cd">equ</font>     <font color="#c00058">002h</font>    <font color="#406090">; keyboard byte</font>
+pic_tim_cmd     <font color="#cd00cd">equ</font>     <font color="#c00058">003h</font>    <font color="#406090">; timer (no byte)</font>
+
+<font color="#406090">;</font>
+<font color="#406090">; Timer1 constants</font>
+<font color="#406090">;</font>
+ten_hz_low      <font color="#cd00cd">equ</font>     <font color="#c00058">0dch</font>    <font color="#406090">; low byte of 10 hz counter start</font>
+ten_hz_high     <font color="#cd00cd">equ</font>     <font color="#c00058">00bh</font>    <font color="#406090">; high byte of 10 hz counter start</font>
+                                <font color="#406090">; together these make 0xbdc, which means</font>
+                                <font color="#406090">; upward-counting tmr1 does 62500 ticks,</font>
+                                <font color="#406090">; and at 5 Hz (clk/4) with 1:8 scaling,</font>
+                                <font color="#406090">; that's 10 overflows per second.</font>
+
+reset
+        <font color="#cd00cd">org</font>     <font color="#c00058">0</font>               <font color="#406090">; on reset</font>
+        <font color="#804040"><b>goto</b></font>    start
+
+intsvc
+        <font color="#cd00cd">org</font>     <font color="#c00058">4</font>               <font color="#406090">; on interrupt</font>
+        <font color="#804040"><b>goto</b></font>    interrupt
+
+start
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+
+        <font color="#804040"><b>bcf</b></font>     pspif           <font color="#406090">; clear PSP interrupt flag</font>
+
+                <font color="#406090">; Serial interface</font>
+        <font color="#804040"><b>bcf</b></font>     portc,<font color="#c00058">6</font>         <font color="#406090">; clear USART transmit pin</font>
+        <font color="#804040"><b>bcf</b></font>     portc,<font color="#c00058">7</font>         <font color="#406090">; clear USART receive pin</font>
+        <font color="#804040"><b>bcf</b></font>     rcif            <font color="#406090">; clear USART receive interrupt flag</font>
+
+                <font color="#406090">; keyboard interface </font>
+        <font color="#804040"><b>movlw</b></font>   init_stop_count
+        <font color="#804040"><b>movwf</b></font>   stop_count      <font color="#406090">; set up # of stop bits in kbd data</font>
+        <font color="#804040"><b>movlw</b></font>   init_data_bits
+        <font color="#804040"><b>movwf</b></font>   data_bits       <font color="#406090">; set up # of actual shifts to make</font>
+
+        <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
+
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
+        <font color="#804040"><b>bcf</b></font>     trisa,<font color="#c00058">0</font>         <font color="#406090">; bit 0 port A is output</font>
+        <font color="#804040"><b>bcf</b></font>     trisa,<font color="#c00058">1</font>         <font color="#406090">; bit 1 port A is output</font>
+
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
+        <font color="#804040"><b>bsf</b></font>     trise0          <font color="#406090">; /RD is input</font>
+        <font color="#804040"><b>bsf</b></font>     trise1          <font color="#406090">; /WR is input</font>
+        <font color="#804040"><b>bsf</b></font>     trise2          <font color="#406090">; /CS is input</font>
+
+                <font color="#406090">; Serial interface</font>
+        <font color="#406090">; don't need to set trisc, default is 0xff (input)</font>
+        <font color="#804040"><b>bsf</b></font>     trisc, <font color="#c00058">6</font>        <font color="#406090">; transmit is output</font>
+        <font color="#804040"><b>bsf</b></font>     trisc, <font color="#c00058">7</font>        <font color="#406090">; receive is input</font>
+
+                <font color="#406090">; Keyboard interface</font>
+        <font color="#406090">; don't need to set trisb, default is 0xff (input)</font>
+        <font color="#804040"><b>bsf</b></font>     intedg          <font color="#406090">; RB0/INT triggers on low-to-high</font>
+
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
+        <font color="#804040"><b>bsf</b></font>     pspie           <font color="#406090">; enable PSP interrupts</font>
+        <font color="#804040"><b>bsf</b></font>     pspmode         <font color="#406090">; enable PSP mode</font>
+
+                <font color="#406090">; Serial interface</font>
+        <font color="#804040"><b>movlw</b></font>   baud_rate_code  <font color="#406090">; default baud rate</font>
+        <font color="#804040"><b>movwf</b></font>   spbrg           <font color="#406090">; set baud rate generator </font>
+        <font color="#804040"><b>bcf</b></font>     sync            <font color="#406090">; asynchronous serial</font>
+        <font color="#804040"><b>bsf</b></font>     txen            <font color="#406090">; enable USART transmitter</font>
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>bsf</b></font>     spen            <font color="#406090">; enable USART receiver</font>
+        <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
+        <font color="#804040"><b>bsf</b></font>     rcie            <font color="#406090">; enable USART receive interrupt</font>
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>bsf</b></font>     cren            <font color="#406090">; enable USART receive next byte</font>
+
+                <font color="#406090">; Alice&nbsp;2 bus interface</font>
+        <font color="#804040"><b>bsf</b></font>     porta,<font color="#c00058">0</font>         <font color="#406090">; don't interrupt CPU on IRQ 0</font>
+        <font color="#804040"><b>bcf</b></font>     porta,<font color="#c00058">1</font>         <font color="#406090">; clear debug pin</font>
+
+                <font color="#406090">; init Alice output queue</font>
+        <font color="#804040"><b>movlw</b></font>   outq_storage
+        <font color="#804040"><b>movwf</b></font>   outq_head
+        <font color="#804040"><b>movwf</b></font>   outq_tail
+        <font color="#804040"><b>clrf</b></font>    outq_length
+
+                <font color="#406090">; init timer 1</font>
+        <font color="#804040"><b>bsf</b></font>     t1ckps1
+        <font color="#804040"><b>bsf</b></font>     t1ckps0         <font color="#406090">; set tmr1 prescaler to 8</font>
+        <font color="#804040"><b>movlw</b></font>   ten_hz_low
+        <font color="#804040"><b>movwf</b></font>   tmr1l
+        <font color="#804040"><b>movlw</b></font>   ten_hz_high
+        <font color="#804040"><b>movwf</b></font>   tmr1h
+        <font color="#804040"><b>bsf</b></font>     tmr1on
+
+                <font color="#406090">; Serial and Alice&nbsp;2 bus interface</font>
+        <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
+        <font color="#804040"><b>bsf</b></font>     peie            <font color="#406090">; enable peripheral interrupts</font>
+
+                <font color="#406090">; Timer interrupt</font>
+        <font color="#804040"><b>bsf</b></font>     tmr1ie          <font color="#406090">; enable tmr1 interrupt</font>
+
+                <font color="#406090">; Keyboard interface</font>
+        <font color="#804040"><b>bcf</b></font>     intf            <font color="#406090">; clear RB0/INT interrupt flag</font>
+        <font color="#804040"><b>bsf</b></font>     inte            <font color="#406090">; enable RB0/INT interrupt</font>
+
+        <font color="#804040"><b>bsf</b></font>     gie             <font color="#406090">; enable all interrupts</font>
+
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+
+loop
+        <font color="#804040"><b>goto</b></font>    loop
+
+interrupt
+        <font color="#406090">; save W and STATUS</font>
+        <font color="#804040"><b>movwf</b></font>   w_temp          <font color="#406090">; save W</font>
+        <font color="#804040"><b>swapf</b></font>   status, w       <font color="#406090">; save status in W</font>
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>movwf</b></font>   status_temp     <font color="#406090">; save status</font>
+
+        <font color="#804040"><b>btfsc</b></font>   tmr1if          <font color="#406090">; test timer 1 flag</font>
+        <font color="#804040"><b>goto</b></font>    timer_int       <font color="#406090">; if timer int, then go handle timer</font>
+
+        <font color="#804040"><b>btfss</b></font>   pspif           <font color="#406090">; test PSP interrupt flag</font>
+        <font color="#804040"><b>goto</b></font>    not_psp_intr    <font color="#406090">; not PSP</font>
+
+        <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
+        <font color="#804040"><b>btfss</b></font>   ibf             <font color="#406090">; did we get a write?</font>
+        <font color="#804040"><b>goto</b></font>    psp_was_read    <font color="#406090">; nope, jump to read</font>
+
+        <font color="#406090">; we got a write</font>
+        <font color="#406090">; send on to serial </font>
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>movf</b></font>    portd, w        <font color="#406090">; get byte</font>
+        <font color="#804040"><b>movwf</b></font>   txreg
+
+        <font color="#804040"><b>goto</b></font>    end_psp_interrupt
+                                <font color="#406090">; return</font>
+
+timer_int
+        <font color="#804040"><b>bcf</b></font>     tmr1on          <font color="#406090">; turn off temporarily</font>
+        <font color="#804040"><b>movlw</b></font>   ten_hz_low
+        <font color="#804040"><b>movwf</b></font>   tmr1l
+        <font color="#804040"><b>movlw</b></font>   ten_hz_high
+        <font color="#804040"><b>movwf</b></font>   tmr1h
+        <font color="#804040"><b>bsf</b></font>     tmr1on          <font color="#406090">; reset and turn on</font>
+
+        <font color="#804040"><b>movlw</b></font>   pic_tim_cmd
+        <font color="#804040"><b>call</b></font>    send_byte       <font color="#406090">; alert Alice of timer interrupt</font>
+                <font color="#406090">; fall through to endtimer_interrupt</font>
+
+endtimer_interrupt
+        <font color="#804040"><b>bcf</b></font>     tmr1if          <font color="#406090">; clear TMR1 interrupt flag</font>
+        <font color="#804040"><b>goto</b></font>    finish_interrupt
+
+psp_was_read
+        <font color="#804040"><b>call</b></font>    check_queue     <font color="#406090">; send next byte if there is one</font>
+        <font color="#804040"><b>goto</b></font>    end_psp_interrupt
+
+not_psp_intr    <font color="#406090">; either RB0/INT or RC/USART</font>
+        <font color="#804040"><b>btfss</b></font>   intf            <font color="#406090">; skip next if is definitely INT interrupt</font>
+        <font color="#804040"><b>goto</b></font>    serial_intr     <font color="#406090">; it's a byte from the serial port</font>
+
+        <font color="#804040"><b>decfsz</b></font>  data_bits, <font color="#c00058">1</font>    <font color="#406090">; skip next if done with data bits</font>
+        <font color="#804040"><b>goto</b></font>    got_kbd_bit     <font color="#406090">; have a good bit on port B</font>
+        <font color="#804040"><b>decfsz</b></font>  stop_count, <font color="#c00058">1</font>   <font color="#406090">; skip next if done with keyboard cycle</font>
+        <font color="#804040"><b>goto</b></font>    more_stops      <font color="#406090">; not done yet, have stop bits</font>
+
+got_kbd_byte
+        <font color="#804040"><b>movlw</b></font>   pic_kbd_cmd     <font color="#406090">; put the kbd cmd into the queue</font>
+        <font color="#804040"><b>call</b></font>    send_byte       <font color="#406090">; send data to CPU</font>
+        <font color="#804040"><b>movf</b></font>    kbd_byte, w     <font color="#406090">; get kbd byte</font>
+        <font color="#804040"><b>call</b></font>    send_byte       <font color="#406090">; send data to CPU</font>
+
+        <font color="#804040"><b>movlw</b></font>   init_stop_count
+        <font color="#804040"><b>movwf</b></font>   stop_count      <font color="#406090">; set up # of stop bits in</font>
+        <font color="#804040"><b>movlw</b></font>   init_data_bits
+        <font color="#804040"><b>movwf</b></font>   data_bits       <font color="#406090">; set up # of actual shifts</font>
+
+        <font color="#804040"><b>goto</b></font>    end_rb0_interrupt
+                                <font color="#406090">; done with sending byte</font>
+
+more_stops                      <font color="#406090">; only stop bits left</font>
+        <font color="#804040"><b>clrf</b></font>    data_bits
+        <font color="#804040"><b>incf</b></font>    data_bits       <font color="#406090">; set remaining data_bits to 1</font>
+                                <font color="#406090">; next loop through dec's data_bits, it's 0,</font>
+                                <font color="#406090">; skips to decfsz stop_count</font>
+        <font color="#804040"><b>goto</b></font>    end_rb0_interrupt
+                                <font color="#406090">; finish with rb0/int interrupt</font>
+
+got_kbd_bit                     <font color="#406090">; shift in a bit from keyboard</font>
+
+        <font color="#804040"><b>bsf</b></font>     c               <font color="#406090">; set carry</font>
+        <font color="#804040"><b>btfss</b></font>   portb, <font color="#c00058">1</font>        <font color="#406090">; if kbd data bit is set, skip next</font>
+        <font color="#804040"><b>bcf</b></font>     c               <font color="#406090">; clear carry</font>
+        <font color="#804040"><b>rrf</b></font>     kbd_byte, <font color="#c00058">1</font>     <font color="#406090">; rotate data bit into MSB of kbd_byte</font>
+        <font color="#406090">; fall through to end_rb0_interrupt</font>
+
+end_rb0_interrupt
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>bcf</b></font>     intf            <font color="#406090">; clear RB0/INT interrupt flag</font>
+        <font color="#804040"><b>goto</b></font>    finish_interrupt
+                                <font color="#406090">; pop processor context</font>
+
+end_psp_interrupt
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>bcf</b></font>     pspif           <font color="#406090">; clear PSP interrupt flag</font>
+        <font color="#804040"><b>goto</b></font>    finish_interrupt
+
+serial_intr
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>movlw</b></font>   pic_ser_cmd     <font color="#406090">; put the serial cmd into the queue</font>
+        <font color="#804040"><b>call</b></font>    send_byte       <font color="#406090">; send to CPU</font>
+        <font color="#804040"><b>movf</b></font>    rcreg, w        <font color="#406090">; get USART in</font>
+        <font color="#804040"><b>call</b></font>    send_byte       <font color="#406090">; send to CPU</font>
+        <font color="#406090">; fall through into end_ser_interrupt</font>
+
+end_ser_interrupt
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>bcf</b></font>     rcif            <font color="#406090">; clear USART receive interrupt</font>
+        <font color="#406090">; fall through to finish_interrupt</font>
+
+finish_interrupt
+        <font color="#406090">; restore W and STATUS</font>
+        <font color="#804040"><b>swapf</b></font>   status_temp, w  <font color="#406090">; put old status in W</font>
+        <font color="#804040"><b>movwf</b></font>   status          <font color="#406090">; put into status</font>
+        <font color="#804040"><b>swapf</b></font>   w_temp, <font color="#c00058">1</font>       <font color="#406090">; swap w_temp in place</font>
+        <font color="#804040"><b>swapf</b></font>   w_temp, w       <font color="#406090">; put old W into W</font>
+
+        <font color="#804040"><b>retfie</b></font>
+
+send_byte
+        <font color="#406090">; put byte that's in w into the out queue</font>
+        <font color="#406090">; assumes interrupts are disabled (called from int routine)</font>
+
+                <font color="#406090">; push on queue</font>
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+
+        <font color="#804040"><b>movwf</b></font>   outq_byte_push
+
+        <font color="#804040"><b>movlw</b></font>   outq_size
+        <font color="#804040"><b>subwf</b></font>   outq_length, w
+        <font color="#804040"><b>btfsc</b></font>   c
+        <font color="#804040"><b>return</b></font>                  <font color="#406090">; if q length &gt;= size (overflow), then</font>
+                                <font color="#406090">; return</font>
+        <font color="#804040"><b>movf</b></font>    outq_head, w
+        <font color="#804040"><b>movwf</b></font>   fsr
+        <font color="#804040"><b>movf</b></font>    outq_byte_push, w
+        <font color="#804040"><b>movwf</b></font>   indf            <font color="#406090">; *head = outq_byte_push</font>
+
+        <font color="#804040"><b>incf</b></font>    outq_head
+        <font color="#804040"><b>movf</b></font>    outq_head, w
+        <font color="#804040"><b>andlw</b></font>   outq_wrap_mask
+        <font color="#804040"><b>addlw</b></font>   outq_storage
+        <font color="#804040"><b>movwf</b></font>   outq_head       <font color="#406090">; head = storage + (head - storage + 1) % size</font>
+                                <font color="#406090">; i.e. head++</font>
+
+        <font color="#804040"><b>incf</b></font>    outq_length     <font color="#406090">; length ++</font>
+
+        <font color="#804040"><b>call</b></font>    check_queue
+
+        <font color="#804040"><b>return</b></font>
+
+
+check_queue
+        <font color="#406090">; if there is a byte in the queue, get it and send it on to the</font>
+        <font color="#406090">; Alice&nbsp;2 through port D</font>
+        <font color="#406090">; assumes interrupts are disabled (called from int routine)</font>
+
+        <font color="#804040"><b>bsf</b></font>     rp0             <font color="#406090">; bank 1</font>
+        <font color="#804040"><b>btfss</b></font>   obf             <font color="#406090">; skip if byte already on portd</font>
+        <font color="#804040"><b>goto</b></font>    do_another
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>return</b></font>
+
+        <font color="#804040"><b>bsf</b></font>     porta, <font color="#c00058">0</font>        <font color="#406090">; turn off interrupt to CPU</font>
+
+do_another
+        <font color="#804040"><b>bcf</b></font>     rp0             <font color="#406090">; bank 0</font>
+        <font color="#804040"><b>movf</b></font>    outq_length     <font color="#406090">; move to itself</font>
+        <font color="#804040"><b>btfsc</b></font>   <font color="#008080">z</font>               <font color="#406090">; skip if not zero</font>
+        <font color="#804040"><b>return</b></font>                  <font color="#406090">; if length == 0 return</font>
+
+        <font color="#804040"><b>movf</b></font>    outq_tail, w
+        <font color="#804040"><b>movwf</b></font>   fsr
+        <font color="#804040"><b>movf</b></font>    indf, w
+        <font color="#804040"><b>movwf</b></font>   outq_byte_pop   <font color="#406090">; outq_byte_pop = *tail</font>
+
+        <font color="#804040"><b>movwf</b></font>   portd           <font color="#406090">; send on to Alice</font>
+        <font color="#804040"><b>bcf</b></font>     pspif           <font color="#406090">; clear PSP interrupt flag</font>
+        <font color="#804040"><b>bcf</b></font>     porta, <font color="#c00058">0</font>        <font color="#406090">; turn on interrupt to CPU</font>
+
+        <font color="#804040"><b>incf</b></font>    outq_tail
+        <font color="#804040"><b>movf</b></font>    outq_tail, w
+        <font color="#804040"><b>andlw</b></font>   outq_wrap_mask
+        <font color="#804040"><b>addlw</b></font>   outq_storage
+        <font color="#804040"><b>movwf</b></font>   outq_tail       <font color="#406090">; tail = storage + (tail - storage + 1) % size</font>
+                                <font color="#406090">; i.e. tail++</font>
+
+        <font color="#804040"><b>decf</b></font>    outq_length     <font color="#406090">; length --</font>
+
+        <font color="#804040"><b>return</b></font>
+</pre>
+</body>
+</html>

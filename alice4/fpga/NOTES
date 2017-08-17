@@ -1,0 +1,170 @@
+
+- Naming conventions:
+    - Registers and wires: all lower case with underscores.
+    - Modules: Sentence capitalization (first letter only) with underscores.
+    - Constants: All caps.
+    - Active low: _n suffix (reset_n).
+    - Input parameters: No special syntax.
+    - Output parameters: No special syntax.
+    - Always specify "wire" or "reg" in parameters.
+
+- Xilinx
+    - FPGAs
+        - https://www.xilinx.com/support/documentation/selection-guides/cost-optimized-product-selection-guide.pdf
+        - Spartan (low-cost)
+            - Retired?
+            - Spartan-3 is older.
+            - Spartan-6
+                - 45nm.
+                - Spartan-6 LX
+                    - Some have more than 4 MB block RAM.
+                - Spartan-6 LXT (with serial connectivity, PCIe)
+            - Spartan-7
+                - 28nm.
+        - Artix (low-cost)
+            - Artix-7
+                - 28nm.
+        - Zynq-7000 (with embedded ARM).
+        - Virtex (high performance)
+            - Virtex-7
+                - 28nm.
+            - Virtex UltraScale.
+                - 20nm.
+            - Virtex UltraScale+.
+                - 16nm.
+        - Kintex (mid-range)
+            - Kintex-7
+                - 28nm.
+            - Kintex UltraScale.
+                - 20nm.
+            - Kintex UltraScale+.
+                - 16nm.
+    - Boards:
+        - FS604:
+            - http://www.sioi.com.au/shop/product_info.php/cPath/30_24/products_id/47
+            - AU$59 ($44)
+            - Spartan 6 LX4
+            - 38 GPIOs.
+            - 32 MB DRAM (DDR400) (With DRAM controller IP core (DDR166))
+        - USB-FPGA Module 2.04
+            - http://www.ztex.de/usb-fpga-2/usb-fpga-2.04.e.html
+            - $130
+            - Spartan 6 XL16
+            - 96 GPIOs (0.1" female header on bottom).
+            - 64 MB DDR SDRAM (includes controller)
+            - Looks very convenient as daughter card.
+        - Papilio Pro
+            - http://retrocade.gadgetfactory.net/index.php?n=Main.PapilioPro
+            - $85 on Amazon, $75 from GadgetFactory website.
+            - Spartan 6 LX9
+            - 48 GPIOs (in Wing form factor).
+            - 8 MB SDRAM (will provide controller later?)
+        - XuLA2-LX25
+            - http://www.xess.com/shop/product/xula2-lx25/
+            - $120
+            - Spartan 6 LX25
+            - 33 I/O pins.
+            - 32 MB SDRAM (with controller interface)
+            - Seems to have nice docs and example programs, but maybe all in VHDL.
+        - Saturn:
+            - http://numato.com/saturn-spartan-6-fpga-development-board-with-ddr-sdram/
+            - $120
+            - Spartan 6 LX16 or LX45
+            - > 100 GPIOS
+            - 64 MB LPDDR.
+- Read this:
+    - http://www.xess.com/static/media/appnotes/FpgasNowWhatBook.pdf
+
+
+Wavedrom for Test_FIFO:
+
+{head: {
+  text: 'Alice 4 FIFO Test',
+  tick: 0
+}, signal: [
+  {name: 'clock',                  wave: 'p..........|............'},
+  {name: 'step',                   wave: 'x=========x|x=========x.', data: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "100", "101", "102", "103", "104", "105", "106", "107", "108"]},
+  {name: 'write',                  wave: '0.1.......0|............'},
+  {name: 'write data',             wave: 'x.========x|............', data: ["0", "1", "2", "3", "4", "5", "6", "7"]},
+  {name: 'read',                   wave: '0..........|..1.......0.'},
+  {name: 'read data',              wave: '0..........|..=========.', data: ["0", "0", "1", "2", "3", "4", "5", "6"]},
+  {name: 'size',                   wave: '=..========|...========.', data: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "7", "6", "5", "4", "3", "2", "1", "0"]},
+]}
+
+Next:
+
+    Check pin assignment of all Main() parameters.
+    Read this page:
+        http://www.alteraforum.com/forum/showthread.php?t=45817
+        https://www.developpez.net/forums/d1566375/autres-langages/autres-langages/vhdl/echange-donnees-hps-fpga-via-dma/
+    Check size of generated binary.
+
+{head: {
+  text: 'Alice 4 Write FIFO',
+  tick: 0
+}, signal: [
+  {name: 'clock',         wave: 'P.............................'},
+  {name: 'read queue',    wave: '010..1.0..10...1..0...1..0....'},
+  {name: 'queue empty',   wave: '0.............................'},
+  {name: 'queue data',    wave: 'x.=x..==x..=x...===x...===x...', data: "A B C D E F G H I J"},
+  {name: 'slot1_full',    wave: 'x..=x..==x..=x...===x....=....', data: "A B C D E F G I"},
+  {name: 'slot2_full',    wave: 'x..=x..==x..=x...===x.....=...', data: "A B C D E F G J"},
+  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x..=.....', data: "A B C D E F G H"},
+  {name: 'color write',   wave: '0..10..1.0..1.0..1...0..1.....'},
+  {name: 'color wait',    wave: '0............10...10.....1....', phase: 0.5},
+]}
+
+Buffer addresses:
+    Size of color/Z buffer = 1536000
+    Buf 1: 0x38000000 (0x7000000 in 64-bit addresses)
+    Buf 2: 0x38177000 (0x702ee00 in 64-bit addresses)
+    Buf Z: 0x382ee000 (0x705dc00 in 64-bit addresses)
+    Cmd:   0x38465000 (0x708ca00 in 64-bit addresses)
+
+SDRAM priority:
+    See page 11-11.
+    See mppriority register.
+        0xFFC250AC
+        Defaults to:
+            0x3ffd1088, or 07777210210.
+            MPU and L3 have highest priority, rest are bizarre.
+        Port 0 is bits 2:0, port 1 is bits 5:3, etc.
+        MPU and L3 are ports 29:18.
+        Want:
+            Port 0, scanout: 7
+            Port 1, read z: 6
+            Port 2, write color: 6
+            Port 3, write Z: 6
+            Port 4, unused: 0
+            Port 5, unused: 0
+            Ports 6 through 9, MPU and L3: 3
+            03333006667, or 0x1b6c0db7
+    See mpweight_?_4 registers.
+        I think I can ignore these.
+    See remappriority register.
+        Causes some priority levels to have their requests jump to
+        the front of the queue.
+
+
+total frame ms, cpu, copy, raster wait, est total raster, F2H_BUSY wait
+full: 39.68, 1.71, 0.23, 21.52, 23.46, 16.22
+no text: 39.68, 1.09, 0.06, 21.20, 22.35, 17.33
+no edge: 19.84, 1.18, 0.18, 8.86, 10.21, 9.62
+
+Convert command buffer read to fifo:
+    - Convert u-boot.txt to scr and install.
+    - New command buffer reading module.
+        - Parameters:
+            - Avalon-MM read from SDRAM.
+            - scfifo read from FIFO.
+            - synchronous reset.
+                - waits for pending reads to flush.
+                - clears fifo.
+                - resets PC.
+        - scfifo.
+        - Wait for signal, then reset PC and read in loop.
+        - Stop reading on CMD_END?
+    - Convert Z reads to FIFO reads.
+    - Remove CMD_ADDRESS from Rasterizer.
+    - Check latency on sync clear of FIFO.
+

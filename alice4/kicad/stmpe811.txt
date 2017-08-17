@@ -1,0 +1,8 @@
+Y-,B,X-,B
+INT,O,Y+,B
+A0,I,Vio,W
+SCL,I,X+,B
+SDA,B,IN3,I
+Vcc,W,IN2,I
+SPI,B,GND,W
+IN0,I,IN1,I

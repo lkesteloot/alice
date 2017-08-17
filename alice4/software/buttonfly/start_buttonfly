@@ -1,0 +1,3 @@
+#!/bin/sh
+cd /home/ubuntu/alice/alice4/software/buttonfly
+./buttonfly menu_demos secret_menu

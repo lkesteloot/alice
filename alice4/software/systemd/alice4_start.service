@@ -1,0 +1,10 @@
+[Unit]
+Description=Alice 4 start buttonfly
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/home/ubuntu/alice/alice4/software/buttonfly/start_buttonfly
+
+[Install]
+WantedBy=multi-user.target

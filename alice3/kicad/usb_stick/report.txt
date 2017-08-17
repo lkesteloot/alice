@@ -1,0 +1,844 @@
+Info: Reading netlist file "/Users/grantham/trees/alice/alice3/kicad/MOBO_SMD/MOBO_SMD.net".
+
+Info: Using references to match components and footprints.
+
+Info: Checking netlist component footprint "C1:/568DB7FD/568DD525:Capacitors_SMD:C_0805".
+
+Adding new component "C1:/568DB7FD/568DD525" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C1:/568DB7FD/568DD525" pin "1" net name from "" to "+3V3".
+
+Changing component "C1:/568DB7FD/568DD525" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C2:/568DBAE1/56BAABEC:Capacitors_SMD:C_0805".
+
+Adding new component "C2:/568DBAE1/56BAABEC" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C2:/568DBAE1/56BAABEC" pin "1" net name from "" to "GND".
+
+Changing component "C2:/568DBAE1/56BAABEC" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C3:/568DBAE1/56BAAB70:Capacitors_SMD:C_0805".
+
+Adding new component "C3:/568DBAE1/56BAAB70" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C3:/568DBAE1/56BAAB70" pin "1" net name from "" to "GND".
+
+Changing component "C3:/568DBAE1/56BAAB70" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C4:/568DBAE1/56BAAB11:Capacitors_SMD:C_0805".
+
+Adding new component "C4:/568DBAE1/56BAAB11" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C4:/568DBAE1/56BAAB11" pin "1" net name from "" to "GND".
+
+Changing component "C4:/568DBAE1/56BAAB11" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C5:/568DBAE1/56BA50E4:Capacitors_SMD:C_0805".
+
+Adding new component "C5:/568DBAE1/56BA50E4" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C5:/568DBAE1/56BA50E4" pin "1" net name from "" to "Net-(C5-Pad1)".
+
+Changing component "C5:/568DBAE1/56BA50E4" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C6:/568DBAE1/56BA5132:Capacitors_SMD:C_0805".
+
+Adding new component "C6:/568DBAE1/56BA5132" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C6:/568DBAE1/56BA5132" pin "1" net name from "" to "GND".
+
+Changing component "C6:/568DBAE1/56BA5132" pin "2" net name from "" to "Net-(C6-Pad2)".
+
+Info: Checking netlist component footprint "C7:/568DBAE1/56BAAAB5:Capacitors_SMD:C_0805".
+
+Adding new component "C7:/568DBAE1/56BAAAB5" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C7:/568DBAE1/56BAAAB5" pin "1" net name from "" to "GND".
+
+Changing component "C7:/568DBAE1/56BAAAB5" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C8:/568DBAE1/56BAC974:Capacitors_SMD:C_0805".
+
+Adding new component "C8:/568DBAE1/56BAC974" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C8:/568DBAE1/56BAC974" pin "1" net name from "" to "GND".
+
+Changing component "C8:/568DBAE1/56BAC974" pin "2" net name from "" to "+5V".
+
+Info: Checking netlist component footprint "C9:/568DBAE1/56BAA92C:Capacitors_SMD:C_0805".
+
+Adding new component "C9:/568DBAE1/56BAA92C" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C9:/568DBAE1/56BAA92C" pin "1" net name from "" to "GND".
+
+Changing component "C9:/568DBAE1/56BAA92C" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C10:/568DBAE1/56BA543D:Capacitors_SMD:C_0805".
+
+Adding new component "C10:/568DBAE1/56BA543D" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C10:/568DBAE1/56BA543D" pin "1" net name from "" to "Net-(C10-Pad1)".
+
+Changing component "C10:/568DBAE1/56BA543D" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C11:/568DBAE1/56BA5533:Capacitors_SMD:C_0805".
+
+Adding new component "C11:/568DBAE1/56BA5533" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C11:/568DBAE1/56BA5533" pin "1" net name from "" to "Net-(C11-Pad1)".
+
+Changing component "C11:/568DBAE1/56BA5533" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C12:/568DBAE1/56BA69CA:Capacitors_SMD:C_0805".
+
+Adding new component "C12:/568DBAE1/56BA69CA" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C12:/568DBAE1/56BA69CA" pin "1" net name from "" to "Net-(C12-Pad1)".
+
+Changing component "C12:/568DBAE1/56BA69CA" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C13:/568DBAE1/56BA69D0:Capacitors_SMD:C_0805".
+
+Adding new component "C13:/568DBAE1/56BA69D0" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C13:/568DBAE1/56BA69D0" pin "1" net name from "" to "GND".
+
+Changing component "C13:/568DBAE1/56BA69D0" pin "2" net name from "" to "Net-(C13-Pad2)".
+
+Info: Checking netlist component footprint "C14:/568DBAE1/568A9C8C:Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Adding new component "C14:/568DBAE1/568A9C8C" footprint "Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Changing component "C14:/568DBAE1/568A9C8C" pin "1" net name from "" to "+3V3".
+
+Changing component "C14:/568DBAE1/568A9C8C" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C15:/568DBAE1/56A08847:Capacitors_ThroughHole:C_Radial_D8_L11.5_P3.5".
+
+Adding new component "C15:/568DBAE1/56A08847" footprint "Capacitors_ThroughHole:C_Radial_D8_L11.5_P3.5".
+
+Changing component "C15:/568DBAE1/56A08847" pin "2" net name from "" to "GND".
+
+Changing component "C15:/568DBAE1/56A08847" pin "1" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "C16:/568DDBCB/56A06CFE:Capacitors_SMD:C_0805".
+
+Adding new component "C16:/568DDBCB/56A06CFE" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C16:/568DDBCB/56A06CFE" pin "1" net name from "" to "+3V3".
+
+Changing component "C16:/568DDBCB/56A06CFE" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C17:/568DDBCB/56A06F35:Capacitors_SMD:C_0805".
+
+Adding new component "C17:/568DDBCB/56A06F35" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C17:/568DDBCB/56A06F35" pin "1" net name from "" to "+3V3".
+
+Changing component "C17:/568DDBCB/56A06F35" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C18:/568DDBCB/56CACD23:Capacitors_SMD:C_0805".
+
+Adding new component "C18:/568DDBCB/56CACD23" footprint "Capacitors_SMD:C_0805".
+
+Changing component "C18:/568DDBCB/56CACD23" pin "1" net name from "" to "+3V3".
+
+Changing component "C18:/568DDBCB/56CACD23" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C19:/56BA9956/56BA78F3:Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Adding new component "C19:/56BA9956/56BA78F3" footprint "Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Changing component "C19:/56BA9956/56BA78F3" pin "1" net name from "" to "+5V".
+
+Changing component "C19:/56BA9956/56BA78F3" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "C20:/56BA9956/56BA7930:Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Adding new component "C20:/56BA9956/56BA7930" footprint "Capacitors_ThroughHole:C_Radial_D5_L11_P2.5".
+
+Changing component "C20:/56BA9956/56BA7930" pin "1" net name from "" to "+3V3".
+
+Changing component "C20:/56BA9956/56BA7930" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "CON1:/568DBAE1/56BA79CB:microsd:microsd_socket".
+
+Adding new component "CON1:/568DBAE1/56BA79CB" footprint "microsd:microsd_socket".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "8" net name from "" to "Net-(CON1-Pad8)".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "7" net name from "" to "/IO/DO".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "6" net name from "" to "GND".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "5" net name from "" to "/IO/SCK".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "4" net name from "" to "+3V3".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "3" net name from "" to "/IO/DI".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "2" net name from "" to "/IO/CS".
+
+Changing component "CON1:/568DBAE1/56BA79CB" pin "1" net name from "" to "Net-(CON1-Pad1)".
+
+Info: Checking netlist component footprint "D1:/568DB7FD/56821EAA:LEDs:LED_0805".
+
+Adding new component "D1:/568DB7FD/56821EAA" footprint "LEDs:LED_0805".
+
+Changing component "D1:/568DB7FD/56821EAA" pin "2" net name from "" to "Net-(D1-Pad2)".
+
+Changing component "D1:/568DB7FD/56821EAA" pin "1" net name from "" to "Net-(D1-Pad1)".
+
+Info: Checking netlist component footprint "D2:/568DBAE1/56A0884E:LEDs:LED_0805".
+
+Adding new component "D2:/568DBAE1/56A0884E" footprint "LEDs:LED_0805".
+
+Changing component "D2:/568DBAE1/56A0884E" pin "2" net name from "" to "+3V3".
+
+Changing component "D2:/568DBAE1/56A0884E" pin "1" net name from "" to "Net-(D2-Pad1)".
+
+Info: Checking netlist component footprint "JP1:/568DBAE1/56BA6607:Pin_Headers:Pin_Header_Straight_1x02".
+
+Adding new component "JP1:/568DBAE1/56BA6607" footprint "Pin_Headers:Pin_Header_Straight_1x02".
+
+Changing component "JP1:/568DBAE1/56BA6607" pin "1" net name from "" to "Net-(JP1-Pad1)".
+
+Changing component "JP1:/568DBAE1/56BA6607" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "P1:/568DB7FD/56A04EF8:Pin_Headers:Pin_Header_Angled_1x05".
+
+Adding new component "P1:/568DB7FD/56A04EF8" footprint "Pin_Headers:Pin_Header_Angled_1x05".
+
+Changing component "P1:/568DB7FD/56A04EF8" pin "1" net name from "" to "GND".
+
+Changing component "P1:/568DB7FD/56A04EF8" pin "2" net name from "" to "+3V3".
+
+Changing component "P1:/568DB7FD/56A04EF8" pin "3" net name from "" to "Net-(P1-Pad3)".
+
+Changing component "P1:/568DB7FD/56A04EF8" pin "4" net name from "" to "Net-(P1-Pad4)".
+
+Changing component "P1:/568DB7FD/56A04EF8" pin "5" net name from "" to "Net-(P1-Pad5)".
+
+Info: Checking netlist component footprint "P2:/568DBAE1/56BAA76F:microusb:10118192-0001LF".
+
+Adding new component "P2:/568DBAE1/56BAA76F" footprint "microusb:10118192-0001LF".
+
+Changing component "P2:/568DBAE1/56BAA76F" pin "1" net name from "" to "+5V".
+
+Changing component "P2:/568DBAE1/56BAA76F" pin "2" net name from "" to "USB_D_N".
+
+Changing component "P2:/568DBAE1/56BAA76F" pin "3" net name from "" to "USB_D_P".
+
+Changing component "P2:/568DBAE1/56BAA76F" pin "4" net name from "" to "USB_ID".
+
+Changing component "P2:/568DBAE1/56BAA76F" pin "5" net name from "" to "GND".
+
+Info: Checking netlist component footprint "P3:/568DBAE1/56BAA324:Pin_Headers:Pin_Header_Straight_1x02".
+
+Adding new component "P3:/568DBAE1/56BAA324" footprint "Pin_Headers:Pin_Header_Straight_1x02".
+
+Changing component "P3:/568DBAE1/56BAA324" pin "1" net name from "" to "Net-(P3-Pad1)".
+
+Changing component "P3:/568DBAE1/56BAA324" pin "2" net name from "" to "Net-(P3-Pad2)".
+
+Info: Checking netlist component footprint "R1:/568DB7FD/56821F00:Resistors_SMD:R_0805".
+
+Adding new component "R1:/568DB7FD/56821F00" footprint "Resistors_SMD:R_0805".
+
+Changing component "R1:/568DB7FD/56821F00" pin "1" net name from "" to "Net-(D1-Pad1)".
+
+Changing component "R1:/568DB7FD/56821F00" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "R2:/568DB7FD/5681F454:Resistors_SMD:R_0805".
+
+Adding new component "R2:/568DB7FD/5681F454" footprint "Resistors_SMD:R_0805".
+
+Changing component "R2:/568DB7FD/5681F454" pin "1" net name from "" to "+3V3".
+
+Changing component "R2:/568DB7FD/5681F454" pin "2" net name from "" to "Net-(R2-Pad2)".
+
+Info: Checking netlist component footprint "R3:/568DBAE1/56BA6423:Resistors_SMD:R_0805".
+
+Adding new component "R3:/568DBAE1/56BA6423" footprint "Resistors_SMD:R_0805".
+
+Changing component "R3:/568DBAE1/56BA6423" pin "1" net name from "" to "+3V3".
+
+Changing component "R3:/568DBAE1/56BA6423" pin "2" net name from "" to "Net-(JP1-Pad1)".
+
+Info: Checking netlist component footprint "R4:/568DBAE1/56BAC147:Resistors_SMD:R_0805".
+
+Adding new component "R4:/568DBAE1/56BAC147" footprint "Resistors_SMD:R_0805".
+
+Changing component "R4:/568DBAE1/56BAC147" pin "1" net name from "" to "USB_DET".
+
+Changing component "R4:/568DBAE1/56BAC147" pin "2" net name from "" to "+5V".
+
+Info: Checking netlist component footprint "R5:/568DBAE1/568A0A99:Resistors_SMD:R_0805".
+
+Adding new component "R5:/568DBAE1/568A0A99" footprint "Resistors_SMD:R_0805".
+
+Changing component "R5:/568DBAE1/568A0A99" pin "1" net name from "" to "Net-(R5-Pad1)".
+
+Changing component "R5:/568DBAE1/568A0A99" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "R6:/568DBAE1/5689A887:Resistors_SMD:R_0805".
+
+Adding new component "R6:/568DBAE1/5689A887" footprint "Resistors_SMD:R_0805".
+
+Changing component "R6:/568DBAE1/5689A887" pin "1" net name from "" to "+3V3".
+
+Changing component "R6:/568DBAE1/5689A887" pin "2" net name from "" to "/IO/DO".
+
+Info: Checking netlist component footprint "R7:/568DBAE1/5689A7FF:Resistors_SMD:R_0805".
+
+Adding new component "R7:/568DBAE1/5689A7FF" footprint "Resistors_SMD:R_0805".
+
+Changing component "R7:/568DBAE1/5689A7FF" pin "1" net name from "" to "+3V3".
+
+Changing component "R7:/568DBAE1/5689A7FF" pin "2" net name from "" to "/IO/SCK".
+
+Info: Checking netlist component footprint "R8:/568DBAE1/5689A6F4:Resistors_SMD:R_0805".
+
+Adding new component "R8:/568DBAE1/5689A6F4" footprint "Resistors_SMD:R_0805".
+
+Changing component "R8:/568DBAE1/5689A6F4" pin "1" net name from "" to "+3V3".
+
+Changing component "R8:/568DBAE1/5689A6F4" pin "2" net name from "" to "/IO/DI".
+
+Info: Checking netlist component footprint "R9:/568DBAE1/5689A7DE:Resistors_SMD:R_0805".
+
+Adding new component "R9:/568DBAE1/5689A7DE" footprint "Resistors_SMD:R_0805".
+
+Changing component "R9:/568DBAE1/5689A7DE" pin "1" net name from "" to "+3V3".
+
+Changing component "R9:/568DBAE1/5689A7DE" pin "2" net name from "" to "/IO/CS".
+
+Info: Checking netlist component footprint "R10:/568DBAE1/56A08855:Resistors_SMD:R_0805".
+
+Adding new component "R10:/568DBAE1/56A08855" footprint "Resistors_SMD:R_0805".
+
+Changing component "R10:/568DBAE1/56A08855" pin "1" net name from "" to "Net-(D2-Pad1)".
+
+Changing component "R10:/568DBAE1/56A08855" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "R11:/568DDBCB/56A01524:Resistors_SMD:R_0805".
+
+Adding new component "R11:/568DDBCB/56A01524" footprint "Resistors_SMD:R_0805".
+
+Changing component "R11:/568DDBCB/56A01524" pin "1" net name from "" to "/Z80_RESET".
+
+Changing component "R11:/568DDBCB/56A01524" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "R12:/568DDBCB/56A02B8C:Resistors_SMD:R_0805".
+
+Adding new component "R12:/568DDBCB/56A02B8C" footprint "Resistors_SMD:R_0805".
+
+Changing component "R12:/568DDBCB/56A02B8C" pin "1" net name from "" to "+3V3".
+
+Changing component "R12:/568DDBCB/56A02B8C" pin "2" net name from "" to "/BUSRQ".
+
+Info: Checking netlist component footprint "R13:/568DDBCB/56A01455:Resistors_SMD:R_0805".
+
+Adding new component "R13:/568DDBCB/56A01455" footprint "Resistors_SMD:R_0805".
+
+Changing component "R13:/568DDBCB/56A01455" pin "1" net name from "" to "GND".
+
+Changing component "R13:/568DDBCB/56A01455" pin "2" net name from "" to "A16".
+
+Info: Checking netlist component footprint "SW1:/568DB7FD/566E4BAC:Buttons_Switches_ThroughHole:SW_PUSH_SMALL".
+
+Adding new component "SW1:/568DB7FD/566E4BAC" footprint "Buttons_Switches_ThroughHole:SW_PUSH_SMALL".
+
+Changing component "SW1:/568DB7FD/566E4BAC" pin "1" net name from "" to "/RESET".
+
+Changing component "SW1:/568DB7FD/566E4BAC" pin "2" net name from "" to "GND".
+
+Changing component "SW1:/568DB7FD/566E4BAC" pin "1" net name from "" to "/RESET".
+
+Changing component "SW1:/568DB7FD/566E4BAC" pin "2" net name from "" to "GND".
+
+Info: Checking netlist component footprint "SW2:/568DBAE1/56A02E79:Buttons_Switches_ThroughHole:SW_PUSH_SMALL".
+
+Adding new component "SW2:/568DBAE1/56A02E79" footprint "Buttons_Switches_ThroughHole:SW_PUSH_SMALL".
+
+Changing component "SW2:/568DBAE1/56A02E79" pin "1" net name from "" to "Net-(R5-Pad1)".
+
+Changing component "SW2:/568DBAE1/56A02E79" pin "2" net name from "" to "+3V3".
+
+Changing component "SW2:/568DBAE1/56A02E79" pin "1" net name from "" to "Net-(R5-Pad1)".
+
+Changing component "SW2:/568DBAE1/56A02E79" pin "2" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "U1:/568DB7FD/5681E1A9:Pin_Headers:Pin_Header_Straight_1x14".
+
+Adding new component "U1:/568DB7FD/5681E1A9" footprint "Pin_Headers:Pin_Header_Straight_1x14".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "1" net name from "" to "Net-(U1-Pad1)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "2" net name from "" to "Net-(U1-Pad2)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "3" net name from "" to "Net-(U1-Pad3)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "4" net name from "" to "Net-(U1-Pad4)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "5" net name from "" to "Net-(U1-Pad5)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "6" net name from "" to "Net-(U1-Pad6)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "7" net name from "" to "Net-(U1-Pad7)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "8" net name from "" to "Net-(U1-Pad8)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "9" net name from "" to "Net-(U1-Pad9)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "10" net name from "" to "Net-(U1-Pad10)".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "11" net name from "" to "KBD_DATA".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "12" net name from "" to "KBD_CLK".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "13" net name from "" to "+5V".
+
+Changing component "U1:/568DB7FD/5681E1A9" pin "14" net name from "" to "GND".
+
+Info: Checking netlist component footprint "U2:/568DB7FD/566E498F:Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm".
+
+Adding new component "U2:/568DB7FD/566E498F" footprint "Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm".
+
+Changing component "U2:/568DB7FD/566E498F" pin "1" net name from "" to "Net-(D1-Pad2)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "2" net name from "" to "/IORQ".
+
+Changing component "U2:/568DB7FD/566E498F" pin "3" net name from "" to "/WR".
+
+Changing component "U2:/568DB7FD/566E498F" pin "4" net name from "" to "/RD".
+
+Changing component "U2:/568DB7FD/566E498F" pin "5" net name from "" to "A7".
+
+Changing component "U2:/568DB7FD/566E498F" pin "6" net name from "" to "CLK".
+
+Changing component "U2:/568DB7FD/566E498F" pin "7" net name from "" to "Net-(P1-Pad5)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "8" net name from "" to "Net-(P1-Pad4)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "9" net name from "" to "GND".
+
+Changing component "U2:/568DB7FD/566E498F" pin "10" net name from "" to "GND".
+
+Changing component "U2:/568DB7FD/566E498F" pin "11" net name from "" to "/RESET".
+
+Changing component "U2:/568DB7FD/566E498F" pin "12" net name from "" to "+3V3".
+
+Changing component "U2:/568DB7FD/566E498F" pin "13" net name from "" to "Net-(U1-Pad1)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "14" net name from "" to "Net-(U1-Pad2)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "15" net name from "" to "Net-(U1-Pad3)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "16" net name from "" to "Net-(U1-Pad4)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "17" net name from "" to "Net-(U1-Pad5)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "18" net name from "" to "Net-(U1-Pad6)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "19" net name from "" to "Net-(U1-Pad7)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "20" net name from "" to "Net-(U1-Pad8)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "21" net name from "" to "D0".
+
+Changing component "U2:/568DB7FD/566E498F" pin "22" net name from "" to "D1".
+
+Changing component "U2:/568DB7FD/566E498F" pin "23" net name from "" to "D2".
+
+Changing component "U2:/568DB7FD/566E498F" pin "24" net name from "" to "D3".
+
+Changing component "U2:/568DB7FD/566E498F" pin "25" net name from "" to "D4".
+
+Changing component "U2:/568DB7FD/566E498F" pin "26" net name from "" to "D5".
+
+Changing component "U2:/568DB7FD/566E498F" pin "27" net name from "" to "D6".
+
+Changing component "U2:/568DB7FD/566E498F" pin "28" net name from "" to "D7".
+
+Changing component "U2:/568DB7FD/566E498F" pin "29" net name from "" to "GND".
+
+Changing component "U2:/568DB7FD/566E498F" pin "30" net name from "" to "Net-(U2-Pad30)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "31" net name from "" to "Net-(U2-Pad31)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "32" net name from "" to "+3V3".
+
+Changing component "U2:/568DB7FD/566E498F" pin "33" net name from "" to "A0".
+
+Changing component "U2:/568DB7FD/566E498F" pin "34" net name from "" to "A1".
+
+Changing component "U2:/568DB7FD/566E498F" pin "35" net name from "" to "A2".
+
+Changing component "U2:/568DB7FD/566E498F" pin "36" net name from "" to "Net-(P1-Pad3)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "37" net name from "" to "Net-(U2-Pad37)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "38" net name from "" to "Net-(R2-Pad2)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "39" net name from "" to "Net-(U2-Pad39)".
+
+Changing component "U2:/568DB7FD/566E498F" pin "40" net name from "" to "Net-(U2-Pad40)".
+
+Info: Checking netlist component footprint "U3:/568DB7FD/5681F117:Housings_DIP:DIP-8_W7.62mm".
+
+Adding new component "U3:/568DB7FD/5681F117" footprint "Housings_DIP:DIP-8_W7.62mm".
+
+Changing component "U3:/568DB7FD/5681F117" pin "1" net name from "" to "GND".
+
+Changing component "U3:/568DB7FD/5681F117" pin "2" net name from "" to "GND".
+
+Changing component "U3:/568DB7FD/5681F117" pin "3" net name from "" to "GND".
+
+Changing component "U3:/568DB7FD/5681F117" pin "4" net name from "" to "GND".
+
+Changing component "U3:/568DB7FD/5681F117" pin "5" net name from "" to "Net-(R2-Pad2)".
+
+Changing component "U3:/568DB7FD/5681F117" pin "6" net name from "" to "Net-(U2-Pad37)".
+
+Changing component "U3:/568DB7FD/5681F117" pin "7" net name from "" to "GND".
+
+Changing component "U3:/568DB7FD/5681F117" pin "8" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "U4:/568DB7FD/5681F4AC:Pin_Headers:Pin_Header_Angled_1x04".
+
+Adding new component "U4:/568DB7FD/5681F4AC" footprint "Pin_Headers:Pin_Header_Angled_1x04".
+
+Changing component "U4:/568DB7FD/5681F4AC" pin "1" net name from "" to "GND".
+
+Changing component "U4:/568DB7FD/5681F4AC" pin "2" net name from "" to "/RESET".
+
+Changing component "U4:/568DB7FD/5681F4AC" pin "3" net name from "" to "Net-(U2-Pad40)".
+
+Changing component "U4:/568DB7FD/5681F4AC" pin "4" net name from "" to "Net-(U2-Pad39)".
+
+Info: Checking netlist component footprint "U5:/568DBAE1/56B635D1:Housings_QFP:LQFP-64_10x10mm_Pitch0.5mm".
+
+Adding new component "U5:/568DBAE1/56B635D1" footprint "Housings_QFP:LQFP-64_10x10mm_Pitch0.5mm".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "1" net name from "" to "+3V3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "2" net name from "" to "A10".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "3" net name from "" to "Net-(C12-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "4" net name from "" to "Net-(C13-Pad2)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "5" net name from "" to "Net-(C5-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "6" net name from "" to "Net-(C6-Pad2)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "7" net name from "" to "/RESET".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "8" net name from "" to "/IORQ".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "9" net name from "" to "/RD".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "10" net name from "" to "/WR".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "11" net name from "" to "A15".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "12" net name from "" to "GND".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "13" net name from "" to "+3V3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "14" net name from "" to "D0".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "15" net name from "" to "D1".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "16" net name from "" to "D2".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "17" net name from "" to "D3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "18" net name from "" to "GND".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "19" net name from "" to "+3V3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "20" net name from "" to "D4".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "21" net name from "" to "D5".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "22" net name from "" to "D6".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "23" net name from "" to "D7".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "24" net name from "" to "A7".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "25" net name from "" to "A2".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "26" net name from "" to "/Z80_RESET".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "27" net name from "" to "/MREQ".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "28" net name from "" to "GND".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "29" net name from "" to "A4".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "30" net name from "" to "KBD_CLK".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "31" net name from "" to "Net-(C10-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "32" net name from "" to "+3V3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "33" net name from "" to "KBD_DATA".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "34" net name from "" to "/IO/SCK".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "35" net name from "" to "/IO/DO".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "36" net name from "" to "/IO/DI".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "37" net name from "" to "A14".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "38" net name from "" to "A13".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "39" net name from "" to "A12".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "40" net name from "" to "A8".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "41" net name from "" to "/IO/CS".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "42" net name from "" to "USB_DET".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "43" net name from "" to "USB_ID".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "44" net name from "" to "USB_D_N".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "45" net name from "" to "USB_D_P".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "46" net name from "" to "A1".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "47" net name from "" to "Net-(C11-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "48" net name from "" to "+3V3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "49" net name from "" to "A0".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "50" net name from "" to "/HALT".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "51" net name from "" to "/BUSACK".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "52" net name from "" to "/BUSRQ".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "53" net name from "" to "A11".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "54" net name from "" to "A16".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "55" net name from "" to "A3".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "56" net name from "" to "A9".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "57" net name from "" to "Net-(R5-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "58" net name from "" to "Net-(P3-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "59" net name from "" to "Net-(P3-Pad2)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "60" net name from "" to "Net-(JP1-Pad1)".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "61" net name from "" to "A6".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "62" net name from "" to "A5".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "63" net name from "" to "GND".
+
+Changing component "U5:/568DBAE1/56B635D1" pin "64" net name from "" to "+3V3".
+
+Info: Checking netlist component footprint "U6:/568DDBCB/568DDED4:Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm".
+
+Adding new component "U6:/568DDBCB/568DDED4" footprint "Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "1" net name from "" to "A11".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "2" net name from "" to "A12".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "3" net name from "" to "A13".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "4" net name from "" to "A14".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "5" net name from "" to "A15".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "6" net name from "" to "CLK".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "7" net name from "" to "D4".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "8" net name from "" to "D3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "9" net name from "" to "D5".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "10" net name from "" to "D6".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "11" net name from "" to "+3V3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "12" net name from "" to "D2".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "13" net name from "" to "D7".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "14" net name from "" to "D0".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "15" net name from "" to "D1".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "16" net name from "" to "+3V3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "17" net name from "" to "+3V3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "18" net name from "" to "/HALT".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "19" net name from "" to "/MREQ".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "20" net name from "" to "/IORQ".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "21" net name from "" to "/RD".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "22" net name from "" to "/WR".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "23" net name from "" to "/BUSACK".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "24" net name from "" to "+3V3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "25" net name from "" to "/BUSRQ".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "26" net name from "" to "/Z80_RESET".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "27" net name from "" to "Net-(U6-Pad27)".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "28" net name from "" to "Net-(U6-Pad28)".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "29" net name from "" to "GND".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "30" net name from "" to "A0".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "31" net name from "" to "A1".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "32" net name from "" to "A2".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "33" net name from "" to "A3".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "34" net name from "" to "A4".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "35" net name from "" to "A5".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "36" net name from "" to "A6".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "37" net name from "" to "A7".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "38" net name from "" to "A8".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "39" net name from "" to "A9".
+
+Changing component "U6:/568DDBCB/568DDED4" pin "40" net name from "" to "A10".
+
+Info: Checking netlist component footprint "U7:/568DDBCB/56CABEB4:TSOP44-II:TSOP44-II".
+
+Adding new component "U7:/568DDBCB/56CABEB4" footprint "TSOP44-II:TSOP44-II".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "3" net name from "" to "A0".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "4" net name from "" to "A1".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "5" net name from "" to "A2".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "6" net name from "" to "A3".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "7" net name from "" to "A4".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "8" net name from "" to "/MREQ".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "9" net name from "" to "D0".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "10" net name from "" to "D1".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "11" net name from "" to "+3V3".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "12" net name from "" to "GND".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "13" net name from "" to "D2".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "14" net name from "" to "D3".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "15" net name from "" to "/WR".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "16" net name from "" to "A5".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "17" net name from "" to "A6".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "18" net name from "" to "A7".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "19" net name from "" to "A8".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "20" net name from "" to "A9".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "26" net name from "" to "A10".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "27" net name from "" to "A11".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "28" net name from "" to "A12".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "29" net name from "" to "A13".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "30" net name from "" to "A14".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "31" net name from "" to "D4".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "32" net name from "" to "D5".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "33" net name from "" to "+3V3".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "34" net name from "" to "GND".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "35" net name from "" to "D6".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "36" net name from "" to "D7".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "37" net name from "" to "/RD".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "38" net name from "" to "A15".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "39" net name from "" to "A16".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "40" net name from "" to "GND".
+
+Changing component "U7:/568DDBCB/56CABEB4" pin "41" net name from "" to "GND".
+
+Info: Checking netlist component footprint "U8:/56BA9956/56BA71CB:TO_SOT_Packages_SMD:SOT-223".
+
+Adding new component "U8:/56BA9956/56BA71CB" footprint "TO_SOT_Packages_SMD:SOT-223".
+
+Changing component "U8:/56BA9956/56BA71CB" pin "2" net name from "" to "GND".
+
+Changing component "U8:/56BA9956/56BA71CB" pin "3" net name from "" to "+3V3".
+
+Changing component "U8:/56BA9956/56BA71CB" pin "1" net name from "" to "+5V".
+
+Info: Checking netlist component footprint "Y1:/568DB7FD/566E4A7D:Crystals:Crystal_HC50-U_Vertical".
+
+Adding new component "Y1:/568DB7FD/566E4A7D" footprint "Crystals:Crystal_HC50-U_Vertical".
+
+Changing component "Y1:/568DB7FD/566E4A7D" pin "1" net name from "" to "Net-(U2-Pad30)".
+
+Changing component "Y1:/568DB7FD/566E4A7D" pin "2" net name from "" to "Net-(U2-Pad31)".
+
+Info: Checking netlist component footprint "Y2:/568DBAE1/56BA4AF9:Crystals:Crystal_HC50-U_Vertical".
+
+Adding new component "Y2:/568DBAE1/56BA4AF9" footprint "Crystals:Crystal_HC50-U_Vertical".
+
+Changing component "Y2:/568DBAE1/56BA4AF9" pin "1" net name from "" to "Net-(C5-Pad1)".
+
+Changing component "Y2:/568DBAE1/56BA4AF9" pin "2" net name from "" to "Net-(C6-Pad2)".
+
+Info: Checking netlist component footprint "Y3:/568DBAE1/56BA69BE:Crystals:Crystal_HC50-U_Vertical".
+
+Adding new component "Y3:/568DBAE1/56BA69BE" footprint "Crystals:Crystal_HC50-U_Vertical".
+
+Changing component "Y3:/568DBAE1/56BA69BE" pin "1" net name from "" to "Net-(C12-Pad1)".
+
+Changing component "Y3:/568DBAE1/56BA69BE" pin "2" net name from "" to "Net-(C13-Pad2)".
+
+Error: Component 'P2' pad '6' not found in footprint 'microusb:10118192-0001LF'
+

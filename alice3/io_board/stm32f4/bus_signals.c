@@ -25,9 +25,9 @@ void BUS_init()
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     // configure PORT A0:A7 (bus D0..D7) outputs for later
-    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff);   // LOW
-    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff);        // PUSH_PULL
-    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff);        // no PUPD
+    GPIOA->OSPEEDR = (GPIOA->OSPEEDR & ~0xffff) | 0x5555; // HIGH
+    GPIOA->OTYPER = (GPIOA->OTYPER & 0xff) | 0x00;        // PUSH_PULL
+    GPIOA->PUPDR = (GPIOA->PUPDR & 0xffff) | 0x0000;      // no PUPD
 
     BUS_set_DATA_as_input();
 
@@ -95,6 +95,14 @@ void BUS_init()
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(BUS_RESET_PORT, &GPIO_InitStruct); 
     HAL_GPIO_WritePin(BUS_RESET_PORT, BUS_RESET_PIN_MASK, BUS_RESET_ACTIVE);
+
+    // DEBUG on C15
+    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct); 
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, 0);
 
     // Address bus pins
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;

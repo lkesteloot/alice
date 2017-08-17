@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Alice&nbsp;2</title>
+        <link href='https://fonts.googleapis.com/css?family=Sorts+Mill+Goudy:400,400italic' rel='stylesheet' type='text/css'>
+        <link href="../base.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <div class="content">
+            <h1>Alice&nbsp;2</h1>
+
+            <p>In 1995, we (Brad and Lawrence)
+            were living in Sunnyvale, about forty-five minutes south of San
+            Francisco, California.</p>
+
+            <p>The Alice&nbsp;2 was the obvious next step after the Alice&nbsp;1.  We
+            decided to work on it together as a fun educational project.
+            The Alice&nbsp;1 was a single-board computer with everything
+            hardwired into it.  The Alice&nbsp;2 was designed to be
+            extensible, with a bus and plug-in cards.  For simplicity we
+            kept the Z-80 as the CPU, but that's about the only
+            resemblance to the Alice&nbsp;1.</p>
+
+            <p>We used a rack-mounted modem frame that we found at <a
+                href="http://www.weirdstuff.com/">Weird Stuff</a>.  It came with its
+            own power supply, but it didn't provide the voltages we
+            needed, so Lawrence <a href="power_supply.html">made his
+                own</a>, which didn't work.  We ended up using a PC power
+            supply, which gave us the right voltages and enough power.
+            The nice thing about ours, though, was the amp-meter, which
+            told us when we had a short circuit in our system.</p>
+
+            <p>We used a simple <a href="system_bus.html">system bus</a>
+            that basically exported all
+            the important pins of the Z-80.  Two 25-wire ribbon cables
+            were used for the bus, each with DB-25s attached at regular
+            intervals to plug the boards into.  Everything was attached
+            to the back of the frame so that our cards could slide in
+            and connect to the plugs.</p>
+
+            <p>We then set ourselves on making the plug-in boards.  We
+            decided to first prototype the boards on breadboards, using
+            long 25-pin cables to attach to the bus.  We would then make
+            the <a href="printed_circuits.html">printed-circuit (PC)
+                boards</a>.  We later found
+            that we spent more time manufacturing the PC boards than
+            designing or prototyping them, and in retrospect we should
+            have found another method, such as wire-wrapping.</p>
+
+            <p>The first board was the <a href="clock_board.html">clock
+                board</a>.  It was responsible
+            for toggling the clock pin of the bus.  There were several
+            switches that allowed the user to set the clock
+            board in one of three states: single-step, variable, and
+            full-speed.  The "variable" mode used a knob to go from
+            stopped to 1 KHz, and the full-speed mode went at 1 MHz.</p>
+
+            <p>The best advice to anyone designing either hardware or
+            software is to spend time on debugging tools&mdash;they are
+            always worth their development effort.  So we next built the
+            <a href="debug_board.html">debug board</a>, which displayed
+            the state of the bus.  Six
+            7-segment displays showed the address and data bytes, and
+            ten LEDs showed various pins of interest.  We could not have
+            built the next two boards without this one.</p>
+
+            <p>We were torn between building a memory board next or a CPU
+            board.  It's a chicken-and-egg problem since they both need
+            each other in order to be tested.  We finally built both on
+            breadboards, then built the memory board, followed by the
+            CPU board.</p>
+
+            <p>The <a href="memory_board.html">memory board</a> has 16K of
+            EPROM and 48K of RAM (since the
+            Z-80 can only access 64K).  There's a switch on the board to
+            turn 16K of the RAM into memory-mapped I/O.  We used this
+            later for the bit-mapped display.</p>
+
+            <p>The <a href="cpu_board.html">CPU board</a> has a Z-80 CPU,
+            an 8259 interrupt controller,
+            and some glue chips.  We made a big mistake when making this
+            board.  We got overconfident with the success of our
+            previous boards, and didn't bother to prototype the 8259
+            part of the board.  We had never used this chip, and it took
+            us over a year to figure out why it wasn't working and to patch
+            the board.  We even ended up making the board twice because
+            our first version was so badly botched.</p>
+
+            <p>We wanted some input and output, so next came the
+            <a href="io_board.html">I/O board</a>.  The input of
+            choice was a standard PC keyboard, and
+            the output, for simplicity, was a 2-line LCD display.  We
+            wanted serial I/O as well to download code from our PC
+            (burning EPROMs was becoming tedious).  We used a PIC chip
+            to interface to all three.  Using the PIC was a good idea in
+            the end, but added a level of complication that we hadn't
+            expected.  Our computer was essentially a multi-CPU machine!
+            Ironically, the I/O co-processor ran at 20 times the speed
+            of the main CPU.</p>
+
+            <p>Our final board was the <a href="video_board.html">video
+                board</a>&mdash;we wanted to display
+            images on a monitor.  It took us a long time to decide on
+            the design.  At one point it seemed easier to use yet
+            another PIC chip that would take drawing requests from the
+            CPU.  Finally we settled on a simpler memory-mapped I/O
+            scheme, with the CPU writing to memory and a counter reading
+            from it.  We used an EPROM to map out the horizontal and
+            vertical sync signals.  Although the board worked very well
+            on the breadboard, it stopped working altogether when made
+            into a PC board.  After many months of frustrations with
+            analog electronics, we finally added enough capacitors to
+            make it work.</p>
+
+            <p>Not a lot of <a href="software.html">software</a> was
+            written.  We wrote the basic ROM functions needed to write
+            to the LCD display and read from the keyboard; the PIC code
+            to interface with the peripherals and the CPU; and a simple
+            C compiler.  We even started on a multi-tasking operating
+            system (the PIC board interrupts the CPU 10 times a second).
+            In the end we didn't write any more software because every
+            time we turned the machine on we had to spend two hours
+            finding out why it had stopped working (usually a bad solder
+            connection).</p>
+
+            <p>The whole Alice&nbsp;2 project took about 4 years, with large
+            breaks throughout.  We're not sure how much we spent on it,
+            but it's probably on the order of a thousand dollars.
+            We did half of it in Brad's apartment in
+            Sunnyvale and half in his <a href="garage.html">garage</a>
+            in Mountain View on Wednesday nights.  We <a
+                href="learned_a_lot.html">learned a lot</a> and had a great
+            time, but are glad to go back to software, where weenies
+            like us belong.</p>
+
+            <p>You may find other interesting Z80 projects at
+            <a href="http://www.z80.info/">www.z80.info</a>.</p>
+
+            <p><a href="../">&laquo; Back</a></p>
+        </div>
+    </body>
+</html>
+

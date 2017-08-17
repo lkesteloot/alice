@@ -1,0 +1,12 @@
+[Unit]
+Description=Alice 4 shutdown
+Before=systemd-remount-fs.service alice4_start.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/bin/true
+ExecStop=/home/ubuntu/alice/alice4/software/buttonfly/shutdown_alice4
+
+[Install]
+WantedBy=halt.target shutdown.target multi-user.target

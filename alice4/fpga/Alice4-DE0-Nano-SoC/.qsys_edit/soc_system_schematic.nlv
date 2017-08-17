@@ -1,0 +1,65 @@
+# # File gsaved with Nlview version 6.3.8  2013-12-19 bk=1.2992 VDI=34 GEI=35
+# 
+preplace inst soc_system.hps_0.uart0 -pg 1
+preplace inst soc_system.hps_0.gmac0 -pg 1
+preplace inst soc_system.hps_0.uart1 -pg 1
+preplace inst soc_system.hps_0.clkmgr -pg 1
+preplace inst soc_system.hps_0.axi_ocram -pg 1
+preplace inst soc_system.hps_0.sdrctl -pg 1
+preplace inst soc_system.hps_0.gmac1 -pg 1
+preplace inst soc_system.hps_0.qspi -pg 1
+preplace inst soc_system.hps_0.sysmgr -pg 1
+preplace inst soc_system.hps_0.l3regs -pg 1
+preplace inst soc_system.hps_0.usb0 -pg 1
+preplace inst soc_system.hps_0.i2c0 -pg 1
+preplace inst soc_system.hps_0.clk_0 -pg 1
+preplace inst soc_system.hps_0.usb1 -pg 1
+preplace inst soc_system.hps_0.i2c1 -pg 1
+preplace inst soc_system.hps_0.fpgamgr -pg 1
+preplace inst soc_system.hps_0.bridges -pg 1
+preplace inst soc_system.hps_0.hps_io -pg 1
+preplace inst soc_system.hps_0.i2c2 -pg 1
+preplace inst soc_system.hps_0.wd_timer0 -pg 1
+preplace inst soc_system.hps_0.rstmgr -pg 1
+preplace inst soc_system.hps_0.dma -pg 1
+preplace inst soc_system.hps_0.f2s_sdram_ref_clk -pg 1
+preplace inst soc_system.hps_0.i2c3 -pg 1
+preplace inst soc_system.hps_0.wd_timer1 -pg 1
+preplace inst soc_system.hps_0.timer0 -pg 1
+preplace inst soc_system.hps_0.eosc1 -pg 1
+preplace inst soc_system -pg 1 -lvl 1 -y 40 -regy -20
+preplace inst soc_system.hps_0.dcan0 -pg 1
+preplace inst soc_system.hps_0.spim0 -pg 1
+preplace inst soc_system.hps_0.timer1 -pg 1
+preplace inst soc_system.hps_0.L2 -pg 1
+preplace inst soc_system.hps_0.eosc2 -pg 1
+preplace inst soc_system.hps_0.hps_io.border -pg 1
+preplace inst soc_system.hps_0.scu -pg 1
+preplace inst soc_system.hps_0.dcan1 -pg 1
+preplace inst soc_system.hps_0.sdmmc -pg 1
+preplace inst soc_system.hps_0.spim1 -pg 1
+preplace inst soc_system.hps_0.gpio0 -pg 1
+preplace inst soc_system.hps_0.timer2 -pg 1
+preplace inst soc_system.hps_0.arm_a9_0 -pg 1
+preplace inst soc_system.hps_0.timer -pg 1
+preplace inst soc_system.hps_0.gpio1 -pg 1
+preplace inst soc_system.hps_0.timer3 -pg 1
+preplace inst soc_system.hps_0.arm_a9_1 -pg 1
+preplace inst soc_system.hps_0.nand0 -pg 1
+preplace inst soc_system.hps_0.gpio2 -pg 1
+preplace inst soc_system.hps_0.arm_gic_0 -pg 1
+preplace inst soc_system.hps_0 -pg 1 -lvl 1 -y 50
+preplace inst soc_system.clk_0 -pg 1 -lvl 2 -y 240
+preplace inst soc_system.hps_0.f2s_periph_ref_clk -pg 1
+preplace inst soc_system.hps_0.fpga_interfaces -pg 1
+preplace inst soc_system.hps_0.axi_sdram -pg 1
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)clk_0.clk_in_reset,(SLAVE)soc_system.reset) 1 0 2 NJ 310 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.memory,(SLAVE)hps_0.memory) 1 0 1 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_f2h_sdram0_data,(SLAVE)hps_0.f2h_sdram0_data) 1 0 1 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_sdram1_data,(SLAVE)soc_system.hps_0_f2h_sdram1_data) 1 0 1 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_sdram2_data,(SLAVE)soc_system.hps_0_f2h_sdram2_data) 1 0 1 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)clk_0.clk_in,(SLAVE)soc_system.clk) 1 0 2 NJ 290 NJ
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(MASTER)clk_0.clk,(SLAVE)hps_0.f2h_sdram3_clock,(SLAVE)hps_0.f2h_sdram0_clock,(SLAVE)hps_0.f2h_sdram1_clock,(SLAVE)hps_0.f2h_sdram2_clock) 1 0 3 170 270 NJ 230 680
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_f2h_sdram3_data,(SLAVE)hps_0.f2h_sdram3_data) 1 0 1 NJ
+levelinfo -pg 1 0 140 720
+levelinfo -hier soc_system 150 290 510 700
