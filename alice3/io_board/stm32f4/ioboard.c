@@ -479,6 +479,8 @@ void usage()
 
 volatile unsigned char gSerialInputToMonitor = 1;
 
+unsigned char sd_buffer[SD_BLOCK_SIZE];
+
 void process_local_key(unsigned char c)
 {
     // XXX make this table driven, break into lots smaller functions
@@ -498,6 +500,24 @@ void process_local_key(unsigned char c)
 
             if(!SDCARD_init())
                 printf("Failed to start access to SD card as SPI\n");
+
+        } else if(strcmp(gMonitorCommandLine, "sdspeed") == 0) {
+
+            const int megabytes = 2;
+            printf("will read %d megabyte of SD\n", megabytes);
+
+            SERIAL_flush();
+
+            int then = HAL_GetTick();
+            for(int i = 0; i < megabytes * 1024 * 1024 / SD_BLOCK_SIZE; i++)
+                SDCARD_readblock(i, sd_buffer);
+            int now = HAL_GetTick();
+
+            int kilobytes = megabytes * 1024;
+            int millis = now - then;
+            int kb_per_second = kilobytes * 1000 / millis;
+
+            printf("done, %d KB per second\n", kb_per_second);
 
         } else if(strcmp(gMonitorCommandLine, "snoop") == 0) {
 
@@ -576,13 +596,12 @@ void process_local_key(unsigned char c)
 
         } else if(strncmp(gMonitorCommandLine, "read ", 5) == 0) {
 
-            static unsigned char buffer[SD_BLOCK_SIZE];
             char *p = gMonitorCommandLine + 4;
             while(*p == ' ')
                 p++;
             int n = strtol(p, NULL, 0);
-            if(SDCARD_readblock(n, buffer)) {
-                dump_buffer_hex(4, buffer, sizeof(buffer));
+            if(SDCARD_readblock(n, sd_buffer)) {
+                dump_buffer_hex(4, sd_buffer, sizeof(sd_buffer));
             }
 
         } else {
@@ -1098,6 +1117,7 @@ int main()
         printf("Opened SD Card\n");
     LED_beat_heart();
     SERIAL_flush();
+
 
     FRESULT result = f_mount(&gFATVolume, "0:", 1);
     if(result != FR_OK) {
