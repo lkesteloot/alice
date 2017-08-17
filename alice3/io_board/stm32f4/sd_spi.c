@@ -86,7 +86,8 @@ void SPI_config_for_sd()
     gSPIHandle.Instance               = SPI2;
 
     // SPI2 is APB1, which is 1/4 system clock, or at 168MHz, APB1 is
-    // 42MHz.  INit should be at  100KHz - 400 KHz, 128 will be 328.124Khz
+    // 42MHz.  Init should be at  100KHz - 400 KHz, 128 will be 328.124Khz,
+    // 256 will be about 164.062KHz
     gSPIHandle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
     gSPIHandle.Init.Direction         = SPI_DIRECTION_2LINES;
     gSPIHandle.Init.CLKPhase          = SPI_PHASE_2EDGE;
@@ -276,6 +277,11 @@ int SDCARD_init()
             return 0;
     } while(response[0] != gSDCardResponseSUCCESS);
     logprintf(DEBUG_ALL, "returned from ACMD41: %02X\n", response[0]);
+
+    // SPI2 is APB1, which is 1/4 system clock, or at 168MHz, APB1 is
+    // 42MHz.  After init, we should be able to set the clock as
+    // high as 25MHz.  Baud scaler at 2 should be 21MHz.
+    SPI2->CR1 = (SPI2->CR1 & ~SPI_CR1_BR) | SPI_BAUDRATEPRESCALER_2;
 
     return 1;
 }
