@@ -188,7 +188,19 @@ struct socket_connection
     }
 };
 
-const int PIC_command_lengths[] = {0, 6, 134, 1, 1, 2, 6, 136};
+const int PIC_command_lengths[] = {
+    0,
+    6, // PIC_CMD_READ = 0x01;
+    134, // PIC_CMD_WRITE = 0x02;
+    1, // PIC_CMD_CONST = 0x03;
+    1, // PIC_CMD_CONIN = 0x04;
+    2, // PIC_CMD_SEROUT = 0x05;
+    6, // PIC_CMD_READ_SUM = 0x06;
+    136, // PIC_CMD_WRITE_SUM = 0x07;
+    0, // Unused
+    8, // PIC_CMD_READ_DMA = 0x09;
+    8, // PIC_CMD_WRITE_DMA = 0x0A;
+};
 
 struct Alice3HW : board_base
 {
@@ -210,6 +222,8 @@ struct Alice3HW : board_base
     static const int PIC_CMD_SEROUT = 0x05;
     static const int PIC_CMD_READ_SUM = 0x06;
     static const int PIC_CMD_WRITE_SUM = 0x07;
+    static const int PIC_CMD_READ_DMA = 0x09;
+    static const int PIC_CMD_WRITE_DMA = 0x0A;
 
     static const int sector_size = 128;
     static const int sectors_per_track = 64;
@@ -264,6 +278,7 @@ struct Alice3HW : board_base
         switch(command[0]) {
             case Alice3HW::PIC_CMD_READ:
             case Alice3HW::PIC_CMD_READ_SUM:
+            case Alice3HW::PIC_CMD_READ_DMA:
             {
                 int disk = command[1];
                 int sector = command[2] + 256 * command[3];
@@ -284,15 +299,26 @@ struct Alice3HW : board_base
 
                     fseek(disks[disk], location, SEEK_SET);
                     fread(rp, sector_size, 1, disks[disk]);
-                    rp += sector_size;
-                    if(command[0] == Alice3HW::PIC_CMD_READ_SUM) {
-                        unsigned short sum = 0;
-                        unsigned char *buffer = rp - sector_size;
+
+                    if(command[0] == Alice3HW::PIC_CMD_READ_DMA) {
+
+                        int address = command[6] + 256 * command[7];
                         for(int i = 0; i < sector_size; i++)
-                            sum += buffer[i];
-                        *rp++ = sum & 0xff;
-                        *rp++ = (sum >> 8) & 0xff;
-                        if(0) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+                            Z80_WRITE_BYTE(address + i, rp[i]);
+
+                    } else {
+
+                        rp += sector_size;
+                        if(command[0] == Alice3HW::PIC_CMD_READ_SUM) {
+                            unsigned short sum = 0;
+                            unsigned char *buffer = rp - sector_size;
+                            for(int i = 0; i < sector_size; i++)
+                                sum += buffer[i];
+                            *rp++ = sum & 0xff;
+                            *rp++ = (sum >> 8) & 0xff;
+                            if(0) printf("checksum calculated as %u: 0x%02X then 0x%02X\n", sum, sum & 0xff, (sum >> 8) & 0xff);
+                        }
+
                     }
                 } else {
                     if(debug) printf("PIC_CMD_READ[_SUM] nonexistent disk\n");
@@ -304,6 +330,7 @@ struct Alice3HW : board_base
 
             case Alice3HW::PIC_CMD_WRITE:
             case Alice3HW::PIC_CMD_WRITE_SUM:
+            case Alice3HW::PIC_CMD_WRITE_DMA:
             {
                 int disk = command[1];
                 int sector = command[2] + 256 * command[3];
@@ -332,7 +359,19 @@ struct Alice3HW : board_base
                     }
 
                     fseek(disks[disk], location, SEEK_SET);
-                    fwrite(command + 6, sector_size, 1, disks[disk]);
+
+                    if(command[0] == Alice3HW::PIC_CMD_WRITE_SUM) {
+
+                        int address = command[6] + 256 * command[7];
+                        static unsigned char buf[sector_size];
+                        for(int i = 0; i < sector_size; i++)
+                            Z80_READ_BYTE(address + i, buf[i]);
+                        fwrite(buf, sector_size, 1, disks[disk]);
+
+                    } else {
+
+                        fwrite(command + 6, sector_size, 1, disks[disk]);
+                    }
 
                     for(int i = 0; i < 3; i++) // to test polling
                         *rp++ = 0;
