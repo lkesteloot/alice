@@ -360,7 +360,7 @@ struct Alice3HW : board_base
 
                     fseek(disks[disk], location, SEEK_SET);
 
-                    if(command[0] == Alice3HW::PIC_CMD_WRITE_SUM) {
+                    if(command[0] == Alice3HW::PIC_CMD_WRITE_DMA) {
 
                         int address = command[6] + 256 * command[7];
                         static unsigned char buf[sector_size];
