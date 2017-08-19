@@ -650,7 +650,9 @@ void process_local_key(unsigned char c)
 #define IOBOARD_CMD_SEROUT 0x05
 #define IOBOARD_CMD_READ_SUM 0x06
 #define IOBOARD_CMD_WRITE_SUM 0x07
-#define IOBOARD_CMD_MAX 0x07
+#define IOBOARD_CMD_READ_DMA 0x09
+#define IOBOARD_CMD_WRITE_DMA 0x0A
+#define IOBOARD_CMD_MAX 0x0A
 
 void process_command_read(unsigned char command_request, volatile unsigned char *command_bytes)
 {
@@ -691,8 +693,17 @@ void process_command_read(unsigned char command_request, volatile unsigned char 
 
     IOSERVICE_append_response_byte(IOBOARD_SUCCESS);
 
-    for(unsigned int u = 0; u < SECTOR_SIZE; u++)
-        IOSERVICE_append_response_byte(buffer[u]);
+    if(command_request == IOBOARD_CMD_READ_DMA) {
+
+        int address = command_bytes[6] + 256 * command_bytes[7];
+        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+            ccmram_set(shuffle_address(address + u), buffer[u]);
+
+    } else {
+
+        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+            IOSERVICE_append_response_byte(buffer[u]);
+    }
 
     if(command_request == IOBOARD_CMD_READ_SUM) {
         unsigned short sum = 0;
@@ -742,7 +753,18 @@ void process_command_write(unsigned char command_request, volatile unsigned char
     }
 
     UINT waswritten;
-    result = f_write(&gDiskImageFiles[disk], (unsigned char*)(command_bytes + 6), SECTOR_SIZE, &waswritten);
+
+    if(command_request == IOBOARD_CMD_WRITE_DMA) {
+
+        int address = command_bytes[6] + 256 * command_bytes[7];
+        for(unsigned int u = 0; u < SECTOR_SIZE; u++)
+            sd_buffer[u] = ccmram_get(shuffle_address(address + u));
+        result = f_write(&gDiskImageFiles[disk], sd_buffer, SECTOR_SIZE, &waswritten);
+
+    } else {
+        result = f_write(&gDiskImageFiles[disk], (unsigned char*)(command_bytes + 6), SECTOR_SIZE, &waswritten);
+    }
+
     if(result != FR_OK) {
         logprintf(DEBUG_ERRORS, "ERROR: couldn't write to sector %d, track %d in \"%s\", FatFS result %d\n", sector, track, gDiskImageFilenames[disk], result);
         IOSERVICE_append_response_byte(IOBOARD_FAILURE);
@@ -800,11 +822,13 @@ void check_and_process_command()
     switch(command) {
         case IOBOARD_CMD_READ:
         case IOBOARD_CMD_READ_SUM:
+        case IOBOARD_CMD_READ_DMA:
             process_command_read(command, bytes);
             break;
 
         case IOBOARD_CMD_WRITE:
         case IOBOARD_CMD_WRITE_SUM:
+        case IOBOARD_CMD_WRITE_DMA:
             process_command_write(command, bytes);
             break;
 
