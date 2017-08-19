@@ -34,6 +34,8 @@ pic_cmd_conin:          equ     4       ; CONIN - DOES NOT BLOCK, POLL CONST
 pic_cmd_serout:         equ     5       ; SEROUT
 pic_cmd_read_sum:       equ     6       ; READ sector and give checksum
 pic_cmd_write_sum:      equ     7       ; WRITE sector but verify sum first
+pic_cmd_read_dma:       equ     9       ; READ sector using DMA
+pic_cmd_write_dma:      equ     10      ; WRITE sector using DMA
 
 
 	org	bios		;origin of this program
@@ -362,7 +364,7 @@ read:
 
 read_again:
 
-	ld	a,pic_cmd_read_sum
+	ld	a,pic_cmd_read_dma
 	out 	(pic_port), a   ; request read
 
         ld      a,(diskno)
@@ -378,50 +380,20 @@ read_again:
         ld      a,(track + 1)
 	out 	(pic_port), a   ; track hi
 
+        ld      a,(dmaad + 0)
+	out 	(pic_port), a   ; DMA address lo
+        ld      a,(dmaad + 1)
+	out 	(pic_port), a   ; DMA address hi
+
         call    pic_poll
 	cp	pic_success	; compare with success
-        JP      z,read_continue ; if success, continue reading
+        JP      z,read_success ; if success, continue reading
 
         ; failure
         ld      a, 01H
         jp      read_return
 
-read_continue:
         
-	ld	hl,(dmaad)	; memory location to place data read from disk
-        ld	b,128		; size of CP/M sector
-        ld	c,pic_port
-
-        ld      a,0
-        ld      ix, 0         ; set counter to 0
-        ld      de, 0         ; set addend to 0
-
-read_loop:
-        in      a,(pic_port)    ; get sector byte
-        ld	(hl),a		; put in memory
-        ld      e, a
-        add     ix, de          ; add to checksum
-        inc     hl              ; increment hl to next buffer location
-        djnz	read_loop
-
-        in      l, (c)          ; get packet checksum low
-        in      h, (c)          ; get packet checksum high
-        defm    0ddh, 05dh          ; ld      e,ixl
-        defm    0ddh, 054h          ; ld      d,ixh
-
-        scf                     ; set carry flag
-        ccf                     ; and complement, thus clearing carry flag
-        sbc     hl, de          ; hl -= de (and set Z flag if zero)
-        jp      z, read_success
-
-
-        PUSH    HL
-        LD      HL,BADSUM       ;print message
-        CALL    PRTMSG
-        POP     HL
-        JP      read_again
-
-        ; success
 read_success:
         ld      a, 0
 
@@ -439,7 +411,7 @@ read_return:
 ;Sector number in 'sector'
 ;Dma address in 'dmaad' (0-65535)
 write:
-	ld	a,pic_cmd_write
+	ld	a,pic_cmd_write_dma
 	out 	(pic_port), a   ; request write
 
         ld      a,(diskno)
@@ -455,16 +427,10 @@ write:
         ld      a,(track + 1)
 	out 	(pic_port), a   ; track H
 
-	ld	hl,(dmaad)	; memory location to place data to disk
-        ld	b,128		; size of CP/M sector
-        ld	c,pic_port
-
-        ; outir                 ; magic Z80 looping OUT instruction
-write_loop: ; I think this whole loop could be an OUTIR instruction
-        ld	a,(hl)		; get from memory
-        out     (c),a           ; write sector byte to disk
-        inc     hl              ; hl to next buffer byte
-        djnz	write_loop
+        ld      a,(dmaad + 0)
+	out 	(pic_port), a   ; DMA address L
+        ld      a,(dmaad + 1)
+	out 	(pic_port), a   ; DMA address H
 
         call    pic_poll
 	cp	pic_success	; compare with success
