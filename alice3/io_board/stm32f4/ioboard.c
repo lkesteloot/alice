@@ -783,7 +783,19 @@ void process_command_write(unsigned char command_request, volatile unsigned char
 }
 
 // Element 0 is 1 here to force stoppage on receiving a bad command
-const unsigned char command_lengths[8] = {1, 6, 134, 1, 1, 2, 6, 136};
+const unsigned char command_lengths[11] = {
+    1,
+    6, // CMD_READ = 0x01;
+    134, // CMD_WRITE = 0x02;
+    1, // CMD_CONST = 0x03;
+    1, // CMD_CONIN = 0x04;
+    2, // CMD_SEROUT = 0x05;
+    6, // CMD_READ_SUM = 0x06;
+    136, // CMD_WRITE_SUM = 0x07;
+    0, // Unused
+    8, // CMD_READ_DMA = 0x09;
+    8, // CMD_WRITE_DMA = 0x0A;
+};
 
 volatile int gResponseWasWaiting = 0;
 
