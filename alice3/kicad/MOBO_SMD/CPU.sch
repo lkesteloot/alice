@@ -61,10 +61,10 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L GND #PWR042
+L GND #PWR037
 U 1 1 568DE0B3
 P 3950 4600
-F 0 "#PWR042" H 3950 4350 50  0001 C CNN
+F 0 "#PWR037" H 3950 4350 50  0001 C CNN
 F 1 "GND" H 3950 4450 50  0000 C CNN
 F 2 "" H 3950 4600 50  0000 C CNN
 F 3 "" H 3950 4600 50  0000 C CNN
@@ -170,18 +170,16 @@ D1
 Text GLabel 4900 3500 2    60   BiDi ~ 0
 D0
 Wire Wire Line
-	3200 2350 3200 3000
-Wire Wire Line
 	3200 2400 3400 2400
 Connection ~ 3200 2400
 Text GLabel 3300 3500 0    60   Output ~ 0
-/RD
+~RD
 Text GLabel 3300 3600 0    60   Output ~ 0
-/WR
+~WR
 Text GLabel 3300 3700 0    60   Output ~ 0
-/MREQ
+~MREQ
 Text GLabel 3300 3800 0    60   Output ~ 0
-/IORQ
+~IORQ
 Wire Wire Line
 	3300 3500 3400 3500
 Wire Wire Line
@@ -190,23 +188,20 @@ Wire Wire Line
 	3300 3700 3400 3700
 Wire Wire Line
 	3300 3800 3400 3800
-NoConn ~ 3400 2900
-Wire Wire Line
-	3200 3000 3400 3000
 NoConn ~ 3400 2800
 Text GLabel 3300 4100 0    60   Input ~ 0
-/BUSRQ
+~BUSRQ
 Text GLabel 3300 4200 0    60   Output ~ 0
-/BUSACK
+~BUSACK
 Wire Wire Line
 	3300 4200 3400 4200
 Text GLabel 1800 1800 0    60   Input ~ 0
-/Z80_RESET
+~Z80_RESET
 $Comp
-L GND #PWR043
+L GND #PWR038
 U 1 1 568DF463
 P 2200 2600
-F 0 "#PWR043" H 2200 2350 50  0001 C CNN
+F 0 "#PWR038" H 2200 2350 50  0001 C CNN
 F 1 "GND" H 2200 2450 50  0000 C CNN
 F 2 "" H 2200 2600 50  0000 C CNN
 F 3 "" H 2200 2600 50  0000 C CNN
@@ -239,14 +234,14 @@ Wire Wire Line
 	3400 2500 3200 2500
 Connection ~ 3200 2500
 Text GLabel 3300 3100 0    60   Output ~ 0
-/HALT
+~HALT
 Wire Wire Line
 	3300 3100 3400 3100
 $Comp
-L GND #PWR044
+L GND #PWR039
 U 1 1 56A06CAB
 P 4450 1200
-F 0 "#PWR044" H 4450 950 50  0001 C CNN
+F 0 "#PWR039" H 4450 950 50  0001 C CNN
 F 1 "GND" H 4450 1050 50  0000 C CNN
 F 2 "" H 4450 1200 50  0000 C CNN
 F 3 "" H 4450 1200 50  0000 C CNN
@@ -271,32 +266,10 @@ Wire Wire Line
 Wire Wire Line
 	4450 800  4450 850 
 $Comp
-L C C17
-U 1 1 56A06F35
-P 8100 1300
-F 0 "C17" H 8125 1400 50  0000 L CNN
-F 1 "0.1 µF" H 8125 1200 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 8138 1150 50  0001 C CNN
-F 3 "" H 8100 1300 50  0000 C CNN
-	1    8100 1300
-	1    0    0    -1  
-$EndComp
-$Comp
-L GND #PWR045
-U 1 1 56A06F73
-P 8100 1500
-F 0 "#PWR045" H 8100 1250 50  0001 C CNN
-F 1 "GND" H 8100 1350 50  0000 C CNN
-F 2 "" H 8100 1500 50  0000 C CNN
-F 3 "" H 8100 1500 50  0000 C CNN
-	1    8100 1500
-	1    0    0    -1  
-$EndComp
-$Comp
-L +3V3 #PWR046
+L +3V3 #PWR040
 U 1 1 56A5493F
 P 4100 800
-F 0 "#PWR046" H 4100 650 50  0001 C CNN
+F 0 "#PWR040" H 4100 650 50  0001 C CNN
 F 1 "+3V3" H 4100 940 50  0000 C CNN
 F 2 "" H 4100 800 60  0000 C CNN
 F 3 "" H 4100 800 60  0000 C CNN
@@ -304,92 +277,14 @@ F 3 "" H 4100 800 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR047
+L +3V3 #PWR041
 U 1 1 56A55184
 P 3200 2350
-F 0 "#PWR047" H 3200 2200 50  0001 C CNN
+F 0 "#PWR041" H 3200 2200 50  0001 C CNN
 F 1 "+3V3" H 3200 2490 50  0000 C CNN
 F 2 "" H 3200 2350 60  0000 C CNN
 F 3 "" H 3200 2350 60  0000 C CNN
 	1    3200 2350
-	1    0    0    -1  
-$EndComp
-Text GLabel 7050 3375 0    60   Input ~ 0
-A15
-Text GLabel 7050 3275 0    60   Input ~ 0
-A14
-Text GLabel 7050 3175 0    60   Input ~ 0
-A13
-Text GLabel 7050 3075 0    60   Input ~ 0
-A12
-Text GLabel 7050 2975 0    60   Input ~ 0
-A11
-Text GLabel 7050 2875 0    60   Input ~ 0
-A10
-Text GLabel 7050 2775 0    60   Input ~ 0
-A9
-Text GLabel 7050 2675 0    60   Input ~ 0
-A8
-Text GLabel 7050 2575 0    60   Input ~ 0
-A7
-Text GLabel 7050 2475 0    60   Input ~ 0
-A6
-Text GLabel 7050 2375 0    60   Input ~ 0
-A5
-Text GLabel 7050 2275 0    60   Input ~ 0
-A4
-Text GLabel 7050 2175 0    60   Input ~ 0
-A3
-Text GLabel 7050 2075 0    60   Input ~ 0
-A2
-Text GLabel 7050 1975 0    60   Input ~ 0
-A1
-Text GLabel 7050 1875 0    60   Input ~ 0
-A0
-Text GLabel 7050 3475 0    60   Input ~ 0
-A16
-Text GLabel 7050 3875 0    60   Input ~ 0
-/MREQ
-Text GLabel 7050 3975 0    60   Input ~ 0
-/RD
-Text GLabel 7050 4075 0    60   Input ~ 0
-/WR
-Text GLabel 8450 3275 2    60   BiDi ~ 0
-D7
-Text GLabel 8450 3175 2    60   BiDi ~ 0
-D6
-Text GLabel 8450 3075 2    60   BiDi ~ 0
-D5
-Text GLabel 8450 2975 2    60   BiDi ~ 0
-D4
-Text GLabel 8450 2875 2    60   BiDi ~ 0
-D3
-Text GLabel 8450 2775 2    60   BiDi ~ 0
-D2
-Text GLabel 8450 2675 2    60   BiDi ~ 0
-D1
-Text GLabel 8450 2575 2    60   BiDi ~ 0
-D0
-$Comp
-L GND #PWR048
-U 1 1 56CACCBC
-P 7650 4375
-F 0 "#PWR048" H 7650 4125 50  0001 C CNN
-F 1 "GND" H 7650 4225 50  0000 C CNN
-F 2 "" H 7650 4375 50  0000 C CNN
-F 3 "" H 7650 4375 50  0000 C CNN
-	1    7650 4375
-	1    0    0    -1  
-$EndComp
-$Comp
-L +3V3 #PWR049
-U 1 1 56CACE05
-P 7650 900
-F 0 "#PWR049" H 7650 750 50  0001 C CNN
-F 1 "+3V3" H 7650 1040 50  0000 C CNN
-F 2 "" H 7650 900 60  0000 C CNN
-F 3 "" H 7650 900 60  0000 C CNN
-	1    7650 900 
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -406,40 +301,15 @@ $EndComp
 Wire Wire Line
 	3950 4600 3950 4500
 Wire Wire Line
-	7050 3775 6400 3775
-Text GLabel 7050 3575 0    60   Input ~ 0
-A17
-Wire Wire Line
 	3300 4100 3400 4100
-$Comp
-L AS6C2008_TSOP U6
-U 1 1 56D3979F
-P 7750 2925
-F 0 "U6" H 7425 4125 50  0000 C CNN
-F 1 "AS6C2008_TSOP" H 8025 1600 50  0000 C CNN
-F 2 "SMD_Packages:TSOP32SP" H 7750 2925 50  0001 C CNN
-F 3 "" H 7750 2925 50  0000 C CNN
-	1    7750 2925
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
-	7650 1575 7650 900 
+	3200 2500 3200 2350
+Text GLabel 3175 3000 0    60   Input ~ 0
+~WAIT
+Text GLabel 3175 2900 0    60   Output ~ 0
+~RFSH
 Wire Wire Line
-	8100 1150 8100 950 
+	3175 3000 3400 3000
 Wire Wire Line
-	8100 950  7650 950 
-Connection ~ 7650 950 
-Wire Wire Line
-	8100 1500 8100 1450
-$Comp
-L +5V #PWR?
-U 1 1 59948058
-P 6400 3775
-F 0 "#PWR?" H 6400 3625 50  0001 C CNN
-F 1 "+5V" H 6400 3915 50  0000 C CNN
-F 2 "" H 6400 3775 50  0001 C CNN
-F 3 "" H 6400 3775 50  0001 C CNN
-	1    6400 3775
-	1    0    0    -1  
-$EndComp
+	3400 2900 3175 2900
 $EndSCHEMATC
