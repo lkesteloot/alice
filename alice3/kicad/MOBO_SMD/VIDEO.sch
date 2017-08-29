@@ -88,8 +88,9 @@ U 1 1 566E4A7D
 P 5350 3600
 F 0 "Y1" H 5350 3750 50  0000 C CNN
 F 1 "5 MHz" H 5350 3450 50  0000 C CNN
-F 2 "Crystals:Crystal_HC50-U_Vertical" H 5350 3600 50  0001 C CNN
+F 2 "Crystals:Crystal_HC49-SD_SMD" H 5350 3600 50  0001 C CNN
 F 3 "" H 5350 3600 50  0000 C CNN
+F 4 "https://www.digikey.com/product-detail/en/ecs-inc/ECS-50-20-5PX-TR/XC1265CT-ND/827729" H 5350 3600 60  0001 C CNN "Part"
 	1    5350 3600
 	0    1    1    0   
 $EndComp
