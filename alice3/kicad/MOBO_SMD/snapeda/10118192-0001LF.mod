@@ -99,7 +99,7 @@ Ne 0 ""
 Po 1.2 -1.45
 $EndPAD
 $PAD
-Sh "S1" R 1.9 1.9 0 0 0
+Sh "6" R 1.9 1.9 0 0 0
 At SMD N 00888000
 .SolderMask 0.2
 .SolderPaste 0
@@ -107,7 +107,7 @@ Ne 0 ""
 Po -3.85 -1.45
 $EndPAD
 $PAD
-Sh "S3" R 2.1 1.6 0 0 0
+Sh "6" R 2.1 1.6 0 0 0
 At SMD N 00888000
 .SolderMask 0.2
 .SolderPaste 0
@@ -115,7 +115,7 @@ Ne 0 ""
 Po -3.1 -4
 $EndPAD
 $PAD
-Sh "S4" R 2.1 1.6 0 0 0
+Sh "6" R 2.1 1.6 0 0 0
 At SMD N 00888000
 .SolderMask 0.2
 .SolderPaste 0
@@ -123,7 +123,7 @@ Ne 0 ""
 Po 3.1 -4
 $EndPAD
 $PAD
-Sh "S2" R 1.9 1.9 0 0 0
+Sh "6" R 1.9 1.9 0 0 0
 At SMD N 00888000
 .SolderMask 0.2
 .SolderPaste 0
