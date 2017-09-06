@@ -245,7 +245,7 @@ void rasterizer_swap()
             must_wait_on_gpu = 0;
         }
 
-        // Then copy the staing buffer to the GPU buffer
+        // Then copy the staging buffer to the GPU buffer
         ptrdiff_t byte_count = (char*)protocol_next - (char*)protocol_buffer;
 
 	if(framestats_print)
