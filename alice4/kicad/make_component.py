@@ -49,7 +49,8 @@ pins = ""
 maxY = (len(rows) - 1) * 100 / 2
 Y = maxY
 
-halfwidth = len(rows) * 100 / 2
+halfwidth = max(400, len(rows) * 100 / 2)
+print "halfwidth = ", halfwidth
 vars["left"] = -(halfwidth - 150)
 vars["right"] = (halfwidth - 150)
 vars["top"] = maxY + 100
