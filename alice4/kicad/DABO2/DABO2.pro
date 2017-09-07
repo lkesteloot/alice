@@ -29,7 +29,7 @@ version=1
 version=1
 LibDir=
 [eeschema/libraries]
-LibName1=DABO2-rescue
+LibName1=../fan5333bsx
 LibName2=power
 LibName3=device
 LibName4=transistors
@@ -65,3 +65,4 @@ LibName33=../powerboost1000c
 LibName34=../l3gd20h_breakout
 LibName35=../stmpe811
 LibName36=../bluefruit_le_spi
+LibName37=../fan5333bsx
