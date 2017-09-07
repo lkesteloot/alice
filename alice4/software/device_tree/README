@@ -1,0 +1,9 @@
+
+Use this directory to make changes to the Linux device tree. This was
+useful for enabling i2c-2. We got the binary .dtb from the original
+flash disk (here as orig.dtb). The Makefile then creates the source.dts
+file by reverse-compiling the binary. You can then make changes to
+the source (such as changing the third i2c from "disable" to "okay"),
+then run make again to generate new.dtb. Run "make install" to copy
+these back to the flash disk.
+
