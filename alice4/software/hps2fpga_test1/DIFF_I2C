@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Compares the registers of the four I2C controllers.
+
+for offset in 000 004 008 00C 010 014 018 01C 020 024 028 02C 030 034 038 03C 040 044 048 04C 050 054 058 05C 060 064 068 06C 070 074 078 07C 080 084 088 08C 090 094 098 09C 0A0 0A4 0A8 0AC 0B0 0B4 0B8 0BC 0C0 0C4 0C8 0CC 0D0 0D4 0D8 0DC 0E0 0E4 0E8 0EC 0F0 0F4 0F8 0FC; do
+    echo -n "$offset: "
+    for controller in 4 5 6 7; do
+	addr=0xffc0${controller}${offset}
+	value=$(./memtool read -32 $addr | cut -d" " -f3)
+	printf "%12s" $value
+    done
+    echo
+done
