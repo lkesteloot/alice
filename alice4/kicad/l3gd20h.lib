@@ -1,0 +1,41 @@
+EESchema-LIBRARY Version 2.3
+#encoding utf-8
+#
+# touchscreen_controller
+#
+DEF l3gd20h U 0 40 Y Y 1 F N
+F0 "U" 0 0 60 H V C CNN
+F1 "l3gd20h" 0 -500 60 H V C CNN
+F2 "" 0 0 60 H V C CNN
+F3 "" 0 0 60 H V C CNN
+DRAW
+S -250 450 250 -450 0 1 0 N
+X Vdd_IO 1 -400 350 200 R 50 50 1 1 W
+X Vdd 16 400 350 200 L 50 50 1 1 W
+X SCL 2 -400 250 200 R 50 50 1 1 I
+X Res 15 400 250 200 L 50 50 1 1 I
+X SDA 3 -400 150 200 R 50 50 1 1 B
+X PLLFILT 14 400 150 200 L 50 50 1 1 I
+X SDO 4 -400 50 200 R 50 50 1 1 O
+X GND 13 400 50 200 L 50 50 1 1 W
+X CS 5 -400 -50 200 R 50 50 1 1 I
+X RES 12 400 -50 200 L 50 50 1 1 I
+X DRDY 6 -400 -150 200 R 50 50 1 1 O
+X RES 11 400 -150 200 L 50 50 1 1 I
+X INT1 7 -400 -250 200 R 50 50 1 1 O
+X RES 10 400 -250 200 L 50 50 1 1 I
+X DEN 8 -400 -350 200 R 50 50 1 1 I
+X RES 9 400 -350 200 L 50 50 1 1 I
+
+ENDDRAW
+ENDDEF
+#
+#End Library
+#
+# Put this in your .pro file, adding "../" if necessary
+# "LibName31=l3gd20h"
+#
+#
+# Put this in your .sch file:"
+# "LIBS:l3gd20h"
+#
