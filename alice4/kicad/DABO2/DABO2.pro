@@ -66,3 +66,4 @@ LibName34=../l3gd20h_breakout
 LibName35=../stmpe811
 LibName36=../bluefruit_le_spi
 LibName37=../fan5333bsx
+LibName38=../l3gd20h

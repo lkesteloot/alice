@@ -35,6 +35,7 @@ LIBS:powerboost1000c
 LIBS:l3gd20h_breakout
 LIBS:stmpe811
 LIBS:bluefruit_le_spi
+LIBS:l3gd20h
 LIBS:DABO2-cache
 EELAYER 25 0
 EELAYER END
@@ -346,73 +347,11 @@ F 3 "" H 6975 6525 50  0001 C CNN
 $EndComp
 Text GLabel 6350 6475 0    60   Output ~ 0
 HOME0
-$Comp
-L l3gd20h_breakout U3
-U 1 1 59155A95
-P 12875 1625
-F 0 "U3" H 12875 1625 60  0000 C CNN
-F 1 "l3gd20h_breakout" H 12875 1075 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x09" H 12875 1625 60  0001 C CNN
-F 3 "" H 12875 1625 60  0000 C CNN
-	1    12875 1625
-	1    0    0    -1  
-$EndComp
-Text GLabel 12425 1225 0    60   Input ~ 0
-SCL
-Text GLabel 12425 1325 0    60   BiDi ~ 0
-SDA
-$Comp
-L GND #PWR29
-U 1 1 59155C34
-P 12250 1425
-F 0 "#PWR29" H 12250 1175 50  0001 C CNN
-F 1 "GND" H 12250 1275 50  0000 C CNN
-F 2 "" H 12250 1425 60  0000 C CNN
-F 3 "" H 12250 1425 60  0000 C CNN
-	1    12250 1425
-	0    1    1    0   
-$EndComp
-$Comp
-L +3V3 #PWR28
-U 1 1 59155C60
-P 12100 1925
-F 0 "#PWR28" H 12100 1775 50  0001 C CNN
-F 1 "+3V3" H 12100 2065 50  0000 C CNN
-F 2 "" H 12100 1925 60  0000 C CNN
-F 3 "" H 12100 1925 60  0000 C CNN
-	1    12100 1925
-	0    -1   -1   0   
-$EndComp
 NoConn ~ 8050 1400
 NoConn ~ 8050 1500
 NoConn ~ 8050 1600
 NoConn ~ 8050 2100
-NoConn ~ 12425 2025
-NoConn ~ 12425 1725
-$Comp
-L GND #PWR30
-U 1 1 59155D5E
-P 12250 1825
-F 0 "#PWR30" H 12250 1575 50  0001 C CNN
-F 1 "GND" H 12250 1675 50  0000 C CNN
-F 2 "" H 12250 1825 60  0000 C CNN
-F 3 "" H 12250 1825 60  0000 C CNN
-	1    12250 1825
-	0    1    1    0   
-$EndComp
-NoConn ~ 12425 1625
 NoConn ~ 8900 4750
-$Comp
-L +3V3 #PWR27
-U 1 1 59155F6E
-P 12100 1525
-F 0 "#PWR27" H 12100 1375 50  0001 C CNN
-F 1 "+3V3" H 12100 1665 50  0000 C CNN
-F 2 "" H 12100 1525 60  0000 C CNN
-F 3 "" H 12100 1525 60  0000 C CNN
-	1    12100 1525
-	0    -1   -1   0   
-$EndComp
 $Comp
 L stmpe811 U1
 U 1 1 59156215
@@ -920,89 +859,10 @@ F 3 "" H 5725 3000 60  0000 C CNN
 	1    5725 3000
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	8900 5650 8625 5650
-Wire Wire Line
-	6350 6475 6775 6475
-Wire Wire Line
-	1650 7025 1350 7025
-Wire Wire Line
-	1025 7325 1650 7325
-Wire Wire Line
-	1100 7400 1100 7325
-Connection ~ 1100 7325
-Wire Wire Line
-	2450 7025 3425 7025
-Wire Wire Line
-	3100 7100 3100 7025
-Connection ~ 3100 7025
-Wire Wire Line
-	3325 7100 3325 7025
-Connection ~ 3325 7025
-Wire Wire Line
-	12425 1425 12250 1425
-Wire Wire Line
-	12100 1525 12425 1525
-Wire Wire Line
-	12250 1825 12425 1825
-Wire Wire Line
-	12425 1925 12100 1925
-Wire Wire Line
-	9675 4750 9400 4750
-Wire Wire Line
-	8050 1800 7650 1800
-Wire Wire Line
-	7650 2000 8050 2000
-Wire Wire Line
-	7525 3000 8100 3000
-Wire Wire Line
-	1175 1825 1625 1825
-Wire Wire Line
-	1825 1925 1175 1925
-Wire Wire Line
-	1175 4425 1625 4425
-Wire Wire Line
-	1175 5125 1625 5125
-Wire Wire Line
-	3200 2250 3625 2250
-Wire Wire Line
-	3200 2000 3200 2700
-Wire Wire Line
-	3575 2450 3650 2450
-Wire Wire Line
-	3375 2450 3300 2450
-Wire Wire Line
-	3300 2450 3300 2250
-Connection ~ 3300 2250
-Connection ~ 3200 2250
-Wire Wire Line
-	3200 2900 3200 3000
-Wire Wire Line
-	4425 2450 4425 2650
-Wire Wire Line
-	4700 2700 4700 3000
 Text GLabel 3650 2875 3    60   Input ~ 0
 BACKLIGHT_PWM
-Wire Wire Line
-	3650 2450 3650 2875
-Connection ~ 3625 2450
 Text GLabel 5850 2350 2    60   Output ~ 0
 LED-K
-Wire Wire Line
-	4425 2350 5850 2350
-Wire Wire Line
-	4700 2500 4700 2350
-Connection ~ 4700 2350
-Wire Wire Line
-	4925 2500 4925 2350
-Connection ~ 4925 2350
-Wire Wire Line
-	5150 2500 5150 2350
-Connection ~ 5150 2350
-Wire Wire Line
-	5375 2500 5375 2350
-Connection ~ 5375 2350
-Connection ~ 5575 2350
 $Comp
 L GS2 J4
 U 1 1 59B0F35C
@@ -1036,18 +896,6 @@ F 3 "" H 5375 3125 50  0001 C CNN
 	1    5375 3125
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	4925 2700 4925 2925
-Wire Wire Line
-	4925 3325 4925 3525
-Wire Wire Line
-	5150 3525 5150 3325
-Wire Wire Line
-	5375 3325 5375 3525
-Wire Wire Line
-	5150 2700 5150 2925
-Wire Wire Line
-	5375 2700 5375 2925
 $Comp
 L L_Small L1
 U 1 1 59B0F97A
@@ -1061,11 +909,6 @@ F 5 "Murata" H 4025 1900 60  0001 C CNN "Mfg"
 	1    4025 1900
 	0    -1   -1   0   
 $EndComp
-Wire Wire Line
-	3925 1900 3525 1900
-Wire Wire Line
-	3525 1900 3525 2250
-Connection ~ 3525 2250
 $Comp
 L D_Small D1
 U 1 1 59B0FAF4
@@ -1077,9 +920,6 @@ F 3 "" V 4675 1600 50  0001 C CNN
 	1    4675 1600
 	-1   0    0    1   
 $EndComp
-Wire Wire Line
-	4425 1900 4425 2250
-Connection ~ 4425 1900
 $Comp
 L C_Small C7
 U 1 1 59B0FC49
@@ -1135,32 +975,8 @@ F 3 "" V 5575 1825 50  0001 C CNN
 	1    5575 1825
 	0    1    1    0   
 $EndComp
-Connection ~ 4925 1600
 Text GLabel 5825 1600 2    60   Output ~ 0
 LED-A
-Wire Wire Line
-	5575 1600 5575 1725
-Connection ~ 5225 1600
-Connection ~ 5575 1600
-Wire Wire Line
-	5825 1600 4775 1600
-Wire Wire Line
-	4575 1600 4525 1600
-Wire Wire Line
-	4525 1600 4525 1900
-Wire Wire Line
-	4525 1900 4125 1900
-Wire Wire Line
-	5725 2700 5725 3000
-Wire Wire Line
-	5575 1925 5575 2350
-Wire Wire Line
-	5725 2500 5725 2350
-Connection ~ 5725 2350
-Wire Wire Line
-	4925 1600 4925 1725
-Wire Wire Line
-	5225 1600 5225 1725
 NoConn ~ 8600 3000
 NoConn ~ 8600 3100
 NoConn ~ 8100 3100
@@ -1191,10 +1007,6 @@ F 3 "" H 8125 5600 50  0001 C CNN
 	1    8125 5600
 	-1   0    0    1   
 $EndComp
-Wire Wire Line
-	8125 5100 7925 5100
-Wire Wire Line
-	7925 5850 8125 5850
 $Comp
 L +3V3 #PWR?
 U 1 1 59B193F7
@@ -1217,44 +1029,16 @@ F 3 "" H 8125 4650 60  0000 C CNN
 	1    8125 4650
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	8125 4650 8125 4700
-Wire Wire Line
-	8125 5000 8125 5100
-Wire Wire Line
-	8125 5850 8125 5750
-Wire Wire Line
-	8125 5450 8125 5400
 NoConn ~ 9400 5450
 NoConn ~ 9400 5850
 NoConn ~ 9400 5950
 NoConn ~ 9400 6050
 NoConn ~ 8900 6050
-Wire Wire Line
-	7525 3000 7525 3575
-Wire Wire Line
-	8100 3500 7975 3500
-Wire Wire Line
-	7975 3500 7975 3575
-Wire Wire Line
-	8875 3575 8875 3400
-Wire Wire Line
-	8875 3400 8600 3400
-Wire Wire Line
-	8600 3200 9100 3200
-Wire Wire Line
-	9100 3200 9100 3575
-Wire Wire Line
-	8975 1100 8975 1000
-Wire Wire Line
-	8975 1000 8450 1000
 NoConn ~ 9400 5350
 NoConn ~ 1650 7525
 NoConn ~ 2450 7525
 Text GLabel 6725 6575 0    60   Output ~ 0
 HOME1
-Wire Wire Line
-	6725 6575 6775 6575
 $Comp
 L CONN_02X20 P?
 U 1 1 59B1B1DF
@@ -1289,10 +1073,6 @@ F 3 "" H 7375 4775 60  0000 C CNN
 	0    1    1    0   
 $EndComp
 NoConn ~ 7100 5675
-Wire Wire Line
-	7100 4775 7375 4775
-Wire Wire Line
-	6325 5675 6600 5675
 NoConn ~ 6600 4975
 NoConn ~ 6600 4575
 NoConn ~ 6600 4475
@@ -1304,4 +1084,368 @@ Text GLabel 6600 4675 0    60   Output ~ 0
 HOME0
 Text GLabel 6600 4775 0    60   Output ~ 0
 HOME1
+$Comp
+L l3gd20h U?
+U 1 1 59B2E031
+P 3825 5150
+F 0 "U?" H 3825 5150 60  0000 C CNN
+F 1 "l3gd20h" H 3825 4650 60  0000 C CNN
+F 2 "" H 3825 5150 60  0000 C CNN
+F 3 "" H 3825 5150 60  0000 C CNN
+	1    3825 5150
+	1    0    0    -1  
+$EndComp
+NoConn ~ 3425 5300
+NoConn ~ 3425 5400
+$Comp
+L GND #PWR?
+U 1 1 59B2E2BB
+P 4400 5725
+F 0 "#PWR?" H 4400 5475 50  0001 C CNN
+F 1 "GND" H 4400 5575 50  0000 C CNN
+F 2 "" H 4400 5725 50  0001 C CNN
+F 3 "" H 4400 5725 50  0001 C CNN
+	1    4400 5725
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 59B2E5D1
+P 2875 5200
+F 0 "#PWR?" H 2875 4950 50  0001 C CNN
+F 1 "GND" H 2875 5050 50  0000 C CNN
+F 2 "" H 2875 5200 50  0001 C CNN
+F 3 "" H 2875 5200 50  0001 C CNN
+	1    2875 5200
+	1    0    0    -1  
+$EndComp
+$Comp
+L C_Small C?
+U 1 1 59B2E6A2
+P 2875 5050
+F 0 "C?" H 2885 5120 50  0000 L CNN
+F 1 "100nF" H 2885 4970 50  0000 L CNN
+F 2 "Capacitors_SMD:C_1206_HandSoldering" H 2875 5050 50  0001 C CNN
+F 3 "" H 2875 5050 50  0001 C CNN
+	1    2875 5050
+	-1   0    0    1   
+$EndComp
+Text GLabel 3425 4900 0    60   Input ~ 0
+SCL
+Text GLabel 3425 5000 0    60   BiDi ~ 0
+SDA
+$Comp
+L GND #PWR?
+U 1 1 59B2EB8E
+P 4650 5425
+F 0 "#PWR?" H 4650 5175 50  0001 C CNN
+F 1 "GND" H 4650 5275 50  0000 C CNN
+F 2 "" H 4650 5425 50  0001 C CNN
+F 3 "" H 4650 5425 50  0001 C CNN
+	1    4650 5425
+	1    0    0    -1  
+$EndComp
+$Comp
+L C_Small C?
+U 1 1 59B2EBFF
+P 4650 5225
+F 0 "C?" H 4660 5295 50  0000 L CNN
+F 1 "10nF" H 4660 5145 50  0000 L CNN
+F 2 "Capacitors_SMD:C_1206_HandSoldering" H 4650 5225 50  0001 C CNN
+F 3 "" H 4650 5225 50  0001 C CNN
+	1    4650 5225
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8900 5650 8625 5650
+Wire Wire Line
+	6350 6475 6775 6475
+Wire Wire Line
+	1650 7025 1350 7025
+Wire Wire Line
+	1025 7325 1650 7325
+Wire Wire Line
+	1100 7400 1100 7325
+Connection ~ 1100 7325
+Wire Wire Line
+	2450 7025 3425 7025
+Wire Wire Line
+	3100 7100 3100 7025
+Connection ~ 3100 7025
+Wire Wire Line
+	3325 7100 3325 7025
+Connection ~ 3325 7025
+Wire Wire Line
+	9675 4750 9400 4750
+Wire Wire Line
+	8050 1800 7650 1800
+Wire Wire Line
+	7650 2000 8050 2000
+Wire Wire Line
+	7525 3000 8100 3000
+Wire Wire Line
+	1175 1825 1625 1825
+Wire Wire Line
+	1825 1925 1175 1925
+Wire Wire Line
+	1175 4425 1625 4425
+Wire Wire Line
+	1175 5125 1625 5125
+Wire Wire Line
+	3200 2250 3625 2250
+Wire Wire Line
+	3200 2000 3200 2700
+Wire Wire Line
+	3575 2450 3650 2450
+Wire Wire Line
+	3375 2450 3300 2450
+Wire Wire Line
+	3300 2450 3300 2250
+Connection ~ 3300 2250
+Connection ~ 3200 2250
+Wire Wire Line
+	3200 2900 3200 3000
+Wire Wire Line
+	4425 2450 4425 2650
+Wire Wire Line
+	4700 2700 4700 3000
+Wire Wire Line
+	3650 2450 3650 2875
+Connection ~ 3625 2450
+Wire Wire Line
+	4425 2350 5850 2350
+Wire Wire Line
+	4700 2500 4700 2350
+Connection ~ 4700 2350
+Wire Wire Line
+	4925 2500 4925 2350
+Connection ~ 4925 2350
+Wire Wire Line
+	5150 2500 5150 2350
+Connection ~ 5150 2350
+Wire Wire Line
+	5375 2500 5375 2350
+Connection ~ 5375 2350
+Connection ~ 5575 2350
+Wire Wire Line
+	4925 2700 4925 2925
+Wire Wire Line
+	4925 3325 4925 3525
+Wire Wire Line
+	5150 3525 5150 3325
+Wire Wire Line
+	5375 3325 5375 3525
+Wire Wire Line
+	5150 2700 5150 2925
+Wire Wire Line
+	5375 2700 5375 2925
+Wire Wire Line
+	3925 1900 3525 1900
+Wire Wire Line
+	3525 1900 3525 2250
+Connection ~ 3525 2250
+Wire Wire Line
+	4425 1900 4425 2250
+Connection ~ 4425 1900
+Connection ~ 4925 1600
+Wire Wire Line
+	5575 1600 5575 1725
+Connection ~ 5225 1600
+Connection ~ 5575 1600
+Wire Wire Line
+	4775 1600 5825 1600
+Wire Wire Line
+	4575 1600 4525 1600
+Wire Wire Line
+	4525 1600 4525 1900
+Wire Wire Line
+	4525 1900 4125 1900
+Wire Wire Line
+	5725 2700 5725 3000
+Wire Wire Line
+	5575 1925 5575 2350
+Wire Wire Line
+	5725 2500 5725 2350
+Connection ~ 5725 2350
+Wire Wire Line
+	4925 1600 4925 1725
+Wire Wire Line
+	5225 1600 5225 1725
+Wire Wire Line
+	8125 5100 7925 5100
+Wire Wire Line
+	7925 5850 8125 5850
+Wire Wire Line
+	8125 4650 8125 4700
+Wire Wire Line
+	8125 5000 8125 5100
+Wire Wire Line
+	8125 5850 8125 5750
+Wire Wire Line
+	8125 5450 8125 5400
+Wire Wire Line
+	7525 3000 7525 3575
+Wire Wire Line
+	8100 3500 7975 3500
+Wire Wire Line
+	7975 3500 7975 3575
+Wire Wire Line
+	8875 3575 8875 3400
+Wire Wire Line
+	8875 3400 8600 3400
+Wire Wire Line
+	8600 3200 9100 3200
+Wire Wire Line
+	9100 3200 9100 3575
+Wire Wire Line
+	8975 1100 8975 1000
+Wire Wire Line
+	8975 1000 8450 1000
+Wire Wire Line
+	6725 6575 6775 6575
+Wire Wire Line
+	7100 4775 7375 4775
+Wire Wire Line
+	6325 5675 6600 5675
+Wire Wire Line
+	4225 5100 4400 5100
+Wire Wire Line
+	4400 5100 4400 5725
+Wire Wire Line
+	4225 5200 4400 5200
+Connection ~ 4400 5200
+Wire Wire Line
+	4225 5300 4400 5300
+Connection ~ 4400 5300
+Wire Wire Line
+	4225 5400 4400 5400
+Connection ~ 4400 5400
+Wire Wire Line
+	4225 5500 4400 5500
+Connection ~ 4400 5500
+Wire Wire Line
+	3425 4800 2875 4800
+Wire Wire Line
+	2875 4675 2875 4950
+Wire Wire Line
+	2875 5150 2875 5200
+Wire Wire Line
+	4650 5325 4650 5425
+$Comp
+L +3V3 #PWR?
+U 1 1 59B2EF4E
+P 2875 4675
+F 0 "#PWR?" H 2875 4525 50  0001 C CNN
+F 1 "+3V3" H 2875 4815 50  0000 C CNN
+F 2 "" H 2875 4675 60  0000 C CNN
+F 3 "" H 2875 4675 60  0000 C CNN
+	1    2875 4675
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3V3 #PWR?
+U 1 1 59B2F1A5
+P 5000 4675
+F 0 "#PWR?" H 5000 4525 50  0001 C CNN
+F 1 "+3V3" H 5000 4815 50  0000 C CNN
+F 2 "" H 5000 4675 60  0000 C CNN
+F 3 "" H 5000 4675 60  0000 C CNN
+	1    5000 4675
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4225 4800 5000 4800
+Wire Wire Line
+	5000 4675 5000 5125
+Wire Wire Line
+	4225 4900 4400 4900
+Wire Wire Line
+	4400 4900 4400 4800
+Connection ~ 4400 4800
+Wire Wire Line
+	4225 5000 4650 5000
+Wire Wire Line
+	4650 5000 4650 5125
+$Comp
+L GND #PWR?
+U 1 1 59B2F46B
+P 5000 5450
+F 0 "#PWR?" H 5000 5200 50  0001 C CNN
+F 1 "GND" H 5000 5300 50  0000 C CNN
+F 2 "" H 5000 5450 50  0001 C CNN
+F 3 "" H 5000 5450 50  0001 C CNN
+	1    5000 5450
+	1    0    0    -1  
+$EndComp
+Connection ~ 2875 4800
+$Comp
+L C_Small C?
+U 1 1 59B2F657
+P 5000 5225
+F 0 "C?" H 5010 5295 50  0000 L CNN
+F 1 "100nF" H 5010 5145 50  0000 L CNN
+F 2 "Capacitors_SMD:C_1206_HandSoldering" H 5000 5225 50  0001 C CNN
+F 3 "" H 5000 5225 50  0001 C CNN
+	1    5000 5225
+	1    0    0    -1  
+$EndComp
+$Comp
+L CP1_Small C?
+U 1 1 59B2F765
+P 5200 5225
+F 0 "C?" H 5210 5295 50  0000 L CNN
+F 1 "10uF" H 5210 5145 50  0000 L CNN
+F 2 "" H 5200 5225 50  0001 C CNN
+F 3 "" H 5200 5225 50  0001 C CNN
+	1    5200 5225
+	1    0    0    -1  
+$EndComp
+Connection ~ 5000 4800
+Wire Wire Line
+	5000 4975 5200 4975
+Wire Wire Line
+	5200 4975 5200 5125
+Connection ~ 5000 4975
+Wire Wire Line
+	5000 5325 5000 5450
+Wire Wire Line
+	5200 5325 5200 5400
+Wire Wire Line
+	5200 5400 5000 5400
+Connection ~ 5000 5400
+Wire Wire Line
+	3425 5200 3050 5200
+Wire Wire Line
+	3050 5200 3050 4800
+Connection ~ 3050 4800
+$Comp
+L GND #PWR?
+U 1 1 59B30036
+P 3150 5325
+F 0 "#PWR?" H 3150 5075 50  0001 C CNN
+F 1 "GND" H 3150 5175 50  0000 C CNN
+F 2 "" H 3150 5325 50  0001 C CNN
+F 3 "" H 3150 5325 50  0001 C CNN
+	1    3150 5325
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 59B30145
+P 3250 5550
+F 0 "#PWR?" H 3250 5300 50  0001 C CNN
+F 1 "GND" H 3250 5400 50  0000 C CNN
+F 2 "" H 3250 5550 50  0001 C CNN
+F 3 "" H 3250 5550 50  0001 C CNN
+	1    3250 5550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3425 5500 3250 5500
+Wire Wire Line
+	3250 5500 3250 5550
+Wire Wire Line
+	3425 5100 3150 5100
+Wire Wire Line
+	3150 5100 3150 5325
 $EndSCHEMATC
