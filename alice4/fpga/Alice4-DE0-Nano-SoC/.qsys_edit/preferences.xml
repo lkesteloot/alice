@@ -3,11 +3,11 @@
  <debug showDebugMenu="0" />
  <systemtable filter="All Interfaces">
   <columns>
-   <connections preferredWidth="79" />
+   <connections preferredWidth="95" />
    <irq preferredWidth="34" />
    <inputclock preferredWidth="119" />
   </columns>
  </systemtable>
  <library expandedCategories="Project,Library" />
- <window width="2010" height="1149" x="0" y="0" />
+ <window width="1600" height="860" x="0" y="0" />
 </preferences>

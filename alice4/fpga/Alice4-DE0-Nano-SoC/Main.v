@@ -180,6 +180,10 @@ module Main(
     wire [63:0] sdram4_writedata;
     wire [7:0] sdram4_byteenable;
     wire sdram4_write;
+    wire i2c1_sda_out_enable;
+    wire i2c1_sda;
+    wire i2c1_scl_out_enable;
+    wire i2c1_scl;
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         // Physical memory interface.
@@ -233,7 +237,12 @@ module Main(
         .hps_0_f2h_sdram4_data_waitrequest(sdram4_waitrequest),
         .hps_0_f2h_sdram4_data_writedata(sdram4_writedata),
         .hps_0_f2h_sdram4_data_byteenable(sdram4_byteenable),
-        .hps_0_f2h_sdram4_data_write(sdram4_write)
+        .hps_0_f2h_sdram4_data_write(sdram4_write),
+        // I2C1.
+        .hps_0_i2c1_out_data(i2c1_sda_out_enable),
+        .hps_0_i2c1_sda(i2c1_sda),
+        .hps_0_i2c1_clk_clk(i2c1_scl_out_enable),
+        .hps_0_i2c1_scl_in_clk(i2c1_scl)
     );
 
     // Generate signals for the LCD.
@@ -554,5 +563,11 @@ module Main(
             end
         end
     end
+
+    // Hook up I2C1 to GPIO. Connector pin 39 (GPIO 34) is SCL; 40 (GPIO 35) is SDA.
+    assign gpio_0[34] = i2c1_scl_out_enable ? 1'b0 : 1'bz;
+    assign gpio_0[35] = i2c1_sda_out_enable ? 1'b0 : 1'bz;
+    assign i2c1_scl = gpio_0[34];
+    assign i2c1_sda = gpio_0[35];
 
 endmodule

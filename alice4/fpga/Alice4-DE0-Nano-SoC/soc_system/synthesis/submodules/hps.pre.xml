@@ -98,7 +98,7 @@
       <config name='CONFIG_HPS_UART1_RX' value='0' />
     </peripheral>
     <peripheral name='i2c0' used='false' />
-    <peripheral name='i2c1' used='false' />
+    <peripheral name='i2c1' used='true' />
     <peripheral name='i2c2' used='false' />
     <peripheral name='i2c3' used='false' />
     <peripheral name='can0' used='false' />
@@ -187,7 +187,7 @@
     <pin_mux name='UART0USEFPGA' value='0' />
     <pin_mux name='UART1USEFPGA' value='0' />
     <pin_mux name='I2C0USEFPGA' value='0' />
-    <pin_mux name='I2C1USEFPGA' value='0' />
+    <pin_mux name='I2C1USEFPGA' value='1' />
     <pin_mux name='I2C2USEFPGA' value='0' />
     <pin_mux name='I2C3USEFPGA' value='0' />
     <pin_mux name='CAN0USEFPGA' value='0' />

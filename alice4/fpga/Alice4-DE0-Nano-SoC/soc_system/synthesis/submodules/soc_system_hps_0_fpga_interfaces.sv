@@ -59,6 +59,13 @@ module soc_system_hps_0_fpga_interfaces(
  ,input wire [1 - 1 : 0 ] f2h_sdram4_WRITE
 // f2h_sdram4_clock
  ,input wire [1 - 1 : 0 ] f2h_sdram4_clk
+// i2c1_scl_in
+ ,input wire [1 - 1 : 0 ] i2c1_scl
+// i2c1_clk
+ ,output wire [1 - 1 : 0 ] i2c1_out_clk
+// i2c1
+ ,output wire [1 - 1 : 0 ] i2c1_out_data
+ ,input wire [1 - 1 : 0 ] i2c1_sda
 );
 
 
@@ -337,6 +344,22 @@ cyclonev_hps_interface_fpga2sdram f2sdram(
    ,f2h_sdram0_ADDRESS[28:0] // 30:2
    ,1'b0 // 1:1
    ,intermediate[3:3] // 0:0
+  })
+);
+
+
+cyclonev_hps_interface_peripheral_i2c peripheral_i2c1(
+ .out_clk({
+    i2c1_out_clk[0:0] // 0:0
+  })
+,.scl({
+    i2c1_scl[0:0] // 0:0
+  })
+,.sda({
+    i2c1_sda[0:0] // 0:0
+  })
+,.out_data({
+    i2c1_out_data[0:0] // 0:0
   })
 );
 

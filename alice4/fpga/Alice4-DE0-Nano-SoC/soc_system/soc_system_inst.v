@@ -24,6 +24,12 @@
 		.hps_0_f2h_sdram3_data_writedata     (<connected-to-hps_0_f2h_sdram3_data_writedata>),     //                      .writedata
 		.hps_0_f2h_sdram3_data_byteenable    (<connected-to-hps_0_f2h_sdram3_data_byteenable>),    //                      .byteenable
 		.hps_0_f2h_sdram3_data_write         (<connected-to-hps_0_f2h_sdram3_data_write>),         //                      .write
+		.hps_0_f2h_sdram4_data_address       (<connected-to-hps_0_f2h_sdram4_data_address>),       // hps_0_f2h_sdram4_data.address
+		.hps_0_f2h_sdram4_data_burstcount    (<connected-to-hps_0_f2h_sdram4_data_burstcount>),    //                      .burstcount
+		.hps_0_f2h_sdram4_data_waitrequest   (<connected-to-hps_0_f2h_sdram4_data_waitrequest>),   //                      .waitrequest
+		.hps_0_f2h_sdram4_data_writedata     (<connected-to-hps_0_f2h_sdram4_data_writedata>),     //                      .writedata
+		.hps_0_f2h_sdram4_data_byteenable    (<connected-to-hps_0_f2h_sdram4_data_byteenable>),    //                      .byteenable
+		.hps_0_f2h_sdram4_data_write         (<connected-to-hps_0_f2h_sdram4_data_write>),         //                      .write
 		.memory_mem_a                        (<connected-to-memory_mem_a>),                        //                memory.mem_a
 		.memory_mem_ba                       (<connected-to-memory_mem_ba>),                       //                      .mem_ba
 		.memory_mem_ck                       (<connected-to-memory_mem_ck>),                       //                      .mem_ck
@@ -41,11 +47,9 @@
 		.memory_mem_dm                       (<connected-to-memory_mem_dm>),                       //                      .mem_dm
 		.memory_oct_rzqin                    (<connected-to-memory_oct_rzqin>),                    //                      .oct_rzqin
 		.reset_reset_n                       (<connected-to-reset_reset_n>),                       //                 reset.reset_n
-		.hps_0_f2h_sdram4_data_address       (<connected-to-hps_0_f2h_sdram4_data_address>),       // hps_0_f2h_sdram4_data.address
-		.hps_0_f2h_sdram4_data_burstcount    (<connected-to-hps_0_f2h_sdram4_data_burstcount>),    //                      .burstcount
-		.hps_0_f2h_sdram4_data_waitrequest   (<connected-to-hps_0_f2h_sdram4_data_waitrequest>),   //                      .waitrequest
-		.hps_0_f2h_sdram4_data_writedata     (<connected-to-hps_0_f2h_sdram4_data_writedata>),     //                      .writedata
-		.hps_0_f2h_sdram4_data_byteenable    (<connected-to-hps_0_f2h_sdram4_data_byteenable>),    //                      .byteenable
-		.hps_0_f2h_sdram4_data_write         (<connected-to-hps_0_f2h_sdram4_data_write>)          //                      .write
+		.hps_0_i2c1_scl_in_clk               (<connected-to-hps_0_i2c1_scl_in_clk>),               //     hps_0_i2c1_scl_in.clk
+		.hps_0_i2c1_clk_clk                  (<connected-to-hps_0_i2c1_clk_clk>),                  //        hps_0_i2c1_clk.clk
+		.hps_0_i2c1_out_data                 (<connected-to-hps_0_i2c1_out_data>),                 //            hps_0_i2c1.out_data
+		.hps_0_i2c1_sda                      (<connected-to-hps_0_i2c1_sda>)                       //                      .sda
 	);
 

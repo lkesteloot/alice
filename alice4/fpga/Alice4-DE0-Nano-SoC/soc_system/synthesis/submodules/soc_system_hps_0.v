@@ -46,6 +46,10 @@ module soc_system_hps_0 #(
 		input  wire [7:0]  f2h_sdram4_BYTEENABLE,    //                 .byteenable
 		input  wire        f2h_sdram4_WRITE,         //                 .write
 		input  wire        f2h_sdram4_clk,           // f2h_sdram4_clock.clk
+		input  wire        i2c1_scl,                 //      i2c1_scl_in.clk
+		output wire        i2c1_out_clk,             //         i2c1_clk.clk
+		output wire        i2c1_out_data,            //             i2c1.out_data
+		input  wire        i2c1_sda,                 //                 .sda
 		output wire [14:0] mem_a,                    //           memory.mem_a
 		output wire [2:0]  mem_ba,                   //                 .mem_ba
 		output wire        mem_ck,                   //                 .mem_ck
@@ -126,7 +130,11 @@ module soc_system_hps_0 #(
 		.f2h_sdram4_WRITEDATA     (f2h_sdram4_WRITEDATA),     //                 .writedata
 		.f2h_sdram4_BYTEENABLE    (f2h_sdram4_BYTEENABLE),    //                 .byteenable
 		.f2h_sdram4_WRITE         (f2h_sdram4_WRITE),         //                 .write
-		.f2h_sdram4_clk           (f2h_sdram4_clk)            // f2h_sdram4_clock.clk
+		.f2h_sdram4_clk           (f2h_sdram4_clk),           // f2h_sdram4_clock.clk
+		.i2c1_scl                 (i2c1_scl),                 //      i2c1_scl_in.clk
+		.i2c1_out_clk             (i2c1_out_clk),             //         i2c1_clk.clk
+		.i2c1_out_data            (i2c1_out_data),            //             i2c1.out_data
+		.i2c1_sda                 (i2c1_sda)                  //                 .sda
 	);
 
 	soc_system_hps_0_hps_io hps_io (

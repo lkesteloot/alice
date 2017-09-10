@@ -73,6 +73,20 @@
    type="avalon"
    dir="end" />
  <interface name="hps_0_h2f_gp" internal="hps_0.h2f_gp" />
+ <interface name="hps_0_i2c1" internal="hps_0.i2c1" type="conduit" dir="end" />
+ <interface
+   name="hps_0_i2c1_clk"
+   internal="hps_0.i2c1_clk"
+   type="clock"
+   dir="start" />
+ <interface
+   name="hps_0_i2c1_scl_in"
+   internal="hps_0.i2c1_scl_in"
+   type="clock"
+   dir="end" />
+ <interface name="hps_0_i2c2" internal="hps_0.i2c2" />
+ <interface name="hps_0_i2c2_clk" internal="hps_0.i2c2_clk" />
+ <interface name="hps_0_i2c2_scl_in" internal="hps_0.i2c2_scl_in" />
  <interface name="memory" internal="hps_0.memory" type="conduit" dir="end" />
  <interface name="reset" internal="clk_0.clk_in_reset" type="reset" dir="end" />
  <module name="clk_0" kind="clock_source" version="16.1" enabled="1">
@@ -211,7 +225,7 @@
      name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_EMAC_PTP_REF_CLOCK"
      value="100" />
   <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_I2C0_SCL_IN" value="100" />
-  <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_I2C1_SCL_IN" value="100" />
+  <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_I2C1_SCL_IN" value="0" />
   <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_I2C2_SCL_IN" value="100" />
   <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_I2C3_SCL_IN" value="100" />
   <parameter name="FPGA_PERIPHERAL_INPUT_CLOCK_FREQ_SPIS0_SCLK_IN" value="100" />
@@ -246,8 +260,8 @@
   <parameter name="HPS_PROTOCOL" value="DDR3" />
   <parameter name="I2C0_Mode" value="N/A" />
   <parameter name="I2C0_PinMuxing" value="Unused" />
-  <parameter name="I2C1_Mode" value="N/A" />
-  <parameter name="I2C1_PinMuxing" value="Unused" />
+  <parameter name="I2C1_Mode" value="Full" />
+  <parameter name="I2C1_PinMuxing" value="FPGA" />
   <parameter name="I2C2_Mode" value="N/A" />
   <parameter name="I2C2_PinMuxing" value="Unused" />
   <parameter name="I2C3_Mode" value="N/A" />

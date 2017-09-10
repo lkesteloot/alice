@@ -13,6 +13,10 @@ setenv fpga2sdram_handoff 0x3FFF
 # the SET_MEMORY_PRIORITY shell script.
 mw 0xFFC250AC 0x1B6C36DF;
 
+# Configure I2C1 to go through the FPGA instead of the HPS.
+# See the I2C1USEFPGA register.
+mw 0xFFD0872C 0x1
+
 # Load rbf from FAT partition into memory.
 if fatload mmc 0:1 $fpgadata fpga.rbf; then
     echo ---Programming FPGA---

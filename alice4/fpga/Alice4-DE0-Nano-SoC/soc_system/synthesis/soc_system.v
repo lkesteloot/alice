@@ -35,6 +35,10 @@ module soc_system (
 		input  wire [63:0] hps_0_f2h_sdram4_data_writedata,     //                      .writedata
 		input  wire [7:0]  hps_0_f2h_sdram4_data_byteenable,    //                      .byteenable
 		input  wire        hps_0_f2h_sdram4_data_write,         //                      .write
+		output wire        hps_0_i2c1_out_data,                 //            hps_0_i2c1.out_data
+		input  wire        hps_0_i2c1_sda,                      //                      .sda
+		output wire        hps_0_i2c1_clk_clk,                  //        hps_0_i2c1_clk.clk
+		input  wire        hps_0_i2c1_scl_in_clk,               //     hps_0_i2c1_scl_in.clk
 		output wire [14:0] memory_mem_a,                        //                memory.mem_a
 		output wire [2:0]  memory_mem_ba,                       //                      .mem_ba
 		output wire        memory_mem_ck,                       //                      .mem_ck
@@ -58,6 +62,10 @@ module soc_system (
 		.F2S_Width (0),
 		.S2F_Width (0)
 	) hps_0 (
+		.i2c1_scl                 (hps_0_i2c1_scl_in_clk),               //      i2c1_scl_in.clk
+		.i2c1_out_clk             (hps_0_i2c1_clk_clk),                  //         i2c1_clk.clk
+		.i2c1_out_data            (hps_0_i2c1_out_data),                 //             i2c1.out_data
+		.i2c1_sda                 (hps_0_i2c1_sda),                      //                 .sda
 		.mem_a                    (memory_mem_a),                        //           memory.mem_a
 		.mem_ba                   (memory_mem_ba),                       //                 .mem_ba
 		.mem_ck                   (memory_mem_ck),                       //                 .mem_ck

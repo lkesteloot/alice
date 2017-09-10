@@ -94,3 +94,4 @@ set_false_path -to [get_registers {*fpga_interfaces|f2sdram~FF_991}]
 set_false_path -to [get_registers {*fpga_interfaces|f2sdram~FF_992}]
 set_false_path -to [get_registers {*fpga_interfaces|f2sdram~FF_993}]
 # ------ End of F2SDRAM bridge fix ------
+create_clock -period 10.0 [get_pins -compatibility_mode *|fpga_interfaces|peripheral_i2c1|out_clk]
