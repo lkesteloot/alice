@@ -1,0 +1,8 @@
+Vout,W,Vout,W
+NC,O,Vout,W
+SW,I,FB,I,
+SW,I,GND,W
+PGND,W,LBO,I
+PGND,W,EN,I
+PGND,W,SYNC,I
+VBAT,W,LBI,I

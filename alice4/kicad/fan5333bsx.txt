@@ -1,0 +1,3 @@
+Vin,W,SW,O
+NC,X,FB,I
+~SHDN,I,GND,W
