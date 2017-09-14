@@ -1,7 +1,7 @@
 EESchema-LIBRARY Version 2.3
 #encoding utf-8
 #
-# touchscreen_controller
+# stmpe811
 #
 DEF stmpe811 U 0 40 Y Y 1 F N
 F0 "U" 0 0 60 H V C CNN
@@ -11,31 +11,23 @@ F3 "" 0 0 60 H V C CNN
 DRAW
 S -250 450 250 -450 0 1 0 N
 X Y- 1 -400 350 200 R 50 50 1 1 B
-X X- 16 400 350 200 L 50 50 1 1 B
 X INT 2 -400 250 200 R 50 50 1 1 O
-X Y+ 15 400 250 200 L 50 50 1 1 B
 X A0 3 -400 150 200 R 50 50 1 1 I
-X Vio 14 400 150 200 L 50 50 1 1 W
 X SCL 4 -400 50 200 R 50 50 1 1 I
-X X+ 13 400 50 200 L 50 50 1 1 B
 X SDA 5 -400 -50 200 R 50 50 1 1 B
-X IN3 12 400 -50 200 L 50 50 1 1 I
 X Vcc 6 -400 -150 200 R 50 50 1 1 W
-X IN2 11 400 -150 200 L 50 50 1 1 I
 X SPI 7 -400 -250 200 R 50 50 1 1 B
-X GND 10 400 -250 200 L 50 50 1 1 W
 X IN0 8 -400 -350 200 R 50 50 1 1 I
 X IN1 9 400 -350 200 L 50 50 1 1 I
-
+X GND 10 400 -250 200 L 50 50 1 1 W
+X IN2 11 400 -150 200 L 50 50 1 1 I
+X IN3 12 400 -50 200 L 50 50 1 1 I
+X X+ 13 400 50 200 L 50 50 1 1 B
+X Vio 14 400 150 200 L 50 50 1 1 W
+X Y+ 15 400 250 200 L 50 50 1 1 B
+X X- 16 400 350 200 L 50 50 1 1 B
+X PAD 17 400 -250 200 L 50 50 1 1 P N
 ENDDRAW
 ENDDEF
 #
 #End Library
-#
-# Put this in your .pro file, adding "../" if necessary
-# "LibName31=stmpe811"
-#
-#
-# Put this in your .sch file:"
-# "LIBS:stmpe811"
-#
