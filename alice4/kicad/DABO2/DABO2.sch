@@ -1383,21 +1383,6 @@ F 3 "" H 9675 5650 60  0000 C CNN
 	1    9675 5650
 	0    -1   -1   0   
 $EndComp
-Text GLabel 7525 1775 2    60   Input ~ 0
-PWREN
-Text GLabel 7050 1775 0    60   Input ~ 0
-VBAT
-$Comp
-L R_Small R16
-U 1 1 59B4B71E
-P 7300 1775
-F 0 "R16" H 7330 1795 50  0000 L CNN
-F 1 "10K" H 7330 1735 50  0000 L CNN
-F 2 "Resistors_SMD:R_0805" H 7300 1775 50  0001 C CNN
-F 3 "" H 7300 1775 50  0001 C CNN
-	1    7300 1775
-	0    -1   -1   0   
-$EndComp
 $Comp
 L GND #PWR058
 U 1 1 59B6E203
@@ -1767,10 +1752,6 @@ Wire Wire Line
 	7450 2450 7450 2850
 Wire Wire Line
 	9400 5650 9675 5650
-Wire Wire Line
-	7050 1775 7200 1775
-Wire Wire Line
-	7400 1775 7525 1775
 Wire Wire Line
 	2150 7375 2425 7375
 Wire Wire Line
