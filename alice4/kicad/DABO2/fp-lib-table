@@ -6,4 +6,5 @@
   (lib (name "DIP40")(type KiCad)(uri $KIPRJMOD/../DIP40.pretty)(options "")(descr ""))
   (lib (name "l3gd20h")(type KiCad)(uri $KIPRJMOD/../l3gd20h_lga.pretty)(options "")(descr ""))
   (lib (name "kyocera_6288")(type KiCad)(uri $KIPRJMOD/../kyocera_6288.pretty)(options "")(descr ""))
+  (lib (name "testpoint_smd_1206")(type KiCad)(uri $KIPRJMOD/../testpoint_smd_1206.pretty)(options "")(descr ""))
 )
