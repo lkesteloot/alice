@@ -8,3 +8,4 @@ all:
 	make -C bounce
 	make -C jello
 	make -C buttonfly
+	make -C ideas
