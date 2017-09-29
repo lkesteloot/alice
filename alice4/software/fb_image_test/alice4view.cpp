@@ -7,13 +7,15 @@
 #include <FreeImagePlus.h>
 #include <sys/mman.h>
 #include <stdint.h>
+// #include "awesome.h"
+
+#define BASE 0x38000000
+#define WIDTH 800
 
 void usage(char *argv[])
 {
     fprintf(stderr, "\n");
-    fprintf(stderr, "Usage: %s imagename fbbase bytes_per_row [mode]\n", argv[0]);
-    fprintf(stderr, "\t\"mode\" can be 8 for 8-byte pixels or 4 for 4 bytes or 3 for 3 bytes.\n");
-    fprintf(stderr, "\tThe default for \"mode\" is 8.\n");
+    fprintf(stderr, "Usage: %s imagename\n", argv[0]);
     fprintf(stderr, "\n");
     exit(EXIT_FAILURE);
 }
@@ -29,7 +31,7 @@ void put_image(fipImage &img, int offsetx, int offsety, unsigned char *fb, int b
 	memset(row, 0, bytes_per_row);
 
         for (unsigned int i = 0; i < std::min(FRAMEBUFFER_WIDTH, img.getWidth()); i++) {
-            img.getPixelColor(i, img.getHeight() - 1 - j, &rgb);
+            img.getPixelColor(img.getWidth() - 1 - i, j, &rgb);
             unsigned char *pixel = row + (i + offsetx) * bytes_per_pixel;
             pixel[0] = rgb.rgbRed;
             pixel[1] = rgb.rgbGreen;
@@ -40,34 +42,16 @@ void put_image(fipImage &img, int offsetx, int offsety, unsigned char *fb, int b
 
 int main(int argc, char **argv)
 {
-    if(argc < 4 || argc > 5) {
+    if(argc < 2) {
         usage(argv);
+	exit(EXIT_FAILURE);
     }
 
-    unsigned int address = strtoul(argv[2], NULL, 0);
-    unsigned int bytes_per_row = strtoul(argv[3], NULL, 0);
+    unsigned int address = BASE;
+    unsigned int bytes_per_row = WIDTH * 4;
 
-    int bytes_per_pixel;
-    int mode = 8;
+    int bytes_per_pixel = 4;
 
-    if(argc > 4) {
-        mode = atoi(argv[4]);
-    }
-
-    switch(mode) {
-        case 3: bytes_per_pixel = 3; break;
-        case 4: bytes_per_pixel = 4; break;
-        case 8: bytes_per_pixel = 8; break;
-
-        default:
-            std::cerr << "unsupported mode " << mode << std::endl;
-            exit(EXIT_FAILURE);
-            break;
-    }
-
-    printf("Address = 0x%08X\n", address);
-    printf("Bytes per row = %d\n", bytes_per_row);
-    printf("Mode = %d (bytes per pixel = %d)\n", mode, bytes_per_pixel);
     FreeImage_Initialise();
 
     const char *filename = argv[1];
