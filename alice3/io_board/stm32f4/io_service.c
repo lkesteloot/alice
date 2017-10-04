@@ -85,6 +85,7 @@ void IOSERVICE_clear_response()
 
 const unsigned int gREAD_IO_Signals = BUS_WR_INACTIVE | BUS_IORQ_ACTIVE | BUS_RD_ACTIVE | IO_BOARD_ADDR_PINS;
 const unsigned int gWRITE_IO_Signals = BUS_WR_ACTIVE | BUS_IORQ_ACTIVE | BUS_RD_INACTIVE | IO_BOARD_ADDR_PINS;
+const unsigned int gIORQ_Signals = BUS_IORQ_ACTIVE | IO_BOARD_ADDR_PINS;
 
 volatile int gUnclaimedWrite = 0;
 volatile unsigned int gUnclaimedWriteAddressPins;
@@ -99,10 +100,59 @@ unsigned int BUS_get_shuffled_ADDRESS()
     unsigned int A = GPIOA->IDR;
     unsigned int B = GPIOB->IDR;
     unsigned int C = GPIOC->IDR;
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
     unsigned int address = ((A & 0x6000) << 1) | ((B & 0x0700) >> 8) | ((B & 0x0018) << 7) | (C & 0x33F8);
     return address;
 }
+
+#if 0
+
+MREQ interrupt:
+    // At this point it's at least 64ns after MREQ asserted, RD or RFSH would be active as far as I can tell from the timing charts 
+    set WAIT
+    if(RFSH active)
+        unset WAIT
+        wait on /MREQ inactive
+        set /WAIT
+        return
+    get A
+    if RD active:
+        set D output from A
+        unset /WAIT
+        wait on /MREQ inactive
+        set D as input
+        set /WAIT
+        return
+    // else WE cycle
+    unset /WAIT
+    wait on /WR active
+    get D
+    store D at A
+    wait on /MREQ inactive
+    set /WAIT
+    return
+
+IORQ interrupt:
+    // At this point it's at least 64ns after MREQ asserted, RD or WR would be active as far as I can tell from the timing charts 
+    set WAIT
+    get A
+    if RD active:
+        set D output from response queue
+        unset /WAIT
+        wait on /MREQ inactive
+        set D as input
+        set /WAIT
+        return
+    // else WE cycle
+    unset /WAIT
+    wait on /WR active
+    get D
+    store D in command queue
+    wait on /MREQ inactive
+    set /WAIT
+    return
+
+#endif
 
 // RD line interrupt handler
 void EXTI1_IRQHandler(void)
@@ -120,13 +170,13 @@ void EXTI1_IRQHandler(void)
         if((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_INACTIVE)
             gReadWasAlreadyInactive = 1;
 
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
 
         while((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_ACTIVE); /* busy wait for RD to rise */
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
         BUS_set_DATA_as_input();
 
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -150,13 +200,13 @@ void EXTI1_IRQHandler(void)
         BUS_set_DATA(byte);
         BUS_set_DATA_as_output();
 
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
 
         while((BUS_SIGNAL_CHECK_PORT->IDR & BUS_RD_PIN_MASK) == BUS_RD_ACTIVE); /* busy wait for RD to rise */
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
         BUS_set_DATA_as_input();
 
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
 
         __HAL_GPIO_EXTI_CLEAR_IT(BUS_RD_PIN_MASK);
         NVIC_ClearPendingIRQ(EXTI1_IRQn);
@@ -189,7 +239,7 @@ void EXTI2_IRQHandler(void)
 {
     if(DEBUG_BUS_ISR) {
         set_GPIO_value(GPIOC, GPIO_PIN_15, 1);
-        __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+        __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
     }
 
     // Gather all port data
@@ -203,7 +253,7 @@ void EXTI2_IRQHandler(void)
     __HAL_GPIO_EXTI_CLEAR_IT(BUS_WR_PIN_MASK);
     NVIC_ClearPendingIRQ(EXTI2_IRQn);
 
-    __asm__ volatile("" ::: "memory"); // Force all memory operations before to come before and all after to come after.
+    __asm__ volatile("" ::: "memory"); // Force all memory instructions before to come before and all after to come after.
 
     if((signal_port_value & BUS_IORQ_PIN_MASK) == BUS_IORQ_ACTIVE) {
 

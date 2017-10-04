@@ -102,7 +102,7 @@ void BUS_init()
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(BUS_WAIT_PORT, &GPIO_InitStruct); 
-    HAL_GPIO_WritePin(BUS_WAIT_PORT, BUS_WAIT_PIN_MASK, BUS_WAIT_INACTIVE);
+    HAL_GPIO_WritePin(BUS_WAIT_PORT, BUS_WAIT_PIN_MASK, BUS_WAIT_ACTIVE);
 
     // /RFSH input on C15
     GPIO_InitStruct.Pin = BUS_RFSH_PIN_MASK;

@@ -45,6 +45,7 @@ LIBS:24lc256
 LIBS:z80cpu-smd
 LIBS:propeller_p8x32a-q44
 LIBS:as6c2008_tsop
+LIBS:conn-fci
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
@@ -151,6 +152,10 @@ F 0 "SW2" H 6600 1635 50  0000 C CNN
 F 1 "SOFT RESET" H 6450 1445 50  0000 C CNN
 F 2 "Buttons_Switches_SMD:SW_SPST_PTS645" H 6450 1525 50  0001 C CNN
 F 3 "" H 6450 1525 50  0000 C CNN
+F 4 "C&K" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "PTS645SH50SMTR92" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "CKN9085CT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    6450 1525
 	0    -1   -1   0   
 $EndComp
@@ -181,18 +186,6 @@ Text GLabel 4600 1725 2    60   BiDi ~ 0
 ~RD
 Text GLabel 4600 1825 2    60   BiDi ~ 0
 ~WR
-Entry Wire Line
-	1950 4225 2050 4125
-Text Label 2050 4125 0    60   ~ 0
-CS
-Text GLabel 1850 4125 0    60   Input ~ 0
-SPI0
-Text GLabel 5750 2575 2    60   Input ~ 0
-SPI0
-Text Label 5400 2725 0    60   ~ 0
-SCK
-Entry Wire Line
-	5550 2725 5650 2825
 Text GLabel 4600 3875 2    60   BiDi ~ 0
 A5
 Text GLabel 4600 3975 2    60   BiDi ~ 0
@@ -209,14 +202,6 @@ Text GLabel 4600 2325 2    60   Input ~ 0
 ~BUSACK
 Text GLabel 4600 2425 2    60   Output ~ 0
 ~BUSRQ
-Entry Wire Line
-	5550 2825 5650 2925
-Entry Wire Line
-	5550 2925 5650 3025
-Text Label 5400 2825 0    60   ~ 0
-DO
-Text Label 5400 2925 0    60   ~ 0
-DI
 Text GLabel 4600 2525 2    60   Input ~ 0
 KBD_CLK
 Text GLabel 4600 3775 2    60   BiDi ~ 0
@@ -263,6 +248,10 @@ F 0 "Y2" H 1800 1725 50  0000 C CNN
 F 1 "16MHz" H 1800 1425 50  0000 C CNN
 F 2 "Crystals:ABM3" H 1800 1575 60  0001 C CNN
 F 3 "" H 1800 1575 60  0000 C CNN
+F 4 "Abracon LLC" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "ABM3-16.000MHZ-B2-T" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "535-9103-1-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    1800 1575
 	0    1    1    0   
 $EndComp
@@ -373,6 +362,10 @@ F 0 "CON1" H 9025 2450 50  0000 C CNN
 F 1 "MicroSD" H 9925 1500 50  0000 C CNN
 F 2 "Molex:microsd_1040310811" H 9875 2250 50  0001 C CNN
 F 3 "" H 9675 1900 50  0000 C CNN
+F 4 "Molex LLC" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "1040310811" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "WM6357CT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    9475 2000
 	1    0    0    1   
 $EndComp
@@ -498,17 +491,6 @@ F 3 "" H 1500 2325 60  0000 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L CONN_01X02 P3
-U 1 1 56BAA324
-P 5200 2075
-F 0 "P3" H 5200 2225 50  0000 C CNN
-F 1 "UART1" V 5300 2075 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02" H 5200 2075 60  0001 C CNN
-F 3 "" H 5200 2075 60  0000 C CNN
-	1    5200 2075
-	1    0    0    -1  
-$EndComp
-$Comp
 L USB_OTG P2
 U 1 1 56BAA76F
 P 2475 6725
@@ -516,6 +498,10 @@ F 0 "P2" H 2800 6600 50  0000 C CNN
 F 1 "USB_OTG" H 2475 6825 50  0000 C CNN
 F 2 "microusb:10118192-0001LF" V 2425 6625 60  0001 C CNN
 F 3 "" V 2425 6625 60  0000 C CNN
+F 4 "Amphenol FCI" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "10118192-0001LF" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "609-4613-1-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    2475 6725
 	1    0    0    -1  
 $EndComp
@@ -527,25 +513,21 @@ F 0 "U5" H 3350 5125 60  0000 C CNN
 F 1 "STM32F415RG" H 4100 1125 60  0000 C CNN
 F 2 "Housings_QFP:LQFP-64_10x10mm_Pitch0.5mm" H 3950 3175 60  0001 C CNN
 F 3 "" H 3950 3175 60  0000 C CNN
+F 4 "STMicroelectronics" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "STM32F415RGT6" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "497-11907-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    3950 3175
 	1    0    0    -1  
 $EndComp
-Text GLabel 3100 4225 0    60   BiDi ~ 0
-USB_DET
-Text GLabel 3100 4325 0    60   BiDi ~ 0
-USB_ID
 Text GLabel 3100 4425 0    60   BiDi ~ 0
-USB_D_N
+USB_FS_D_N
 Text GLabel 3100 4525 0    60   BiDi ~ 0
-USB_D_P
-Text GLabel 3675 6525 2    60   BiDi ~ 0
-USB_DET
-Text GLabel 3675 6925 2    60   BiDi ~ 0
-USB_ID
+USB_HS_D_P
 Text GLabel 3675 6825 2    60   BiDi ~ 0
-USB_D_N
+USB_FS_D_N
 Text GLabel 3675 6725 2    60   BiDi ~ 0
-USB_D_P
+USB_FS_D_P
 $Comp
 L GND #PWR030
 U 1 1 56BAB684
@@ -556,17 +538,6 @@ F 2 "" H 2475 7225 60  0000 C CNN
 F 3 "" H 2475 7225 60  0000 C CNN
 	1    2475 7225
 	1    0    0    -1  
-$EndComp
-$Comp
-L R_Small R4
-U 1 1 56BAC147
-P 3425 6525
-F 0 "R4" V 3495 6555 50  0000 L CNN
-F 1 "220" V 3495 6375 50  0000 L CNN
-F 2 "Resistors_SMD:R_0805" H 3425 6525 60  0001 C CNN
-F 3 "" H 3425 6525 60  0000 C CNN
-	1    3425 6525
-	0    1    1    0   
 $EndComp
 Text GLabel 4600 4375 2    60   BiDi ~ 0
 A10
@@ -582,100 +553,6 @@ Text GLabel 4600 4875 2    60   BiDi ~ 0
 A15
 Text GLabel 3100 4975 0    60   Output ~ 0
 ~WAIT
-$Comp
-L MINI_DIN_6 X1
-U 1 1 56CE0684
-P 7375 4900
-F 0 "X1" H 6975 5425 50  0000 L BNN
-F 1 "MINI_DIN_6" H 7375 5425 50  0000 L BNN
-F 2 "cui-md-xxs:cui-md-60s" H 7375 5050 50  0001 C CNN
-F 3 "" H 7375 4900 60  0000 C CNN
-	1    7375 4900
-	1    0    0    -1  
-$EndComp
-NoConn ~ 6875 4700
-NoConn ~ 6775 5000
-$Comp
-L +5V #PWR031
-U 1 1 56CE0CE0
-P 6700 4550
-F 0 "#PWR031" H 6700 4400 50  0001 C CNN
-F 1 "+5V" H 6700 4690 50  0000 C CNN
-F 2 "" H 6700 4550 60  0000 C CNN
-F 3 "" H 6700 4550 60  0000 C CNN
-	1    6700 4550
-	1    0    0    -1  
-$EndComp
-Text GLabel 8925 4700 2    60   Output ~ 0
-KBD_CLK
-Text GLabel 8925 5000 2    60   Output ~ 0
-KBD_DATA
-$Comp
-L R R24
-U 1 1 56CE1471
-P 8625 4700
-F 0 "R24" V 8705 4700 50  0000 C CNN
-F 1 "100" V 8625 4700 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" V 8555 4700 30  0001 C CNN
-F 3 "" H 8625 4700 30  0000 C CNN
-	1    8625 4700
-	0    1    1    0   
-$EndComp
-$Comp
-L R R25
-U 1 1 56CE1639
-P 8625 5000
-F 0 "R25" V 8705 5000 50  0000 C CNN
-F 1 "100" V 8625 5000 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" V 8555 5000 30  0001 C CNN
-F 3 "" H 8625 5000 30  0000 C CNN
-	1    8625 5000
-	0    1    1    0   
-$EndComp
-$Comp
-L R R23
-U 1 1 56CE1A8A
-P 8375 4500
-F 0 "R23" V 8455 4500 50  0000 C CNN
-F 1 "10K" V 8375 4500 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" V 8305 4500 30  0001 C CNN
-F 3 "" H 8375 4500 30  0000 C CNN
-	1    8375 4500
-	-1   0    0    1   
-$EndComp
-$Comp
-L R R22
-U 1 1 56CE1E9A
-P 8150 4500
-F 0 "R22" V 8230 4500 50  0000 C CNN
-F 1 "10K" V 8150 4500 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805" V 8080 4500 30  0001 C CNN
-F 3 "" H 8150 4500 30  0000 C CNN
-	1    8150 4500
-	-1   0    0    1   
-$EndComp
-$Comp
-L +5V #PWR032
-U 1 1 56CE2231
-P 8150 4250
-F 0 "#PWR032" H 8150 4100 50  0001 C CNN
-F 1 "+5V" H 8150 4390 50  0000 C CNN
-F 2 "" H 8150 4250 60  0000 C CNN
-F 3 "" H 8150 4250 60  0000 C CNN
-	1    8150 4250
-	1    0    0    -1  
-$EndComp
-$Comp
-L GND #PWR033
-U 1 1 56CE2415
-P 8075 5175
-F 0 "#PWR033" H 8075 4925 50  0001 C CNN
-F 1 "GND" H 8075 5025 50  0000 C CNN
-F 2 "" H 8075 5175 60  0000 C CNN
-F 3 "" H 8075 5175 60  0000 C CNN
-	1    8075 5175
-	1    0    0    -1  
-$EndComp
 $Comp
 L C_Small C21
 U 1 1 56D370B5
@@ -706,6 +583,10 @@ F 0 "F1" H 2885 6585 50  0000 L CNN
 F 1 "F_Small" H 2805 6465 50  0000 L CNN
 F 2 "Resistors_SMD:R_1210" H 2925 6525 50  0001 C CNN
 F 3 "" H 2925 6525 50  0000 C CNN
+F 4 "Bel Fuse Inc." H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "0ZCH0050FF2G" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "507-1786-1-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    2925 6525
 	1    0    0    -1  
 $EndComp
@@ -713,17 +594,6 @@ Text GLabel 3100 4625 0    60   Input ~ 0
 ~PROP_READY~
 Text GLabel 3100 4725 0    60   Input ~ 0
 ~RFSH
-$Comp
-L GND #PWR034
-U 1 1 56D3ADAD
-P 7375 5350
-F 0 "#PWR034" H 7375 5100 50  0001 C CNN
-F 1 "GND" H 7375 5200 50  0000 C CNN
-F 2 "" H 7375 5350 50  0000 C CNN
-F 3 "" H 7375 5350 50  0000 C CNN
-	1    7375 5350
-	1    0    0    -1  
-$EndComp
 $Comp
 L LED D1
 U 1 1 56D3C057
@@ -765,6 +635,10 @@ F 0 "SW3" H 1050 2885 50  0000 C CNN
 F 1 "FLASH ARM" H 900 2695 50  0000 C CNN
 F 2 "Buttons_Switches_SMD:SW_SPST_PTS645" H 900 2775 50  0001 C CNN
 F 3 "" H 900 2775 50  0000 C CNN
+F 4 "C&K" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "PTS645SH50SMTR92" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "CKN9085CT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    900  2775
 	0    -1   -1   0   
 $EndComp
@@ -812,24 +686,8 @@ Wire Wire Line
 	8625 2250 8625 1600
 Wire Wire Line
 	6450 1125 6450 1225
-Wire Bus Line
-	1850 4125 1950 4125
-Wire Bus Line
-	1950 4125 1950 4325
-Wire Wire Line
-	2050 4125 3100 4125
-Wire Wire Line
-	4600 2725 5550 2725
 Wire Wire Line
 	6450 1925 4600 1925
-Wire Bus Line
-	5750 2575 5650 2575
-Wire Bus Line
-	5650 2575 5650 3225
-Wire Wire Line
-	4600 2825 5550 2825
-Wire Wire Line
-	4600 2925 5550 2925
 Wire Wire Line
 	3000 1475 3000 1625
 Wire Wire Line
@@ -912,46 +770,9 @@ Wire Wire Line
 	1850 2075 1850 2175
 Connection ~ 1850 2075
 Wire Wire Line
-	4600 2025 5000 2025
-Wire Wire Line
-	4600 2125 5000 2125
-Wire Wire Line
-	2775 6925 3675 6925
-Wire Wire Line
 	2775 6725 3675 6725
 Wire Wire Line
 	2775 6825 3675 6825
-Wire Wire Line
-	3525 6525 3675 6525
-Wire Wire Line
-	6700 4550 6700 4800
-Wire Wire Line
-	6700 4800 6775 4800
-Wire Wire Line
-	8775 4700 8925 4700
-Wire Wire Line
-	8775 5000 8925 5000
-Wire Wire Line
-	7875 4700 8475 4700
-Wire Wire Line
-	8375 4700 8375 4650
-Connection ~ 8375 4700
-Wire Wire Line
-	7975 5000 8475 5000
-Wire Wire Line
-	8150 5000 8150 4650
-Connection ~ 8150 5000
-Wire Wire Line
-	8150 4250 8150 4350
-Wire Wire Line
-	8375 4350 8375 4300
-Wire Wire Line
-	8375 4300 8150 4300
-Connection ~ 8150 4300
-Wire Wire Line
-	7975 4800 8075 4800
-Wire Wire Line
-	8075 4800 8075 5175
 Connection ~ 1700 2075
 Wire Wire Line
 	900  3600 900  3550
@@ -967,8 +788,6 @@ Connection ~ 1850 2175
 Wire Wire Line
 	2775 6525 2825 6525
 Connection ~ 1500 2075
-Wire Wire Line
-	7375 5300 7375 5350
 Wire Wire Line
 	4600 1625 5400 1625
 Wire Wire Line
@@ -1002,8 +821,6 @@ Wire Wire Line
 	3100 5950 3100 6525
 Wire Wire Line
 	2925 6175 3100 6175
-Wire Wire Line
-	3025 6525 3325 6525
 Connection ~ 3100 6175
 Connection ~ 3100 6525
 $Comp
@@ -1064,5 +881,69 @@ F 2 "Resistors_SMD:R_0805" V 8355 1450 30  0001 C CNN
 F 3 "" H 8425 1450 30  0000 C CNN
 	1    8425 1450
 	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	3100 6525 3025 6525
+$Comp
+L GND #PWR?
+U 1 1 59CD53BE
+P 3075 7225
+F 0 "#PWR?" H 3075 6975 50  0001 C CNN
+F 1 "GND" H 3075 7075 50  0000 C CNN
+F 2 "" H 3075 7225 60  0000 C CNN
+F 3 "" H 3075 7225 60  0000 C CNN
+	1    3075 7225
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2775 6925 3075 6925
+Wire Wire Line
+	3075 6925 3075 7225
+Entry Wire Line
+	1950 4225 2050 4125
+Wire Wire Line
+	2050 4125 3100 4125
+Text Label 2050 4125 0    60   ~ 0
+CS
+Wire Bus Line
+	1950 4125 1950 4325
+Wire Bus Line
+	1850 4125 1950 4125
+Text GLabel 1850 4125 0    60   Input ~ 0
+SPI0
+Text Label 5400 2925 0    60   ~ 0
+DI
+Wire Wire Line
+	4600 2925 5550 2925
+Entry Wire Line
+	5550 2925 5650 3025
+Entry Wire Line
+	5550 2825 5650 2925
+Wire Wire Line
+	4600 2825 5550 2825
+Text Label 5400 2825 0    60   ~ 0
+DO
+Wire Bus Line
+	5750 2575 5650 2575
+Entry Wire Line
+	5550 2725 5650 2825
+Wire Bus Line
+	5650 2575 5650 3225
+Wire Wire Line
+	4600 2725 5550 2725
+Text Label 5400 2725 0    60   ~ 0
+SCK
+Text GLabel 5750 2575 2    60   Input ~ 0
+SPI0
+$Comp
+L USB_A J?
+U 1 1 59D1A027
+P 6325 4925
+F 0 "J?" H 6125 5375 50  0000 L CNN
+F 1 "USB_A" H 6125 5275 50  0000 L CNN
+F 2 "" H 6475 4875 50  0001 C CNN
+F 3 "" H 6475 4875 50  0001 C CNN
+	1    6325 4925
+	1    0    0    -1  
 $EndComp
 $EndSCHEMATC

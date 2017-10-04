@@ -75,6 +75,7 @@ LibName43=24lc256
 LibName44=../z80cpu-smd
 LibName45=propeller_p8x32a-q44
 LibName46=as6c2008_tsop
+LibName47=conn-fci
 [schematic_editor]
 version=1
 PageLayoutDescrFile=

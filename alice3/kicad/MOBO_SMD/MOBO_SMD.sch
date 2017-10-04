@@ -45,6 +45,7 @@ LIBS:24lc256
 LIBS:z80cpu-smd
 LIBS:propeller_p8x32a-q44
 LIBS:as6c2008_tsop
+LIBS:conn-fci
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END

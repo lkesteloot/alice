@@ -45,6 +45,7 @@ LIBS:24lc256
 LIBS:z80cpu-smd
 LIBS:propeller_p8x32a-q44
 LIBS:as6c2008_tsop
+LIBS:conn-fci
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
@@ -295,6 +296,10 @@ F 0 "U1" H 3550 4400 50  0000 L CNN
 F 1 "Z80CPU-SMD" H 4200 4400 50  0000 L CNN
 F 2 "Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm" H 4100 3400 50  0001 C CNN
 F 3 "" H 4100 3400 50  0000 C CNN
+F 4 "Zilog" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "Z84C0020AEG" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "269-4575-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    4100 3000
 	1    0    0    -1  
 $EndComp

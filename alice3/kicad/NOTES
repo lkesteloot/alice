@@ -133,3 +133,4 @@ Hints:
 - Right-click on item to get actions on it (e.g., move edge of rectangle).
 
 
+java -jar /Users/grantham/trees/FreeRouting/fr.jar

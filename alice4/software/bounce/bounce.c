@@ -255,7 +255,7 @@ char **argv;
 
 	mmode(MPROJECTION);
 	getsize(&xsize, &ysize);
-	perspective(600, (float)xsize/ysize, EYEZ-2.0, EYEZ+2.0);
+	perspective(400, (float)xsize/ysize, EYEZ-2.0, EYEZ+2.0);
 	mmode(MVIEWING);
 	loadmatrix(ident4);
 	translate(0.0, 0.0, -EYEZ);

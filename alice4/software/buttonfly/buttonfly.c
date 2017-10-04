@@ -243,7 +243,7 @@ void bf_escdown()
     // Keep track of when Esc is pressed so we can see how long it was pressed.
     if (!esc_pressed) {
         esc_pressed = 1;
-        clock_gettime(CLOCK_MONOTONIC, &esc_press_time);
+        // clock_gettime(CLOCK_MONOTONIC, &esc_press_time);
     }
 }
 
@@ -251,7 +251,7 @@ void bf_escup()
 {
     // See how long Esc was pressed.
     struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    // clock_gettime(CLOCK_MONOTONIC, &now);
     double elapsed = diff_timespecs(&now, &esc_press_time);
     if (elapsed > 1 && secret_buttons != NULL) {
         // Show secret menu.

@@ -45,6 +45,7 @@ LIBS:24lc256
 LIBS:z80cpu-smd
 LIBS:propeller_p8x32a-q44
 LIBS:as6c2008_tsop
+LIBS:conn-fci
 LIBS:MOBO_SMD-cache
 EELAYER 25 0
 EELAYER END
@@ -90,7 +91,10 @@ F 0 "Y1" H 5350 3750 50  0000 C CNN
 F 1 "5 MHz" H 5350 3450 50  0000 C CNN
 F 2 "Crystals:Crystal_HC49-SD_SMD" H 5350 3600 50  0001 C CNN
 F 3 "" H 5350 3600 50  0000 C CNN
-F 4 "https://www.digikey.com/product-detail/en/ecs-inc/ECS-50-20-5PX-TR/XC1265CT-ND/827729" H 5350 3600 60  0001 C CNN "Part"
+F 4 "ECS Inc." H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "ECS-50-20-5PX-TR" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "XC1265CT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    5350 3600
 	0    1    1    0   
 $EndComp
@@ -102,6 +106,10 @@ F 0 "SW1" H 6050 1560 50  0000 C CNN
 F 1 "RESET" H 5900 1370 50  0000 C CNN
 F 2 "Buttons_Switches_SMD:SW_SPST_PTS645" H 5900 1450 50  0001 C CNN
 F 3 "" H 5900 1450 50  0000 C CNN
+F 4 "C&K" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "PTS645SH50SMTR92" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "CKN9085CT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    5900 1450
 	1    0    0    -1  
 $EndComp
@@ -124,6 +132,10 @@ F 0 "U3" H 6250 3600 60  0000 C CNN
 F 1 "24LC256" H 6400 3000 60  0000 C CNN
 F 2 "Housings_SOIC:SOIC-8_3.9x4.9mm_Pitch1.27mm" H 6500 3200 60  0001 C CNN
 F 3 "" H 6500 3200 60  0000 C CNN
+F 4 "Microchip Technology TECHNOLOGY" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "24LC256T-I/SN" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "24LC256T-I/SNCT-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    6500 3300
 	1    0    0    -1  
 $EndComp
@@ -190,6 +202,10 @@ F 0 "U4" H 7100 2300 60  0000 C CNN
 F 1 "Propeller_Plug" H 7250 1650 60  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Angled_1x04" H 7200 2000 60  0001 C CNN
 F 3 "" H 7200 2000 60  0000 C CNN
+F 4 "3M" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "929500-01-04-RK" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "929500E-01-04-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    7200 2000
 	1    0    0    -1  
 $EndComp
@@ -420,6 +436,10 @@ F 0 "P1" H 800 3050 50  0000 C CNN
 F 1 "CONN_01X05" V 900 2750 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Angled_1x05" H 800 2750 50  0001 C CNN
 F 3 "" H 800 2750 50  0000 C CNN
+F 4 "3M" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "929500-01-05-RK" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "929500E-01-05-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    800  2750
 	-1   0    0    1   
 $EndComp
@@ -461,6 +481,10 @@ F 0 "J1" H 3800 6975 60  0000 C CNN
 F 1 "VGA" H 4050 5425 60  0000 C CNN
 F 2 "Jac:00JG-DB15HDSOCKET" H 4050 6175 60  0001 C CNN
 F 3 "" H 4050 6175 60  0000 C CNN
+F 4 "TE Connectivity AMP Connectors" H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "1734344-1" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "A35119-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    4050 6175
 	1    0    0    -1  
 $EndComp
@@ -685,6 +709,10 @@ F 0 "U2" H 4100 4050 60  0000 C CNN
 F 1 "Propeller_P8X32A-Q44" H 4450 1050 60  0000 C CNN
 F 2 "Housings_QFP:LQFP-44_10x10mm_Pitch0.8mm" H 4400 2350 60  0001 C CNN
 F 3 "" H 4400 2350 60  0000 C CNN
+F 4 "Parallax Inc." H 975 3575 60  0001 C CNN "Manufacturer"
+F 5 "P8X32A-Q44" H 975 3575 60  0001 C CNN "PN"
+F 6 "Digikey" H 975 3575 60  0001 C CNN "Distributor"
+F 7 "P8X32A-Q44-ND" H 975 3575 60  0001 C CNN "Distributor PN"
 	1    4400 2550
 	1    0    0    -1  
 $EndComp
