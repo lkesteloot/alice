@@ -70,8 +70,10 @@ static void drain_touchscreen()
 	drained ++;
 	switch(e) {
 	    case TOUCHSCREEN_START:
-		mousex = x;
-		mousey = 480 - 1 - y; // GL valuator MOUSEY is 0 at bottom
+		// N.B. The devices is rotated 180 degrees from it's
+		// "natural," originally-developed orientation
+		mousex = 800 - 1 - x;
+		mousey = y; // GL valuator MOUSEY is 0 at bottom
 		if(device_queued[LEFTMOUSE]) {
 		    ev.device = LEFTMOUSE;
 		    ev.val = 1;
@@ -86,8 +88,9 @@ static void drain_touchscreen()
 		}
 		break;
 	    case TOUCHSCREEN_DRAG:
-		mousex = x;
-		mousey = 480 - 1 - y; // GL valuator MOUSEY is 0 at bottom
+	    	// XXX device is rotated 180 degrees
+		mousex = 800 - 1 - x;
+		mousey = y; // GL valuator MOUSEY is 0 at bottom
 		break;
 	    case TOUCHSCREEN_STOP:
 		if(device_queued[LEFTMOUSE]) {
@@ -124,6 +127,10 @@ int32_t events_get_valuator(int32_t device)
 	float theta_x, theta_y, value;
 
 	accelerometer_read(&theta_y, &theta_x);
+	// N.B. The devices is rotated 180 degrees from it's "natural,"
+	// originally-developed orientation
+	theta_y = -theta_y;
+	theta_x = -theta_x;
 
 	theta_x_smoothed = theta_x_smoothed * decay + theta_x * (1 - decay);
 	theta_y_smoothed = theta_y_smoothed * decay + theta_y * (1 - decay);

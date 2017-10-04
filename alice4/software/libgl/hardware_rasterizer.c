@@ -425,12 +425,14 @@ void screen_vertex_offset_with_clamp(screen_vertex* v, float dx, float dy)
 static void draw_screen_triangle(screen_vertex *s0, screen_vertex *s1, screen_vertex *s2)
 {
     // Compute the coordinates of the vertices.
-    int x0 = s0->x / SCREEN_VERTEX_V2_SCALE;
-    int y0 = DISPLAY_HEIGHT - 1 - s0->y / SCREEN_VERTEX_V2_SCALE;
-    int x1 = s1->x / SCREEN_VERTEX_V2_SCALE;
-    int y1 = DISPLAY_HEIGHT - 1 - s1->y / SCREEN_VERTEX_V2_SCALE;
-    int x2 = s2->x / SCREEN_VERTEX_V2_SCALE;
-    int y2 = DISPLAY_HEIGHT - 1 - s2->y / SCREEN_VERTEX_V2_SCALE;
+    // N.B. The devices is rotated 180 degrees from it's "natural,"
+    // originally-developed orientation
+    int x0 = DISPLAY_WIDTH - 1 - s0->x / SCREEN_VERTEX_V2_SCALE;
+    int y0 = s0->y / SCREEN_VERTEX_V2_SCALE;
+    int x1 = DISPLAY_WIDTH - 1 - s1->x / SCREEN_VERTEX_V2_SCALE;
+    int y1 = s1->y / SCREEN_VERTEX_V2_SCALE;
+    int x2 = DISPLAY_WIDTH - 1 - s2->x / SCREEN_VERTEX_V2_SCALE;
+    int y2 = s2->y / SCREEN_VERTEX_V2_SCALE;
 
     // Compute bbox in pixels.
     int min_x = min(x0, min(x1, x2));
