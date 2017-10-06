@@ -110,7 +110,7 @@ Next:
   {name: 'slot2',         wave: 'x.........................=x..', data: "J"},
   {name: 'slot1',         wave: 'x.................==x....=.=x.', data: "F G I J"},
   {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x..=..==x', data: "A B C D E F G H I J"},
-  {name: 'color write',   wave: '0..10..1.0..1.0..1...0..1.....'},
+  {name: 'color write',   wave: '0..10..1.0..1.0..1...0..1....x'},
   {name: 'color wait',    wave: '0............10...10.....1.0..', phase: 0.5},
 ]}
 
