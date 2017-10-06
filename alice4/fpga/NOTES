@@ -107,11 +107,11 @@ Next:
   {name: 'read queue',    wave: '010..1.0..10...1..0...1..0....'},
   {name: 'queue empty',   wave: '0.............................'},
   {name: 'queue data',    wave: 'x.=x..==x..=x...===x...===x...', data: "A B C D E F G H I J"},
-  {name: 'slot1_full',    wave: 'x..=x..==x..=x...===x....=....', data: "A B C D E F G I"},
-  {name: 'slot2_full',    wave: 'x..=x..==x..=x...===x.....=...', data: "A B C D E F G J"},
-  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x..=.....', data: "A B C D E F G H"},
+  {name: 'slot2',         wave: 'x.........................=x..', data: "J"},
+  {name: 'slot1',         wave: 'x.................==x....=.=x.', data: "F G I J"},
+  {name: 'color info',    wave: 'x..=x..==x..=.x..=.==x..=..==x', data: "A B C D E F G H I J"},
   {name: 'color write',   wave: '0..10..1.0..1.0..1...0..1.....'},
-  {name: 'color wait',    wave: '0............10...10.....1....', phase: 0.5},
+  {name: 'color wait',    wave: '0............10...10.....1.0..', phase: 0.5},
 ]}
 
 Buffer addresses:
