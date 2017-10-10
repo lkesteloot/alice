@@ -1,6 +1,6 @@
 // Given a pixel location, determines the text character position.
 module LCD_text
-    // LOG2_SCALE=0 for no scaling, 1 for double, 2 for quandruple, etc.
+    // LOG2_SCALE=0 for no scaling, 1 for double, 2 for quadruple, etc.
     #(parameter LOG2_SCALE=0)
 (
     input wire [9:0] x,
