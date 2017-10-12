@@ -106,13 +106,14 @@
             <ul>
                 <li>Reading the front-buffer for LCD scan-out. This was configured
                 to be the highest priority.</li>
-                <li>Reading the graphics command buffer. The 64-bit commands were read
-                into a FIFO so that the rasterizer never had to stall waiting for
-                the next command.</li>
+                <li>Reading the graphics command buffer.</li>
                 <li>Reading the depth buffer for the pixel being rasterized.</li>
                 <li>Writing the color of the pixel just rasterized.</li>
                 <li>Writing the depth of the pixel just rasterized.</li>
             </ul>
+
+            <p>All five ports were hooked up to FIFOs to minimize the effects of
+            memory latency.</p>
 
             <h2>Rasterization</h2>
 
@@ -194,7 +195,7 @@ lpm_divide
             <p>The module is configured to have six pipeline stages, which means that
             the result will come out six clocks after the denominator was put in.
             We don't pipeline (overlap) our reciprocals (we only need one per triangle), but our
-            state machine must wait six clocks waiting for this result. We found the
+            state machine must wait six clocks for this result. We found the
             number 6 by trying various values until the compiler stopped complaining
             about timing violations.</p>
 
