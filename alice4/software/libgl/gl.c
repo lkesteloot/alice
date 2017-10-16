@@ -628,8 +628,6 @@ void process_line(world_vertex *wv0, world_vertex *wv1)
 
 static int backface_cull(const screen_vertex* s)
 {
-    if(!backface_enabled) return 0;
-
     float area =
         /* .5 * */ // Don't bother multiplying by .5, only checking the sign.
         s[0].x * s[1].y - s[1].x * s[0].y + 
@@ -673,7 +671,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r - 2; i++) {
             triangle[1] = screenverts[i + 1];
             triangle[2] = screenverts[i + 2];
-            // if(ccw ^ !backface_cull(triangle))
+            if(!backface_enabled || (ccw ^ !backface_cull(triangle)))
                 rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
         }
 	ccw = !ccw;
@@ -711,7 +709,7 @@ void process_polygon(int32_t n, world_vertex *worldverts)
     for(int i = 0; i < n - 2; i++) {
         triangle[1] = screenverts[i + 1];
         triangle[2] = screenverts[i + 2];
-        if(!backface_cull(triangle))
+	if(!backface_enabled || !backface_cull(triangle))
             rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
     }
 }
@@ -2293,7 +2291,7 @@ void draw_screen_aarect_filled(int r, int g, int b, float left, float top, float
     for(int i = 0; i < 2; i++) {
         triangle[1] = q[i + 1];
         triangle[2] = q[i + 2];
-        if(!backface_cull(triangle))
+	if(!backface_enabled || !backface_cull(triangle))
             rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
     }
 }
