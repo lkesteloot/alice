@@ -673,7 +673,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         for(int i = 0; i < r - 2; i++) {
             triangle[1] = screenverts[i + 1];
             triangle[2] = screenverts[i + 2];
-            if(ccw ^ !backface_cull(triangle))
+            // if(ccw ^ !backface_cull(triangle))
                 rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
         }
 	ccw = !ccw;
