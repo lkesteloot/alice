@@ -173,8 +173,13 @@
 
             <h2>Reciprocal</h2>
 
-            <p>For each triangle, the rasterizer computes the on-screen area, then takes
-            the reciprocal of the area. To compute the reciprocal we use the built-in
+            <p>For each triangle, the rasterizer computes its on-screen area, then takes
+            the reciprocal of the area. This is necessary for the normalization of
+            the barycentric coordinates used to interpolate color and depth.
+            <a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/rasterization-stage">Scratchapixel</a> has a great explanation
+            of how this works; scroll down to the “Barycentric Coordinates” section.</p>
+
+            <p>To compute the reciprocal we use the built-in
             <a href="https://www.altera.com/en_US/pdfs/literature/ug/ug_lpm_alt_mfug.pdf"><tt>lpm_divide</tt></a> module:</p>
 
             <pre>
