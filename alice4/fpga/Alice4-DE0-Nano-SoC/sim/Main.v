@@ -285,7 +285,6 @@ module Main(
         .data_enable(lcd_data_enable)
     );
 
-    /*
     // Generate character locations.
     wire [6:0] text_column;
     wire [5:0] text_row;
@@ -302,9 +301,9 @@ module Main(
 
     // Generate characters themselves.
     wire [6:0] character;
-    wire [31:0] rast_debug_value0;
-    wire [31:0] rast_debug_value1;
-    wire [31:0] rast_debug_value2;
+    wire [31:0] rast_debug_value0 = 32'hdeadbeef;
+    wire [31:0] rast_debug_value1 = 32'hcafebabe;
+    wire [31:0] rast_debug_value2 = 32'hfacefeed;
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
@@ -314,6 +313,7 @@ module Main(
         .character(character)
     );
 
+    /*
     // Frame buffer.
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
@@ -353,9 +353,10 @@ module Main(
         .debug_value1(fb_debug_value1),
         .debug_value2(fb_debug_value2)
     );
+    */
 
     // Generate pixels.
-    wire character_bw;
+    wire character_bw /* verilator public */;
     LCD_font lcd_font(
         .clock(clock_50),
         .character(character),
@@ -364,6 +365,7 @@ module Main(
         .bw(character_bw)
     );
 
+    /*
     // Reads the command buffer into a FIFO.
     wire cmd_restart;
     wire cmd_ready;
