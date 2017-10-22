@@ -49,7 +49,6 @@ module Main(
         /// inout hps_conv_usb_n,
         
         /* SSTL-15 Class I */
-        /*
         output [14:0] hps_ddr3_addr,
         output [2:0] hps_ddr3_ba,
         output hps_ddr3_cas_n,
@@ -62,14 +61,11 @@ module Main(
         output hps_ddr3_reset_n,
         input hps_ddr3_rzq,
         output hps_ddr3_we_n,
-        */
         /* DIFFERENTIAL 1.5-V SSTL CLASS I */
-        /*
         output hps_ddr3_ck_n,
         output hps_ddr3_ck_p,
         inout [3:0] hps_ddr3_dqs_n,
         inout [3:0] hps_ddr3_dqs_p,
-        */
         
         /* 3.3-V LVTTL */
         /*
@@ -114,13 +110,11 @@ module Main(
         
         //////////// LED ////////////
         /* 3.3-V LVTTL */
-        output [7:0] led
+        output [7:0] led,
         
         //////////// SW ////////////
         /* 3.3-V LVTTL */
-        /*
-        input [3:0] sw
-        */
+        input [3:0] sw /* verilator public */
 );
 
     // 1G minus 128M, in bytes.
@@ -147,7 +141,6 @@ module Main(
     assign led[7:2] = 0;
     assign led[0] = 0;
 
-    /*
     // Exchange data with HPS.
     wire [31:0] f2h_value = {
         28'b0,
@@ -156,7 +149,9 @@ module Main(
         fb_front_buffer,
         rasterizer_busy
     };
+    /* verilator lint_off UNUSED */
     wire [31:0] h2f_value;
+    /* verilator lint_on UNUSED */
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
          .gp_in(f2h_value),    // Value to the HPS (continuous).
          .gp_out(h2f_value)    // Value from the HPS (latched).
@@ -169,6 +164,7 @@ module Main(
     wire [63:0] sdram0_readdata;
     wire sdram0_readdatavalid;
     wire sdram0_read;
+    /*
     wire [28:0] sdram1_address;
     wire [7:0] sdram1_burstcount;
     wire sdram1_waitrequest;
@@ -197,6 +193,8 @@ module Main(
     wire i2c1_sda;
     wire i2c1_scl_out_enable;
     wire i2c1_scl;
+    */
+    /* verilator lint_off PINMISSING */
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         // Physical memory interface.
@@ -222,7 +220,8 @@ module Main(
         .hps_0_f2h_sdram0_data_waitrequest(sdram0_waitrequest),
         .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
         .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
-        .hps_0_f2h_sdram0_data_read(sdram0_read),
+        .hps_0_f2h_sdram0_data_read(sdram0_read)
+        /*
         // sdram1: SDRAM interface for command buffer reading.
         .hps_0_f2h_sdram1_data_address(sdram1_address),
         .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
@@ -256,8 +255,9 @@ module Main(
         .hps_0_i2c1_sda(i2c1_sda),
         .hps_0_i2c1_clk_clk(i2c1_scl_out_enable),
         .hps_0_i2c1_scl_in_clk(i2c1_scl)
+        */
     );
-    */
+    /* verilator lint_on PINMISSING */
 
     // Generate signals for the LCD.
     /* verilator lint_off UNUSED */
@@ -313,12 +313,13 @@ module Main(
         .character(character)
     );
 
-    /*
     // Frame buffer.
+    /* verilator lint_off UNUSED */
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
     wire [31:0] fb_debug_value2;
-    wire rast_front_buffer;
+    /* verilator lint_on UNUSED */
+    wire rast_front_buffer = 1'b0; // XXX Remove assignment when we enable the Rasterizer.
     wire fb_front_buffer;
     wire [7:0] fb_red;
     wire [7:0] fb_green;
@@ -353,7 +354,6 @@ module Main(
         .debug_value1(fb_debug_value1),
         .debug_value2(fb_debug_value2)
     );
-    */
 
     // Generate pixels.
     wire character_bw /* verilator public */;
@@ -395,7 +395,9 @@ module Main(
 
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
-    wire rasterizer_busy;
+    */
+    wire rasterizer_busy = 1'b0;  // XXX Remove assignment when we enable this code.
+    /*
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
@@ -448,6 +450,7 @@ module Main(
         .debug_value1(rast_debug_value1),
         .debug_value2(rast_debug_value2)
     );
+    */
 
     // Color assignment. Latch these for clean output.
     wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
@@ -465,11 +468,11 @@ module Main(
     end
 
     // Latch all LCD outputs.
-    reg [7:0] lcd_red_d1;
-    reg [7:0] lcd_green_d1;
-    reg [7:0] lcd_blue_d1;
-    reg lcd_tick_d1;
-    reg lcd_data_enable_delayed_d1;
+    reg [7:0] lcd_red_d1 /* verilator public */;
+    reg [7:0] lcd_green_d1 /* verilator public */;
+    reg [7:0] lcd_blue_d1 /* verilator public */;
+    reg lcd_tick_d1 /* verilator public */;
+    reg lcd_data_enable_delayed_d1 /* verilator public */;
     always @(posedge clock_50) begin
         lcd_red_d1 <= lcd_red;
         lcd_green_d1 <= lcd_green;
@@ -478,6 +481,7 @@ module Main(
         lcd_data_enable_delayed_d1 <= lcd_data_enable_delayed;
     end
 
+    /*
     // GPIO pins.
     assign gpio_0[0] = lcd_red_d1[0];
     assign gpio_0[2] = lcd_red_d1[1];
@@ -565,7 +569,9 @@ module Main(
     // Home button circuit.
     wire raw_home_button = !home_button_pin; // Physical button is active low.
     wire home_button;
-    reg f2h_home_button;
+    */
+    reg f2h_home_button = 1'b0; // XXX Remove assignment when we enable this code.
+    /*
     wire h2f_home_button = h2f_value[PWM_BITS + 2];
     Debouncer debouncer(
         .clock(clock_50),

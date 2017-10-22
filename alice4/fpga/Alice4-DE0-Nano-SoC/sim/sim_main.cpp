@@ -32,19 +32,21 @@ int main(int argc, char **argv, char **env) {
 
     VMain* top = new VMain;
 
+    // Turn on debugging display.
+    top->sw |= 0x8;
+
     while (!Verilated::gotFinish()) {
         if (top->clock_50) {
-            if (top->Main->lcd_tick) {
+            if (top->Main->lcd_tick_d1) {
                 if (top->Main->next_frame) {
                     write_ppm();
                     g_pixel = 0;
                 }
-                if (top->Main->lcd_data_enable) {
+                if (top->Main->lcd_data_enable_delayed_d1) {
                     if (g_pixel < PIXEL_COUNT) {
-                        int color = top->Main->character_bw ? 255 : 0;
-                        g_display[g_pixel*3 + 0] = color;
-                        g_display[g_pixel*3 + 1] = color;
-                        g_display[g_pixel*3 + 2] = color;
+                        g_display[g_pixel*3 + 0] = top->Main->lcd_red_d1;
+                        g_display[g_pixel*3 + 1] = top->Main->lcd_green_d1;
+                        g_display[g_pixel*3 + 2] = top->Main->lcd_blue_d1;
                         g_pixel++;
                     } else {
                         printf("Pixel overran display.\n");
