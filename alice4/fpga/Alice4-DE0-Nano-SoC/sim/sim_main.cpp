@@ -41,9 +41,10 @@ int main(int argc, char **argv, char **env) {
                 }
                 if (top->Main->lcd_data_enable) {
                     if (g_pixel < PIXEL_COUNT) {
-                        g_display[g_pixel*3 + 0] = 128;
-                        g_display[g_pixel*3 + 1] = 128;
-                        g_display[g_pixel*3 + 2] = 128;
+                        int color = top->Main->character_bw ? 255 : 0;
+                        g_display[g_pixel*3 + 0] = color;
+                        g_display[g_pixel*3 + 1] = color;
+                        g_display[g_pixel*3 + 2] = color;
                         g_pixel++;
                     } else {
                         printf("Pixel overran display.\n");
