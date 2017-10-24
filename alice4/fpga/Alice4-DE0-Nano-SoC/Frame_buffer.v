@@ -47,7 +47,7 @@ localparam M2F_STATE_IDLE = 4'h1;
 localparam M2F_STATE_READ = 4'h2;
 localparam M2F_STATE_FLUSH_SDRAM = 4'h5;
 localparam M2F_STATE_FLUSH_FIFO = 4'h6;
-reg [3:0] m2f_state;
+reg [3:0] m2f_state /* verilator public */;
 
 // State machine for transferring data from FIFO to LCD.
 localparam F2L_STATE_IDLE = 4'h0;
@@ -79,8 +79,8 @@ reg fifo_sclr;
 wire fifo_write_wait;
 wire fifo_read_wait;
 reg fifo_read;
-wire [63:0] fifo_read_data;
-wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw;
+wire [63:0] fifo_read_data /* verilator public */;
+wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw /* verilator public */;
 /* verilator lint_off PINMISSING */
 scfifo #(.add_ram_output_register("OFF"),
          .intended_device_family("CYCLONEV"),
@@ -110,8 +110,8 @@ reg [28:0] next_address;
 reg [25:0] word_count;
 reg [25:0] word_count_latched;
 // Keep track of bursts.
-reg [5:0] words_requested;
-reg [5:0] words_read;
+reg [5:0] words_requested /* verilator public */;
+reg [5:0] words_read /* verilator public */;
 // State machine.
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
@@ -149,7 +149,7 @@ always @(posedge clock or negedge reset_n) begin
                 // flush the queue.
                 if (lcd_next_frame) begin
                     m2f_state <= M2F_STATE_FLUSH_SDRAM;
-                end else if ({ 1'b0, fifo_usedw } < FIFO_DEPTH - BURST_LENGTH) begin
+                end else if ({ 1'b0, fifo_usedw } < FIFO_DEPTH - BURST_LENGTH - 8) begin
                     // Start burst reading.
                     words_requested <= 6'b0;
                     words_read <= 6'b0;
