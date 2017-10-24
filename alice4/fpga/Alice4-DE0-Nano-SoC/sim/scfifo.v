@@ -30,6 +30,7 @@ module scfifo ( data,
 
 /* verilator lint_off WIDTH */
 /* verilator lint_off MULTIDRIVEN */
+/* verilator lint_off SYNCASYNCNET */ // For aclr
 
 // GLOBAL PARAMETER DECLARATION
     parameter lpm_width               = 1;
@@ -808,6 +809,7 @@ module scfifo ( data,
 
 /* verilator lint_on WIDTH */
 /* verilator lint_on MULTIDRIVEN */
+/* verilator lint_on SYNCASYNCNET */ // For aclr
 
 endmodule // scfifo
 // END OF MODULE

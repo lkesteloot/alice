@@ -158,12 +158,12 @@ module Main(
     );
 
     // Interface to HPS.
-    wire [28:0] sdram0_address;
+    wire [28:0] sdram0_address /* verilator public */;
     wire [7:0] sdram0_burstcount;
-    wire sdram0_waitrequest;
-    wire [63:0] sdram0_readdata;
-    wire sdram0_readdatavalid;
-    wire sdram0_read;
+    wire sdram0_waitrequest /* verilator public */;
+    wire [63:0] sdram0_readdata /* verilator public */;
+    wire sdram0_readdatavalid /* verilator public */;
+    wire sdram0_read /* verilator public */;
     /*
     wire [28:0] sdram1_address;
     wire [7:0] sdram1_burstcount;
