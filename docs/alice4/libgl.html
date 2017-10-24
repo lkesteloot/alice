@@ -14,19 +14,96 @@
 
             <h2>Overview</h2>
 
+	    <p><code>libgl</code> handles window creating and
+	    configuration, event processing, and drawing for the
+	    demos on the Alice&nbsp;4 device.</p>
+
             <h2>Reference Material</h2>
 
+	    <p>As references, we used
+            <a href="http://inetsd01.boulder.ibm.com/pseries/en_US/infocenter/base/43_docs/aixprggd/gl32prgd/toc.htm">
+	    the IBM AIX Graphics Library pages</a>.  They document API
+	    usage on an IBM IRIS-compatible graphics device, so
+	    they're not 100% applicable but helped us a lot.  We also found
+            <a href="http://bitsavers.informatik.uni-stuttgart.de/pdf/sgi/iris4d/007-1210-020_Graphics_Library_Programming_Guide_v2.0_May_1990.pdf">a scanned PDF of the IRIS Programming Guide</a>, also somewhat helpful.</p>
+
+	    <p>In the end we also used screenshots in Google Image
+	    searches, our own memories of these demos, and just
+	    guessing at the meaning of functions from the code.  This
+            project included a fair amount of code and design archaeology.
+            </p>
+
+            <h2>Project Bounds and Limitations</h2>
+
+	    <p>We implemented only the functions required by the
+	    demos we wanted to run.  These included opening a window,
+	    handling essential events, and only the drawing operations
+	    used in the source.
+            </p>
+            
+	    <p>Our GL is far short of a production IRIS GL replacement.
+	    We neglected a lot of the object / display-list system.
+	    We didn't implement any special blend modes or alpha
+	    test or depth test modes, stencil planes or overlay
+	    planes.
+            </p>
+
+            <p>We have a lot of constant-sized-arrays which
+	    would probably blow up if anyone tried to write a new
+	    IRIS GL program using our library.  We've tried to give
+	    a short list of these items at the end of this page, but they
+            should be relatively obvious on inspection of the source.
+            </p>
+
             <h2>Basic operation</h2>
+
+            <p>The application configures the window system with a series of calls to set parameters like whether double-buffering is required (<code>doublebuffer</code>), whether the framebuffer should be interpreted as RGB colors (<code>RGBmode</code>) or a color table, and then opened on the screen, optionally with a title bar (<code>winopen</code>).
+            </p>
+
+            <p>The app manages events by indicating that it wants to receive them (<code>qdevice</code> with enumerants like <code>REDRAW</code>, <code>ESC_KEY</code>, or <code>MOUSEX</code>).  Continuous "valuators" are exposed through a direct call (<code>getvaluator</code>) or by specifying the valuator should be read and coupled to certain events (<code>tie</code>).  Finally, applications test the event queue (<code>qtest</code>) and read and process any events that exist (<code>qread</code>).</p>
+
+            <p>Each app sets graphics state for things like lighting, materials, the lighting model, the current color.  In most of the demos we cared about, this state is set up once, in some initialization code.  In production apps, though, these might be specified in each frame or more frequently.
+            </p>
+
+            <p>The application draws on the screen by beginning a polygon of various kinds or a line, submitting vertices, and closing the primitive.  Apps can also draw points (effectively pixels in our implementation since we have no smoothing or antialiasing) or a parametric shape like a circle.
+            </p>
+            
+            <p>When all drawing is complete, the application swaps the front and back buffers (<code>swapbuffers</code>).
+            </p>
 
             <h2>Modern implementation concerns</h2>
 
             <h2>Windows and configuration</h2>
 
+            <p>In our implementation, we only supported one fullscreen, 800-pixels-wide by 480-pixels-tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking with (e.g. <code>winpop</code>) and ringing the bell  with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
+
             <h2>Events</h2>
 
-            <h2>Objects - some objects not implemented</h2>
+            <p>libgl manages event requests and an event queue based on the platform event implementation.  We wrote implementations events for the FPGA simulator program and also for the handheld device itself.  See below for more information on the platform interface.
+            </p>
+
+            <h2>Objects</h2>
+
+	    <p>IRIS GL supports recording some functions in a list
+	    which can be played back later; it calls these "objects",
+	    and later graphics APIs have called them "display lists".
+	    An application creates an object using <code>genobj</code>, starts
+	    recording commands in the object using <code>makeobj</code>, and
+	    finishes recording with <code>closeobj</code>.  The functions can
+	    be played back with <code>callobj</code>.
+            </p>
+            
+            <p>An object can even contain a <code>callobj</code>, and that secondary object can be tagged with <code>gentag</code> and <code>maketag</code> and later replaced with <code>objreplace</code>, making a kind of hierarchical, editable model.
+            </p>
+            <p>Many functions (not all) can be stored in objects, but we only stored function calls used in the demos.
+            </p>
 
             <h2>Lighting and materials</h2>
+
+            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically baseed, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained within <code>light_vertex</code> in our source.
+            </p>
+            <p>We didn't implement any lighting and material parameters not used by the demos.  We didn't code spotlights or fog.  We even ignored the "local" lighting model, which forces a local viewer, because lighting is basically okay without it.  (On those very early graphics workstations, using a local viewer came at a performance cost!)
+            </p>
 
             <h2>Primitives</h2>
 
