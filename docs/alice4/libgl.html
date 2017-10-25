@@ -14,20 +14,21 @@
 
             <h2>Overview</h2>
 
-	    <p><code>libgl</code> handles window creating and
-	    configuration, event processing, and drawing for the
-	    demos on the Alice&nbsp;4 device.</p>
+	    <p><code>libgl</code> handles window creation and
+	    configuration, event queueing, and interpreting drawing
+            commands for the demos on the Alice&nbsp;4 device.
+            </p>
 
             <h2>Reference Material</h2>
 
-	    <p>As references, we used
+	    <p>We used
             <a href="http://inetsd01.boulder.ibm.com/pseries/en_US/infocenter/base/43_docs/aixprggd/gl32prgd/toc.htm">
-	    the IBM AIX Graphics Library pages</a>.  They document API
+	    the IBM AIX Graphics Library pages</a> as a reference.  They document API
 	    usage on an IBM IRIS-compatible graphics device, so
 	    they're not 100% applicable but helped us a lot.  We also found
-            <a href="http://bitsavers.informatik.uni-stuttgart.de/pdf/sgi/iris4d/007-1210-020_Graphics_Library_Programming_Guide_v2.0_May_1990.pdf">a scanned PDF of the IRIS Programming Guide</a>, also somewhat helpful.</p>
+            <a href="http://bitsavers.informatik.uni-stuttgart.de/pdf/sgi/iris4d/007-1210-020_Graphics_Library_Programming_Guide_v2.0_May_1990.pdf">a scanned PDF of the IRIS Programming Guide</a> somewhat helpful.</p>
 
-	    <p>In the end we also used screenshots in Google Image
+	    <p>In the end we also used some screenshots in Google Image
 	    searches, our own memories of these demos, and just
 	    guessing at the meaning of functions from the code.  This
             project included a fair amount of code and design archaeology.
@@ -57,7 +58,7 @@
 
             <h2>Basic operation</h2>
 
-            <p>The application configures the window system with a series of calls to set parameters like whether double-buffering is required (<code>doublebuffer</code>), whether the framebuffer should be interpreted as RGB colors (<code>RGBmode</code>) or a color table, and then opened on the screen, optionally with a title bar (<code>winopen</code>).
+            <p>The application configures the window system with a series of calls to set parameters like whether the app requires double-buffering (<code>doublebuffer</code>), whether the framebuffer should be interpreted as RGB colors (<code>RGBmode</code>) or a color table, and then opened on the screen with an optional title bar (<code>winopen</code>).
             </p>
 
             <p>The app manages events by indicating that it wants to receive them (<code>qdevice</code> with enumerants like <code>REDRAW</code>, <code>ESC_KEY</code>, or <code>MOUSEX</code>).  Continuous "valuators" are exposed through a direct call (<code>getvaluator</code>) or by specifying the valuator should be read and coupled to certain events (<code>tie</code>).  Finally, applications test the event queue (<code>qtest</code>) and read and process any events that exist (<code>qread</code>).</p>
@@ -65,28 +66,31 @@
             <p>Each app sets graphics state for things like lighting, materials, the lighting model, the current color.  In most of the demos we cared about, this state is set up once, in some initialization code.  In production apps, though, these might be specified in each frame or more frequently.
             </p>
 
-            <p>The application draws on the screen by beginning a polygon of various kinds or a line, submitting vertices, and closing the primitive.  Apps can also draw points (effectively pixels in our implementation since we have no smoothing or antialiasing) or a parametric shape like a circle.
+            <p>The application draws on the screen by beginning a polygon of various kinds or a line, submitting vertices, and closing the primitive.  Apps can also draw points (effectively pixels in our implementation since we have no smoothing or antialiasing) or a parametric shape like a circle.  Each of the vertices is transformed through one or two matrices (depending on the library's current mode), lit using the light and material parameters, projected, and clipped.
+            </p>
+
+            <p>
+            The platform implementation only accepts vertices within the 800-pixel by 480-pixel viewport.  Therefore, all primitives must be trimmed to fit within the viewport before rasterization.
             </p>
             
             <p>When all drawing is complete, the application swaps the front and back buffers (<code>swapbuffers</code>).
             </p>
 
-            <h2>Modern implementation concerns</h2>
-
             <h2>Windows and configuration</h2>
 
-            <p>In our implementation, we only supported one fullscreen, 800-pixels-wide by 480-pixels-tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking with (e.g. <code>winpop</code>) and ringing the bell  with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
+            <p>In our implementation, we only support one fullscreen, 800 pixel wide and 480 pixel tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking with (e.g. <code>winpop</code>) and ringing the bell  with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
 
             <h2>Events</h2>
 
-            <p>libgl manages event requests and an event queue based on the platform event implementation.  We wrote implementations events for the FPGA simulator program and also for the handheld device itself.  See below for more information on the platform interface.
+            <p>Libgl manages event requests and an event queue based on the platform event implementation.  We wrote an implementation of a subset of events for the FPGA simulator program and another for the handheld device itself.  See below for more information on the platform interface.
             </p>
 
             <h2>Objects</h2>
 
 	    <p>IRIS GL supports recording some functions in a list
-	    which can be played back later; it calls these "objects",
-	    and later graphics APIs have called them "display lists".
+	    which can be played back later.  It calls these "objects"
+	    but they will be more familiar to some as "display lists"
+            in OpenGL.
 	    An application creates an object using <code>genobj</code>, starts
 	    recording commands in the object using <code>makeobj</code>, and
 	    finishes recording with <code>closeobj</code>.  The functions can
@@ -100,24 +104,98 @@
 
             <h2>Lighting and materials</h2>
 
-            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically baseed, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained within <code>light_vertex</code> in our source.
+            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically baseed, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained in the <code>light_vertex</code> function in our source.
             </p>
             <p>We didn't implement any lighting and material parameters not used by the demos.  We didn't code spotlights or fog.  We even ignored the "local" lighting model, which forces a local viewer, because lighting is basically okay without it.  (On those very early graphics workstations, using a local viewer came at a performance cost!)
             </p>
 
             <h2>Primitives</h2>
 
-            <h2>Miscellaneous libgl features</h2>
-            * Color index emulation
-            * PUP implementation
-            * Tracing
+            <p>The demos use a few different code paths for drawing polygons, triangles, and lines.  The IRIS Graphics Library went through a few revisions over its lifetime, mostly trying different programming styles to give performance and ease to applications.  And we think these different geometry functions reflect those revisions.
+            </p>
+
+            <p>They all funnel through the <code>process_polygon</code>, <code>process_tmesh</code>, and <code>process_line</code> functions in our implementation.  Those functions all transform and light vertices using <code>transform_and_light_vertex</code> and then clip and project the resulting primitive to the viewport before passing the primitive to the platform implementation.
+            </p>
+
+            <h2>Miscellaneous <code>libgl</code> Features</h2>
+
+            <h3>Color-index mode</h3>
+
+            <p>The earliest IRIS workstations supported only "color index" mode, where the "color" value for a pixel actually looked up an RGB color in a table before display.  We implement this by indexing the color when provided and storing only the RGB color.  However, this ended up being a problem for the "arena" demo.
+            </p>
+
+	    <p>IRIS GL has a mask for which bits of the framebuffer are
+            updated by drawing commands.  Arena uses that mask to
+	    draw the HUD in the upper nybble and the arena geometry
+	    into the lower nybble.  The colors from 0 to 15 are
+	    normal colors.  The application stores all color indices
+	    from 16 to 255 only based on the upper nybble.  For
+	    example, colors 16 to 31 are all set to yellow, so it
+	    doesn't matter what's in the lower nybble.
+            </p>
+
+            <p>
+	    Therefore arena can set the drawing mask to <code>0xF0</code>,
+	    clear the color buffer to 0 and draw the HUD at any
+	    time.  It can then set the drawing mask to <code>0x0F</code>
+	    and draw the normal arena geometry every frame, knowing
+	    that the HUD is always drawn "over" the arena geometry because
+	    of the color table.  This gives kind of a crude overlay
+	    functionality.
+            </p>
+
+            <p>
+	    Arena was one of the last demos we investigated.  We
+	    had already written <code>libgl</code> assuming RGB
+	    colors and it would have been a real pain to
+	    deindex colors in every drawing command.  Instead we
+	    just edited arena to draw the HUD last over top of the
+	    maze for every frame.  Oh, well.
+            </p>
+
+            <h3>PUPs (Pop-up menus)</h3>
+
+            <p>
+            IRIS GL had a facility for pop-up menus that an application could invoke, typically on the right mouse click.  (<code>newpup</code>, <code>addpup</code>, and <code>dopup</code>)  Both "jello" and "bounce" originally used menus to change lighting, line edges, and toggle automatic rotation, among other things.</p>
+
+            <p>We implemented a lot of the menu functionality.  We could toggle the states in jello and bounce, but finally agreed that the hand-held, tablet-like quality of the device didn't lend itself to old workstation-style menus, and turned it off.
+            </p>
+
+            <h3>Tracing</h3>
+            <p>The first time an unimplemented function is called, <code>libgl</code> prints a warning but continues.  This allowed us to see early on in development how far we were getting, and make some guesses about what we absolutely needed to do, and what we could safely ignore.
+            </p>
+
+            <p>
+            If <code>trace_functions</code> is enabled, every implemented function prints its own name and parameters, so that we can more easily debug a complete stream of commands.  Just knowing which command we were in during a crash (e.g. output of "bt" in the debugger) was not sufficient.
+            </p>
 
             <h2>Platform layer interface</h2>
 
-            <h2>Platform Implementations</h2>
-            * Network 
-            * Reference rasterizer
-            * Hardware 
+            <p>We abstracted the implementation of actual events and rasterization away from the bookkeeping performed by <code>libgl</code>.
+            </p>
+            
+            <p>The event interface is specified in <code>libgl/event_service.h</code>.  An implementation is responsible for handling platform specifics and translating platform-specific events into <code>libgl</code> events.  We wrote an event implementation for both the FPGA simulator over the network and the final hardware platform.  On the final platform, touchscreen taps are provided as <code>MOUSEX</code> and <code>MOUSEY</code> and <code>LEFTMOUSE</code> and the calculated and smoothed tilt from the accelerometer are provided as <code>DIAL0</code> and <code>DIAL1</code> valuators.  We altered the demos to use those valuators, so they still have the style of IRIS GL applications.
+            </p>
+            <p>
+            An implementation of the rasterizer interface, specified in <code>libgl/rasterizer.h</code>, must translate drawing commands (such as setting the pattern, linewidth, depth buffer enable, and drawing primitives) into platform specifics.  We implemented the rasterizer interface for the FPG simulator, the hardware device, and also for a reference rasterizer.  The reference rasterizer was written to be quick to write and easy to maintain, and we used it to debug the other two implementations and perform some quality tests.
+            </p>
+
+            <p>
+            The rasterizer interface allows drawing a batch of primitives with a variable count and those primitives can be lines, triangles, triangle fans, points, or a triangle strip.  In all three of our rasterizer implementations we converted points to a pixel-sized quad; converted lines to a long, thin quad stretching between the line endpoints; and converted all triangle types to independent triangles.  We also never ended up passing anything but single lines and triangles from <code>libgl</code> to the rasterizer implementations.
+            </p>
+
+            <p>
+            Notably, for the final implementation of our hardware, we rotated the screen 180 degrees to improve viewing.  (The LCD in retrospect seems designed to be viewed somewhat from above, as if it was in a vending machine interface.)  We also rotated touch, tilt, and graphics primitives in the platform implementations.  We didn't have to change <code>libgl</code>.
+            </p>
+            
+            <p>
+            In <code>software/platform.mk</code>, you can choose one of several different combinations of event and rasterizer implementations, but the three most useful pairings are
+            <ul>
+            <li>network events and network rasterizer (full FPGA simulator operation),</li>
+            <li>hardware events and reference rasterizer (events from the hardware but rasterize to an offscreen buffer and save to a file for comparisons and debugging), and</li>
+            <li>hardware events and hardware rasterizer (use the final Alice 4 device events and FPGA rasterizer).</li>
+            </ul>
+            </p>
 
             <p><a href="./">&laquo; Back</a></p>
         </div>
