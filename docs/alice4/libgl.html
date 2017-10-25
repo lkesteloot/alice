@@ -76,7 +76,7 @@
 
             <h2>Windows and configuration</h2>
 
-            <p>In our implementation, we only support one fullscreen, 800 pixel wide and 480 pixel tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking with (e.g. <code>winpop</code>) and ringing the bell  with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
+            <p>In our implementation, we only support one fullscreen, 800 pixel wide and 480 pixel tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking (e.g. <code>winpop</code>) and ringing the bell with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
 
             <h2>Events</h2>
 
@@ -102,7 +102,7 @@
 
             <h2>Lighting and materials</h2>
 
-            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically baseed, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained in the <code>light_vertex</code> function in our source.
+            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically based, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained in the <code>light_vertex</code> function in our source.
             </p>
             <p>We didn't implement any lighting and material parameters not used by the demos.  We didn't code spotlights or fog.  We even ignored the "local" lighting model, which forces a local viewer, because lighting is basically okay without it.  (On those very early graphics workstations, using a local viewer came at a performance cost!)
             </p>
