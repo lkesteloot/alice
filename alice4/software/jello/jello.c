@@ -255,6 +255,10 @@ short tilt_left = -200;
 short tilt_right = 200;
 short tilt_forward = 650;
 short tilt_back = 150;
+static const short tilt_horiz_center = 0;
+static const short tilt_horiz_span = 200;
+static const short tilt_vert_center = 320;
+static const short tilt_vert_span = 200;
 
 void get_tilt(short *tiltx, short *tilty)
 {
@@ -393,6 +397,8 @@ char	*argv[];
 		orx2 = rx2;
 		ory2 = ry2;
 
+		ax = 0;
+		ay = 0;
 		reorient(ax, ay);
 		break;
 	    }
@@ -786,9 +792,25 @@ void reorient(short ax, short ay)
 	light_vector[Y] = view[1][1];
 	light_vector[Z] = view[2][1];
 
-	grav_vec[X] = light_vector[X] * grav;
-	grav_vec[Y] = light_vector[Y] * grav;
-	grav_vec[Z] = light_vector[Z] * grav;
+	{
+	    float dx = (getvaluator(DIAL0) - tilt_horiz_center) / (float) tilt_horiz_span;
+	    float dy = (getvaluator(DIAL1) - tilt_vert_center) / (float) tilt_vert_span;
+
+	    // Normalize.
+	    float len = sqrt(dx*dx + dy*dy);
+	    if (len > 1.0) {
+		dx /= len;
+		dy /= len;
+	    }
+
+	    // X is backwards.
+	    dx = -dx;
+
+	    // Linear combination of X and Y vectors.
+	    grav_vec[X] = (view[X][0]*dx + view[X][1]*dy)*grav;
+	    grav_vec[Y] = (view[Y][0]*dx + view[Y][1]*dy)*grav;
+	    grav_vec[Z] = (view[Z][0]*dx + view[Z][1]*dy)*grav;
+        }
 
 	popmatrix();
 }
