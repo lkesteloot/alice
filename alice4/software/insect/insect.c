@@ -31,6 +31,11 @@ float   light[3],
 Angle ctheta = -900, cphi, cvtheta, cvphi;
 float   fabso ();
 
+static const short tilt_horiz_center = 0;
+static const short tilt_horiz_span = 200;
+static const short tilt_vert_center = 320;
+static const short tilt_vert_span = 200;
+
 /*	main routine -- handle tokens of window manager
 		-- display shadow and insect
 */
@@ -631,6 +636,18 @@ move_insect () {
     getcoords ();
     mx = ((float)pikx - (float)worgx) / halfwinx - 1.0;
     my = ((float)piky - (float)worgy) / halfwiny - 1.0;
+
+    /* Use accelerometer to move insect. */
+    {
+	float dx = (getvaluator(DIAL0) - tilt_horiz_center) / (float) tilt_horiz_span;
+	float dy = (getvaluator(DIAL1) - tilt_vert_center) / (float) tilt_vert_span;
+	if (dx < -0.5) dx = -0.5;
+	if (dx > 0.5) dx = 0.5;
+	if (dy < -0.5) dy = -0.5;
+	if (dy > 0.5) dy = 0.5;
+	mx += dx;
+	my -= dy;
+    }
 
     gl_sincos (cphi, &s, &c);
     dx = mx * c + my * s;
