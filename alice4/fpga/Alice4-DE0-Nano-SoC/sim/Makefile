@@ -2,12 +2,15 @@
 .PHONY: run verilate build
 
 VERILATOR_ROOT=$(HOME)
+MAIN=Fifo_test
+MAIN_CPP=fifo_test_main
 
 run: build
-	./obj_dir/VMain
+	./obj_dir/V$(MAIN)
 
 build: verilate
-	cd obj_dir && make -j -f VMain.mk VMain
+	cd obj_dir && make -j -f V$(MAIN).mk V$(MAIN)
 
 verilate:
-	verilator -Wall --cc Main.v --exe sim_main.cpp
+	verilator -Wall --cc $(MAIN).v --exe $(MAIN_CPP).cpp
+
