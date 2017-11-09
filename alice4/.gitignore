@@ -3,3 +3,4 @@
 *.dfu
 *.elf
 Make.Out*
+*.o

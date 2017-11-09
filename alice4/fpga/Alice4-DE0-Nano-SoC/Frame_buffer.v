@@ -34,10 +34,12 @@ module Frame_buffer
 );
 
 // Convert to 64-bit-based addresses.
-localparam FIRST_ADDRESS0_64BIT = ADDRESS/8;
-localparam LAST_ADDRESS0_64BIT = FIRST_ADDRESS0_64BIT + LENGTH/8 - 1;
-localparam FIRST_ADDRESS1_64BIT = ADDRESS/8 + LENGTH/8;
-localparam LAST_ADDRESS1_64BIT = FIRST_ADDRESS1_64BIT + LENGTH/8 - 1;
+/* verilator lint_off WIDTH */
+localparam [28:0] FIRST_ADDRESS0_64BIT = ADDRESS/8;
+localparam [28:0] LAST_ADDRESS0_64BIT = FIRST_ADDRESS0_64BIT + LENGTH/8 - 1;
+localparam [28:0] FIRST_ADDRESS1_64BIT = ADDRESS/8 + LENGTH/8;
+localparam [28:0] LAST_ADDRESS1_64BIT = FIRST_ADDRESS1_64BIT + LENGTH/8 - 1;
+/* verilator lint_on WIDTH */
 
 // State machine for transferring data from SDRAM to FIFO.
 localparam M2F_STATE_START_FRAME = 4'h0;
@@ -45,7 +47,7 @@ localparam M2F_STATE_IDLE = 4'h1;
 localparam M2F_STATE_READ = 4'h2;
 localparam M2F_STATE_FLUSH_SDRAM = 4'h5;
 localparam M2F_STATE_FLUSH_FIFO = 4'h6;
-reg [3:0] m2f_state;
+reg [3:0] m2f_state /* verilator public */;
 
 // State machine for transferring data from FIFO to LCD.
 localparam F2L_STATE_IDLE = 4'h0;
@@ -54,7 +56,6 @@ reg [3:0] f2l_state;
 
 // Registers and assignments.
 assign burstcount = 8'h01;
-reg [63:0] data;
 
 assign debug_value0 = {
     3'b0, waitrequest,
@@ -67,8 +68,8 @@ assign debug_value0 = {
     3'b0, fifo_read_wait,
     m2f_state
 };
-assign debug_value1 = word_count_latched;
-assign debug_value2 = pixel_count_latched;
+assign debug_value1 = { 6'b0, word_count_latched };
+assign debug_value2 = { 6'b0, pixel_count_latched };
 
 // FIFO.
 localparam FIFO_DEPTH = 256;
@@ -78,9 +79,19 @@ reg fifo_sclr;
 wire fifo_write_wait;
 wire fifo_read_wait;
 reg fifo_read;
-wire [63:0] fifo_read_data;
-wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw;
-scfifo frame_buffer_fifo(
+wire [63:0] fifo_read_data /* verilator public */;
+wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw /* verilator public */;
+/* verilator lint_off PINMISSING */
+scfifo #(.add_ram_output_register("OFF"),
+         .intended_device_family("CYCLONEV"),
+         .lpm_numwords(FIFO_DEPTH),
+         .lpm_showahead("OFF"),
+         .lpm_type("scfifo"),
+         .lpm_width(64),
+         .lpm_widthu(FIFO_DEPTH_LOG2),
+         .overflow_checking("ON"),
+         .underflow_checking("ON"),
+         .use_eab("ON")) frame_buffer_fifo(
         .aclr(!reset_n),
         .sclr(fifo_sclr),
         .clock(clock),
@@ -91,16 +102,7 @@ scfifo frame_buffer_fifo(
         .q(fifo_read_data),
         .rdreq(fifo_read),
         .wrreq(readdatavalid && !fifo_write_wait));
-defparam frame_buffer_fifo.add_ram_output_register = "OFF",
-         frame_buffer_fifo.intended_device_family = "CYCLONEV",
-         frame_buffer_fifo.lpm_numwords = FIFO_DEPTH,
-         frame_buffer_fifo.lpm_showahead = "OFF",
-         frame_buffer_fifo.lpm_type = "scfifo",
-         frame_buffer_fifo.lpm_width = 64,
-         frame_buffer_fifo.lpm_widthu = FIFO_DEPTH_LOG2,
-         frame_buffer_fifo.overflow_checking = "ON",
-         frame_buffer_fifo.underflow_checking = "ON",
-         frame_buffer_fifo.use_eab = "ON";
+/* verilator lint_on PINMISSING */
 
 // The next address to read after this one.
 reg [28:0] next_address;
@@ -108,8 +110,8 @@ reg [28:0] next_address;
 reg [25:0] word_count;
 reg [25:0] word_count_latched;
 // Keep track of bursts.
-reg [5:0] words_requested;
-reg [5:0] words_read;
+reg [5:0] words_requested /* verilator public */;
+reg [5:0] words_read /* verilator public */;
 // State machine.
 always @(posedge clock or negedge reset_n) begin
     if (!reset_n) begin
@@ -118,10 +120,10 @@ always @(posedge clock or negedge reset_n) begin
         next_address <= 29'h0;
         read <= 1'b0;
         fb_front_buffer <= 1'b0;
-        word_count <= 1'b0;
-        word_count_latched <= 1'b0;
-        words_requested <= 1'b0;
-        words_read <= 1'b0;
+        word_count <= 26'b0;
+        word_count_latched <= 26'b0;
+        words_requested <= 6'b0;
+        words_read <= 6'b0;
         fifo_sclr <= 1'b0;
     end else begin
         case (m2f_state)
@@ -147,10 +149,10 @@ always @(posedge clock or negedge reset_n) begin
                 // flush the queue.
                 if (lcd_next_frame) begin
                     m2f_state <= M2F_STATE_FLUSH_SDRAM;
-                end else if (fifo_usedw < FIFO_DEPTH - BURST_LENGTH) begin
+                end else if ({ 1'b0, fifo_usedw } < FIFO_DEPTH - BURST_LENGTH - 8) begin
                     // Start burst reading.
-                    words_requested <= 1'b0;
-                    words_read <= 1'b0;
+                    words_requested <= 6'b0;
+                    words_read <= 6'b0;
                     m2f_state <= M2F_STATE_READ;
                 end
             end
@@ -239,13 +241,15 @@ always @(posedge clock or negedge reset_n) begin
             if (word_count >= 128) begin
                 word_count_latched <= word_count;
             end
-            word_count <= 1'b0;
+            word_count <= 26'b0;
         end
     end
 end
 
 // Get pixel data out of the FIFO.
+/* verilator lint_off UNUSED */
 reg [63:0] pixel_data;
+/* verilator lint_on UNUSED */
 reg need_shifting;
 assign lcd_red = pixel_data[7:0];
 assign lcd_green = pixel_data[15:8];
@@ -258,8 +262,8 @@ always @(posedge clock or negedge reset_n) begin
         f2l_state <= F2L_STATE_IDLE;
         fifo_read <= 1'b0;
         need_shifting <= 1'b0;
-        pixel_count <= 1'b0;
-        pixel_count_latched <= 1'b0;
+        pixel_count <= 26'b0;
+        pixel_count_latched <= 26'b0;
     end else begin
         // If we're clearing the FIFO, clear everything else too.
         if (fifo_sclr) begin
@@ -271,7 +275,7 @@ always @(posedge clock or negedge reset_n) begin
             if (pixel_count >= 128) begin
                 pixel_count_latched <= pixel_count;
             end
-            pixel_count <= 1'b0;
+            pixel_count <= 26'b0;
         end else begin
             case (f2l_state)
                 F2L_STATE_IDLE: begin

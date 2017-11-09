@@ -50,7 +50,17 @@ static const int32_t DISPLAY_WIDTH = XMAXSCREEN + 1;
 static const int32_t DISPLAY_HEIGHT = YMAXSCREEN + 1;
 #define POLY_MAX 512
 
-#if NDEBUG
+/*
+ * Define NDEBUG for targets with optimization.  Tracing will not be enable-able.
+ *
+ * In order to show a GL function trace, DON'T enable NDEBUG and
+ * set TRACE_GL environment variable to anything.
+ * 
+ * If NDEBUG is defined or if TRACE_GL environment variable is not
+ * set, you'll see no tracing.
+ */
+
+#if !defined(NDEBUG)
 static int trace_functions = 0;
 #else
 static const int trace_functions = 0;
@@ -3427,7 +3437,7 @@ int gversion(char *version)
 static void init_gl_state() __attribute__((constructor));
 static void init_gl_state()
 {
-#if NDEBUG
+#if !defined(NDEBUG)
     if(getenv("TRACE_GL") != NULL)
         trace_functions = 1;
 #endif

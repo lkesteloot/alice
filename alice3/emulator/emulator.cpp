@@ -489,22 +489,13 @@ struct Alice3HW : board_base
 
 struct MEMORYboard : board_base
 {
-    unsigned char rom_bytes[16384];
     unsigned char ram_bytes[65536];
-    bool loram;
-    MEMORYboard(unsigned char rom[16384]) :
-        loram(false)
+    MEMORYboard(unsigned char initial_image[65536])
     {
-        memcpy(rom_bytes, rom, sizeof(rom_bytes));
-        memset(ram_bytes, 0x76, sizeof(ram_bytes));
+        memcpy(ram_bytes, initial_image, sizeof(ram_bytes));
     }
     virtual bool memory_read(int addr, unsigned char &data)
     {
-        if(!loram && addr >= 0 && addr < sizeof(rom_bytes)) {
-            data = rom_bytes[addr];
-            if(debug) printf("read 0x%04X -> 0x%02X from ROM\n", addr, data);
-            return true;
-        }
         if(addr >= 0 && addr < sizeof(ram_bytes)) {
             data = ram_bytes[addr];
             if(debug) printf("read 0x%04X -> 0x%02X from RAM\n", addr, data);
@@ -514,10 +505,6 @@ struct MEMORYboard : board_base
     }
     virtual bool memory_write(int addr, unsigned char data)
     {
-        if(!loram && addr < sizeof(rom_bytes)) {
-            loram = true;
-            printf("RAM swapped\n");
-        }
         if(addr >= 0 && addr < sizeof(ram_bytes)) {
             ram_bytes[addr] = data;
             if(debug) printf("wrote 0x%02X to RAM 0x%04X\n", data, addr);
@@ -1350,7 +1337,7 @@ void Debugger::go(FILE *fp, std::vector<board_base*>& boards, Z80_STATE* state)
 void usage(char *progname)
 {
     printf("\n");
-    printf("usage: %s [options] driveA.bin[,driveB.bin[,...]] {ROM.bin|ROM.hex}\n", progname);
+    printf("usage: %s [options] driveA.bin[,driveB.bin[,...]] {MEM.bin|MEM.hex}\n", progname);
     printf("\n");
     printf("options:\n");
     printf("\t-debugger init          Invoke debugger on startup\n");
@@ -1406,7 +1393,7 @@ int main(int argc, char **argv)
     char *alice3_hw_arg = argv[0];
 
     char *romname = argv[1];
-    unsigned char b[16384];
+    unsigned char b[65536];
     if (strlen(romname) >= 4 && strcmp(romname + strlen(romname) - 4, ".hex") == 0) {
         FILE *fp = fopen(romname, "ra");
         if(fp == NULL) {

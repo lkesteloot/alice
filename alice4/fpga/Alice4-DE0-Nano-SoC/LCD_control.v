@@ -57,6 +57,10 @@ module LCD_control(
     reg [10:0] v;
     wire h_visible = h >= H_BLANK;
     wire v_visible = v >= V_BLANK;
+    /* verilator lint_off UNUSED */
+    wire [10:0] h_normalized = h - H_BLANK;
+    wire [10:0] v_normalized = v - V_BLANK;
+    /* verilator lint_on UNUSED */
 
     // Latch the next_frame register. This will be true two pixels after the 
     // last visible pixel.
@@ -112,8 +116,8 @@ module LCD_control(
             end
             
             // Latch output registers.
-            x <= h_visible ? h - H_BLANK : 10'h0;
-            y <= v_visible ? v - V_BLANK : 10'h0;
+            x <= h_visible ? h_normalized[9:0] : 10'h0;
+            y <= v_visible ? v_normalized[9:0] : 10'h0;
             data_enable <= h_visible && v_visible;
         end
     end
