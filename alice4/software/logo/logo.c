@@ -36,6 +36,8 @@ long gid;
 
 // In degrees.
 double twist = 0;
+double horiz = 0;
+double vert = 0;
 
 float ident_matrix[4][4] = {
 	{1.0, 0.0, 0.0, 0.0},
@@ -210,8 +212,16 @@ char	*argv[];
 		dx = getvaluator(DIAL2) / 65536.0;
 		dy = getvaluator(DIAL3) / 65536.0;
 		dz = getvaluator(DIAL4) / 65536.0;
+
 		// Assume 50 FPS.
-		twist -= dz/50;
+		horiz -= dx/50;
+		vert -= dy/50;
+		// twist -= dz/50; // Disable, it breaks the "object in a box" model.
+
+		// Slowly go back to normal.
+		horiz *= 0.99;
+		vert *= 0.99;
+		twist *= 0.99;
 
 		draw_everything();
 
@@ -280,7 +290,16 @@ draw_everything() {
 	lmbind(LIGHT0, OVER_LIGHT);
 	lmbind(LIGHT1, UNDER_LIGHT);
 
-	lookat(-30.0, 30.0, 30.0, 0.0, 0.0, 0.0, (int) (twist*10 + 0.5));
+	// We moved the lookat() call for gyro, but be sure it looks like it did
+	// when no gyro is being done.
+	double orig_offset = 30;
+	double new_offset = 5;
+	double difference = sqrt(orig_offset*orig_offset*3) - sqrt(new_offset*new_offset*3);
+	translate(0, 0, -difference);
+	rotate((int) (horiz*10 + 0.5), 'y');
+	rotate((int) (vert*10 + 0.5), 'x');
+
+	lookat(-new_offset, new_offset, new_offset, 0.0, 0.0, 0.0, (int) (twist*10 + 0.5));
 
 	multmatrix(view);
 
