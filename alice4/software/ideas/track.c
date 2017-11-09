@@ -2,6 +2,9 @@
 #include <device.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 #include "objects.h"
 
 #define X 0
@@ -92,8 +95,6 @@ short halftone[] = { 0xeeee, 0xffff, 0xbbbb, 0xffff,
 
 short dev, val;
 
-float time=0.0;
-
 float tmplight[] = {
     POSITION, 0.0, 0.0, 0.0, 0.0, LMNULL
 };
@@ -123,6 +124,7 @@ vector paper_points[4] = {
 };
 
 float dot(vector, vector);
+void draw_table(float current_time);
 
 #define TIME 15
 
@@ -260,6 +262,15 @@ parameter *view_from_spline, *view_to_spline,
 
 parameter *calc_spline_params(vector *, int);
 
+static double diff_timespecs(struct timespec *t1, struct timespec *t2) {
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+}
+
+static struct timespec animation_start_time;
+static void reset_animation() {
+    clock_gettime(CLOCK_MONOTONIC, &animation_start_time);
+}
+
 double a3, a4;
 
 main(argc, argv)
@@ -267,8 +278,12 @@ int	argc;
 char	*argv[];
 {
     float x, y, z, c;
+    float current_time = 0.0;
+    float previous_time;
+
 
     initialize(argv[0]);
+    reset_animation();
 
     while (TRUE) {
 
@@ -287,25 +302,31 @@ char	*argv[];
 		    exit(0);
 
 		case LEFTMOUSE:
-		    if (!val) time=0.0;
+		    if (!val) reset_animation();
 		    break;
 
 	    }
 	}
 
+	// Advance time.
+	previous_time = current_time;
+	{
+	    struct timespec now;
+	    clock_gettime(CLOCK_MONOTONIC, &now);
+	    current_time = diff_timespecs(&now, &animation_start_time)*0.7;
+	    if (current_time > TIME - 3.0) {
+		current_time = TIME - 3.001;
+	    }
+	}
+	if ((int) current_time != (int) previous_time && 0) {
+	    printf("time = %d\n", (int) current_time);
+	}
 
-	calc_spline(view_from, view_from_spline, time);
-	calc_spline(view_to, view_to_spline, time);
-	calc_spline(light_pos, light_pos_spline, time);
-	calc_spline(logo_pos, logo_pos_spline, time);
-	calc_spline(logo_rot, logo_rot_spline, time);
-
-/*if ( (int)(time+0.012) != (int)time )
-printf("time = %d\n", (int)time+1);*/
-
-	if ( (time+=0.019)>(TIME)-3.0) time = TIME-3.001;
-
-/*	else time=0.0; */
+	calc_spline(view_from, view_from_spline, current_time);
+	calc_spline(view_to, view_to_spline, current_time);
+	calc_spline(light_pos, light_pos_spline, current_time);
+	calc_spline(logo_pos, logo_pos_spline, current_time);
+	calc_spline(logo_rot, logo_rot_spline, current_time);
 
 	tmplight[1] = light_pos[X]-logo_pos[X];
 	tmplight[2] = light_pos[Y]-logo_pos[Y];
@@ -320,11 +341,11 @@ printf("time = %d\n", (int)time+1);*/
 
 	mmode(MSINGLE);
 
-	perspective(450, ASPECT, 0.5, 20.0);
+	perspective(150, ASPECT, 0.5, 20.0);
 	lookat(view_from[X], view_from[Y], view_from[Z],
 	       view_to[X], view_to[Y], view_to[Z], 0);
 
-	if (view_from[Y] > 0.0) draw_table();
+	if (view_from[Y] > 0.0) draw_table(current_time);
 
 	zbuffer(FALSE);
 
@@ -388,7 +409,7 @@ printf("time = %d\n", (int)time+1);*/
 	zbuffer(TRUE);
 
 	mmode(MVIEWING);
-	perspective(450, ASPECT, 0.5, 20.0);
+	perspective(150, ASPECT, 0.5, 20.0);
 	loadmatrix(idmat);
 	lookat(view_from[X], view_from[Y], view_from[Z],
 	       view_to[X], view_to[Y], view_to[Z], 0);
@@ -496,7 +517,7 @@ char *title;
     logo_pos_spline = calc_spline_params(logo_pos_ctl, TIME);
     logo_rot_spline = calc_spline_params(logo_rot_ctl, TIME);
 
-    perspective(450, ASPECT, 0.5, 20.0);
+    perspective(150, ASPECT, 0.5, 20.0);
 
     mmode(MVIEWING);
 }
@@ -516,7 +537,7 @@ build_table() {
 }
 
 
-draw_table() {
+void draw_table(float current_time) {
 
     float x, z, c;
     int i, j;
@@ -541,8 +562,8 @@ draw_table() {
 	    if ((c = dot(lv, ov))<0.0) c = 0.0;
 	    c = c * c * c * lv[Y] * 255.0;
 /* fade */
-	    if ((time>TIME-5.0) && (time<TIME-3.0)) 
-		c *= 1.0 - (time-(TIME-5.0)) * 0.5;
+	    if ((current_time>TIME-5.0) && (current_time<TIME-3.0)) 
+		c *= 1.0 - (current_time-(TIME-5.0)) * 0.5;
 
 	    tablecolors[j][i] = (int)c;
 	}
@@ -582,8 +603,8 @@ draw_table() {
 	if ((c = dot(lv, ov))<0.0) c = 0.0;
 	c = c * c * c * lv[Y];
 /* fade */
-	    if ((time>TIME-5.0) && (time<TIME-3.0)) 
-		c *= 1.0 - (time-(TIME-5.0)) * 0.5;
+	    if ((current_time>TIME-5.0) && (current_time<TIME-3.0)) 
+		c *= 1.0 - (current_time-(TIME-5.0)) * 0.5;
 
 	pcr = c * 255; pcg = c * 255; pcb = c * 200;
 	pca += c;
@@ -612,8 +633,8 @@ draw_table() {
 
     scale(0.015, 0.015, 0.015);
 
-    if (time>TIME-5.0) {
-	c = (time-(TIME-5.0))/2.0;
+    if (current_time>TIME-5.0) {
+	c = (current_time-(TIME-5.0))/2.0;
 	RGBcolor((int)(c*255.0), (int)(c*255.0), (int)(c*255.0));
     } else RGBcolor(0, 0, 0);
 

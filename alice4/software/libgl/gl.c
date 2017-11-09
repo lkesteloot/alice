@@ -653,7 +653,7 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
         // Clip the next triangle, potentially making a polygon
         int32_t r = clip_polygon(3, litverts + j, clipped);
         if(r == CLIP_TRIVIAL_REJECT)
-            return;
+            continue;
         else if(r == CLIP_TRIVIAL_ACCEPT) {
             vp = litverts + j;
             r = 3;
