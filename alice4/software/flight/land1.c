@@ -202,6 +202,7 @@ init_graphics (name)
 		qdevice (PAD8);
 		qdevice (PAD9);
 		qdevice (KEYBD);
+		qdevice(ESCKEY);
 		setvaluator (MOUSEX, XMIDDLE, 0,XMAXSCREEN);
 		setvaluator (MOUSEY, YMIDDLE, 0,YMAXSCREEN);
 		make_buildings (); 

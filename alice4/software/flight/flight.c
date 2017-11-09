@@ -13,6 +13,7 @@
 #define LK_DISABLE 0
 #define LK_HACK 1
 #define LK_DISABLE_SWAMPS 1
+#define LK_PICK_PLANE 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -284,7 +285,7 @@ mstart:
     map_daynight (daytime = TRUE);
 
 pickit:
-    switch (pick_plane ()) {		/* plane design parameters	*/
+    switch (LK_PICK_PLANE ? pick_plane() : 2) {	/* plane design parameters	*/
 case 1:
     plane_type = C150_NAME;
     pp -> type = C150;
@@ -509,7 +510,11 @@ default:
 	if (dials) check_dials(); 
         while (qtest ()) {
 	    type = qread (&val);
-	    if (type == KEYBD) {
+	     if (type == ESCKEY) {
+		 if (!val) {
+		    goto end_of_program;
+		 }
+	     } else if (type == KEYBD) {
 		switch (val) {
 		case 18:  /* ^R */
 			redraw_screen();	/* because wsh scrolling sometimes
