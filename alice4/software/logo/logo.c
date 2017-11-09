@@ -34,6 +34,9 @@ short dev, val;
 int active=TRUE;
 long gid;
 
+// In degrees.
+double twist = 0;
+
 float ident_matrix[4][4] = {
 	{1.0, 0.0, 0.0, 0.0},
 	{0.0, 1.0, 0.0, 0.0},
@@ -112,8 +115,13 @@ short tilt_back = 150;
 
 void get_tilt(short *tiltx, short *tilty)
 {
-    *tiltx = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
-    *tilty = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+    if (0) {
+        *tiltx = XMAXSCREEN * (getvaluator(DIAL1) - tilt_forward) / (tilt_back - tilt_forward) ;
+        *tilty = YMAXSCREEN * (getvaluator(DIAL0) - tilt_left) / (tilt_right - tilt_left);
+    } else {
+	*tiltx = 0;
+	*tilty = 0;
+    }
 }
 
 
@@ -127,6 +135,7 @@ char	*argv[];
 {
 
 	int i, j;
+	double dx, dy, dz;
 
 	initialize(argv[0]);
 
@@ -197,6 +206,13 @@ char	*argv[];
 		omx=nmx; 
 		omy=nmy;
 
+		// Gyro. These are in degrees per second.
+		dx = getvaluator(DIAL2) / 65536.0;
+		dy = getvaluator(DIAL3) / 65536.0;
+		dz = getvaluator(DIAL4) / 65536.0;
+		// Assume 50 FPS.
+		twist -= dz/50;
+
 		draw_everything();
 
 	}
@@ -264,7 +280,7 @@ draw_everything() {
 	lmbind(LIGHT0, OVER_LIGHT);
 	lmbind(LIGHT1, UNDER_LIGHT);
 
-	lookat(-30.0, 30.0, 30.0, 0.0, 0.0, 0.0, 0);
+	lookat(-30.0, 30.0, 30.0, 0.0, 0.0, 0.0, (int) (twist*10 + 0.5));
 
 	multmatrix(view);
 

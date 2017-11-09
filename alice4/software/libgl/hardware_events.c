@@ -4,6 +4,8 @@
 #include "touchscreen.h"
 #include "awesome.h"
 #include "device.h"
+#include "accelerometer.h"
+#include "gyro.h"
 
 typedef struct event {
     int32_t device;
@@ -25,6 +27,12 @@ static int mousex = -1; // valuator for touchscreen X
 static int mousey = -1; // valuator for touchscreen Y
 
 static int home_button_previous = 0;
+
+// How many gyro devices have been read (0 to 2).
+static int gyro_reads = 0;
+static int32_t gyro_dx = 0;
+static int32_t gyro_dy = 0;
+static int32_t gyro_dz = 0;
 
 static void enqueue_event(event *e)
 {
@@ -127,7 +135,7 @@ int32_t events_get_valuator(int32_t device)
 	float theta_x, theta_y, value;
 
 	accelerometer_read(&theta_y, &theta_x);
-	// N.B. The devices is rotated 180 degrees from it's "natural,"
+	// N.B. The devices is rotated 180 degrees from its "natural,"
 	// originally-developed orientation
 	theta_y = -theta_y;
 	theta_x = -theta_x;
@@ -141,6 +149,23 @@ int32_t events_get_valuator(int32_t device)
 	    value = theta_y_smoothed / (2 * M_PI) * 3600;
 
 	return value;
+    } else if(device == DIAL2 || device == DIAL3 || device == DIAL4) {
+	if (gyro_reads == 0) {
+	    // Get the data from the real device.
+	    while (!gyro_ready()) {
+		// Wait.
+	    }
+
+	    gyro_read(&gyro_dx, &gyro_dy, &gyro_dz);
+	}
+
+	gyro_reads = (gyro_reads + 1) % 3;
+
+	switch (device) {
+	    case DIAL2: return gyro_dx;
+	    case DIAL3: return gyro_dy;
+	    case DIAL4: return gyro_dz;
+	}
     } else
 	printf("warning: unimplemented evaluator %d\n", device);
     return 0;
@@ -181,6 +206,7 @@ int32_t events_winopen(char *title)
     touchscreen_init();
     accelerometer_init();
     accelerometer_read(&theta_y_smoothed, &theta_x_smoothed);
+    gyro_init();
     drain_touchscreen();
     drain_buttons();
     return 0;

@@ -3119,7 +3119,7 @@ void lookat(Coord viewx,Coord viewy, Coord viewz, Coord pointx, Coord pointy, Co
     matrix4x4f_translate(-viewx, -viewy, -viewz, m);
     matrix4x4f_stack_mult(current_stack, (float *)m);
 
-    matrix4x4f_rotate(.1 * twist, f[0], f[1], f[2], m);
+    matrix4x4f_rotate(twist * M_PI / 1800, f[0], f[1], f[2], m);
     matrix4x4f_stack_mult(current_stack, (float *)m);
 }
 

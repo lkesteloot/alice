@@ -12,11 +12,14 @@ int gyro_init();
 // true.
 int gyro_ready();
 
-// Get the data in degress per second (dps).
-void gyro_read(int *dx, int *dy, int *dz);
+// Get the data in degress per second (dps) in 16.16 fixed point format.
+void gyro_read(int32_t *dx, int32_t *dy, int32_t *dz);
 
 // Whether we've overrun the FIFO. If this returns true, you're not reading
 // fast enough and lost some data.
 int gyro_overrun();
+
+// Whether the FIFO is empty.
+int gyro_fifo_empty();
 
 #endif /* _GYRO_H_ */

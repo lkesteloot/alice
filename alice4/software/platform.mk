@@ -7,7 +7,7 @@ ifeq ($(UNAME),Darwin)
 	EVENTS_SRCS = ../libgl/network_events.c # ../libgl/network.c
 else
 	RASTERIZER_SRCS = ../libgl/hardware_rasterizer.c ../libgl/awesome.c
-	EVENTS_SRCS = ../libgl/hardware_events.c ../libgl/touchscreen.c ../libgl/i2c_utility.c ../libgl/accelerometer.c	
+	EVENTS_SRCS = ../libgl/hardware_events.c ../libgl/touchscreen.c ../libgl/i2c_utility.c ../libgl/accelerometer.c	../libgl/gyro.c
 endif
 
 # RASTERIZER_SRCS = ../libgl/reference_rasterizer.c
