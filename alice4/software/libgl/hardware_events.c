@@ -166,6 +166,12 @@ int32_t events_get_valuator(int32_t device)
 	    case DIAL3: return gyro_dy;
 	    case DIAL4: return gyro_dz;
 	}
+    } else if(device == DIAL5) {
+	return accelerometer_read_x();
+    } else if(device == DIAL6) {
+	return accelerometer_read_y();
+    } else if(device == DIAL7) {
+	return accelerometer_read_z();
     } else
 	printf("warning: unimplemented evaluator %d\n", device);
     return 0;

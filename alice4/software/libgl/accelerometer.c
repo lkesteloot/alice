@@ -74,12 +74,26 @@ int accelerometer_init()
 
 void accelerometer_read(float *theta_y, float *theta_x)
 {
-    int16_t xdata = read_u16_le(accelerometer_fd, ADXL345_DATAX0);
-    int16_t ydata = read_u16_le(accelerometer_fd, ADXL345_DATAY0);
-    int16_t zdata = read_u16_le(accelerometer_fd, ADXL345_DATAZ0);
-    float xg = xdata / 256.0;
-    float yg = ydata / 256.0;
-    float zg = zdata / 256.0;
+    float xg = accelerometer_read_x() / 256.0;
+    float yg = accelerometer_read_y() / 256.0;
+    float zg = accelerometer_read_z() / 256.0;
+
     *theta_y = -atan2(yg, zg);
     *theta_x = atan2(xg, zg);
 }
+
+int accelerometer_read_x()
+{
+    return (int16_t) read_u16_le(accelerometer_fd, ADXL345_DATAX0);
+}
+
+int accelerometer_read_y()
+{
+    return (int16_t) read_u16_le(accelerometer_fd, ADXL345_DATAY0);
+}
+
+int accelerometer_read_z()
+{
+    return (int16_t) read_u16_le(accelerometer_fd, ADXL345_DATAZ0);
+}
+

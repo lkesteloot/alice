@@ -8,6 +8,7 @@
 #include <gl.h>
 #include <math.h>
 #include <device.h>
+#include <time.h>
 
 #define X 0
 #define Y 1
@@ -61,6 +62,10 @@ float dw = 0.9;
 float damp = 0.3;
 float fric = 0.3;
 float dist = 15.0;
+
+static int esc_pressed = 0;
+static int esc_long_press = 0;
+static struct timespec esc_press_time;
 
 typedef struct atom_struct {
 
@@ -141,6 +146,9 @@ typedef struct thing_struct {
 
 } Thing;
 
+static double diff_timespecs(struct timespec *t1, struct timespec *t2) {
+    return (t1->tv_sec - t2->tv_sec) + (t1->tv_nsec - t2->tv_nsec)/1000000000.0;
+}
 
 Conec *new_conec(next, a1, a2)
 Conec *next;
@@ -313,8 +321,19 @@ char	*argv[];
 		    break;
 
 		case ESCKEY :
-			if (!val) {
-			    gexit(); exit(0);
+			if (val) {
+			    // Keep track of when it was pressed.
+			    esc_pressed = 1;
+			    esc_long_press = 0;
+			    clock_gettime(CLOCK_MONOTONIC, &esc_press_time);
+			} else {
+			    // If this wasn't long-held, exit.
+			    if (!esc_long_press) {
+				gexit();
+				exit(0);
+			    }
+
+			    esc_pressed = 0;
 			}
 		    break;
 
@@ -397,8 +416,10 @@ char	*argv[];
 		orx2 = rx2;
 		ory2 = ry2;
 
+		// Don't use tilt, we use it for gravity.
 		ax = 0;
 		ay = 0;
+
 		reorient(ax, ay);
 		break;
 	    }
@@ -407,6 +428,17 @@ char	*argv[];
 	draw_everything();
 	iterate();
 
+	// See if ESC is being held down.
+	if (esc_pressed) {
+	    struct timespec now;
+	    clock_gettime(CLOCK_MONOTONIC, &now);
+	    double elapsed = diff_timespecs(&now, &esc_press_time);
+	    if (elapsed > 0.5) {
+		// If ESC is hold for more than half a second, reset the physics.
+		reset_jello();
+		esc_long_press = 1;
+	    }
+	}
     }
 }
 
@@ -792,25 +824,16 @@ void reorient(short ax, short ay)
 	light_vector[Y] = view[1][1];
 	light_vector[Z] = view[2][1];
 
+        // Compute gravity.
 	{
-	    float dx = (getvaluator(DIAL0) - tilt_horiz_center) / (float) tilt_horiz_span;
-	    float dy = (getvaluator(DIAL1) - tilt_vert_center) / (float) tilt_vert_span;
+	    float ax = getvaluator(DIAL5) / 256.0;
+	    float ay = getvaluator(DIAL6) / 256.0;
+	    float az = getvaluator(DIAL7) / 256.0;
 
-	    // Normalize.
-	    float len = sqrt(dx*dx + dy*dy);
-	    if (len > 1.0) {
-		dx /= len;
-		dy /= len;
-	    }
-
-	    // X is backwards.
-	    dx = -dx;
-
-	    // Linear combination of X and Y vectors.
-	    grav_vec[X] = (view[X][0]*dx + view[X][1]*dy)*grav;
-	    grav_vec[Y] = (view[Y][0]*dx + view[Y][1]*dy)*grav;
-	    grav_vec[Z] = (view[Z][0]*dx + view[Z][1]*dy)*grav;
-        }
+	    grav_vec[X] = (view[X][0]*ax + view[X][1]*ay + view[X][2]*az)*grav*2;
+	    grav_vec[Y] = (view[Y][0]*ax + view[Y][1]*ay + view[Y][2]*az)*grav*2;
+	    grav_vec[Z] = (view[Z][0]*ax + view[Z][1]*ay + view[Z][2]*az)*grav*2;
+	}
 
 	popmatrix();
 }
@@ -1043,7 +1066,7 @@ reset_jello() {
     grav_vec[X] = 0.0;
     grav_vec[Y] = 0.0;
     grav_vec[Z] = 0.0;
-    damp = 0.3;
+    damp = 0.995;
 
     build_icosahedron();
 }
