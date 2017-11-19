@@ -120,8 +120,8 @@ module Main(
     // 1G minus 128M, in bytes.
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
     // Size of frame buffer in pixels.
-    localparam FRAME_BUFFER_WIDTH = 800;
-    localparam FRAME_BUFFER_HEIGHT = 480;
+    localparam FRAME_BUFFER_WIDTH = 4; // XYZ 800;
+    localparam FRAME_BUFFER_HEIGHT = 4; // XYZ 480;
     // Number of bytes in frame buffer (color or Z).
     localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
     // Position of command buffer.
@@ -344,6 +344,7 @@ module Main(
         .lcd_green(fb_green),
         .lcd_blue(fb_blue),
         .lcd_data_enable(lcd_data_enable),
+        .lcd_data_enable_delayed(lcd_data_enable_delayed),
 
         // Front buffer handling.
         .rast_front_buffer(rast_front_buffer),
@@ -456,13 +457,10 @@ module Main(
     wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
     wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'h00 : fb_green;
     wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'h00 : fb_blue;
-    reg lcd_data_enable_delayed;
+    wire lcd_data_enable_delayed;
     reg character_bw_latched;
     always @(posedge clock_50) begin
         if (lcd_tick) begin
-            // We must delay lcd_data_enable by one clock because
-            // the frame buffer has sent us delayed color.
-            lcd_data_enable_delayed <= lcd_data_enable;
             character_bw_latched <= character_bw;
         end
     end

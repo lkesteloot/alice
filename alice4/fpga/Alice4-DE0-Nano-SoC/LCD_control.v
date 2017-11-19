@@ -9,22 +9,22 @@ module LCD_control(
     input wire reset_n,              // Asynchronous reset, active low.
     output reg [9:0] x,              // On-screen X pixel location.
     output reg [9:0] y,              // On-screen Y pixel location.
-    output reg next_frame,           // 1 when between frames.
+    output reg next_frame,           // 1 when between frames (one clock).
     output reg hs_n,                 // Horizontal sync, active low.
     output reg vs_n,                 // Vertical sync, active low.
     output reg data_enable           // Whether we need a pixel right now.
 );
 
-    // There are two internal registers, h and v. They are 0-based. The
-    // h value has these ranges:
+    // There are two internal registers, h and v. They are 0-based.
+    // The h value has these ranges:
     //
     //    h                                 hs_n
     //    [0, H_FRONT)                      1  (front porch)
     //    [H_FRONT, H_FRONT + H_SYNC)       0  (sync pulse)
-    //    [H_FRONT + H_SYNC, H_BLANK)       1  (back porch, v is incremented)
+    //    [H_FRONT + H_SYNC, H_BLANK)       1  (back porch)
     //    [H_BLANK, H_TOTAL)                1  (pixels are visible)
     //
-    // v value has these ranges:
+    // The v value has these ranges:
     //
     //    v                                 vs_n
     //    [0, V_FRONT)                      1  (front porch)
@@ -32,24 +32,20 @@ module LCD_control(
     //    [V_FRONT + V_SYNC, V_BLANK)       1  (back porch)
     //    [V_BLANK, V_TOTAL)                1  (pixels are visible)
     //
-    // Note that v is incremented on the positive edge of hs_n, which means
-    // that its values are offset from the normal 0-799 range of h.
-    //
-    // next_frame is the first pixel of the second row, since that's where
-    // both are zero.
+    // next_frame is on the second pixel of the first row.
 
     // Video parameters.
-    parameter H_FRONT = 24;
-    parameter H_SYNC  = 72;
-    parameter H_BACK  = 96;
-    parameter H_ACT   = 800;
+    parameter H_FRONT = 1; // XYZ 24;
+    parameter H_SYNC  = 1; // XYZ 72;
+    parameter H_BACK  = 1; // XYZ 96;
+    parameter H_ACT   = 4; // XYZ 800;
     parameter H_BLANK = H_FRONT + H_SYNC + H_BACK;
     parameter H_TOTAL = H_FRONT + H_SYNC + H_BACK + H_ACT;
 
-    parameter V_FRONT = 3;
-    parameter V_SYNC  = 10;
-    parameter V_BACK  = 7;
-    parameter V_ACT   = 480;
+    parameter V_FRONT = 1; // XYZ 3;
+    parameter V_SYNC  = 1; // XYZ 10;
+    parameter V_BACK  = 1; // XYZ 7;
+    parameter V_ACT   = 4; // XYZ 480;
     parameter V_BLANK = V_FRONT + V_SYNC + V_BACK;
     parameter V_TOTAL = V_FRONT + V_SYNC + V_BACK + V_ACT;
 
@@ -62,11 +58,14 @@ module LCD_control(
     wire [10:0] v_normalized = v - V_BLANK;
     /* verilator lint_on UNUSED */
 
-    // Latch the next_frame register. This will be true two pixels after the 
-    // last visible pixel.
+    // Latch the next_frame register. This will be true for one (tick) clock
+    // a few rows after the last visible pixel.
     always @(posedge clock) begin
         if (tick) begin
-            next_frame <= h == 0 && v == 0;
+            // Don't do it right away after the end of the previous frame,
+            // that might cause problems if some logic isn't quite done
+            // dealing with the color. Wait a few rows.
+            next_frame <= h == 0 && v == V_FRONT;
         end
     end
 
@@ -88,7 +87,7 @@ module LCD_control(
                 // Next line.
                 h <= 0;
 
-                if (v < V_TOTAL-1) begin
+                if (v < V_TOTAL - 1) begin
                     v <= v + 1'b1;
                 end else begin
                     v <= 0;
@@ -115,7 +114,8 @@ module LCD_control(
                 hs_n <= 1'b1;
             end
             
-            // Latch output registers.
+            // Latch output registers. These are delayed from the h and
+            // v values.
             x <= h_visible ? h_normalized[9:0] : 10'h0;
             y <= v_visible ? v_normalized[9:0] : 10'h0;
             data_enable <= h_visible && v_visible;

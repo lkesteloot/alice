@@ -2,8 +2,14 @@
 .PHONY: run verilate build
 
 VERILATOR_ROOT=$(HOME)
-MAIN=Fifo_test
-MAIN_CPP=fifo_test_main
+
+# System test
+MAIN=Main
+MAIN_CPP=sim_main
+
+# FIFO test
+## MAIN=Fifo_test
+## MAIN_CPP=fifo_test_main
 
 run: build
 	./obj_dir/V$(MAIN)
