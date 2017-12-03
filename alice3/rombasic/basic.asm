@@ -4409,22 +4409,18 @@ OUTNCR: CALL    OUTC            ; Output character in A
         JP      PRNTCRLF        ; Output CRLF
 
 ; alice3:
-; wait until IO board is ready
+; wait until return payload is ready; status returned in A
 pic_poll:
-        push    af
 	in 	a,(pic_port)	;get status
         and     0ffh
 	jp 	z,pic_poll	;loop until success or failure
-        pop     af
         ret
 
 CKINCHAR:
-        push    af
 	ld	a,pic_cmd_const 
 	out 	(pic_port), a   ; request status
         call    pic_poll
         cp      pic_ready       ; compare with ready
-        pop     af
         ret
 
 .end
