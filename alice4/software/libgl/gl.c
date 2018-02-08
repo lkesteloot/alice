@@ -662,28 +662,28 @@ void process_tmesh(int32_t n, world_vertex *worldverts)
 
         // Clip the next triangle, potentially making a polygon
         int32_t r = clip_polygon(3, litverts + j, clipped);
-        if(r == CLIP_TRIVIAL_REJECT)
-            continue;
-        else if(r == CLIP_TRIVIAL_ACCEPT) {
-            vp = litverts + j;
-            r = 3;
-        } else {
-            vp = clipped;
-        }
+        if(r != CLIP_TRIVIAL_REJECT) {
+	    if(r == CLIP_TRIVIAL_ACCEPT) {
+		vp = litverts + j;
+		r = 3;
+	    } else {
+		vp = clipped;
+	    }
 
-        for(int i = 0; i < r; i++)
-            project_vertex(&vp[i], &screenverts[i]);
+	    for(int i = 0; i < r; i++)
+		project_vertex(&vp[i], &screenverts[i]);
 
-        // XXX break into a single draw of TRIANGLES instead of a single function call per triangle:
-        static screen_vertex triangle[3];
-        triangle[0] = screenverts[0];
+	    // XXX break into a single draw of TRIANGLES instead of a single function call per triangle:
+	    static screen_vertex triangle[3];
+	    triangle[0] = screenverts[0];
 
-        for(int i = 0; i < r - 2; i++) {
-            triangle[1] = screenverts[i + 1];
-            triangle[2] = screenverts[i + 2];
-            if(!backface_enabled || (ccw ^ !backface_cull(triangle)))
-                rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
-        }
+	    for(int i = 0; i < r - 2; i++) {
+		triangle[1] = screenverts[i + 1];
+		triangle[2] = screenverts[i + 2];
+		if(!backface_enabled || (ccw ^ !backface_cull(triangle)))
+		    rasterizer_draw(DRAW_TRIANGLES, 3, triangle);
+	    }
+	}
 	ccw = !ccw;
     }
 }
