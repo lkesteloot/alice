@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 
+#include "wavedrom.h"
 #include "VMain.h"
 #include "VMain_Main.h"
 #include "VMain_Frame_buffer__A38000000_L40.h"
@@ -18,116 +19,6 @@ static int gLcdIndex = 0;
 static const uint32_t MEMORY_BASE = 0x7000000;
 static uint64_t gSdram[PIXEL_COUNT/2*3];
 static const uint32_t MEMORY_SIZE = sizeof(gSdram) / sizeof(gSdram[0]);
-
-class WaveDromSignal {
-    std::string mName;
-    std::string mValues;
-    bool mIsNumeric;
-    float mPhase;
-    std::vector<std::string> mData;
-    bool mHasPreviousValue;
-    char mPreviousValue;
-
-public:
-    WaveDromSignal(std::string const &name, bool isNumeric=false) :
-        mName(name),
-        mIsNumeric(isNumeric),
-        mHasPreviousValue(false),
-        mPhase(0.0f)
-    {
-        // Nothing.
-    }
-
-    void setPhase(float phase) {
-        mPhase = phase;
-    }
-
-    void add(unsigned long value) {
-        char ch;
-
-        if (mName == "clock") {
-            ch = 'P';
-        } else if (mIsNumeric) {
-            ch = '=';
-        } else if (value) {
-            ch = '1';
-        } else {
-            ch = '0';
-        }
-
-        if (mHasPreviousValue && value == mPreviousValue) {
-            ch = '.';
-        } else if (mIsNumeric) {
-            mData.push_back(std::to_string(value));
-        }
-
-        mValues += ch;
-
-        mHasPreviousValue = true;
-        mPreviousValue = value;
-    }
-
-    void write(std::ofstream &f) const {
-        f << "    { \"name\": \"" << mName << "\", \"wave\": \"" << mValues << "\"";
-
-        if (!mData.empty()) {
-            f << ", \"data\": [";
-            for (std::vector<std::string>::const_iterator itr = mData.begin(); itr != mData.end(); ++itr) {
-                f << "\"" << *itr << "\", ";
-            }
-            f << "]";
-        }
-
-        if (mPhase != 0.0f) {
-            f << ", \"phase\": " << mPhase;
-        }
-   
-        f << "}," << std::endl;
-    }
-};
-
-class WaveDrom {
-public:
-    WaveDromSignal mClock;
-    WaveDromSignal mSdramRead;
-    WaveDromSignal mSdramReadDataValid;
-    WaveDromSignal mFifoSize;
-    WaveDromSignal mFifoRead;
-    WaveDromSignal mLcdTick;
-    WaveDromSignal mLcdDataEnable;
-
-    WaveDrom() :
-        mClock("clock"),
-        mSdramRead("sdram_read"),
-        mSdramReadDataValid("sdram_read_data_valid"),
-        mFifoSize("fifo_size", true),
-        mFifoRead("fifo_read"),
-        mLcdTick("lcd_tick"),
-        mLcdDataEnable("lcd_data_enable")
-    {
-        mSdramReadDataValid.setPhase(0.5f);
-    }
-
-    void write(std::string const &pathname) {
-        std::ofstream f;
-
-        f.open(pathname, std::ios::out);
-        f << "{\"head\": {" << std::endl;
-        f << "    \"tick\": 0" << std::endl;
-        f << "}, \"signal\": [" << std::endl;
-        mClock.write(f);
-        mSdramRead.write(f);
-        mSdramReadDataValid.write(f);
-        mFifoSize.write(f);
-        mFifoRead.write(f);
-        mLcdTick.write(f);
-        mLcdDataEnable.write(f);
-        f << "]}" << std::endl;
-        f.close();
-    }
-};
-
-static WaveDrom gWaveDrom;
 
 static void write_ppm() {
     if (gLcdIndex != PIXEL_COUNT) {
@@ -173,6 +64,15 @@ int main(int argc, char **argv, char **env) {
         }
     }
 
+    WaveDrom waveDrom;
+    waveDrom.add(WaveDromSignal("clock"));
+    waveDrom.add(WaveDromSignal("sdram_read"));
+    waveDrom.add(WaveDromSignal("sdram_read_data_valid").setPhase(0.5f));
+    waveDrom.add(WaveDromSignal("fifo_size", true));
+    waveDrom.add(WaveDromSignal("fifo_read"));
+    waveDrom.add(WaveDromSignal("lcd_tick"));
+    waveDrom.add(WaveDromSignal("lcd_data_enable"));
+
     bool previous_lcd_clock = 0;
     int count = 0;
 
@@ -212,13 +112,13 @@ int main(int argc, char **argv, char **env) {
 
         // Save signals before RAM, since those happen mid-clock.
         if (top->clock_50) {
-            gWaveDrom.mClock.add(top->clock_50);
-            gWaveDrom.mSdramRead.add(top->Main->sdram0_read);
-            gWaveDrom.mSdramReadDataValid.add(top->Main->sdram0_readdatavalid);
-            gWaveDrom.mFifoSize.add(top->Main->frame_buffer->fifo_usedw);
-            gWaveDrom.mFifoRead.add(top->Main->frame_buffer->fifo_read);
-            gWaveDrom.mLcdTick.add(top->Main->lcd_tick);
-            gWaveDrom.mLcdDataEnable.add(top->Main->lcd_data_enable);
+            waveDrom["clock"].add(top->clock_50);
+            waveDrom["sdram_read"].add(top->Main->sdram0_read);
+            waveDrom["sdram_read_data_valid"].add(top->Main->sdram0_readdatavalid);
+            waveDrom["fifo_size"].add(top->Main->frame_buffer->fifo_usedw);
+            waveDrom["fifo_read"].add(top->Main->frame_buffer->fifo_read);
+            waveDrom["lcd_tick"].add(top->Main->lcd_tick);
+            waveDrom["lcd_data_enable"].add(top->Main->lcd_data_enable);
         }
 
         // RAM.
@@ -260,7 +160,7 @@ int main(int argc, char **argv, char **env) {
         count++;
     }
 
-    gWaveDrom.write("out.json");
+    waveDrom.write("out.json");
 
     delete top;
 

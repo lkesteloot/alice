@@ -8,8 +8,8 @@ MAIN=Main
 MAIN_CPP=sim_main
 
 # FIFO test
-## MAIN=Fifo_test
-## MAIN_CPP=fifo_test_main
+MAIN=Fifo_test
+MAIN_CPP=fifo_test_main
 
 run: build
 	./obj_dir/V$(MAIN)

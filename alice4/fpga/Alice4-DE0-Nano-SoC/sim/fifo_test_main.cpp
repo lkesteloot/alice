@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 
+#include "wavedrom.h"
+
 #include "VFifo_test.h"
 #include "VFifo_test_Fifo_test.h"
 #include "verilated.h"
@@ -10,6 +12,17 @@ int main(int argc, char **argv, char **env) {
     Verilated::commandArgs(argc, argv);
 
     VFifo_test* top = new VFifo_test;
+
+    WaveDrom waveDrom;
+    waveDrom.add(WaveDromSignal("clock"));
+    waveDrom.add(WaveDromSignal("state", true));
+    waveDrom.add(WaveDromSignal("full"));
+    waveDrom.add(WaveDromSignal("empty"));
+    waveDrom.add(WaveDromSignal("rdreq"));
+    waveDrom.add(WaveDromSignal("wrreq"));
+    waveDrom.add(WaveDromSignal("d"));
+    waveDrom.add(WaveDromSignal("q"));
+    waveDrom.add(WaveDromSignal("size", true));
 
     printf("C, state N, F E R W DDDDDDDD QQQQQQQQ size\n");
 
@@ -27,6 +40,16 @@ int main(int argc, char **argv, char **env) {
                     (uint64_t) top->Fifo_test->fifo_data,
                     (uint64_t) top->Fifo_test->fifo_q,
                     (int) top->Fifo_test->fifo_usedw);
+
+            waveDrom["clock"].add(top->clock);
+            waveDrom["state"].add(top->Fifo_test->state);
+            waveDrom["full"].add(top->Fifo_test->fifo_full);
+            waveDrom["empty"].add(top->Fifo_test->fifo_empty);
+            waveDrom["rdreq"].add(top->Fifo_test->fifo_rdreq);
+            waveDrom["wrreq"].add(top->Fifo_test->fifo_wrreq);
+            waveDrom["d"].add(to_hex(top->Fifo_test->fifo_data, 1));
+            waveDrom["q"].add(to_hex(top->Fifo_test->fifo_q, 1));
+            waveDrom["size"].add(top->Fifo_test->fifo_usedw);
         }
 
         // Toggle clock.
@@ -34,6 +57,8 @@ int main(int argc, char **argv, char **env) {
     }
 
     delete top;
+
+    waveDrom.write("out.json");
 
     exit(0);
 }
