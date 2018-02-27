@@ -80,9 +80,11 @@ localparam BURST_LENGTH = 8; // XYZ 32;
 reg fifo_sclr;
 wire fifo_write_wait;
 wire fifo_read_wait;
+wire fifo_write /* verilator public */;
 reg fifo_read /* verilator public */;
 wire [63:0] fifo_read_data /* verilator public */;
 wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw /* verilator public */;
+assign fifo_write = readdatavalid /*&& !fifo_write_wait*/; // XXX suspicious, fifo_write_wait not valid initially?
 /* verilator lint_off PINMISSING */
 scfifo #(.add_ram_output_register("OFF"),
          .intended_device_family("CYCLONEV"),
@@ -103,7 +105,7 @@ scfifo #(.add_ram_output_register("OFF"),
         .usedw(fifo_usedw),
         .q(fifo_read_data),
         .rdreq(fifo_read),
-        .wrreq(readdatavalid /*&& !fifo_write_wait*/)); // XXX suspicious, fifo_write_wait not valid initially?
+        .wrreq(fifo_write));
 /* verilator lint_on PINMISSING */
 
 // The next address to read after this one.
@@ -294,7 +296,7 @@ always @(posedge clock or negedge reset_n) begin
             case (f2l_state)
                 F2L_STATE_IDLE: begin
                     // See if we should pre-fetch the head of the FIFO.
-                    if (!lcd_tick && lcd_data_enable) begin
+                    if (!lcd_tick && !need_shifting && lcd_data_enable) begin
                         // Start a FIFO read. Data will be available in
                         // two clocks.
                         fifo_read <= 1'b1;
@@ -302,8 +304,9 @@ always @(posedge clock or negedge reset_n) begin
                     end else begin
                         // See if we need to shift the pixel from
                         // the high 32 bits to the low ones.
-                        if (!lcd_tick && lcd_data_enable && need_shifting) begin
+                        if (lcd_tick && lcd_data_enable && need_shifting) begin
                             // Next pixel.
+                            $display("--------------------- shifting pixel_data");
                             pixel_data[31:0] <= pixel_data[63:32];
                             need_shifting <= 1'b0;
                         end
@@ -328,6 +331,7 @@ always @(posedge clock or negedge reset_n) begin
                 end
 
                 F2L_STATE_READ: begin
+                    $display("--------------------- reading into pixel_data");
                     // Grab the data from the FIFO.
                     pixel_data <= fifo_read_data;
 

@@ -47,7 +47,15 @@ module Main(
         //////////// HPS //////////
         /* 3.3-V LVTTL */
         /// inout hps_conv_usb_n,
-        
+
+`ifdef VERILATOR
+	output [28:0] hps_0_f2h_sdram0_data_address,
+	output [7:0] hps_0_f2h_sdram0_data_burstcount,
+	input hps_0_f2h_sdram0_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram0_data_readdata,
+	input hps_0_f2h_sdram0_data_readdatavalid,
+	output hps_0_f2h_sdram0_data_read,
+`else
         /* SSTL-15 Class I */
         output [14:0] hps_ddr3_addr,
         output [2:0] hps_ddr3_ba,
@@ -66,6 +74,7 @@ module Main(
         output hps_ddr3_ck_p,
         inout [3:0] hps_ddr3_dqs_n,
         inout [3:0] hps_ddr3_dqs_p,
+`endif
         
         /* 3.3-V LVTTL */
         /*
@@ -158,12 +167,12 @@ module Main(
     );
 
     // Interface to HPS.
-    wire [28:0] sdram0_address /* verilator public */;
+    wire [28:0] sdram0_address;
     wire [7:0] sdram0_burstcount;
-    wire sdram0_waitrequest /* verilator public */;
-    wire [63:0] sdram0_readdata /* verilator public */;
-    wire sdram0_readdatavalid /* verilator public */;
-    wire sdram0_read /* verilator public */;
+    wire sdram0_waitrequest;
+    wire [63:0] sdram0_readdata;
+    wire sdram0_readdatavalid;
+    wire sdram0_read;
     /*
     wire [28:0] sdram1_address;
     wire [7:0] sdram1_burstcount;
@@ -194,6 +203,14 @@ module Main(
     wire i2c1_scl_out_enable;
     wire i2c1_scl;
     */
+`ifdef VERILATOR
+    assign hps_0_f2h_sdram0_data_address = sdram0_address;
+    assign hps_0_f2h_sdram0_data_burstcount = sdram0_burstcount;
+    assign sdram0_waitrequest = hps_0_f2h_sdram0_data_waitrequest;
+    assign sdram0_readdata = hps_0_f2h_sdram0_data_readdata;
+    assign sdram0_readdatavalid = hps_0_f2h_sdram0_data_readdatavalid;
+    assign hps_0_f2h_sdram0_data_read = sdram0_read;
+`else
     /* verilator lint_off PINMISSING */
     soc_system soc_system_instance(
         .clk_clk(clock_50),
@@ -258,6 +275,7 @@ module Main(
         */
     );
     /* verilator lint_on PINMISSING */
+`endif
 
     // Generate signals for the LCD.
     /* verilator lint_off UNUSED */

@@ -40,6 +40,8 @@ public:
 
         if (mName == "clock") {
             ch = 'P';
+        } else if (mName == "full_clock") {
+            ch = value ? 'H' : 'l';
         } else if (mIsNumeric) {
             ch = '=';
         } else if (value) {

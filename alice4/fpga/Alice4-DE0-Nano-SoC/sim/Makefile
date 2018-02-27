@@ -8,13 +8,14 @@ MAIN=Main
 MAIN_CPP=sim_main
 
 # FIFO test
-MAIN=Fifo_test
-MAIN_CPP=fifo_test_main
+## MAIN=Fifo_test
+## MAIN_CPP=fifo_test_main
 
 run: build
 	./obj_dir/V$(MAIN)
 
 build: verilate
+	# Add OPT=-DVL_DEBUG to display debug output.
 	cd obj_dir && make -j -f V$(MAIN).mk V$(MAIN)
 
 verilate:

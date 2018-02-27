@@ -42,9 +42,9 @@ module LCD_control(
     parameter H_BLANK = H_FRONT + H_SYNC + H_BACK;
     parameter H_TOTAL = H_FRONT + H_SYNC + H_BACK + H_ACT;
 
-    parameter V_FRONT = 1; // XYZ 3;
-    parameter V_SYNC  = 1; // XYZ 10;
-    parameter V_BACK  = 1; // XYZ 7;
+    parameter V_FRONT = 0; // XYZ 3;
+    parameter V_SYNC  = 0; // XYZ 10;
+    parameter V_BACK  = 0; // XYZ 7;
     parameter V_ACT   = 4; // XYZ 480;
     parameter V_BLANK = V_FRONT + V_SYNC + V_BACK;
     parameter V_TOTAL = V_FRONT + V_SYNC + V_BACK + V_ACT;
@@ -52,7 +52,9 @@ module LCD_control(
     reg [10:0] h;
     reg [10:0] v;
     wire h_visible = h >= H_BLANK;
+    /* verilator lint_off UNSIGNED */
     wire v_visible = v >= V_BLANK;
+    /* verilator lint_on UNSIGNED */
     /* verilator lint_off UNUSED */
     wire [10:0] h_normalized = h - H_BLANK;
     wire [10:0] v_normalized = v - V_BLANK;

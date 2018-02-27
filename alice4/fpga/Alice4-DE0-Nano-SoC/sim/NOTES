@@ -1,0 +1,12 @@
+
+Just figured out how to get memory module (soc_system) to work. Verilator only
+looks at changes in top module's parameters, so we can't fish around and change
+the internal ones. So remove soc_system.v and make all memory changes to the
+top module's parameters by using ifdefs VERILATOR. (Did not finish this.) Also
+look at fifo_write, which I didn't finish adding.
+
+Basically, only use /* verilator public */ for reading internal pins, never modifying them.
+
+Look for both XYZ and XXX comments.
+
+Should really get LCD data out of GPIO, not fish internal registers.

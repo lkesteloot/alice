@@ -11,13 +11,16 @@
 static const int DISPLAY_WIDTH = 4; // XYZ 800;
 static const int DISPLAY_HEIGHT = 4; // XYZ 480;
 static const int PIXEL_COUNT = DISPLAY_WIDTH*DISPLAY_HEIGHT;
+static const int PIXELS_PER_WORD = 2;
+static const int BUFFER_COUNT = 3;
+static const bool DRAW_FRAME = true;
 
 static uint8_t gLcd[PIXEL_COUNT*3];
 static int gLcdIndex = 0;
 
 // The three buffers. Everything is in 64-bit words.
 static const uint32_t MEMORY_BASE = 0x7000000;
-static uint64_t gSdram[PIXEL_COUNT/2*3];
+static uint64_t gSdram[PIXEL_COUNT/PIXELS_PER_WORD*BUFFER_COUNT];
 static const uint32_t MEMORY_SIZE = sizeof(gSdram) / sizeof(gSdram[0]);
 
 static void write_ppm() {
@@ -36,13 +39,14 @@ static void write_ppm() {
 
 uint32_t getPixelColor(int x, int y) {
     return
-        (x == 0 || y == 0 || x == DISPLAY_WIDTH - 1 || y == DISPLAY_HEIGHT - 1) && 0
+        DRAW_FRAME && (x == 0 || y == 0 || x == DISPLAY_WIDTH - 1 || y == DISPLAY_HEIGHT - 1)
         ? 0xFFFFFF
         : (x % 256) << 8 | (y % 256);
 }
 
 int main(int argc, char **argv, char **env) {
     Verilated::commandArgs(argc, argv);
+    Verilated::debug(1);
 
     VMain* top = new VMain;
 
@@ -67,18 +71,26 @@ int main(int argc, char **argv, char **env) {
     WaveDrom waveDrom;
     waveDrom.add(WaveDromSignal("clock"));
     waveDrom.add(WaveDromSignal("sdram_read"));
-    waveDrom.add(WaveDromSignal("sdram_read_data_valid").setPhase(0.5f));
+    waveDrom.add(WaveDromSignal("sdram_read_data_valid"));
     waveDrom.add(WaveDromSignal("fifo_size", true));
     waveDrom.add(WaveDromSignal("fifo_read"));
+    waveDrom.add(WaveDromSignal("fifo_write"));
     waveDrom.add(WaveDromSignal("lcd_tick"));
     waveDrom.add(WaveDromSignal("lcd_data_enable"));
 
     bool previous_lcd_clock = 0;
     int count = 0;
 
-    while (!Verilated::gotFinish() && count < 50) {
+    while (!Verilated::gotFinish() && count < 150) {
         // Toggle clock.
         top->clock_50 = top->clock_50 ^ 1;
+
+        top->eval();
+
+        printf("LCD is showing %02x%02x%02x\n",
+                (int) top->Main->lcd_red_d1,
+                (int) top->Main->lcd_green_d1,
+                (int) top->Main->lcd_blue_d1);
 
         // Simulate LCD. Latch video on positive edge of LCD clock.
         bool lcd_clock = top->Main->lcd_tick_d1;
@@ -108,44 +120,31 @@ int main(int argc, char **argv, char **env) {
         }
         previous_lcd_clock = lcd_clock;
 
-        top->eval();
-
-        // Save signals before RAM, since those happen mid-clock.
-        if (top->clock_50) {
-            waveDrom["clock"].add(top->clock_50);
-            waveDrom["sdram_read"].add(top->Main->sdram0_read);
-            waveDrom["sdram_read_data_valid"].add(top->Main->sdram0_readdatavalid);
-            waveDrom["fifo_size"].add(top->Main->frame_buffer->fifo_usedw);
-            waveDrom["fifo_read"].add(top->Main->frame_buffer->fifo_read);
-            waveDrom["lcd_tick"].add(top->Main->lcd_tick);
-            waveDrom["lcd_data_enable"].add(top->Main->lcd_data_enable);
-        }
-
         // RAM.
         if (top->clock_50) {
             // Posedge clock_50, post-eval work.
 
             // See if we just asked for a read on this clock. Answer immediately.
-            if (top->Main->sdram0_read) {
-                uint32_t address = top->Main->sdram0_address;
+            if (top->hps_0_f2h_sdram0_data_read) {
+                uint32_t address = top->hps_0_f2h_sdram0_data_address;
                 if (address < MEMORY_BASE || address >= MEMORY_BASE + MEMORY_SIZE) {
                     printf("WARNING: Reading out-of-bounds address %lx\n",
                             (unsigned long) address);
-                    top->Main->sdram0_readdata = 0x000000ff0000000ffll;
+                    top->hps_0_f2h_sdram0_data_readdata = 0x000000ff0000000ffll;
                 } else {
-                    top->Main->sdram0_readdata = gSdram[address - MEMORY_BASE];
+                    top->hps_0_f2h_sdram0_data_readdata = gSdram[address - MEMORY_BASE];
                 }
-                top->Main->sdram0_waitrequest = 0;
-                top->Main->sdram0_readdatavalid = 1;
+                top->hps_0_f2h_sdram0_data_waitrequest = 0;
+                top->hps_0_f2h_sdram0_data_readdatavalid = 1;
             } else {
-                top->Main->sdram0_waitrequest = 0;
-                top->Main->sdram0_readdatavalid = 0;
+                top->hps_0_f2h_sdram0_data_waitrequest = 0;
+                top->hps_0_f2h_sdram0_data_readdatavalid = 0;
             }
             if (1) {
                 printf("%s address %08lx --> %016llx (size %d, %d -> %016llx, %d, %d, %d, %dx%d)\n",
-                        top->Main->sdram0_read ? "Reading" : "Not    ",
-                        (unsigned long) top->Main->sdram0_address,
-                        (unsigned long long) top->Main->sdram0_readdata,
+                        top->hps_0_f2h_sdram0_data_read ? "Reading" : "Not    ",
+                        (unsigned long) top->hps_0_f2h_sdram0_data_address,
+                        (unsigned long long) top->hps_0_f2h_sdram0_data_readdata,
                         (int) top->Main->frame_buffer->fifo_usedw,
                         (int) top->Main->frame_buffer->fifo_read,
                         (unsigned long long) top->Main->frame_buffer->fifo_read_data,
@@ -155,6 +154,20 @@ int main(int argc, char **argv, char **env) {
                         (int) top->Main->lcd_x,
                         (int) top->Main->lcd_y);
             }
+        }
+
+        top->eval();
+
+        // Save signals before RAM, since those happen mid-clock.
+        if (top->clock_50) {
+            waveDrom["clock"].add(top->clock_50);
+            waveDrom["sdram_read"].add(top->hps_0_f2h_sdram0_data_read);
+            waveDrom["sdram_read_data_valid"].add(top->hps_0_f2h_sdram0_data_readdatavalid);
+            waveDrom["fifo_size"].add(top->Main->frame_buffer->fifo_usedw);
+            waveDrom["fifo_read"].add(top->Main->frame_buffer->fifo_read);
+            waveDrom["fifo_write"].add(top->Main->frame_buffer->fifo_write);
+            waveDrom["lcd_tick"].add(top->Main->lcd_tick);
+            waveDrom["lcd_data_enable"].add(top->Main->lcd_data_enable);
         }
 
         count++;
