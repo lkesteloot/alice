@@ -484,11 +484,11 @@ module Main(
     end
 
     // Latch all LCD outputs.
-    reg [7:0] lcd_red_d1 /* verilator public */;
-    reg [7:0] lcd_green_d1 /* verilator public */;
-    reg [7:0] lcd_blue_d1 /* verilator public */;
-    reg lcd_tick_d1 /* verilator public */;
-    reg lcd_data_enable_delayed_d1 /* verilator public */;
+    reg [7:0] lcd_red_d1;
+    reg [7:0] lcd_green_d1;
+    reg [7:0] lcd_blue_d1;
+    reg lcd_tick_d1;
+    reg lcd_data_enable_delayed_d1;
     always @(posedge clock_50) begin
         lcd_red_d1 <= lcd_red;
         lcd_green_d1 <= lcd_green;
@@ -497,7 +497,6 @@ module Main(
         lcd_data_enable_delayed_d1 <= lcd_data_enable_delayed;
     end
 
-    /*
     // GPIO pins.
     assign gpio_0[0] = lcd_red_d1[0];
     assign gpio_0[2] = lcd_red_d1[1];
@@ -532,7 +531,6 @@ module Main(
     assign gpio_0[23] = sw[2] ? 1'b1 : lcd_vs_n;
     assign gpio_0[25] = lcd_data_enable_delayed_d1;
     assign gpio_0[27] = lcd_pwm;
-    */
 
     // LCD clock.
     always @(posedge clock_50) begin
@@ -540,7 +538,9 @@ module Main(
         lcd_tick <= ~lcd_tick;
     end
 
-    /*
+`ifdef VERILATOR
+    assign lcd_pwm = 1'b1;
+`else
     // LCD backlight PWM.
     // Brightness value between 0 and 1000 inclusive, where both
     // ends cause no waveform at all.
@@ -581,13 +581,15 @@ module Main(
         .debug_value0(test_debug_value0),
         .debug_value1(test_debug_value1),
         .debug_value2(test_debug_value2));
+`endif
 
     // Home button circuit.
+`ifdef VERILATOR
+    reg f2h_home_button = 1'b0; // XXX Remove assignment when we enable this code.
+`else
     wire raw_home_button = !home_button_pin; // Physical button is active low.
     wire home_button;
-    */
-    reg f2h_home_button = 1'b0; // XXX Remove assignment when we enable this code.
-    /*
+
     wire h2f_home_button = h2f_value[PWM_BITS + 2];
     Debouncer debouncer(
         .clock(clock_50),
@@ -612,6 +614,6 @@ module Main(
     assign gpio_0[35] = i2c1_sda_out_enable ? 1'b0 : 1'bz;
     assign i2c1_scl = gpio_0[34];
     assign i2c1_sda = gpio_0[35];
-    */
+`endif
 
 endmodule

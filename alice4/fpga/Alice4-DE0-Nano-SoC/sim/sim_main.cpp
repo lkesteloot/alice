@@ -13,7 +13,7 @@ static const int DISPLAY_HEIGHT = 4; // XYZ 480;
 static const int PIXEL_COUNT = DISPLAY_WIDTH*DISPLAY_HEIGHT;
 static const int PIXELS_PER_WORD = 2;
 static const int BUFFER_COUNT = 3;
-static const bool DRAW_FRAME = true;
+static const bool DRAW_FRAME = false;
 
 static uint8_t gLcd[PIXEL_COUNT*3];
 static int gLcdIndex = 0;
@@ -23,15 +23,44 @@ static const uint32_t MEMORY_BASE = 0x7000000;
 static uint64_t gSdram[PIXEL_COUNT/PIXELS_PER_WORD*BUFFER_COUNT];
 static const uint32_t MEMORY_SIZE = sizeof(gSdram) / sizeof(gSdram[0]);
 
-static void write_ppm() {
+/**
+ * Return 0 or 1 depending on whether bit "bit" of "value" is on.
+ */
+static int get_bit(uint64_t value, int bit) {
+    return (value >> bit) & 1;
+}
+
+/**
+ * Return a blank integer with only "to" bit set to the value of "from" bit in "value".
+ */
+static uint64_t move_bit(uint64_t value, int from, int to) {
+    return (uint64_t) get_bit(value, from) << to;
+}
+
+/**
+ * Put together a byte from the eight bit positions in "value".
+ */
+static uint8_t assemble_byte(uint64_t value, int b0, int b1, int b2, int b3, int b4, int b5, int b6, int b7) {
+    return (uint8_t) (
+            move_bit(value, b0, 0) |
+            move_bit(value, b1, 1) |
+            move_bit(value, b2, 2) |
+            move_bit(value, b3, 3) |
+            move_bit(value, b4, 4) |
+            move_bit(value, b5, 5) |
+            move_bit(value, b6, 6) |
+            move_bit(value, b7, 7));
+}
+
+static void write_ppm(std::string pathname) {
     if (gLcdIndex != PIXEL_COUNT) {
         printf("Warning: Pixel is %d instead of %d at end of frame.\n", gLcdIndex, PIXEL_COUNT);
     }
 
-    std::cout << "Saving image." << std::endl;
+    std::cout << "Saving image to \"" << pathname << "\"." << std::endl;
 
     std::ofstream f;
-    f.open("out.ppm", std::ios::out | std::ios::binary);
+    f.open(pathname, std::ios::out | std::ios::binary);
     f << "P6 " << DISPLAY_WIDTH << " " << DISPLAY_HEIGHT << " 255\n";
     f.write((char *) gLcd, sizeof(gLcd));
     f.close();
@@ -80,6 +109,7 @@ int main(int argc, char **argv, char **env) {
 
     bool previous_lcd_clock = 0;
     int count = 0;
+    int next_frame = 0; // Next frame delay.
 
     while (!Verilated::gotFinish() && count < 150) {
         // Toggle clock.
@@ -87,31 +117,29 @@ int main(int argc, char **argv, char **env) {
 
         top->eval();
 
-        printf("LCD is showing %02x%02x%02x\n",
-                (int) top->Main->lcd_red_d1,
-                (int) top->Main->lcd_green_d1,
-                (int) top->Main->lcd_blue_d1);
-
         // Simulate LCD. Latch video on positive edge of LCD clock.
-        bool lcd_clock = top->Main->lcd_tick_d1;
+        bool lcd_clock = get_bit(top->gpio_0, 17); // lcd_tick_d1
         if (lcd_clock && !previous_lcd_clock) {
-            if (top->Main->next_frame && gLcdIndex != 0) {
-                write_ppm();
+            next_frame = (next_frame << 1) | top->Main->next_frame;
+            if ((next_frame & 0x04) && gLcdIndex != 0) {
+                write_ppm("out.ppm");
                 gLcdIndex = 0;
             }
-            if (top->Main->lcd_data_enable_delayed_d1) {
+            if (get_bit(top->gpio_0, 25)) { // lcd_data_enable_delayed_d1
                 if (gLcdIndex < PIXEL_COUNT) {
+                    // See assignments to gpio_0 in Main.v:
+                    uint8_t red = assemble_byte(top->gpio_0, 0, 2, 4, 6, 8, 10, 12, 14);
+                    uint8_t green = assemble_byte(top->gpio_0, 16, 18, 20, 22, 24, 26, 28, 30);
+                    uint8_t blue = assemble_byte(top->gpio_0, 1, 3, 5, 7, 9, 11, 13, 15);
+
                     if (1) {
                         printf("Writing %02x%02x%02x to index %d\n",
-                                (int) top->Main->lcd_red_d1,
-                                (int) top->Main->lcd_green_d1,
-                                (int) top->Main->lcd_blue_d1,
-                                (int) gLcdIndex);
+                                (int) red, (int) green, (int) blue, (int) gLcdIndex);
                     }
 
-                    gLcd[gLcdIndex*3 + 0] = top->Main->lcd_red_d1;
-                    gLcd[gLcdIndex*3 + 1] = top->Main->lcd_green_d1;
-                    gLcd[gLcdIndex*3 + 2] = top->Main->lcd_blue_d1;
+                    gLcd[gLcdIndex*3 + 0] = red;
+                    gLcd[gLcdIndex*3 + 1] = green;
+                    gLcd[gLcdIndex*3 + 2] = blue;
                     gLcdIndex++;
                 } else {
                     printf("Pixel overran display.\n");
