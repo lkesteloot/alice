@@ -35,17 +35,17 @@ module LCD_control(
     // next_frame is on the second pixel of the first row.
 
     // Video parameters.
-    parameter H_FRONT = 1; // XYZ 24;
-    parameter H_SYNC  = 1; // XYZ 72;
-    parameter H_BACK  = 1; // XYZ 96;
-    parameter H_ACT   = 4; // XYZ 800;
+    parameter H_FRONT = 24;
+    parameter H_SYNC  = 72;
+    parameter H_BACK  = 96;
+    parameter H_ACT   = 800;
     parameter H_BLANK = H_FRONT + H_SYNC + H_BACK;
     parameter H_TOTAL = H_FRONT + H_SYNC + H_BACK + H_ACT;
 
-    parameter V_FRONT = 0; // XYZ 3;
-    parameter V_SYNC  = 0; // XYZ 10;
-    parameter V_BACK  = 0; // XYZ 7;
-    parameter V_ACT   = 4; // XYZ 480;
+    parameter V_FRONT = 3;
+    parameter V_SYNC  = 10;
+    parameter V_BACK  = 7;
+    parameter V_ACT   = 480;
     parameter V_BLANK = V_FRONT + V_SYNC + V_BACK;
     parameter V_TOTAL = V_FRONT + V_SYNC + V_BACK + V_ACT;
 

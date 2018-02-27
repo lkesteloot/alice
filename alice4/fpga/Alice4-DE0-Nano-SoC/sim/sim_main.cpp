@@ -5,15 +5,17 @@
 #include "wavedrom.h"
 #include "VMain.h"
 #include "VMain_Main.h"
-#include "VMain_Frame_buffer__A38000000_L40.h"
+#include "VMain_Frame_buffer__pi1.h"
 #include "verilated.h"
 
-static const int DISPLAY_WIDTH = 4; // XYZ 800;
-static const int DISPLAY_HEIGHT = 4; // XYZ 480;
+static const int DISPLAY_WIDTH = 800;
+static const int DISPLAY_HEIGHT = 480;
 static const int PIXEL_COUNT = DISPLAY_WIDTH*DISPLAY_HEIGHT;
 static const int PIXELS_PER_WORD = 2;
 static const int BUFFER_COUNT = 3;
 static const bool DRAW_FRAME = false;
+static const bool PRINT_RAM_DEBUG = false;
+static const bool GENERATE_JSON = false;
 
 static uint8_t gLcd[PIXEL_COUNT*3];
 static int gLcdIndex = 0;
@@ -79,7 +81,9 @@ int main(int argc, char **argv, char **env) {
 
     VMain* top = new VMain;
 
-    printf("------- address ???????? --> ???????????????? (fifo size, fifo read -> fifo q, state, words req, words read, XxY)\n");
+    if (PRINT_RAM_DEBUG) {
+        printf("------- address ???????? --> ???????????????? (fifo size, fifo read -> fifo q, state, words req, words read, XxY)\n");
+    }
 
     // Turn on debugging display.
     top->sw |= 0x8;
@@ -98,20 +102,22 @@ int main(int argc, char **argv, char **env) {
     }
 
     WaveDrom waveDrom;
-    waveDrom.add(WaveDromSignal("clock"));
-    waveDrom.add(WaveDromSignal("sdram_read"));
-    waveDrom.add(WaveDromSignal("sdram_read_data_valid"));
-    waveDrom.add(WaveDromSignal("fifo_size", true));
-    waveDrom.add(WaveDromSignal("fifo_read"));
-    waveDrom.add(WaveDromSignal("fifo_write"));
-    waveDrom.add(WaveDromSignal("lcd_tick"));
-    waveDrom.add(WaveDromSignal("lcd_data_enable"));
+    if (GENERATE_JSON) {
+        waveDrom.add(WaveDromSignal("clock"));
+        waveDrom.add(WaveDromSignal("sdram_read"));
+        waveDrom.add(WaveDromSignal("sdram_read_data_valid"));
+        waveDrom.add(WaveDromSignal("fifo_size", true));
+        waveDrom.add(WaveDromSignal("fifo_read"));
+        waveDrom.add(WaveDromSignal("fifo_write"));
+        waveDrom.add(WaveDromSignal("lcd_tick"));
+        waveDrom.add(WaveDromSignal("lcd_data_enable"));
+    }
 
     bool previous_lcd_clock = 0;
     int count = 0;
     int next_frame = 0; // Next frame delay.
 
-    while (!Verilated::gotFinish() && count < 150) {
+    while (!Verilated::gotFinish() && count < 15000000) {
         // Toggle clock.
         top->clock_50 = top->clock_50 ^ 1;
 
@@ -124,6 +130,7 @@ int main(int argc, char **argv, char **env) {
             if ((next_frame & 0x04) && gLcdIndex != 0) {
                 write_ppm("out.ppm");
                 gLcdIndex = 0;
+                break;
             }
             if (get_bit(top->gpio_0, 25)) { // lcd_data_enable_delayed_d1
                 if (gLcdIndex < PIXEL_COUNT) {
@@ -132,7 +139,7 @@ int main(int argc, char **argv, char **env) {
                     uint8_t green = assemble_byte(top->gpio_0, 16, 18, 20, 22, 24, 26, 28, 30);
                     uint8_t blue = assemble_byte(top->gpio_0, 1, 3, 5, 7, 9, 11, 13, 15);
 
-                    if (1) {
+                    if (0) {
                         printf("Writing %02x%02x%02x to index %d\n",
                                 (int) red, (int) green, (int) blue, (int) gLcdIndex);
                     }
@@ -168,7 +175,7 @@ int main(int argc, char **argv, char **env) {
                 top->hps_0_f2h_sdram0_data_waitrequest = 0;
                 top->hps_0_f2h_sdram0_data_readdatavalid = 0;
             }
-            if (1) {
+            if (PRINT_RAM_DEBUG) {
                 printf("%s address %08lx --> %016llx (size %d, %d -> %016llx, %d, %d, %d, %dx%d)\n",
                         top->hps_0_f2h_sdram0_data_read ? "Reading" : "Not    ",
                         (unsigned long) top->hps_0_f2h_sdram0_data_address,
@@ -187,7 +194,7 @@ int main(int argc, char **argv, char **env) {
         top->eval();
 
         // Save signals before RAM, since those happen mid-clock.
-        if (top->clock_50) {
+        if (GENERATE_JSON && top->clock_50) {
             waveDrom["clock"].add(top->clock_50);
             waveDrom["sdram_read"].add(top->hps_0_f2h_sdram0_data_read);
             waveDrom["sdram_read_data_valid"].add(top->hps_0_f2h_sdram0_data_readdatavalid);
@@ -201,7 +208,9 @@ int main(int argc, char **argv, char **env) {
         count++;
     }
 
-    waveDrom.write("out.json");
+    if (GENERATE_JSON) {
+        waveDrom.write("out.json");
+    }
 
     delete top;
 

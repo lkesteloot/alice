@@ -306,7 +306,6 @@ always @(posedge clock or negedge reset_n) begin
                         // the high 32 bits to the low ones.
                         if (lcd_tick && lcd_data_enable && need_shifting) begin
                             // Next pixel.
-                            $display("--------------------- shifting pixel_data");
                             pixel_data[31:0] <= pixel_data[63:32];
                             need_shifting <= 1'b0;
                         end
@@ -331,7 +330,6 @@ always @(posedge clock or negedge reset_n) begin
                 end
 
                 F2L_STATE_READ: begin
-                    $display("--------------------- reading into pixel_data");
                     // Grab the data from the FIFO.
                     pixel_data <= fifo_read_data;
 

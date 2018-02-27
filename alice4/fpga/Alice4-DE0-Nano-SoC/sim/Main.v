@@ -129,8 +129,8 @@ module Main(
     // 1G minus 128M, in bytes.
     localparam FRAME_BUFFER_ADDRESS = 30'h3800_0000;
     // Size of frame buffer in pixels.
-    localparam FRAME_BUFFER_WIDTH = 4; // XYZ 800;
-    localparam FRAME_BUFFER_HEIGHT = 4; // XYZ 480;
+    localparam FRAME_BUFFER_WIDTH = 800;
+    localparam FRAME_BUFFER_HEIGHT = 480;
     // Number of bytes in frame buffer (color or Z).
     localparam FRAME_BUFFER_LENGTH = FRAME_BUFFER_WIDTH*FRAME_BUFFER_HEIGHT*4;
     // Position of command buffer.
