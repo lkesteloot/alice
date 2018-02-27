@@ -9,6 +9,16 @@
 #include "VMain_Frame_buffer__pi1.h"
 #include "verilated.h"
 
+// Protocol command number:
+#define CMD_CLEAR 1
+#define CMD_ZCLEAR 2
+#define CMD_PATTERN 3
+#define CMD_DRAW 4
+#define CMD_BITMAP 5
+#define CMD_SWAP 6
+#define CMD_END 7
+#define CMD_CZCLEAR 8
+
 static const int DISPLAY_WIDTH = 800;
 static const int DISPLAY_HEIGHT = 480;
 static const int PIXEL_COUNT = DISPLAY_WIDTH*DISPLAY_HEIGHT;
@@ -20,9 +30,10 @@ static const bool GENERATE_JSON = false;
 static uint8_t gLcd[PIXEL_COUNT*3];
 static int gLcdIndex = 0;
 
-// The three buffers. Everything is in 64-bit words.
 static const uint32_t MEMORY_BASE = 0x7000000;
-static const uint32_t MEMORY_SIZE = PIXEL_COUNT/PIXELS_PER_WORD*BUFFER_COUNT;
+static const uint32_t FRAME_BUFFER_SIZE = PIXEL_COUNT/PIXELS_PER_WORD;
+static const uint32_t COMMAND_BUFFER_SIZE = 1024;
+static const uint32_t MEMORY_SIZE = FRAME_BUFFER_SIZE*BUFFER_COUNT + COMMAND_BUFFER_SIZE;
 
 /**
  * Return 0 or 1 depending on whether bit "bit" of "value" is on.
@@ -84,9 +95,9 @@ int main(int argc, char **argv, char **env) {
     // Turn on debugging display.
     top->sw |= 0x8;
 
-    // Fill memory with a pattern.
+    // Fill front buffer with a pattern.
     {
-        uint64_t address = MEMORY_BASE;
+        uint32_t address = MEMORY_BASE;
         for (int y = 0; y < DISPLAY_HEIGHT; y++) {
             for (int x = 0; x < DISPLAY_WIDTH; x += 2) {
                 uint32_t color1 = getPixelColor(x, y);
@@ -95,6 +106,15 @@ int main(int argc, char **argv, char **env) {
                 address++;
             }
         }
+    }
+    // Fill command buffer.
+    {
+        uint32_t address = MEMORY_BASE + 3*FRAME_BUFFER_SIZE;
+        memory[address++] = CMD_CLEAR
+            | ((uint64_t) 100 << 56)
+            | ((uint64_t) 150 << 48)
+            | ((uint64_t) 200 << 40);
+        memory[address++] = CMD_END;
     }
 
     WaveDrom waveDrom;
@@ -160,6 +180,13 @@ int main(int argc, char **argv, char **env) {
                     top->hps_0_f2h_sdram0_data_waitrequest,
                     top->hps_0_f2h_sdram0_data_readdatavalid,
                     top->hps_0_f2h_sdram0_data_readdata);
+            memory.eval(
+                    top->hps_0_f2h_sdram1_data_burstcount,
+                    top->hps_0_f2h_sdram1_data_read,
+                    top->hps_0_f2h_sdram1_data_address,
+                    top->hps_0_f2h_sdram1_data_waitrequest,
+                    top->hps_0_f2h_sdram1_data_readdatavalid,
+                    top->hps_0_f2h_sdram1_data_readdata);
 
             // Eval again immediately to update dependant wires.
             top->eval();

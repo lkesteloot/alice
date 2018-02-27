@@ -9,7 +9,7 @@
  */
 class Memory {
 public:
-    Memory(uint64_t base, int wordCount)
+    Memory(uint32_t base, int wordCount)
         : mBase(base), mWordCount(wordCount)
     {
         mWords = new uint64_t[wordCount];
@@ -19,7 +19,7 @@ public:
         delete[] mWords;
     }
 
-    uint64_t &operator[](uint64_t address) {
+    uint64_t &operator[](uint32_t address) {
         return mWords[addressToIndex(address)];
     }
 
@@ -35,18 +35,18 @@ public:
     }
 
 public:
-    uint64_t mBase;
+    uint32_t mBase;
     int mWordCount;
     uint64_t *mWords;
 
-    uint64_t addressToIndex(uint64_t address) {
+    uint32_t addressToIndex(uint32_t address) {
         if (address < mBase) {
-            printf("Address 0x%0llX is too low (less than 0x%0llX).\n", address, mBase);
+            printf("Address 0x%0X is too low (less than 0x%0X).\n", address, mBase);
             throw std::exception();
         }
 
         if (address >= mBase + mWordCount) {
-            printf("Address 0x%0llX is too high (past 0x%0llX).\n", address, mBase + mWordCount);
+            printf("Address 0x%0X is too high (past 0x%0X).\n", address, mBase + mWordCount);
             throw std::exception();
         }
 

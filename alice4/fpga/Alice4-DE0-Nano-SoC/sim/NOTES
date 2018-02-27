@@ -1,9 +1,5 @@
 
-Abstract SDRAM sim into a class.
-
-Uncomment Command_reader, see if we can read commands into the FIFO.
-
 Uncomment Rasterizer.
 
-Look for both XYZ and XXX comments.
+Look for XXX comments.
 

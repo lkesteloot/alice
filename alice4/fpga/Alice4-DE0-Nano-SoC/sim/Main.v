@@ -55,6 +55,12 @@ module Main(
 	input [63:0] hps_0_f2h_sdram0_data_readdata,
 	input hps_0_f2h_sdram0_data_readdatavalid,
 	output hps_0_f2h_sdram0_data_read,
+	output [28:0] hps_0_f2h_sdram1_data_address,
+	output [7:0] hps_0_f2h_sdram1_data_burstcount,
+	input hps_0_f2h_sdram1_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram1_data_readdata,
+	input hps_0_f2h_sdram1_data_readdatavalid,
+	output hps_0_f2h_sdram1_data_read,
 `else
         /* SSTL-15 Class I */
         output [14:0] hps_ddr3_addr,
@@ -173,13 +179,13 @@ module Main(
     wire [63:0] sdram0_readdata;
     wire sdram0_readdatavalid;
     wire sdram0_read;
-    /*
     wire [28:0] sdram1_address;
     wire [7:0] sdram1_burstcount;
     wire sdram1_waitrequest;
     wire [63:0] sdram1_readdata;
     wire sdram1_readdatavalid;
     wire sdram1_read;
+    /*
     wire [28:0] sdram2_address;
     wire [7:0] sdram2_burstcount;
     wire sdram2_waitrequest;
@@ -210,6 +216,12 @@ module Main(
     assign sdram0_readdata = hps_0_f2h_sdram0_data_readdata;
     assign sdram0_readdatavalid = hps_0_f2h_sdram0_data_readdatavalid;
     assign hps_0_f2h_sdram0_data_read = sdram0_read;
+    assign hps_0_f2h_sdram1_data_address = sdram1_address;
+    assign hps_0_f2h_sdram1_data_burstcount = sdram1_burstcount;
+    assign sdram1_waitrequest = hps_0_f2h_sdram1_data_waitrequest;
+    assign sdram1_readdata = hps_0_f2h_sdram1_data_readdata;
+    assign sdram1_readdatavalid = hps_0_f2h_sdram1_data_readdatavalid;
+    assign hps_0_f2h_sdram1_data_read = sdram1_read;
 `else
     /* verilator lint_off PINMISSING */
     soc_system soc_system_instance(
@@ -238,7 +250,6 @@ module Main(
         .hps_0_f2h_sdram0_data_readdata(sdram0_readdata),
         .hps_0_f2h_sdram0_data_readdatavalid(sdram0_readdatavalid),
         .hps_0_f2h_sdram0_data_read(sdram0_read)
-        /*
         // sdram1: SDRAM interface for command buffer reading.
         .hps_0_f2h_sdram1_data_address(sdram1_address),
         .hps_0_f2h_sdram1_data_burstcount(sdram1_burstcount),
@@ -272,7 +283,6 @@ module Main(
         .hps_0_i2c1_sda(i2c1_sda),
         .hps_0_i2c1_clk_clk(i2c1_scl_out_enable),
         .hps_0_i2c1_scl_in_clk(i2c1_scl)
-        */
     );
     /* verilator lint_on PINMISSING */
 `endif
@@ -384,12 +394,13 @@ module Main(
         .bw(character_bw)
     );
 
-    /*
     // Reads the command buffer into a FIFO.
     wire cmd_restart;
+/* verilator lint_off UNUSED */
     wire cmd_ready;
     wire cmd_fifo_empty;
     wire [63:0] cmd_fifo_q;
+/* verilator lint_on UNUSED */
     wire cmd_fifo_rdreq;
     Command_reader #(.CMD_ADDRESS(CMD_ADDRESS)) command_reader(
         // Control.
@@ -412,11 +423,29 @@ module Main(
         .fifo_rdreq(cmd_fifo_rdreq)
     );
 
+`ifdef VERILATOR
+    wire rasterizer_busy = 1'b0;
+    assign cmd_restart = cmd_restart_fake;
+    assign cmd_fifo_rdreq = 1'b0;
+    reg cmd_restart_fake;
+    reg [5:0] cmd_restart_counter;
+    initial begin
+        cmd_restart_counter = 6'b0;
+        cmd_restart_fake = 1'b0;
+    end
+    always @(posedge clock_50) begin
+        if (cmd_restart_counter == 5) begin
+            cmd_restart_fake <= 1'b1;
+            cmd_restart_counter <= cmd_restart_counter + 1'b1;
+        end else if (cmd_restart_counter == 6) begin
+            cmd_restart_fake <= 1'b0;
+        end else begin
+            cmd_restart_counter <= cmd_restart_counter + 1'b1;
+        end
+    end
+`else
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
-    */
-    wire rasterizer_busy = 1'b0;  // XXX Remove assignment when we enable this code.
-    /*
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),
@@ -469,7 +498,7 @@ module Main(
         .debug_value1(rast_debug_value1),
         .debug_value2(rast_debug_value2)
     );
-    */
+`endif
 
     // Color assignment. Latch these for clean output.
     wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
