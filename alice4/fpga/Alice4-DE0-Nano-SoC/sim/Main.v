@@ -55,12 +55,37 @@ module Main(
 	input [63:0] hps_0_f2h_sdram0_data_readdata,
 	input hps_0_f2h_sdram0_data_readdatavalid,
 	output hps_0_f2h_sdram0_data_read,
+
 	output [28:0] hps_0_f2h_sdram1_data_address,
 	output [7:0] hps_0_f2h_sdram1_data_burstcount,
 	input hps_0_f2h_sdram1_data_waitrequest,
 	input [63:0] hps_0_f2h_sdram1_data_readdata,
 	input hps_0_f2h_sdram1_data_readdatavalid,
 	output hps_0_f2h_sdram1_data_read,
+
+	output [28:0] hps_0_f2h_sdram2_data_address,
+	output [7:0] hps_0_f2h_sdram2_data_burstcount,
+	input hps_0_f2h_sdram2_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram2_data_readdata,
+	input hps_0_f2h_sdram2_data_readdatavalid,
+	output hps_0_f2h_sdram2_data_read,
+
+        output [28:0] hps_0_f2h_sdram3_data_address,
+        output [7:0] hps_0_f2h_sdram3_data_burstcount,
+        input hps_0_f2h_sdram3_data_waitrequest,
+        output [63:0] hps_0_f2h_sdram3_data_writedata,
+        output [7:0] hps_0_f2h_sdram3_data_byteenable,
+        output hps_0_f2h_sdram3_data_write,
+
+        output [28:0] hps_0_f2h_sdram4_data_address,
+        output [7:0] hps_0_f2h_sdram4_data_burstcount,
+        input hps_0_f2h_sdram4_data_waitrequest,
+        output [63:0] hps_0_f2h_sdram4_data_writedata,
+        output [7:0] hps_0_f2h_sdram4_data_byteenable,
+        output hps_0_f2h_sdram4_data_write,
+
+        input [31:0] sim_h2f_value,
+        output [31:0] sim_f2h_value,
 `else
         /* SSTL-15 Class I */
         output [14:0] hps_ddr3_addr,
@@ -167,10 +192,15 @@ module Main(
     /* verilator lint_off UNUSED */
     wire [31:0] h2f_value;
     /* verilator lint_on UNUSED */
+`ifdef VERILATOR
+    assign sim_f2h_value = f2h_value;
+    assign h2f_value = sim_h2f_value;
+`else
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
          .gp_in(f2h_value),    // Value to the HPS (continuous).
          .gp_out(h2f_value)    // Value from the HPS (latched).
     );
+`endif
 
     // Interface to HPS.
     wire [28:0] sdram0_address;
@@ -185,7 +215,6 @@ module Main(
     wire [63:0] sdram1_readdata;
     wire sdram1_readdatavalid;
     wire sdram1_read;
-    /*
     wire [28:0] sdram2_address;
     wire [7:0] sdram2_burstcount;
     wire sdram2_waitrequest;
@@ -204,6 +233,7 @@ module Main(
     wire [63:0] sdram4_writedata;
     wire [7:0] sdram4_byteenable;
     wire sdram4_write;
+    /*
     wire i2c1_sda_out_enable;
     wire i2c1_sda;
     wire i2c1_scl_out_enable;
@@ -216,12 +246,34 @@ module Main(
     assign sdram0_readdata = hps_0_f2h_sdram0_data_readdata;
     assign sdram0_readdatavalid = hps_0_f2h_sdram0_data_readdatavalid;
     assign hps_0_f2h_sdram0_data_read = sdram0_read;
+
     assign hps_0_f2h_sdram1_data_address = sdram1_address;
     assign hps_0_f2h_sdram1_data_burstcount = sdram1_burstcount;
     assign sdram1_waitrequest = hps_0_f2h_sdram1_data_waitrequest;
     assign sdram1_readdata = hps_0_f2h_sdram1_data_readdata;
     assign sdram1_readdatavalid = hps_0_f2h_sdram1_data_readdatavalid;
     assign hps_0_f2h_sdram1_data_read = sdram1_read;
+
+    assign hps_0_f2h_sdram2_data_address = sdram2_address;
+    assign hps_0_f2h_sdram2_data_burstcount = sdram2_burstcount;
+    assign sdram2_waitrequest = hps_0_f2h_sdram2_data_waitrequest;
+    assign sdram2_readdata = hps_0_f2h_sdram2_data_readdata;
+    assign sdram2_readdatavalid = hps_0_f2h_sdram2_data_readdatavalid;
+    assign hps_0_f2h_sdram2_data_read = sdram2_read;
+
+    assign hps_0_f2h_sdram3_data_address = sdram3_address;
+    assign hps_0_f2h_sdram3_data_burstcount = sdram3_burstcount;
+    assign sdram3_waitrequest = hps_0_f2h_sdram3_data_waitrequest;
+    assign hps_0_f2h_sdram3_data_writedata = sdram3_writedata;
+    assign hps_0_f2h_sdram3_data_byteenable = sdram3_byteenable;
+    assign hps_0_f2h_sdram3_data_write = sdram3_write;
+
+    assign hps_0_f2h_sdram4_data_address = sdram4_address;
+    assign hps_0_f2h_sdram4_data_burstcount = sdram4_burstcount;
+    assign sdram4_waitrequest = hps_0_f2h_sdram4_data_waitrequest;
+    assign hps_0_f2h_sdram4_data_writedata = sdram4_writedata;
+    assign hps_0_f2h_sdram4_data_byteenable = sdram4_byteenable;
+    assign hps_0_f2h_sdram4_data_write = sdram4_write;
 `else
     /* verilator lint_off PINMISSING */
     soc_system soc_system_instance(
@@ -347,7 +399,7 @@ module Main(
     wire [31:0] fb_debug_value1;
     wire [31:0] fb_debug_value2;
     /* verilator lint_on UNUSED */
-    wire rast_front_buffer = 1'b0; // XXX Remove assignment when we enable the Rasterizer.
+    wire rast_front_buffer;
     wire fb_front_buffer;
     wire [7:0] fb_red;
     wire [7:0] fb_green;
@@ -423,7 +475,7 @@ module Main(
         .fifo_rdreq(cmd_fifo_rdreq)
     );
 
-`ifdef VERILATOR
+`ifdef VERILATORx
     wire rasterizer_busy = 1'b0;
     assign cmd_restart = cmd_restart_fake;
     assign cmd_fifo_rdreq = 1'b0;
@@ -446,6 +498,7 @@ module Main(
 `else
     // Rasterizer.
     wire rasterizer_data_ready = h2f_value[0];
+    wire rasterizer_busy;
     Rasterizer #(.FB_ADDRESS(FRAME_BUFFER_ADDRESS),
                  .FB_LENGTH(FRAME_BUFFER_LENGTH),
                  .FB_WIDTH(FRAME_BUFFER_WIDTH),

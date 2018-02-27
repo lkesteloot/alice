@@ -35,6 +35,8 @@ static const uint32_t FRAME_BUFFER_SIZE = PIXEL_COUNT/PIXELS_PER_WORD;
 static const uint32_t COMMAND_BUFFER_SIZE = 1024;
 static const uint32_t MEMORY_SIZE = FRAME_BUFFER_SIZE*BUFFER_COUNT + COMMAND_BUFFER_SIZE;
 
+static vluint64_t gMainTime = 0;
+
 /**
  * Return 0 or 1 depending on whether bit "bit" of "value" is on.
  */
@@ -78,11 +80,17 @@ static void write_ppm(std::string pathname) {
     f.close();
 }
 
+// Returns 0BGR color
 uint32_t getPixelColor(int x, int y) {
     return
         DRAW_FRAME && (x == 0 || y == 0 || x == DISPLAY_WIDTH - 1 || y == DISPLAY_HEIGHT - 1)
         ? 0xFFFFFF
         : (x % 256) << 8 | (y % 256);
+}
+
+// Needed by Verilator: https://www.veripool.org/projects/verilator/wiki/Manual-verilator#CONNECTING-TO-C
+double sc_time_stamp() {
+    return gMainTime;
 }
 
 int main(int argc, char **argv, char **env) {
@@ -114,6 +122,7 @@ int main(int argc, char **argv, char **env) {
             | ((uint64_t) 100 << 56)
             | ((uint64_t) 150 << 48)
             | ((uint64_t) 200 << 40);
+        memory[address++] = CMD_SWAP;
         memory[address++] = CMD_END;
     }
 
@@ -130,10 +139,19 @@ int main(int argc, char **argv, char **env) {
     }
 
     bool previous_lcd_clock = 0;
-    int count = 0;
     int next_frame = 0; // Next frame delay.
+    bool data_is_ready = false;
+    int frame_number = 0;
 
-    while (!Verilated::gotFinish() && count < 15000000) {
+    while (!Verilated::gotFinish() && frame_number < 4) {
+        if (gMainTime == 50) {
+            data_is_ready = true;
+        }
+        top->sim_h2f_value = data_is_ready ? 0x1 : 0x0; // Rasterizer data is ready.
+        if (get_bit(top->sim_f2h_value, 0)) {
+            data_is_ready = false;
+        }
+
         // Toggle clock.
         top->clock_50 = top->clock_50 ^ 1;
 
@@ -144,16 +162,18 @@ int main(int argc, char **argv, char **env) {
         if (lcd_clock && !previous_lcd_clock) {
             next_frame = (next_frame << 1) | top->Main->next_frame;
             if ((next_frame & 0x04) && gLcdIndex != 0) {
-                write_ppm("out.ppm");
+                std::stringstream ss;
+                ss << "out-" << frame_number << ".ppm";
+                write_ppm(ss.str());
+                frame_number++;
                 gLcdIndex = 0;
-                break;
             }
             if (get_bit(top->gpio_0, 25)) { // lcd_data_enable_delayed_d1
                 if (gLcdIndex < PIXEL_COUNT) {
                     // See assignments to gpio_0 in Main.v:
                     uint8_t red = assemble_byte(top->gpio_0, 0, 2, 4, 6, 8, 10, 12, 14);
-                    uint8_t green = assemble_byte(top->gpio_0, 16, 18, 20, 22, 24, 26, 28, 30);
-                    uint8_t blue = assemble_byte(top->gpio_0, 1, 3, 5, 7, 9, 11, 13, 15);
+                    uint8_t green = assemble_byte(top->gpio_0, 1, 3, 5, 7, 9, 11, 13, 15);
+                    uint8_t blue = assemble_byte(top->gpio_0, 16, 18, 20, 22, 24, 26, 28, 30);
 
                     if (0) {
                         printf("Writing %02x%02x%02x to index %d\n",
@@ -173,20 +193,41 @@ int main(int argc, char **argv, char **env) {
 
         // RAM.
         if (top->clock_50) {
-            memory.eval(
+            memory.evalRead(
                     top->hps_0_f2h_sdram0_data_burstcount,
                     top->hps_0_f2h_sdram0_data_read,
                     top->hps_0_f2h_sdram0_data_address,
                     top->hps_0_f2h_sdram0_data_waitrequest,
                     top->hps_0_f2h_sdram0_data_readdatavalid,
                     top->hps_0_f2h_sdram0_data_readdata);
-            memory.eval(
+            memory.evalRead(
                     top->hps_0_f2h_sdram1_data_burstcount,
                     top->hps_0_f2h_sdram1_data_read,
                     top->hps_0_f2h_sdram1_data_address,
                     top->hps_0_f2h_sdram1_data_waitrequest,
                     top->hps_0_f2h_sdram1_data_readdatavalid,
                     top->hps_0_f2h_sdram1_data_readdata);
+            memory.evalRead(
+                    top->hps_0_f2h_sdram2_data_burstcount,
+                    top->hps_0_f2h_sdram2_data_read,
+                    top->hps_0_f2h_sdram2_data_address,
+                    top->hps_0_f2h_sdram2_data_waitrequest,
+                    top->hps_0_f2h_sdram2_data_readdatavalid,
+                    top->hps_0_f2h_sdram2_data_readdata);
+            memory.evalWrite(
+                    top->hps_0_f2h_sdram3_data_burstcount,
+                    top->hps_0_f2h_sdram3_data_write,
+                    top->hps_0_f2h_sdram3_data_address,
+                    top->hps_0_f2h_sdram3_data_waitrequest,
+                    top->hps_0_f2h_sdram3_data_byteenable,
+                    top->hps_0_f2h_sdram3_data_writedata);
+            memory.evalWrite(
+                    top->hps_0_f2h_sdram4_data_burstcount,
+                    top->hps_0_f2h_sdram4_data_write,
+                    top->hps_0_f2h_sdram4_data_address,
+                    top->hps_0_f2h_sdram4_data_waitrequest,
+                    top->hps_0_f2h_sdram4_data_byteenable,
+                    top->hps_0_f2h_sdram4_data_writedata);
 
             // Eval again immediately to update dependant wires.
             top->eval();
@@ -203,13 +244,14 @@ int main(int argc, char **argv, char **env) {
             waveDrom["lcd_data_enable"].add(top->Main->lcd_data_enable);
         }
 
-        count++;
+        gMainTime++;
     }
 
     if (GENERATE_JSON) {
         waveDrom.write("out.json");
     }
 
+    top->final();
     delete top;
 
     exit(0);

@@ -4,6 +4,8 @@
 
 #include <verilated.h>
 
+#define DUMP_MEMORY_ACCESS false
+
 /**
  * Class to simulate a chunk of memory.
  */
@@ -23,15 +25,48 @@ public:
         return mWords[addressToIndex(address)];
     }
 
-    void eval(vluint8_t burstCount, vluint8_t read, vluint64_t address, vluint8_t &waitRequest, vluint8_t &readDataValid, vluint64_t &readData) {
+    void evalRead(vluint8_t burstCount, vluint8_t read, vluint64_t address, vluint8_t &waitRequest,
+            vluint8_t &readDataValid, vluint64_t &readData) {
+
         if (read) {
+            if (burstCount != 1) {
+                printf("Burst count is %d, must be 1.\n", (int) burstCount);
+                throw std::exception();
+            }
+
             readData = (*this)[address];
-            waitRequest = 0;
+            if (DUMP_MEMORY_ACCESS && (address & 0xFF) == 0) {
+                printf("-------------------- Reading 0x%016lx from 0x%08lx\n", readData, address);
+            }
             readDataValid = 1;
         } else {
-            waitRequest = 0;
             readDataValid = 0;
         }
+
+        waitRequest = 0;
+    }
+
+    void evalWrite(vluint8_t burstCount, vluint8_t write, vluint64_t address, vluint8_t &waitRequest,
+            vluint8_t byteEnable, vluint64_t writeData) {
+
+        if (write) {
+            if (burstCount != 1) {
+                printf("Burst count is %d, must be 1.\n", (int) burstCount);
+                throw std::exception();
+            }
+
+            if (byteEnable != 0xFF) {
+                printf("Byte enable is 0x%02X, must be 0xFF.\n", (int) byteEnable);
+                throw std::exception();
+            }
+
+            if (DUMP_MEMORY_ACCESS && (address & 0xFF) == 0) {
+                printf("-------------------- Writing 0x%016lx to 0x%08lx\n", writeData, address);
+            }
+            (*this)[address] = writeData;
+        }
+
+        waitRequest = 0;
     }
 
 public:
