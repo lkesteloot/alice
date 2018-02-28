@@ -19,12 +19,12 @@ public:
         for (int i = 0; i < 256; i++) {
             uint64_t mask = 0;
 
-            // XXX Not sure if this is the right direction.
+            // Bit 0 corresponds to the least significant byte.
+            // See the Avalong Memory-Mapped spec.
             for (int j = 0; j < 8; j++) {
                 if (((i >> j) & 1) != 0) {
-                    mask |= 0xFF;
+                    mask |= (uint64_t) 0xFF << (j*8);
                 }
-                mask <<= 8;
             }
 
             mByteEnableMask[i] = mask;

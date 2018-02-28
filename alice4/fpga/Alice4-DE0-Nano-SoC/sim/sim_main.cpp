@@ -127,18 +127,21 @@ int main(int argc, char **argv, char **env) {
     // Fill command buffer.
     {
         uint32_t address = MEMORY_BASE + 3*FRAME_BUFFER_SIZE;
+        int triangle_count = 1;
         memory[address++] = CMD_CLEAR
             | ((uint64_t) 0 << 56)
             | ((uint64_t) 0 << 48)
             | ((uint64_t) 0 << 40);
         memory[address++] = CMD_DRAW
             | ((uint64_t) 0 << 8) // Triangle type.
-            | ((uint64_t) 1 << 16) // Triangle count.
+            | ((uint64_t) triangle_count << 16) // Triangle count.
             | ((uint64_t) 0 << 32) // Z enable.
             | ((uint64_t) 0 << 33); // Pattern enable.
-        memory[address++] = make_vertex(100, 100, 0, 255, 0, 0);
-        memory[address++] = make_vertex(300, 150, 0, 0, 255, 0);
-        memory[address++] = make_vertex(200, 200, 0, 0, 0, 255);
+        for (int i = 0; i < triangle_count; i++) {
+            memory[address++] = make_vertex(100 + i*5, 100, 0, 255, 0, 0);
+            memory[address++] = make_vertex(300 + i*5, 150, 0, 0, 255, 0);
+            memory[address++] = make_vertex(200 + i*5, 200, 0, 0, 0, 255);
+        }
         memory[address++] = CMD_SWAP;
         memory[address++] = CMD_END;
     }
@@ -159,6 +162,7 @@ int main(int argc, char **argv, char **env) {
     int next_frame = 0; // Next frame delay.
     bool data_is_ready = false;
     int frame_number = 0;
+    int clock_number = 0;
 
     while (!Verilated::gotFinish() && frame_number < 4) {
         if (gMainTime == 50) {
@@ -172,6 +176,10 @@ int main(int argc, char **argv, char **env) {
         // Toggle clock.
         top->clock_50 = top->clock_50 ^ 1;
 
+        if (top->clock_50) {
+            clock_number++;
+        }
+
         top->eval();
 
         // Simulate LCD. Latch video on positive edge of LCD clock.
@@ -184,6 +192,10 @@ int main(int argc, char **argv, char **env) {
                 write_ppm(ss.str());
                 frame_number++;
                 gLcdIndex = 0;
+
+                int ms = clock_number*1000/50000000;
+                printf("Frame took %d clocks (%d ms, %d FPS).\n", clock_number, ms, 1000/ms);
+                clock_number = 0;
             }
             if (get_bit(top->gpio_0, 25)) { // lcd_data_enable_delayed_d1
                 if (gLcdIndex < PIXEL_COUNT) {
