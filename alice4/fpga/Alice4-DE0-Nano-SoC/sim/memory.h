@@ -15,6 +15,20 @@ public:
         : mBase(base), mWordCount(wordCount)
     {
         mWords = new uint64_t[wordCount];
+
+        for (int i = 0; i < 256; i++) {
+            uint64_t mask = 0;
+
+            // XXX Not sure if this is the right direction.
+            for (int j = 0; j < 8; j++) {
+                if (((i >> j) & 1) != 0) {
+                    mask |= 0xFF;
+                }
+                mask <<= 8;
+            }
+
+            mByteEnableMask[i] = mask;
+        }
     }
 
     virtual ~Memory() {
@@ -55,15 +69,16 @@ public:
                 throw std::exception();
             }
 
-            if (byteEnable != 0xFF) {
-                printf("Byte enable is 0x%02X, must be 0xFF.\n", (int) byteEnable);
-                throw std::exception();
-            }
-
             if (DUMP_MEMORY_ACCESS && (address & 0xFF) == 0) {
                 printf("-------------------- Writing 0x%016lx to 0x%08lx\n", writeData, address);
             }
-            (*this)[address] = writeData;
+
+            if (byteEnable == 0xFF) {
+                (*this)[address] = writeData;
+            } else {
+                uint64_t mask = mByteEnableMask[byteEnable];
+                (*this)[address] = ((*this)[address] & ~mask) | (writeData & mask);
+            }
         }
 
         waitRequest = 0;
@@ -73,6 +88,7 @@ public:
     uint32_t mBase;
     int mWordCount;
     uint64_t *mWords;
+    uint64_t mByteEnableMask[256];
 
     uint32_t addressToIndex(uint32_t address) {
         if (address < mBase) {

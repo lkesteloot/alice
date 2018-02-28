@@ -1,5 +1,9 @@
 
-Try drawing triangle.
+Get byte enable correct in memory write.
+
+Track down problem with edge of triangle color.
 
 Look for XXX comments.
+
+We forked Main.v, but see if we can integrate it back.
 

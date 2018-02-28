@@ -93,6 +93,15 @@ double sc_time_stamp() {
     return gMainTime;
 }
 
+static uint64_t make_vertex(int x, int y, int z, int red, int green, int blue) {
+    return ((uint64_t) x << 2)
+        | ((uint64_t) y << 15)
+        | ((uint64_t) ((uint16_t) (z >> 16)) << 24)
+        | ((uint64_t) red << 56)
+        | ((uint64_t) green << 48)
+        | ((uint64_t) blue << 40);
+}
+
 int main(int argc, char **argv, char **env) {
     Verilated::commandArgs(argc, argv);
     Verilated::debug(1);
@@ -101,7 +110,7 @@ int main(int argc, char **argv, char **env) {
     VMain* top = new VMain;
 
     // Turn on debugging display.
-    top->sw |= 0x8;
+    /// top->sw |= 0x8;
 
     // Fill front buffer with a pattern.
     {
@@ -119,9 +128,17 @@ int main(int argc, char **argv, char **env) {
     {
         uint32_t address = MEMORY_BASE + 3*FRAME_BUFFER_SIZE;
         memory[address++] = CMD_CLEAR
-            | ((uint64_t) 100 << 56)
-            | ((uint64_t) 150 << 48)
-            | ((uint64_t) 200 << 40);
+            | ((uint64_t) 0 << 56)
+            | ((uint64_t) 0 << 48)
+            | ((uint64_t) 0 << 40);
+        memory[address++] = CMD_DRAW
+            | ((uint64_t) 0 << 8) // Triangle type.
+            | ((uint64_t) 1 << 16) // Triangle count.
+            | ((uint64_t) 0 << 32) // Z enable.
+            | ((uint64_t) 0 << 33); // Pattern enable.
+        memory[address++] = make_vertex(100, 100, 0, 255, 0, 0);
+        memory[address++] = make_vertex(300, 150, 0, 0, 255, 0);
+        memory[address++] = make_vertex(200, 200, 0, 0, 0, 255);
         memory[address++] = CMD_SWAP;
         memory[address++] = CMD_END;
     }
