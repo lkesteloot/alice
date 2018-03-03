@@ -32,7 +32,7 @@ static int gLcdIndex = 0;
 
 static const uint32_t MEMORY_BASE = 0x7000000;
 static const uint32_t FRAME_BUFFER_SIZE = PIXEL_COUNT/PIXELS_PER_WORD;
-static const uint32_t COMMAND_BUFFER_SIZE = 1024;
+static const uint32_t COMMAND_BUFFER_SIZE = 16*1024*1024;
 static const uint32_t MEMORY_SIZE = FRAME_BUFFER_SIZE*BUFFER_COUNT + COMMAND_BUFFER_SIZE;
 
 static vluint64_t gMainTime = 0;
@@ -106,6 +106,11 @@ int main(int argc, char **argv, char **env) {
     Verilated::commandArgs(argc, argv);
     Verilated::debug(1);
 
+    std::string cmd_pathname;
+    if (argc > 1) {
+        cmd_pathname = argv[1];
+    }
+
     Memory memory(MEMORY_BASE, MEMORY_SIZE);
     VMain* top = new VMain;
 
@@ -124,9 +129,10 @@ int main(int argc, char **argv, char **env) {
             }
         }
     }
+
     // Fill command buffer.
-    {
-        uint32_t address = MEMORY_BASE + 3*FRAME_BUFFER_SIZE;
+    uint32_t address = MEMORY_BASE + 3*FRAME_BUFFER_SIZE;
+    if (cmd_pathname.empty()) {
         int triangle_count = 1;
         memory[address++] = CMD_CLEAR
             | ((uint64_t) 0 << 56)
@@ -144,7 +150,41 @@ int main(int argc, char **argv, char **env) {
         }
         memory[address++] = CMD_SWAP;
         memory[address++] = CMD_END;
+    } else {
+        // Load binary file cmd_pathname and stick it into memory.
+        std::cout << "Loading commands from \"" << cmd_pathname << "\"." << std::endl;
+
+        std::ifstream f(cmd_pathname, std::ios::binary | std::ios::ate);
+        int size = f.tellg();
+        if (size == -1) {
+            std::cout << "Command file not found." << std::endl;
+            return 1;
+        }
+        f.seekg(0);
+        unsigned char *buf = new unsigned char[size];
+        f.read((char *) buf, size);
+        f.close();
+
+        for (int i = 0; i < size/8; i++) {
+            memory[address++] =
+                ((uint64_t) buf[i*8 + 0] << 0) |
+                ((uint64_t) buf[i*8 + 1] << 8) |
+                ((uint64_t) buf[i*8 + 2] << 16) |
+                ((uint64_t) buf[i*8 + 3] << 24) |
+                ((uint64_t) buf[i*8 + 4] << 32) |
+                ((uint64_t) buf[i*8 + 5] << 40) |
+                ((uint64_t) buf[i*8 + 6] << 48) |
+                ((uint64_t) buf[i*8 + 7] << 56);
+        }
+
+        delete[] buf;
     }
+
+    /*
+    for (uint32_t a = MEMORY_BASE + 3*FRAME_BUFFER_SIZE; a < address; a++) {
+        printf(">> 0x%016llx\n", memory[a]);
+    }
+    */
 
     WaveDrom waveDrom;
     if (GENERATE_JSON) {
@@ -164,7 +204,7 @@ int main(int argc, char **argv, char **env) {
     int frame_number = 0;
     int clock_number = 0;
 
-    while (!Verilated::gotFinish() && frame_number < 4) {
+    while (!Verilated::gotFinish() && frame_number < 105) {
         if (gMainTime == 50) {
             data_is_ready = true;
         }
@@ -188,7 +228,10 @@ int main(int argc, char **argv, char **env) {
             next_frame = (next_frame << 1) | top->Main->next_frame;
             if ((next_frame & 0x04) && gLcdIndex != 0) {
                 std::stringstream ss;
-                ss << "out-" << frame_number << ".ppm";
+                ss << "out-";
+                ss.width(4);
+                ss.fill('0');
+                ss << frame_number << ".ppm";
                 write_ppm(ss.str());
                 frame_number++;
                 gLcdIndex = 0;

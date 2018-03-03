@@ -21,3 +21,5 @@ build: verilate
 verilate:
 	verilator -Wall --cc $(MAIN).v --exe $(MAIN_CPP).cpp
 
+out.gif:
+	convert -delay 1x50 -loop 1 out-*.ppm out.gif
