@@ -7,6 +7,7 @@
 # Usage:
 #     python convert_command_dump.py < cmd.txt > cmd.bin
 #
+# See the ../NOTES file for more information.
 
 import sys
 import struct

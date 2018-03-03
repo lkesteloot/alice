@@ -1,0 +1,49 @@
+
+To output a command stream to a file:
+
+    If running on hardware:
+
+        Modify your program to quit after some time. For example, see
+        logo/logo.c:STOP_AFTER_ANIMATION.
+
+        Define DUMP_ALL_COMMANDS in libgl/hardware_rasterizer.c. This
+        will send the output to standard out. Run the program redirecting
+        the output to a file like "cmd.txt".
+
+    If running on Mac:
+
+        Set the SAVE_DRAWING_FILENAME environment variable to
+        a filename like "cmd.txt".
+
+        Optionally set the SAVE_DRAWING_LAST_FRAME environment
+        variable to the number of frames to generate.
+
+        Run your program with the Mac simulator.
+
+    Convert the text file to a binary file:
+
+        python ../tools/convert_command_dump.py < cmd.txt > cmd.bin
+
+        The text file format is different for hardware and network
+        mode, but the Python script detects that and does the right
+        thing.
+
+To run the binary file in the Verilator emulator:
+
+    Specify the name of the file as a parameter to VMain:
+
+        ./obj_dir/VMain ../../../software/logo/cmd.bin
+
+To run the binary at hardware boot:
+
+    Copy the cmd.bin file to the SD card's FAT partition, either
+    using the "copy_cmd_to_mmc" Makefile target if in logo, or using
+    these commands from the on-board ARM Linux:
+
+        mkdir -p mmc
+        sudo mount /dev/mmcblk0p1 mmc
+        sudo cp cmd.bin mmc/logo.bin
+        ls -l mmc/logo.bin
+        sudo umount mmc
+        rmdir mmc
+

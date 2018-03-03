@@ -1,7 +1,4 @@
 
-Write a doc file that explains the various ways of dumping the command stream.
-Point other places to that.
-
 Look for XXX comments.
 
 We forked Main.v, but see if we can integrate it back.

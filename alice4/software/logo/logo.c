@@ -12,7 +12,7 @@
 #include <device.h>
 #include "light.h"
 
-// LK: See instructions in Makefile.
+// See the ../NOTES file:
 #undef STOP_AFTER_ANIMATION
 
 #define X 0
