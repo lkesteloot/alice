@@ -59,7 +59,7 @@
             <p>The application configures the window system with a series of calls to set parameters like whether the app requires double-buffering (<code>doublebuffer</code>), whether the framebuffer should be interpreted as RGB colors (<code>RGBmode</code>) or a color table, and then opened on the screen with an optional title bar (<code>winopen</code>).
             </p>
 
-            <p>The app manages events by indicating that it wants to receive them (<code>qdevice</code> with enumerants like <code>REDRAW</code>, <code>ESC_KEY</code>, or <code>MOUSEX</code>).  Continuous "valuators" are exposed through a direct call (<code>getvaluator</code>) or by specifying the valuator should be read and coupled to certain events (<code>tie</code>).  Finally, applications test the event queue (<code>qtest</code>) and read and process any events that exist (<code>qread</code>).</p>
+            <p>The app manages events by indicating that it wants to receive them (<code>qdevice</code> with enumerants like <code>REDRAW</code>, <code>ESC_KEY</code>, or <code>MOUSEX</code>).  Continuous “valuators” are exposed through a direct call (<code>getvaluator</code>) or by specifying the valuator should be read and coupled to certain events (<code>tie</code>).  Finally, applications test the event queue (<code>qtest</code>) and read and process any events that exist (<code>qread</code>).</p>
 
             <p>Each app sets graphics state for things like lighting, materials, the lighting model, the current color.  In most of the demos we cared about, this state is set up once, in some initialization code.  In production apps, though, these might be specified in each frame or more frequently.
             </p>
@@ -76,7 +76,7 @@
 
             <h2>Windows and configuration</h2>
 
-            <p>In our implementation, we only support one fullscreen, 800 pixel wide and 480 pixel tall "window", and the title is ignored.  Color index mode (each "color" value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking (e.g. <code>winpop</code>) and ringing the bell with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
+            <p>In our implementation, we only support one fullscreen, 800 pixel wide and 480 pixel tall “window”, and the title is ignored.  Color index mode (each “color” value looks up an RGB color in a table of colors) is emulated, as described below.  Workstation functions like borderless windows with <code>noborder</code>, window stacking (e.g. <code>winpop</code>) and ringing the bell with <code>ringbell</code> are not supported and the functions are stubbed out.</p>
 
             <h2>Events</h2>
 
@@ -86,8 +86,8 @@
             <h2>Objects</h2>
 
 	    <p>IRIS GL supports recording some functions in a list
-	    which can be played back later.  It calls these "objects"
-	    but they will be more familiar to some as "display lists"
+	    which can be played back later.  It calls these “objects”
+	    but they will be more familiar to some as “display lists”
             in OpenGL.
 	    An application creates an object using <code>genobj</code>, starts
 	    recording commands in the object using <code>makeobj</code>, and
@@ -102,9 +102,9 @@
 
             <h2>Lighting and materials</h2>
 
-            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically based, per-vertex equation ("Phong" lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained in the <code>light_vertex</code> function in our source.
+            <p>IRIS GL only supports fixed-function lighting (no shaders!), where an empirically based, per-vertex equation (“Phong” lighting) based on the material and light parameters determines the color of that vertex.  Our implementation of the lighting equation is contained in the <code>light_vertex</code> function in our source.
             </p>
-            <p>We didn't implement any lighting and material parameters not used by the demos.  We didn't code spotlights or fog.  We even ignored the "local" lighting model, which forces a local viewer, because lighting is basically okay without it.  (On those very early graphics workstations, using a local viewer came at a performance cost!)
+            <p>We didn't implement any lighting and material parameters not used by the demos.  We didn't code spotlights or fog.  We even ignored the “local” lighting model, which forces a local viewer, because lighting is basically okay without it.  (On those very early graphics workstations, using a local viewer came at a performance cost!)
             </p>
 
             <h2>Primitives</h2>
@@ -119,7 +119,7 @@
 
             <h3>Color-index mode</h3>
 
-            <p>The earliest IRIS workstations supported only "color index" mode, where the "color" value for a pixel actually looked up an RGB color in a table before display.  We implement this by indexing the color when provided and storing only the RGB color.  However, this ended up being a problem for the "arena" demo.
+            <p>The earliest IRIS workstations supported only “color index” mode, where the “color” value for a pixel actually looked up an RGB color in a table before display.  We implement this by indexing the color when provided and storing only the RGB color.  However, this ended up being a problem for the “arena” demo.
             </p>
 
 	    <p>IRIS GL has a mask for which bits of the framebuffer are
@@ -137,7 +137,7 @@
 	    clear the color buffer to 0 and draw the HUD at any
 	    time.  It can then set the drawing mask to <code>0x0F</code>
 	    and draw the normal arena geometry every frame, knowing
-	    that the HUD is always drawn "over" the arena geometry because
+	    that the HUD is always drawn “over” the arena geometry because
 	    of the color table.  This gives kind of a crude overlay
 	    functionality.
             </p>
@@ -154,7 +154,7 @@
             <h3>PUPs (Pop-up menus)</h3>
 
             <p>
-            IRIS GL had a facility for pop-up menus that an application could invoke, typically on the right mouse click.  (<code>newpup</code>, <code>addpup</code>, and <code>dopup</code>)  Both "jello" and "bounce" originally used menus to change lighting, line edges, and toggle automatic rotation, among other things.</p>
+            IRIS GL had a facility for pop-up menus that an application could invoke, typically on the right mouse click.  (<code>newpup</code>, <code>addpup</code>, and <code>dopup</code>)  Both “jello” and “bounce” originally used menus to change lighting, line edges, and toggle automatic rotation, among other things.</p>
 
             <p>We implemented a lot of the menu functionality.  We could toggle the states in jello and bounce, but finally agreed that the hand-held, tablet-like quality of the device didn't lend itself to old workstation-style menus, and turned it off.
             </p>
@@ -164,7 +164,7 @@
             </p>
 
             <p>
-            If <code>trace_functions</code> is enabled, every implemented function prints its own name and parameters, so that we can more easily debug a complete stream of commands.  Just knowing which command we were in during a crash (e.g. output of "bt" in the debugger) was not sufficient.
+            If <code>trace_functions</code> is enabled, every implemented function prints its own name and parameters, so that we can more easily debug a complete stream of commands.  Just knowing which command we were in during a crash (e.g. output of “bt” in the debugger) was not sufficient.
             </p>
 
             <h2>Platform layer interface</h2>
