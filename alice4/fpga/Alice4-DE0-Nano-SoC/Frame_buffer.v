@@ -73,10 +73,10 @@ assign debug_value0 = {
 assign debug_value1 = { 6'b0, word_count_latched };
 assign debug_value2 = { 6'b0, pixel_count_latched };
 
-// FIFO.
+// FIFO from memory to scanned out pixels.
 localparam FIFO_DEPTH = 256;
 localparam FIFO_DEPTH_LOG2 = 8;
-localparam BURST_LENGTH = 8; // XYZ 32;
+localparam BURST_LENGTH = 32;
 reg fifo_sclr;
 wire fifo_write_wait;
 wire fifo_read_wait;
@@ -84,7 +84,7 @@ wire fifo_write /* verilator public */;
 reg fifo_read /* verilator public */;
 wire [63:0] fifo_read_data /* verilator public */;
 wire [FIFO_DEPTH_LOG2 - 1:0] fifo_usedw /* verilator public */;
-assign fifo_write = readdatavalid /*&& !fifo_write_wait*/; // XXX suspicious, fifo_write_wait not valid initially?
+assign fifo_write = readdatavalid;
 /* verilator lint_off PINMISSING */
 scfifo #(.add_ram_output_register("OFF"),
          .intended_device_family("CYCLONEV"),
