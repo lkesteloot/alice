@@ -33,6 +33,8 @@ module Read_FIFO
     output reg [1:0] write_pixel_active // Bit 0 is the left-most pixel.
 );
 
+/* verilator lint_off WIDTH */
+
     // Latched Z from memory.
     reg [63:0] memory_z;
     reg [63:0] memory_z_delayed;
@@ -66,10 +68,22 @@ module Read_FIFO
 
     // FIFO implementation.
     wire fifo_empty;
+/* verilator lint_off UNUSED */
     wire fifo_full;
+/* verilator lint_on UNUSED */
     reg fifo_read;
     reg got_fifo_data;
-    scfifo fifo(
+/* verilator lint_off PINMISSING */
+    scfifo #(.add_ram_output_register("OFF"),
+             .intended_device_family("CYCLONEV"),
+             .lpm_numwords(FIFO_DEPTH),
+             .lpm_showahead("OFF"),
+             .lpm_type("scfifo"),
+             .lpm_width(188),
+             .lpm_widthu(FIFO_DEPTH_LOG2),
+             .overflow_checking("ON"),
+             .underflow_checking("ON"),
+             .use_eab("ON")) fifo(
             .aclr(!reset_n),
             .clock(clock),
             .data(fifo_write_data),
@@ -79,16 +93,7 @@ module Read_FIFO
             .q(fifo_read_data),
             .rdreq(fifo_read),
             .wrreq(enqueue));
-    defparam fifo.add_ram_output_register = "OFF",
-             fifo.intended_device_family = "CYCLONEV",
-             fifo.lpm_numwords = FIFO_DEPTH,
-             fifo.lpm_showahead = "OFF",
-             fifo.lpm_type = "scfifo",
-             fifo.lpm_width = 188,
-             fifo.lpm_widthu = FIFO_DEPTH_LOG2,
-             fifo.overflow_checking = "ON",
-             fifo.underflow_checking = "ON",
-             fifo.use_eab = "ON";
+/* verilator lint_on PINMISSING */
 
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
@@ -124,5 +129,7 @@ module Read_FIFO
             write_pixel_active <= z_active ? new_pixel_active : fifo_pixel_active;
         end
     end
+
+/* verilator lint_on WIDTH */
 
 endmodule

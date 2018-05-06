@@ -14,6 +14,7 @@
 
 #undef DEBUG_PRINT
 #undef COVERAGE_PRINT
+// See the ../NOTES file:
 #undef DUMP_ALL_COMMANDS
 #undef SKIP_FPGA_WORK
 #define WARN_SKIPPED_FRAME

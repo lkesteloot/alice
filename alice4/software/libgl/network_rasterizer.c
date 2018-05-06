@@ -88,6 +88,7 @@ void rasterizer_swap()
 
 int32_t rasterizer_winopen(char *title)
 {
+    // See the ../NOTES file:
     save_filename = getenv("SAVE_DRAWING_FILENAME");
     if(save_filename != NULL) {
         save_file = fopen(save_filename, "w");

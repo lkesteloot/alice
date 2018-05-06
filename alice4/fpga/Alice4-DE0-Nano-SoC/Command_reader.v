@@ -37,7 +37,7 @@ module Command_reader
     reg [2:0] state;
 
     // Internal state.
-    reg [26:0] pc;
+    reg [28:0] pc;
     reg [FIFO_DEPTH-1:0] pending_reads;
 
     // External state.
@@ -46,7 +46,17 @@ module Command_reader
     // FIFO.
     reg fifo_sclr;
     wire [FIFO_DEPTH_LOG2-1:0] fifo_size;
-    scfifo fifo(
+/* verilator lint_off PINMISSING */
+    scfifo #(.add_ram_output_register("OFF"),
+             .intended_device_family("CYCLONEV"),
+             .lpm_numwords(FIFO_DEPTH),
+             .lpm_showahead("OFF"),
+             .lpm_type("scfifo"),
+             .lpm_width(64),
+             .lpm_widthu(FIFO_DEPTH_LOG2),
+             .overflow_checking("ON"),
+             .underflow_checking("ON"),
+             .use_eab("ON")) fifo(
             .aclr(!reset_n),
             .sclr(fifo_sclr),
             .clock(clock),
@@ -56,22 +66,15 @@ module Command_reader
             .q(fifo_q),
             .rdreq(fifo_rdreq),
             .wrreq(read_readdatavalid));
-    defparam fifo.add_ram_output_register = "OFF",
-             fifo.intended_device_family = "CYCLONEV",
-             fifo.lpm_numwords = FIFO_DEPTH,
-             fifo.lpm_showahead = "OFF",
-             fifo.lpm_type = "scfifo",
-             fifo.lpm_width = 64,
-             fifo.lpm_widthu = FIFO_DEPTH_LOG2,
-             fifo.overflow_checking = "ON",
-             fifo.underflow_checking = "ON",
-             fifo.use_eab = "ON";
+/* verilator lint_on PINMISSING */
 
     always @(posedge clock or negedge reset_n) begin
         if (!reset_n) begin
             state <= STATE_INIT;
+/* verilator lint_off WIDTH */
             pc <= CMD_ADDRESS/8;
-            pending_reads <= 1'b0;
+/* verilator lint_on WIDTH */
+            pending_reads <= {FIFO_DEPTH{1'b0}};
             read_read <= 1'b0;
             fifo_sclr <= 1'b0;
         end else begin
@@ -94,7 +97,9 @@ module Command_reader
 
                 // Restart the module.
                 STATE_RESTART: begin
+/* verilator lint_off WIDTH */
                     pc <= CMD_ADDRESS/8;
+/* verilator lint_on WIDTH */
                     state <= STATE_FLUSHING_READS;
                 end
 
@@ -118,7 +123,9 @@ module Command_reader
                     // If we're being told to hold our request, do so.
                     if (read_read && read_waitrequest) begin
                         // Do nothing.
+/* verilator lint_off WIDTH */
                     end else if (fifo_size + pending_reads < FIFO_DEPTH - 3) begin
+/* verilator lint_on WIDTH */
                         // Initiate read from memory.
                         read_address <= pc;
                         read_read <= 1'b1;

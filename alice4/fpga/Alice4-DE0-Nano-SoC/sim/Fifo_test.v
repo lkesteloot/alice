@@ -63,17 +63,17 @@ module Fifo_test(
 
             STATE_WRITE1: begin
                 fifo_wrreq <= 1'b1;
-                fifo_data <= 64'hDEA1_BEE2;
+                fifo_data <= 64'hA;
                 state <= STATE_WRITE2;
             end
 
             STATE_WRITE2: begin
-                fifo_data <= 64'hDEA3_BEE4;
+                fifo_data <= 64'hB;
                 state <= STATE_WRITE3;
             end
 
             STATE_WRITE3: begin
-                fifo_data <= 64'hDEA5_BEE6;
+                fifo_data <= 64'hC;
                 state <= STATE_PAUSE;
             end
 
@@ -97,6 +97,7 @@ module Fifo_test(
 
             STATE_HALT: begin
                 fifo_rdreq <= 1'b0;
+                $finish;
             end
 
             default: begin

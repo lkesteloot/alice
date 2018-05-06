@@ -1,0 +1,12 @@
+
+Route to fpgasim:
+    Modify network_rasterizer.c to emit hardware protocol.
+    Modify sim_main.c to listen to socket and take commands from there.
+    Modify sim_main.c to forward screen to fpgasim (or other Mac program), either all at once
+        or on the go.
+    Or embed sim_main.c into fpgasim and hit it directly.
+
+Look for XXX comments.
+
+We forked Main.v, but see if we can integrate it back.
+

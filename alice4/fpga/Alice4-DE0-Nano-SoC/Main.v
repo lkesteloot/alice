@@ -40,12 +40,53 @@ module Main(
 
         // This is on GPIO 1 (GPIO_1[27], pin 32, PIN_AH22).
         // It'll pulled up internally.
+`ifndef VERILATOR
         input home_button_pin,
+`endif
 
         //////////// HPS //////////
         /* 3.3-V LVTTL */
         /// inout hps_conv_usb_n,
-        
+
+`ifdef VERILATOR
+	output [28:0] hps_0_f2h_sdram0_data_address,
+	output [7:0] hps_0_f2h_sdram0_data_burstcount,
+	input hps_0_f2h_sdram0_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram0_data_readdata,
+	input hps_0_f2h_sdram0_data_readdatavalid,
+	output hps_0_f2h_sdram0_data_read,
+
+	output [28:0] hps_0_f2h_sdram1_data_address,
+	output [7:0] hps_0_f2h_sdram1_data_burstcount,
+	input hps_0_f2h_sdram1_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram1_data_readdata,
+	input hps_0_f2h_sdram1_data_readdatavalid,
+	output hps_0_f2h_sdram1_data_read,
+
+	output [28:0] hps_0_f2h_sdram2_data_address,
+	output [7:0] hps_0_f2h_sdram2_data_burstcount,
+	input hps_0_f2h_sdram2_data_waitrequest,
+	input [63:0] hps_0_f2h_sdram2_data_readdata,
+	input hps_0_f2h_sdram2_data_readdatavalid,
+	output hps_0_f2h_sdram2_data_read,
+
+        output [28:0] hps_0_f2h_sdram3_data_address,
+        output [7:0] hps_0_f2h_sdram3_data_burstcount,
+        input hps_0_f2h_sdram3_data_waitrequest,
+        output [63:0] hps_0_f2h_sdram3_data_writedata,
+        output [7:0] hps_0_f2h_sdram3_data_byteenable,
+        output hps_0_f2h_sdram3_data_write,
+
+        output [28:0] hps_0_f2h_sdram4_data_address,
+        output [7:0] hps_0_f2h_sdram4_data_burstcount,
+        input hps_0_f2h_sdram4_data_waitrequest,
+        output [63:0] hps_0_f2h_sdram4_data_writedata,
+        output [7:0] hps_0_f2h_sdram4_data_byteenable,
+        output hps_0_f2h_sdram4_data_write,
+
+        input [31:0] sim_h2f_value,
+        output [31:0] sim_f2h_value,
+`else
         /* SSTL-15 Class I */
         output [14:0] hps_ddr3_addr,
         output [2:0] hps_ddr3_ba,
@@ -64,6 +105,7 @@ module Main(
         output hps_ddr3_ck_p,
         inout [3:0] hps_ddr3_dqs_n,
         inout [3:0] hps_ddr3_dqs_p,
+`endif
         
         /* 3.3-V LVTTL */
         /*
@@ -102,7 +144,9 @@ module Main(
 
         //////////// KEY ////////////
         /* 3.3-V LVTTL */
+        /* verilator lint_off UNUSED */
         input [1:0] key,
+        /* verilator lint_on UNUSED */
         
         //////////// LED ////////////
         /* 3.3-V LVTTL */
@@ -110,7 +154,7 @@ module Main(
         
         //////////// SW ////////////
         /* 3.3-V LVTTL */
-        input [3:0] sw
+        input [3:0] sw /* verilator public */
 );
 
     // 1G minus 128M, in bytes.
@@ -134,6 +178,8 @@ module Main(
     // Reset.
     wire reset_n = 1'b1; // key[0];
     assign led[1] = !reset_n;
+    assign led[7:2] = 0;
+    assign led[0] = 0;
 
     // Exchange data with HPS.
     wire [31:0] f2h_value = {
@@ -143,11 +189,18 @@ module Main(
         fb_front_buffer,
         rasterizer_busy
     };
+    /* verilator lint_off UNUSED */
     wire [31:0] h2f_value;
+    /* verilator lint_on UNUSED */
+`ifdef VERILATOR
+    assign sim_f2h_value = f2h_value;
+    assign h2f_value = sim_h2f_value;
+`else
     cyclonev_hps_interface_mpu_general_purpose h2f_gp(
          .gp_in(f2h_value),    // Value to the HPS (continuous).
          .gp_out(h2f_value)    // Value from the HPS (latched).
     );
+`endif
 
     // Interface to HPS.
     wire [28:0] sdram0_address;
@@ -180,10 +233,48 @@ module Main(
     wire [63:0] sdram4_writedata;
     wire [7:0] sdram4_byteenable;
     wire sdram4_write;
+`ifndef VERILATOR
     wire i2c1_sda_out_enable;
     wire i2c1_sda;
     wire i2c1_scl_out_enable;
     wire i2c1_scl;
+`endif
+`ifdef VERILATOR
+    assign hps_0_f2h_sdram0_data_address = sdram0_address;
+    assign hps_0_f2h_sdram0_data_burstcount = sdram0_burstcount;
+    assign sdram0_waitrequest = hps_0_f2h_sdram0_data_waitrequest;
+    assign sdram0_readdata = hps_0_f2h_sdram0_data_readdata;
+    assign sdram0_readdatavalid = hps_0_f2h_sdram0_data_readdatavalid;
+    assign hps_0_f2h_sdram0_data_read = sdram0_read;
+
+    assign hps_0_f2h_sdram1_data_address = sdram1_address;
+    assign hps_0_f2h_sdram1_data_burstcount = sdram1_burstcount;
+    assign sdram1_waitrequest = hps_0_f2h_sdram1_data_waitrequest;
+    assign sdram1_readdata = hps_0_f2h_sdram1_data_readdata;
+    assign sdram1_readdatavalid = hps_0_f2h_sdram1_data_readdatavalid;
+    assign hps_0_f2h_sdram1_data_read = sdram1_read;
+
+    assign hps_0_f2h_sdram2_data_address = sdram2_address;
+    assign hps_0_f2h_sdram2_data_burstcount = sdram2_burstcount;
+    assign sdram2_waitrequest = hps_0_f2h_sdram2_data_waitrequest;
+    assign sdram2_readdata = hps_0_f2h_sdram2_data_readdata;
+    assign sdram2_readdatavalid = hps_0_f2h_sdram2_data_readdatavalid;
+    assign hps_0_f2h_sdram2_data_read = sdram2_read;
+
+    assign hps_0_f2h_sdram3_data_address = sdram3_address;
+    assign hps_0_f2h_sdram3_data_burstcount = sdram3_burstcount;
+    assign sdram3_waitrequest = hps_0_f2h_sdram3_data_waitrequest;
+    assign hps_0_f2h_sdram3_data_writedata = sdram3_writedata;
+    assign hps_0_f2h_sdram3_data_byteenable = sdram3_byteenable;
+    assign hps_0_f2h_sdram3_data_write = sdram3_write;
+
+    assign hps_0_f2h_sdram4_data_address = sdram4_address;
+    assign hps_0_f2h_sdram4_data_burstcount = sdram4_burstcount;
+    assign sdram4_waitrequest = hps_0_f2h_sdram4_data_waitrequest;
+    assign hps_0_f2h_sdram4_data_writedata = sdram4_writedata;
+    assign hps_0_f2h_sdram4_data_byteenable = sdram4_byteenable;
+    assign hps_0_f2h_sdram4_data_write = sdram4_write;
+`else
     soc_system soc_system_instance(
         .clk_clk(clock_50),
         // Physical memory interface.
@@ -244,19 +335,22 @@ module Main(
         .hps_0_i2c1_clk_clk(i2c1_scl_out_enable),
         .hps_0_i2c1_scl_in_clk(i2c1_scl)
     );
+`endif
 
     // Generate signals for the LCD.
-    wire [9:0] lcd_x;
-    wire [9:0] lcd_y;
+    /* verilator lint_off UNUSED */
+    wire [9:0] lcd_x /* verilator public */;
+    wire [9:0] lcd_y /* verilator public */;
     // This is both a tick and a clock, which we can do because it's
     // half the speed of clock_50.
-    reg lcd_tick;
-    wire lcd_data_enable;
+    reg lcd_tick /* verilator public */;
+    wire lcd_data_enable /* verilator public */;
     wire lcd_hs_n;
     wire lcd_vs_n;
     wire lcd_display_on = 1'b1;
     wire lcd_pwm;
-    wire next_frame;
+    wire next_frame /* verilator public */;
+    /* verilator lint_on UNUSED */
     LCD_control lcd_control(
         .clock(clock_50),
         .tick(lcd_tick),
@@ -285,9 +379,9 @@ module Main(
 
     // Generate characters themselves.
     wire [6:0] character;
-    wire [31:0] rast_debug_value0;
-    wire [31:0] rast_debug_value1;
-    wire [31:0] rast_debug_value2;
+    wire [31:0] rast_debug_value0 = 32'hdeadbeef;
+    wire [31:0] rast_debug_value1 = 32'hcafebabe;
+    wire [31:0] rast_debug_value2 = 32'hfacefeed;
     LCD_debug lcd_debug(
         .column(text_column),
         .row(text_row),
@@ -298,9 +392,11 @@ module Main(
     );
 
     // Frame buffer.
+    /* verilator lint_off UNUSED */
     wire [31:0] fb_debug_value0;
     wire [31:0] fb_debug_value1;
     wire [31:0] fb_debug_value2;
+    /* verilator lint_on UNUSED */
     wire rast_front_buffer;
     wire fb_front_buffer;
     wire [7:0] fb_red;
@@ -326,6 +422,7 @@ module Main(
         .lcd_green(fb_green),
         .lcd_blue(fb_blue),
         .lcd_data_enable(lcd_data_enable),
+        .lcd_data_enable_delayed(lcd_data_enable_delayed),
 
         // Front buffer handling.
         .rast_front_buffer(rast_front_buffer),
@@ -338,7 +435,7 @@ module Main(
     );
 
     // Generate pixels.
-    wire character_bw;
+    wire character_bw /* verilator public */;
     LCD_font lcd_font(
         .clock(clock_50),
         .character(character),
@@ -349,9 +446,11 @@ module Main(
 
     // Reads the command buffer into a FIFO.
     wire cmd_restart;
+/* verilator lint_off UNUSED */
     wire cmd_ready;
     wire cmd_fifo_empty;
     wire [63:0] cmd_fifo_q;
+/* verilator lint_on UNUSED */
     wire cmd_fifo_rdreq;
     Command_reader #(.CMD_ADDRESS(CMD_ADDRESS)) command_reader(
         // Control.
@@ -434,13 +533,10 @@ module Main(
     wire [7:0] lcd_red = character_bw_latched && sw[3] ? 8'h80 : fb_red;
     wire [7:0] lcd_green = character_bw_latched && sw[3] ? 8'h00 : fb_green;
     wire [7:0] lcd_blue = character_bw_latched && sw[3] ? 8'h00 : fb_blue;
-    reg lcd_data_enable_delayed;
+    wire lcd_data_enable_delayed;
     reg character_bw_latched;
     always @(posedge clock_50) begin
         if (lcd_tick) begin
-            // We must delay lcd_data_enable by one clock because
-            // the frame buffer has sent us delayed color.
-            lcd_data_enable_delayed <= lcd_data_enable;
             character_bw_latched <= character_bw;
         end
     end
@@ -500,6 +596,9 @@ module Main(
         lcd_tick <= ~lcd_tick;
     end
 
+`ifdef VERILATOR
+    assign lcd_pwm = 1'b1;
+`else
     // LCD backlight PWM.
     // Brightness value between 0 and 1000 inclusive, where both
     // ends cause no waveform at all.
@@ -540,8 +639,12 @@ module Main(
         .debug_value0(test_debug_value0),
         .debug_value1(test_debug_value1),
         .debug_value2(test_debug_value2));
+`endif
 
     // Home button circuit.
+`ifdef VERILATOR
+    wire f2h_home_button = 1'b0;
+`else
     wire raw_home_button = !home_button_pin; // Physical button is active low.
     wire home_button;
     reg f2h_home_button;
@@ -569,5 +672,6 @@ module Main(
     assign gpio_0[35] = i2c1_sda_out_enable ? 1'b0 : 1'bz;
     assign i2c1_scl = gpio_0[34];
     assign i2c1_sda = gpio_0[35];
+`endif
 
 endmodule

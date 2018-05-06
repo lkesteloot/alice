@@ -60,6 +60,8 @@ module Rasterizer
     output wire [31:0] debug_value2
 );
 
+/* verilator lint_off WIDTH */
+
     // Debugging.
     assign debug_value0 = {
         3'b0,
@@ -157,7 +159,9 @@ module Rasterizer
     reg [2:0] read_cmd_count;
 
     // The most recent command word we've read.
+/* verilator lint_off UNUSED */
     reg [63:0] command_word;
+/* verilator lint_on UNUSED */
     wire [7:0] command = command_word[7:0];
     wire use_z_buffer = command_word[32];
     wire draw_with_pattern = command_word[33];
@@ -170,9 +174,11 @@ module Rasterizer
     reg [255:0] pattern;
     reg [15:0] triangle_count;
     // Current triangle's raw vertices:
+/* verilator lint_off UNUSED */
     reg [63:0] vertex_0;
     reg [63:0] vertex_1;
     reg [63:0] vertex_2;
+/* verilator lint_on UNUSED */
     // Pull out the vertex data (raw bits). Extend colors and Z to 32 bits so
     // that later multiplies will have sufficient precision.
     wire [9:0] vertex_0_x = vertex_0[11:2];
@@ -211,8 +217,10 @@ module Rasterizer
     reg [8:0] tri_max_y;
     wire signed [10:0] tri_min_sx = $signed({1'b0, tri_min_x});
     wire signed [9:0] tri_min_sy = $signed({1'b0, tri_min_y});
+    /* Not currently used.
     wire signed [10:0] tri_max_sx = $signed({1'b0, tri_max_x});
     wire signed [9:0] tri_max_sy = $signed({1'b0, tri_max_y});
+    */
     reg [28:0] tri_color_address_row;
     reg [28:0] tri_color_address;
     reg [28:0] tri_z_address_row;
@@ -326,24 +334,36 @@ module Rasterizer
     wire [63:0] write_fifo_z;
     wire [1:0] write_fifo_pixel_active;
     wire [WRITE_FIFO_DEPTH_LOG2-1:0] write_fifo_size;
+/* verilator lint_off UNUSED */
     wire [7:0] write_fifo_error;
+/* verilator lint_on UNUSED */
 
     // Divider for the area reciprocal.
     // https://www.altera.com/en_US/pdfs/literature/ug/ug_lpm_alt_mfug.pdf
     wire signed [31:0] tri_area_recip_result;
     reg area_reciprocal_enabled;
+/* verilator lint_off PINMISSING */
     lpm_divide
+`ifdef VERILATOR
+        #(.lpm_widthn(32),
+          .lpm_widthd(32),
+          .lpm_nrepresentation("UNSIGNED"),
+          .lpm_drepresentation("SIGNED"),
+          .lpm_pipeline(6)) area_divider(
+`else
         #(.LPM_WIDTHN(32),
           .LPM_WIDTHD(32),
           .LPM_NREPRESENTATION("UNSIGNED"),
           .LPM_DREPRESENTATION("SIGNED"),
           .LPM_PIPELINE(6)) area_divider(
+`endif
             .clock(clock),
             .clken(area_reciprocal_enabled),
             .numer(32'h7FFF_FFFF),
             .denom(tri_area),
             .quotient(tri_area_recip_result)
         );
+/* verilator lint_on PINMISSING */
 
     // Read FIFO for waiting for Z read results.
     reg read_fifo_z_active;
@@ -455,6 +475,7 @@ module Rasterizer
             ///     unhandled_count <= write_fifo_error;
             /// end
 
+            /// $display("------------- Rasterizer state: %d", state);
             case (state)
                 STATE_INIT: begin
                     busy <= 1'b0;
@@ -1101,5 +1122,7 @@ module Rasterizer
             endcase
         end
     end
+
+/* verilator lint_on WIDTH */
 
 endmodule
