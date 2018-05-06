@@ -14,6 +14,10 @@ MAIN_CPP=sim_main
 run: build
 	./obj_dir/V$(MAIN)
 
+logo: build
+	# See ../../../software/NOTES
+	./obj_dir/VMain ../../../software/logo/cmd.bin
+
 build: verilate
 	# Add OPT=-DVL_DEBUG to display debug output.
 	cd obj_dir && make -j -f V$(MAIN).mk V$(MAIN)
