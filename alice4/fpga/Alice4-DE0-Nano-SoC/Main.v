@@ -144,7 +144,9 @@ module Main(
 
         //////////// KEY ////////////
         /* 3.3-V LVTTL */
+        /* verilator lint_off UNUSED */
         input [1:0] key,
+        /* verilator lint_on UNUSED */
         
         //////////// LED ////////////
         /* 3.3-V LVTTL */
