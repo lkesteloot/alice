@@ -141,6 +141,8 @@ a.home-link {
 
 .member-description {
     text-align: center;
+    margin-top: 3em;
+    text-transform: uppercase;
 }
 
 @media all and (max-width: 800px) {
