@@ -5,7 +5,8 @@ USE_BG80D=1
 
 OPT=-g
 LDFLAGS=-L/opt/local/lib
-LDLIBS=-lvncserver -lreadline
+# LDLIBS=-lvncserver -lreadline
+LDLIBS=-lreadline
 CXXFLAGS=-Wall -I/opt/local/include -I$(BG80D_PATH) -DUSE_BG80D=$(USE_BG80D) -std=c++11 $(OPT)
 
 VPATH=$(BG80D_PATH)
