@@ -1,0 +1,1 @@
+./emulator -debugger "symbols ../rombasic/basic.prn;pc 0x0000" ../cpm/boot.dsk,../cpm/boot.dsk ../rombasic/basic.hex
