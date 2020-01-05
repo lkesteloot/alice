@@ -30,6 +30,7 @@ static const bool GENERATE_JSON = false;
 static uint8_t gLcd[PIXEL_COUNT*3];
 static int gLcdIndex = 0;
 
+// In words.
 static const uint32_t MEMORY_BASE = 0x7000000;
 static const uint32_t FRAME_BUFFER_SIZE = PIXEL_COUNT/PIXELS_PER_WORD;
 static const uint32_t COMMAND_BUFFER_SIZE = 16*1024*1024;
