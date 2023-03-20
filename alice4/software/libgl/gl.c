@@ -3271,7 +3271,7 @@ void rectf_(Coord x1, Coord y1, Coord x2, Coord y2) {
     pdr_(x1, y2, 0);
     pdr_(x2, y2, 0);
     pdr_(x2, y1, 0);
-    end_polygon();
+    endpolygon();
 }
 
 void rect_(Coord x1, Coord y1, Coord x2, Coord y2) {
